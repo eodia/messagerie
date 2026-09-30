@@ -1,6 +1,7 @@
 import { render } from 'preact'
 import { WidgetApi } from './api'
 import { App, type Controls } from './app'
+import { PreviewBackend } from './preview'
 import { STYLES } from './styles'
 
 /**
@@ -13,6 +14,9 @@ import { STYLES } from './styles'
  * styles do not reach it, and its own reach nothing of the page.
  *
  * The page may open and close it: `window.MessagerieChat.open()`, `.close()`.
+ *
+ * `data-preview="<inbox origin>"`: the widget in the inbox's editor — fed by the editor
+ * through `postMessage`, from that origin only, and never by the chat server.
  */
 
 declare global {
@@ -53,11 +57,29 @@ function start(): void {
   const bind = (controls: Controls) => {
     window.MessagerieChat = { ...window.MessagerieChat, ...controls }
   }
+  const pageFont = window.getComputedStyle(document.body).fontFamily || null
+  const editor = script.dataset.preview
+  if (editor) {
+    const preview = new PreviewBackend(editor)
+    render(
+      <App
+        api={preview}
+        identity={null}
+        poweredBy={PRODUCT_NAME}
+        pageFont={pageFont}
+        bind={bind}
+        watch={(onChange) => preview.watch(onChange)}
+      />,
+      mount,
+    )
+    return
+  }
   render(
     <App
       api={new WidgetApi(base, site)}
       identity={identity}
       poweredBy={PRODUCT_NAME}
+      pageFont={pageFont}
       bind={bind}
     />,
     mount,

@@ -45,8 +45,39 @@ export interface WidgetAvailability {
   readonly closureMessage: string | null
 }
 
+/** How the widget looks and behaves on a site: its row in basedb, table « Sites ». */
+export interface WidgetAppearance {
+  readonly position: 'right' | 'left'
+  /** Pixels from the page's side, and from its bottom. */
+  readonly offsetX: number
+  readonly offsetY: number
+  /** A round icon, or a pill with `launcherLabel`. */
+  readonly launcher: 'round' | 'label'
+  readonly launcherLabel: string | null
+  /** `site`: the page's own; `custom`: `customFont`, which the page already loads. */
+  readonly font: 'site' | 'system' | 'rounded' | 'serif' | 'custom'
+  readonly customFont: string | null
+  readonly theme: 'auto' | 'light' | 'dark'
+  readonly corners: 'round' | 'soft' | 'square'
+  /** An https image, square, at the head of the panel. */
+  readonly logo: string | null
+  /** The agents' initials at the head of the panel. */
+  readonly showTeam: boolean
+  /** Seconds before the welcome shows beside the launcher; null: never. */
+  readonly nudgeAfter: number | null
+  readonly hideOnMobile: boolean
+  /** No widget while neither the AI nor an agent can answer. */
+  readonly hideWhenAway: boolean
+  /** « Propulsé par … » at the foot of the panel. */
+  readonly branding: boolean
+}
+
 export interface WidgetSite {
   readonly name: string
+  /** The greeting's heading; `{prénom}` stands for a signed-in customer's first name. */
+  readonly title: string | null
+  /** The line under it. */
+  readonly tagline: string | null
   readonly welcome: string | null
   /** Questions offered with a click before the visitor writes. */
   readonly suggestions: readonly string[]
@@ -56,8 +87,9 @@ export interface WidgetSite {
   readonly language: string
   /** The AI answers first. */
   readonly ai: boolean
-  /** The first names of a few agents: the people behind the AI. */
+  /** The first names of a few agents: the people behind the AI. Empty when hidden. */
   readonly team: readonly string[]
+  readonly appearance: WidgetAppearance
 }
 
 export interface WidgetSessionBody {

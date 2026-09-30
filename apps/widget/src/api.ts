@@ -11,6 +11,14 @@ import type {
  * token is kept in the page's storage, per site: the next visit finds the conversation.
  */
 
+/** What the widget asks of a server: the chat server's API, or the editor's preview. */
+export interface Backend {
+  session(identity: string | null): Promise<WidgetSession>
+  conversation(): Promise<VisitorConversation | null>
+  send(body: string): Promise<VisitorConversation>
+  follow(onEvent: (event: WidgetEvent) => void): () => void
+}
+
 export class WidgetFailure extends Error {
   constructor(
     readonly code: string,
@@ -20,7 +28,7 @@ export class WidgetFailure extends Error {
   }
 }
 
-export class WidgetApi {
+export class WidgetApi implements Backend {
   private token: string | null
 
   constructor(

@@ -104,9 +104,17 @@ describe('a session', () => {
     const opened = await session()
     expect(opened).toMatchObject({
       contact: { name: null, identified: false },
-      site: { name: 'Acme Assurances', color: '#2563EB', language: 'fr', ai: true },
+      site: {
+        name: 'Acme Assurances',
+        title: 'Bonjour {prénom} !',
+        color: '#2563EB',
+        language: 'fr',
+        ai: true,
+        appearance: { position: 'right', launcher: 'round', font: 'site', nudgeAfter: 4 },
+      },
       conversation: null,
     })
+    expect(opened.site.team).toEqual(['Marc'])
     expect(opened.visitor).toMatch(/^v1\./)
     expect(typeof opened.availability.open).toBe('boolean')
   })

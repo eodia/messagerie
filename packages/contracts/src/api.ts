@@ -42,6 +42,8 @@ export type ErrorCode =
   /** Reserved to supervisors. */
   | 'NOT_ALLOWED'
   | 'TOOL_NOT_FOUND'
+  /** basedb refused a change of settings: the person may not edit that table there. */
+  | 'SETTINGS_WRITE_REFUSED'
 
 /** Opens the inbox's WebSocket, once, within thirty seconds. */
 export interface Ticket {

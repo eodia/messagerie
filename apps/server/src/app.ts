@@ -30,6 +30,7 @@ import {
 import { listNotifications, readNotifications } from './inbox/notifications.js'
 import { loadConversation, loadSummaries, toAgent } from './inbox/read.js'
 import { runInConversation, testTool, toolsOverview } from './inbox/tools-screen.js'
+import { saveWidget, widgetEditor } from './inbox/widget-editor.js'
 import {
   assign,
   listAgents,
@@ -44,6 +45,7 @@ import { Refusal } from './refusal.js'
 import type { Settings } from './settings/settings.js'
 import { demoPage } from './widget/demo.js'
 import type { WidgetHub } from './widget/hub.js'
+import { previewPage } from './widget/preview-page.js'
 import { widgetRoutes, widgetScript } from './widget/routes.js'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -201,6 +203,28 @@ export function createApp({
 
   inbox.get('/tools', async (c) => c.json(await toolsOverview(settings, mcp)))
 
+  inbox.get('/widget', async (c) =>
+    c.json(
+      settings
+        ? await widgetEditor(settings, c.get('agent'), ai !== null)
+        : { sites: [], persistent: false, canEdit: false },
+    ),
+  )
+
+  /** A supervisor saves a site's widget — into its row of basedb, as themselves. */
+  inbox.put('/widget/:site', async (c) => {
+    if (!settings) throw new Refusal('SITE_NOT_FOUND', 404)
+    const saved = await saveWidget(
+      settings,
+      c.get('agent'),
+      c.get('basedbToken'),
+      c.req.param('site'),
+      await jsonBody(c.req.raw),
+      ai !== null,
+    )
+    return c.json(saved)
+  })
+
   /** An agent runs a copilot tool in a conversation; its trace joins the thread. */
   inbox.post('/conversations/:id/tools', async (c) => {
     const { tool, server, arguments: args } = await jsonBody(c.req.raw)
@@ -353,6 +377,12 @@ export function createApp({
     c.header('content-type', 'text/javascript; charset=utf-8')
     c.header('cache-control', config.production ? 'public, max-age=300' : 'no-store')
     return c.body(source)
+  })
+  // The editor's preview: a page the inbox frames, where the widget waits for the editor.
+  app.get('/widget/preview', (c) => {
+    c.header('content-security-policy', `frame-ancestors ${config.webOrigin}`)
+    c.header('cache-control', 'no-store')
+    return c.html(previewPage(config.webOrigin))
   })
   if (!config.production) {
     app.get('/demo', async (c) => c.html(await demoPage(db, c.req.query('client') === 'sophie')))

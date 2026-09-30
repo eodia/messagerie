@@ -13,6 +13,7 @@ import { createConversation, receiveVisitorMessage } from '../inbox/incoming.js'
 import { Refusal } from '../refusal.js'
 import { availability } from '../settings/hours.js'
 import type { Settings, Site } from '../settings/settings.js'
+import { languageCode } from '../settings/widget.js'
 import { type VisitorClaims, signVisitor, verifyIdentity, verifyVisitor } from './tokens.js'
 
 /**
@@ -32,13 +33,6 @@ export interface WidgetDeps {
 
 /** A conversation resolved more than a day ago is over: the visitor starts a new one. */
 const RESUME_MS = 24 * 60 * 60 * 1000
-
-const LANGUAGES: Readonly<Record<string, string>> = {
-  Français: 'fr',
-  English: 'en',
-  Deutsch: 'de',
-  Español: 'es',
-}
 
 /** Whether a page of `origin` may show this site's widget: its host is one of the site's. */
 export function originAllowed(
@@ -159,12 +153,15 @@ export async function openSession(
     contact: { name: contact.identified ? contact.name : null, identified: contact.identified },
     site: {
       name: site.name,
+      title: site.title,
+      tagline: site.tagline,
       welcome: site.welcome,
       suggestions: site.suggestions,
       color: site.color,
-      language: LANGUAGES[site.language] ?? 'fr',
+      language: languageCode(site.language),
       ai: site.aiEnabled && deps.aiAvailable,
-      team: (await settings.teamFirstNames()).slice(0, 3),
+      team: site.appearance.showTeam ? (await settings.teamFirstNames()).slice(0, 3) : [],
+      appearance: site.appearance,
     },
     availability: await whenAvailable(settings, site),
     conversation: await visitorConversation(db, contact.id),

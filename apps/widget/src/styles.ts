@@ -2,10 +2,25 @@
  * The widget's styles, inside its shadow root: the page's CSS cannot reach them, and they
  * reach nothing of the page.
  *
- * The accent is the SITE's colour (`--accent`, set from its row in basedb); the neutrals are
- * basedb's zinc; violet belongs to the AI alone. The system font: a widget loads no font on
- * someone else's page. Dark when the visitor's system is.
+ * What the site chooses in its row of basedb arrives as custom properties and classes on
+ * `.root`: its colour (`--accent`), its distances to the page's edges (`--x`, `--y`), its
+ * font (`--font`: the page's own by default — a widget loads no font on someone else's
+ * page), its corners (`.soft`, `.square`), its side (`.left`) and its theme (`.light`,
+ * `.dark`; otherwise the visitor's system decides). The neutrals are basedb's zinc; violet
+ * belongs to the AI alone.
  */
+
+const DARK = `
+  --ink: #f4f4f5;
+  --ink-2: #c4c4c8;
+  --muted: #a1a1aa;
+  --line: #2e2e33;
+  --surface: #18181b;
+  --canvas: #111113;
+  --bubble: #202024;
+  --shadow: 0 32px 80px -24px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.06);
+`
+
 export const STYLES = `
 :host { all: initial; }
 *, *::before, *::after { box-sizing: border-box; }
@@ -22,32 +37,29 @@ export const STYLES = `
   --canvas: #f6f6f7;
   --bubble: #ffffff;
   --shadow: 0 32px 80px -24px rgb(24 24 27 / 0.35), 0 8px 24px -12px rgb(24 24 27 / 0.18);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --x: 20px;
+  --y: 20px;
+  --r-panel: 24px; --r-bubble: 20px; --r-tail: 6px; --r-pill: 999px; --r-field: 24px; --r-launcher: 50%;
+  font-family: var(--font, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
   font-size: 14.5px;
   line-height: 1.5;
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
 }
 @media (prefers-color-scheme: dark) {
-  .root {
-    --ink: #f4f4f5;
-    --ink-2: #c4c4c8;
-    --muted: #a1a1aa;
-    --line: #2e2e33;
-    --surface: #18181b;
-    --canvas: #111113;
-    --bubble: #202024;
-    --shadow: 0 32px 80px -24px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.06);
-  }
+  .root:not(.light) {${DARK}}
 }
+.root.dark {${DARK}}
+.root.soft { --r-panel: 16px; --r-bubble: 14px; --r-tail: 4px; --r-pill: 12px; --r-field: 14px; --r-launcher: 18px; }
+.root.square { --r-panel: 6px; --r-bubble: 6px; --r-tail: 2px; --r-pill: 6px; --r-field: 6px; --r-launcher: 8px; }
 button, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ── The launcher ─────────────────────────────────────────────────────────────── */
 .launcher {
-  position: fixed; right: 20px; bottom: 20px; z-index: 2147483000;
-  width: 60px; height: 60px; border-radius: 50%; border: 0;
+  position: fixed; right: var(--x); bottom: var(--y); z-index: 2147483000;
+  width: 60px; height: 60px; border-radius: var(--r-launcher); border: 0;
   background: var(--accent); color: var(--accent-ink);
   display: grid; place-items: center;
   box-shadow: 0 12px 28px -8px color-mix(in srgb, var(--accent) 55%, transparent), 0 2px 6px rgb(0 0 0 / 0.12);
@@ -60,6 +72,13 @@ button { cursor: pointer; }
 .launcher .when-open { opacity: 0; transform: rotate(-90deg) scale(.6); }
 .launcher.open .when-open { opacity: 1; transform: none; }
 .launcher.open .when-closed { opacity: 0; transform: rotate(90deg) scale(.6); }
+.root.left .launcher { right: auto; left: var(--x); }
+/* A pill that says what it opens, until it is open. */
+.launcher.labelled { width: auto; height: 52px; padding: 0 22px 0 18px; gap: 9px; display: flex; align-items: center; border-radius: var(--r-pill); }
+.launcher.labelled .icon { position: static; }
+.launcher.labelled .when-open { display: none; }
+.launcher.labelled svg { width: 22px; height: 22px; }
+.launcher .label { font-size: 15px; font-weight: 600; white-space: nowrap; }
 .badge {
   position: absolute; top: -3px; right: -3px; min-width: 22px; height: 22px; padding: 0 6px;
   border-radius: 999px; background: #e11d48; color: #fff; font-size: 12px; font-weight: 700;
@@ -68,8 +87,8 @@ button { cursor: pointer; }
 
 /* A new answer while the panel is closed: its first words, next to the launcher. */
 .preview {
-  position: fixed; right: 20px; bottom: 92px; z-index: 2147483000; width: 300px;
-  background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 18px;
+  position: fixed; right: var(--x); bottom: calc(var(--y) + 72px); z-index: 2147483000; width: 300px;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-bubble);
   box-shadow: var(--shadow);
   animation: rise .28s cubic-bezier(.2,.8,.2,1);
 }
@@ -85,23 +104,26 @@ button { cursor: pointer; }
 }
 .preview .dismiss:hover { background: var(--canvas); color: var(--ink); }
 .preview .dismiss svg { width: 14px; height: 14px; }
+.root.left .preview { right: auto; left: var(--x); }
 
 /* ── The panel ────────────────────────────────────────────────────────────────── */
 .panel {
-  position: fixed; inset: auto 20px 92px auto; margin: 0; padding: 0; max-width: none; max-height: none;
-  z-index: 2147483000; width: 392px; height: min(680px, calc(100vh - 120px));
+  position: fixed; inset: auto var(--x) calc(var(--y) + 72px) auto; margin: 0; padding: 0; max-width: none; max-height: none;
+  z-index: 2147483000; width: 392px; height: min(680px, calc(100vh - var(--y) - 100px));
   display: flex; flex-direction: column; overflow: hidden;
   background: var(--surface); color: var(--ink);
-  border: 0; border-radius: 24px; box-shadow: var(--shadow);
+  border: 0; border-radius: var(--r-panel); box-shadow: var(--shadow);
   transform-origin: bottom right;
   animation: open .32s cubic-bezier(.2,.9,.25,1);
 }
 @keyframes open { from { opacity: 0; transform: translateY(12px) scale(.96); } }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+.root.left .panel { inset: auto auto calc(var(--y) + 72px) var(--x); transform-origin: bottom left; }
 @media (max-width: 480px) {
-  .panel { inset: 0; width: 100vw; height: 100dvh; border-radius: 0; }
+  .root .panel, .root.left .panel { inset: 0; width: 100vw; height: 100dvh; border-radius: 0; }
   .launcher.open { display: none; }
-  .preview { right: 12px; left: 12px; width: auto; }
+  .root .preview, .root.left .preview { right: 12px; left: 12px; width: auto; }
+  .root.hide-mobile { display: none; }
 }
 
 /* The header: large while nothing is said — the greeting — then a single line. */
@@ -120,6 +142,7 @@ button { cursor: pointer; }
 .head .people { display: flex; align-items: center; }
 .head .people > * { box-shadow: 0 0 0 2px var(--accent); }
 .head .people > * + * { margin-left: -8px; }
+.head .logo { width: 32px; height: 32px; border-radius: 9px; object-fit: cover; background: #fff; }
 .head .person {
   width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
   font-size: 11.5px; font-weight: 650; letter-spacing: .01em;
@@ -159,6 +182,7 @@ button { cursor: pointer; }
 .group .stack { display: flex; flex-direction: column; gap: 3px; max-width: 82%; min-width: 0; }
 .group.mine .stack { align-items: flex-end; }
 .avatar-slot { width: 28px; flex: none; }
+img.person-avatar { object-fit: cover; background: #fff; }
 .person-avatar {
   width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
   font-size: 11px; font-weight: 650;
@@ -172,13 +196,13 @@ button { cursor: pointer; }
   color: color-mix(in oklab, var(--ai) 80%, var(--ink));
 }
 .bubble {
-  padding: 9px 14px; border-radius: 20px; background: var(--bubble); color: var(--ink);
+  padding: 9px 14px; border-radius: var(--r-bubble); background: var(--bubble); color: var(--ink);
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.06); overflow-wrap: anywhere;
   animation: rise .22s cubic-bezier(.2,.8,.2,1);
 }
-.group:not(.mine) .bubble.tail { border-bottom-left-radius: 6px; }
+.group:not(.mine) .bubble.tail { border-bottom-left-radius: var(--r-tail); }
 .group.mine .bubble { background: var(--accent); color: var(--accent-ink); box-shadow: none; white-space: pre-wrap; }
-.group.mine .bubble.tail { border-bottom-right-radius: 6px; }
+.group.mine .bubble.tail { border-bottom-right-radius: var(--r-tail); }
 .time { font-size: 11.5px; line-height: 18px; color: var(--muted); margin: 3px 12px 0; }
 /* The avatar beside the last bubble, not beside its time. */
 .group.timed .avatar-slot { margin-bottom: 21px; }
@@ -202,7 +226,7 @@ button { cursor: pointer; }
 .reply {
   border: 1.5px solid color-mix(in srgb, var(--accent) 55%, var(--line));
   background: var(--surface); color: color-mix(in oklab, var(--accent) 80%, var(--ink));
-  border-radius: 999px; padding: 7px 14px; font-size: 14px; font-weight: 550; text-align: right;
+  border-radius: var(--r-pill); padding: 7px 14px; font-size: 14px; font-weight: 550; text-align: right;
   transition: background .15s, color .15s, border-color .15s;
   animation: rise .3s cubic-bezier(.2,.8,.2,1) both;
 }
@@ -233,7 +257,7 @@ button { cursor: pointer; }
 .composer { flex: none; padding: 10px 12px 6px; background: var(--surface); border-top: 1px solid var(--line); }
 .field {
   display: flex; align-items: flex-end; gap: 6px; padding: 5px 5px 5px 16px;
-  border: 1.5px solid var(--line); border-radius: 24px; background: var(--surface);
+  border: 1.5px solid var(--line); border-radius: var(--r-field); background: var(--surface);
   transition: border-color .15s, box-shadow .15s;
 }
 .field:focus-within {
@@ -246,7 +270,7 @@ button { cursor: pointer; }
 }
 .field textarea::placeholder { color: var(--muted); }
 .send {
-  flex: none; width: 38px; height: 38px; border-radius: 50%; border: 0;
+  flex: none; width: 38px; height: 38px; border-radius: max(4px, calc(var(--r-field) - 5px)); border: 0;
   background: var(--accent); color: var(--accent-ink); display: grid; place-items: center;
   transition: transform .15s, opacity .15s;
 }

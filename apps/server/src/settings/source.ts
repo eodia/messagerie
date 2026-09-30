@@ -28,6 +28,16 @@ export interface SettingsSource {
     onChange: () => void,
     onError: (error: unknown) => void,
   ): (() => void) | null
+  /**
+   * Changes a row's values, by field label — a choice by its label. With basedb, as the
+   * owner of `token` (a person's access token) when given, else as the chat.
+   */
+  update(
+    table: string,
+    id: string,
+    values: Readonly<Record<string, unknown>>,
+    token: string | null,
+  ): Promise<void>
 }
 
 // ── basedb ────────────────────────────────────────────────────────────────────────────
@@ -87,6 +97,28 @@ export class BasedbSource implements SettingsSource {
     })
   }
 
+  async update(
+    label: string,
+    id: string,
+    values: Readonly<Record<string, unknown>>,
+    token: string | null,
+  ): Promise<void> {
+    const table = await this.table(label)
+    const physical: Record<string, unknown> = {}
+    for (const [name, value] of Object.entries(values)) {
+      const field = table.fields.find((f) => f.label === name)
+      if (!field) throw new BasedbFailure(0, `TEMPLATE_MISMATCH: ${label} › ${name}`)
+      const option = (v: unknown) => field.options?.find((o) => o.label === v)?.value ?? v
+      physical[field.name] =
+        field.kind === 'select' && value !== null
+          ? option(value)
+          : field.kind === 'multi_select' && Array.isArray(value)
+            ? value.map(option)
+            : value
+    }
+    await this.client.update(table.name, id, physical, token ?? undefined)
+  }
+
   follow(label: string, onChange: () => void, onError: (error: unknown) => void): () => void {
     let stop = () => {}
     let stopped = false
@@ -121,6 +153,8 @@ const readJson = (name: string): unknown =>
 export class TemplateSource implements SettingsSource {
   readonly kind = 'template'
   private readonly template: Template
+  /** What was changed since start, by table and row: kept in memory, never written. */
+  private readonly edits = new Map<string, Map<string, Record<string, unknown>>>()
 
   constructor(
     private readonly me: string | null,
@@ -155,8 +189,17 @@ export class TemplateSource implements SettingsSource {
         if (field !== '$key') values[field] = this.value(value)
       }
       const key = row.$key
-      return { id: typeof key === 'string' ? key : `${table.key}-${index + 1}`, values }
+      const id = typeof key === 'string' ? key : `${table.key}-${index + 1}`
+      return { id, values: { ...values, ...this.edits.get(label)?.get(id) } }
     })
+  }
+
+  async update(label: string, id: string, values: Readonly<Record<string, unknown>>) {
+    const rows = await this.rows(label)
+    if (!rows.some((row) => row.id === id)) throw new BasedbFailure(404, 'RECORD_NOT_FOUND')
+    const table = this.edits.get(label) ?? new Map<string, Record<string, unknown>>()
+    table.set(id, { ...table.get(id), ...values })
+    this.edits.set(label, table)
   }
 
   follow(): null {

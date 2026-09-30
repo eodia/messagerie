@@ -8,7 +8,13 @@ import type { AgentRow } from '../inbox/read.js'
 import { Refusal } from '../refusal.js'
 import type { Settings } from '../settings/settings.js'
 
-export type AgentEnv = { Variables: { agent: AgentRow } }
+export type AgentEnv = {
+  Variables: {
+    agent: AgentRow
+    /** The person's basedb token — for what the chat writes in basedb on their behalf. */
+    basedbToken: string | null
+  }
+}
 
 /**
  * Who is asking — an agent is a basedb account listed, active, in « Conseillers » (D4).
@@ -37,8 +43,10 @@ export function agentAuth(
         'agent',
         await cache.agent(token, () => agentFromToken(db, config, basedb, settings, token)),
       )
+      c.set('basedbToken', token)
     } else if (config.devAgent !== null) {
       c.set('agent', await devAgent(db, config.devAgent))
+      c.set('basedbToken', null)
     } else if (basedb !== null) {
       throw new Refusal('SESSION_INVALID', 401)
     } else {

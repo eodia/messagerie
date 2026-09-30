@@ -1,9 +1,16 @@
-import type { VisitorConversation, WidgetMessage, WidgetSession } from '@chat/contracts'
+import type {
+  VisitorConversation,
+  WidgetAppearance,
+  WidgetMessage,
+  WidgetSession,
+  WidgetSite,
+} from '@chat/contracts'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
-import { type WidgetApi, WidgetFailure } from './api'
+import { type Backend, WidgetFailure } from './api'
 import { clock, setLanguage, t, when } from './i18n'
 import { ChatIcon, ChevronDownIcon, CloseIcon, Orb, SendIcon } from './icons'
 import { Markdown } from './markdown'
+import type { Scene } from './preview'
 
 /** Black or white words on the site's colour, whichever reads. */
 function textOn(hex: string): string {
@@ -25,6 +32,30 @@ const initials = (name: string) =>
 const plain = (body: string) => body.replace(/[*`#]|\[([^\]]*)\]\([^)]*\)/g, '$1').trim()
 
 const OPEN_KEY = 'messagerie:open'
+const NUDGED_KEY = 'messagerie:nudged'
+
+const STACKS = {
+  system:
+    'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  rounded: 'ui-rounded, "SF Pro Rounded", Nunito, "Varela Round", Quicksand, system-ui, sans-serif',
+  serif: 'ui-serif, "Iowan Old Style", Charter, Georgia, "Times New Roman", serif',
+} as const
+
+/** The font the site chose — never one the widget loads: the page's, or one it has. */
+function fontOf(look: WidgetAppearance, pageFont: string | null): string | undefined {
+  if (look.font === 'site') return pageFont ?? undefined
+  if (look.font === 'custom')
+    return look.customFont ? `"${look.customFont}", ${STACKS.system}` : undefined
+  return STACKS[look.font]
+}
+
+function remember(key: string, value: string): void {
+  try {
+    window.sessionStorage.setItem(key, value)
+  } catch {
+    // Forgotten at the next page, nothing more.
+  }
+}
 
 function wasOpen(): boolean {
   try {
@@ -83,10 +114,20 @@ function itemsOf(welcome: Line & { from: Speaker }, messages: readonly WidgetMes
 }
 
 interface Preview {
-  readonly from: 'ai' | 'agent'
+  readonly from: 'ai' | 'agent' | 'site'
   readonly author: string | null
   readonly body: string
 }
+
+const welcomeOf = (site: WidgetSite) =>
+  site.welcome ?? t('Bonjour ! Comment pouvons-nous vous aider ?')
+
+/** The welcome, beside the launcher: the site's nudge. */
+const nudgeOf = (site: WidgetSite): Preview => ({
+  from: site.ai ? 'ai' : 'site',
+  author: site.ai ? null : site.name,
+  body: welcomeOf(site),
+})
 
 export interface Controls {
   open: () => void
@@ -97,17 +138,24 @@ export function App({
   api,
   identity,
   poweredBy,
+  pageFont,
   bind,
+  watch,
 }: {
-  readonly api: WidgetApi
+  readonly api: Backend
   readonly identity: string | null
   readonly poweredBy: string
+  /** The page's own font, for a site that keeps it. */
+  readonly pageFont: string | null
   /** Hands the page `window.MessagerieChat.open()` and `.close()`. */
   readonly bind: (controls: Controls) => void
+  /** In the inbox's editor: the site as it is edited, and the scene to show. */
+  readonly watch?: (onChange: (session: WidgetSession, scene: Scene) => void) => () => void
 }) {
+  const inEditor = watch !== undefined
   const [session, setSession] = useState<WidgetSession | null>(null)
   const [conversation, setConversation] = useState<VisitorConversation | null>(null)
-  const [open, setOpen] = useState(wasOpen)
+  const [open, setOpen] = useState(() => !inEditor && wasOpen())
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -121,6 +169,7 @@ export function App({
   const launcher = useRef<HTMLButtonElement>(null)
   const typingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const focusOnOpen = useRef(false)
+  const scene = useRef<Scene | null>(null)
   const openRef = useRef(open)
   openRef.current = open
 
@@ -188,6 +237,43 @@ export function App({
     bind({ open: () => show(true), close: () => show(false) })
   }, [bind])
 
+  // The editor's site, as it changes; a new scene opens or closes the panel.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: setters and refs only
+  useEffect(() => {
+    if (!watch) return
+    return watch((next, nextScene) => {
+      setLanguage(next.site.language)
+      for (const message of next.conversation?.messages ?? []) seen.current.add(message.id)
+      setSession(next)
+      setConversation(next.conversation)
+      setFollowing(true)
+      if (scene.current === nextScene) return
+      scene.current = nextScene
+      showTyping(null)
+      setError(null)
+      setOpen(nextScene === 'welcome' || nextScene === 'conversation')
+      setPreview(nextScene === 'nudge' ? nudgeOf(next.site) : null)
+    })
+  }, [watch])
+
+  // The site's nudge: its welcome beside the launcher, once a visit, to a visitor who has
+  // not written yet.
+  useEffect(() => {
+    const after = session?.site.appearance.nudgeAfter
+    if (!session || inEditor || after == null || session.conversation) return
+    try {
+      if (window.sessionStorage.getItem(NUDGED_KEY) === '1') return
+    } catch {
+      // Without storage, the nudge may show on every page: still once per page.
+    }
+    const timer = setTimeout(() => {
+      if (openRef.current) return
+      setPreview(nudgeOf(session.site))
+      remember(NUDGED_KEY, '1')
+    }, after * 1000)
+    return () => clearTimeout(timer)
+  }, [session, inEditor])
+
   // The newest message in view — after each message, the typing dots, and on opening.
   // biome-ignore lint/correctness/useExhaustiveDependencies: these are the triggers
   useLayoutEffect(() => {
@@ -206,11 +292,8 @@ export function App({
       setPreview(null)
       focusOnOpen.current = true
     }
-    try {
-      window.sessionStorage.setItem(OPEN_KEY, next ? '1' : '0')
-    } catch {
-      // The panel forgets it was open, nothing more.
-    }
+    // The panel remembers it was open, from page to page — not in the editor.
+    if (!inEditor) remember(OPEN_KEY, next ? '1' : '0')
   }
 
   async function send(text = draft) {
@@ -239,8 +322,29 @@ export function App({
 
   if (!session) return null
   const { site, availability, contact } = session
-  const style = { '--accent': site.color, '--accent-ink': textOn(site.color) }
+  const look = site.appearance
   const messages = conversation?.messages ?? []
+  // Nobody to answer, and the site would rather show nothing then.
+  if (look.hideWhenAway && !inEditor && !site.ai && !availability.open && messages.length === 0)
+    return null
+  const font = fontOf(look, pageFont)
+  const style = {
+    '--accent': site.color,
+    '--accent-ink': textOn(site.color),
+    '--x': `${look.offsetX}px`,
+    '--y': `${look.offsetY}px`,
+    ...(font ? { '--font': font } : {}),
+  }
+  const classes = [
+    'root',
+    look.position === 'left' && 'left',
+    look.theme !== 'auto' && look.theme,
+    look.corners !== 'round' && look.corners,
+    look.hideOnMobile && !inEditor && 'hide-mobile',
+  ]
+    .filter(Boolean)
+    .join(' ')
+  const labelled = look.launcher === 'label' && look.launcherLabel !== null && !open
   const started = messages.some((message) => message.from === 'visitor')
   const answeredBy = conversation?.answeredBy ?? (site.ai ? 'ai' : 'team')
   const lastAgent = [...messages].reverse().find((message) => message.from === 'agent')
@@ -255,24 +359,31 @@ export function App({
           ? t('Un conseiller vous répond')
           : t('Nos conseillers répondent en quelques minutes')
   const firstName = contact.identified ? contact.name?.split(/\s+/)[0] : undefined
+  const title = site.title
+    ? site.title.replace(/\s*\{prénom\}/gu, firstName ? ` ${firstName}` : '').trim()
+    : firstName
+      ? t('Bonjour {name}', { name: firstName })
+      : t('Comment pouvons-nous vous aider ?')
+  const tagline =
+    site.tagline ??
+    (site.ai
+      ? t('Notre assistant IA répond tout de suite. Un conseiller prend le relais si besoin.')
+      : status)
   const items = itemsOf(
-    {
-      id: 'welcome',
-      from: site.ai ? 'ai' : 'site',
-      body: site.welcome ?? t('Bonjour ! Comment pouvons-nous vous aider ?'),
-      at: null,
-    },
+    { id: 'welcome', from: site.ai ? 'ai' : 'site', body: welcomeOf(site), at: null },
     messages,
   )
   const avatarOf = (from: Speaker, author: string | null, busy = false) =>
     from === 'ai' ? (
       <Orb busy={busy} />
+    ) : from === 'site' && look.logo ? (
+      <img class="person-avatar" src={look.logo} alt="" />
     ) : (
       <span class="person-avatar">{initials(author ?? site.name)}</span>
     )
 
   return (
-    <div class="root" style={style}>
+    <div class={classes} style={style}>
       {open && (
         <dialog
           class="panel"
@@ -288,13 +399,14 @@ export function App({
           <header class={started ? 'head compact' : 'head'}>
             <div class="bar">
               <div class="people">
+                {look.logo && <img class="logo" src={look.logo} alt="" />}
                 {site.ai && <Orb busy={typing === 'ai'} size={30} />}
                 {site.team.map((name) => (
                   <span key={name} class="person" title={name}>
                     {initials(name)}
                   </span>
                 ))}
-                {!site.ai && site.team.length === 0 && (
+                {!site.ai && site.team.length === 0 && !look.logo && (
                   <span class="person">{initials(site.name)}</span>
                 )}
               </div>
@@ -318,18 +430,8 @@ export function App({
             </div>
             {!started && (
               <div class="greeting">
-                <h2>
-                  {firstName
-                    ? t('Bonjour {name}', { name: firstName })
-                    : t('Comment pouvons-nous vous aider ?')}
-                </h2>
-                <p>
-                  {site.ai
-                    ? t(
-                        'Notre assistant IA répond tout de suite. Un conseiller prend le relais si besoin.',
-                      )
-                    : status}
-                </p>
+                <h2>{title}</h2>
+                <p>{tagline}</p>
               </div>
             )}
           </header>
@@ -430,7 +532,9 @@ export function App({
                 <SendIcon />
               </button>
             </div>
-            <div class="foot">{t('Propulsé par {name}', { name: poweredBy })}</div>
+            {look.branding && (
+              <div class="foot">{t('Propulsé par {name}', { name: poweredBy })}</div>
+            )}
           </form>
         </dialog>
       )}
@@ -448,7 +552,10 @@ export function App({
             type="button"
             class="dismiss"
             aria-label={t('Masquer')}
-            onClick={() => setPreview(null)}
+            onClick={() => {
+              setPreview(null)
+              if (!inEditor) remember(NUDGED_KEY, '1')
+            }}
           >
             <CloseIcon />
           </button>
@@ -458,7 +565,7 @@ export function App({
       <button
         ref={launcher}
         type="button"
-        class={open ? 'launcher open' : 'launcher'}
+        class={['launcher', open && 'open', labelled && 'labelled'].filter(Boolean).join(' ')}
         aria-label={open ? t('Fermer la conversation') : t('Ouvrir la conversation')}
         aria-expanded={open}
         onClick={() => show(!open)}
@@ -469,6 +576,7 @@ export function App({
         <span class="icon when-open">
           <ChevronDownIcon />
         </span>
+        {labelled && <span class="label">{look.launcherLabel}</span>}
         {!open && unread > 0 && <span class="badge">{unread > 9 ? '9+' : unread}</span>}
       </button>
     </div>

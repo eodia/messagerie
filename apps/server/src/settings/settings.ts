@@ -1,4 +1,6 @@
+import type { WidgetAppearance } from '@chat/contracts'
 import type { LabeledRow, SettingsSource } from './source.js'
+import { appearanceOf, colorOf, suggestionsOf, taglineOf, titleOf } from './widget.js'
 
 /**
  * The chat's settings, typed — read from the « Messagerie » base through a source (D1).
@@ -44,10 +46,13 @@ export interface Site {
   readonly name: string
   /** Host names, lower case: `exemple.fr`, `www.exemple.fr`. */
   readonly domains: readonly string[]
+  readonly title: string | null
+  readonly tagline: string | null
   readonly welcome: string | null
   /** Questions offered in the widget before the visitor writes. */
   readonly suggestions: readonly string[]
   readonly color: string
+  readonly appearance: WidgetAppearance
   readonly language: string
   readonly timezone: string
   readonly aiEnabled: boolean
@@ -323,15 +328,12 @@ export class Settings {
         .split(/[\s,;]+/)
         .map(hostOf)
         .filter((h): h is string => h !== null),
+      title: titleOf(values["Titre d'accueil"]),
+      tagline: taglineOf(values["Sous-titre d'accueil"]),
       welcome: text(values["Message d'accueil"]),
-      suggestions: (text(values['Questions suggérées']) ?? '')
-        .split('\n')
-        .map((q) => q.trim())
-        .filter(Boolean)
-        .slice(0, 6),
-      color: /^#[0-9a-f]{6}$/i.test(text(values['Couleur du widget']) ?? '')
-        ? (text(values['Couleur du widget']) as string)
-        : '#2DA31E',
+      suggestions: suggestionsOf(values['Questions suggérées']),
+      color: colorOf(values['Couleur du widget']) ?? '#2DA31E',
+      appearance: appearanceOf(values),
       language: text(values.Langue) ?? 'Français',
       timezone: text(values['Fuseau horaire']) ?? 'Europe/Paris',
       aiEnabled: bool(values['Agent IA actif']),
@@ -345,6 +347,19 @@ export class Settings {
 
   async site(id: string): Promise<Site | null> {
     return (await this.sites()).find((s) => s.id === id) ?? null
+  }
+
+  /**
+   * Changes a site's row — values by field label — as the person whose basedb token is
+   * given, and reads the sites again.
+   */
+  async updateSite(
+    id: string,
+    values: Readonly<Record<string, unknown>>,
+    token: string | null,
+  ): Promise<void> {
+    await this.source.update(TABLES.sites, id, values, token)
+    this.invalidate(TABLES.sites)
   }
 
   /** A site's slots — its own and those of every site. A slot that does not read is left out. */

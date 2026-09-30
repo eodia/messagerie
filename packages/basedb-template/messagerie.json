@@ -47,6 +47,170 @@
           "description": "Code hexadécimal, par exemple #2DA31E."
         },
         {
+          "label": "Titre d'accueil",
+          "kind": "short_text",
+          "description": "En tête du widget, avant que le visiteur écrive. {prénom} devient le prénom d'un client connecté. Vide : « Comment pouvons-nous vous aider ? »."
+        },
+        {
+          "label": "Sous-titre d'accueil",
+          "kind": "long_text",
+          "description": "Sous le titre d'accueil. Vide : une phrase qui dit qui répond, l'IA ou les conseillers."
+        },
+        {
+          "label": "Position du widget",
+          "kind": "select",
+          "options": [
+            {
+              "label": "En bas à droite",
+              "color": "#3b82f6"
+            },
+            {
+              "label": "En bas à gauche",
+              "color": "#8b5cf6"
+            }
+          ],
+          "description": "Vide : en bas à droite."
+        },
+        {
+          "label": "Marge horizontale (px)",
+          "kind": "number",
+          "format": {
+            "display": "integer"
+          },
+          "description": "Distance au bord gauche ou droit de la page. Vide : 20."
+        },
+        {
+          "label": "Marge verticale (px)",
+          "kind": "number",
+          "format": {
+            "display": "integer"
+          },
+          "description": "Distance au bas de la page. Vide : 20."
+        },
+        {
+          "label": "Bouton",
+          "kind": "select",
+          "options": [
+            {
+              "label": "Rond",
+              "color": "#3b82f6"
+            },
+            {
+              "label": "Avec libellé",
+              "color": "#10b981"
+            }
+          ],
+          "description": "Le bouton qui ouvre le widget : une icône ronde, ou une pastille avec un libellé. Vide : rond."
+        },
+        {
+          "label": "Libellé du bouton",
+          "kind": "short_text",
+          "description": "Pour un bouton avec libellé, par exemple « Une question ? »."
+        },
+        {
+          "label": "Police",
+          "kind": "select",
+          "options": [
+            {
+              "label": "Police du site",
+              "color": "#3b82f6"
+            },
+            {
+              "label": "Système",
+              "color": "#64748b"
+            },
+            {
+              "label": "Arrondie",
+              "color": "#f59e0b"
+            },
+            {
+              "label": "Serif",
+              "color": "#8b5cf6"
+            },
+            {
+              "label": "Personnalisée",
+              "color": "#10b981"
+            }
+          ],
+          "description": "Police du site : celle du texte de la page. Le widget ne charge aucune police. Vide : police du site."
+        },
+        {
+          "label": "Police personnalisée",
+          "kind": "short_text",
+          "description": "Le nom d’une police que le site charge déjà, par exemple Inter."
+        },
+        {
+          "label": "Thème",
+          "kind": "select",
+          "options": [
+            {
+              "label": "Automatique",
+              "color": "#64748b"
+            },
+            {
+              "label": "Clair",
+              "color": "#f59e0b"
+            },
+            {
+              "label": "Sombre",
+              "color": "#1e293b"
+            }
+          ],
+          "description": "Automatique : clair ou sombre, comme le système du visiteur. Vide : automatique."
+        },
+        {
+          "label": "Coins",
+          "kind": "select",
+          "options": [
+            {
+              "label": "Arrondis",
+              "color": "#3b82f6"
+            },
+            {
+              "label": "Adoucis",
+              "color": "#8b5cf6"
+            },
+            {
+              "label": "Droits",
+              "color": "#64748b"
+            }
+          ],
+          "description": "La forme du widget, de ses bulles et de ses boutons. Vide : arrondis."
+        },
+        {
+          "label": "Logo",
+          "kind": "short_text",
+          "description": "Adresse https d'une image carrée, affichée en tête du widget."
+        },
+        {
+          "label": "Masquer l'équipe",
+          "kind": "boolean",
+          "description": "Coché : les initiales des conseillers n'apparaissent pas en tête du widget."
+        },
+        {
+          "label": "Bulle d'accueil après (secondes)",
+          "kind": "number",
+          "format": {
+            "display": "integer"
+          },
+          "description": "Le message d'accueil apparaît à côté du bouton après ce délai, sans ouvrir le widget. Vide : jamais."
+        },
+        {
+          "label": "Masquer sur mobile",
+          "kind": "boolean",
+          "description": "Coché : pas de widget sur un écran de moins de 480 pixels."
+        },
+        {
+          "label": "Masquer hors horaires",
+          "kind": "boolean",
+          "description": "Coché : quand ni l'IA ni un conseiller ne peut répondre, le widget ne s'affiche pas."
+        },
+        {
+          "label": "Masquer la mention du logiciel",
+          "kind": "boolean",
+          "description": "Coché : le pied du widget ne dit plus « Propulsé par Messagerie »."
+        },
+        {
           "label": "Langue",
           "kind": "select",
           "options": [

@@ -14,7 +14,15 @@
       "Conservation (jours)": 365,
       "Actif": true,
       "Équipe par défaut": "@support",
-      "Questions suggérées": "Quel est le délai de remboursement ?\nComment déclarer un sinistre ?\nOù trouver mon attestation ?\nQuelle agence près de chez moi ?"
+      "Questions suggérées": "Quel est le délai de remboursement ?\nComment déclarer un sinistre ?\nOù trouver mon attestation ?\nQuelle agence près de chez moi ?",
+      "Titre d'accueil": "Bonjour {prénom} !",
+      "Sous-titre d'accueil": "Notre assistant répond tout de suite, jour et nuit. Un conseiller prend le relais en semaine.",
+      "Position du widget": "En bas à droite",
+      "Bouton": "Rond",
+      "Police": "Police du site",
+      "Thème": "Automatique",
+      "Coins": "Arrondis",
+      "Bulle d'accueil après (secondes)": 4
     }
   ],
   "horaires": [

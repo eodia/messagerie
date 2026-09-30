@@ -1,3 +1,5 @@
+import type { WidgetAppearance } from './widget.js'
+
 /**
  * The inbox's model — the `chat` schema as the server hands it over to the agents
  * (docs/architecture/00-decisions-structurantes.md, D1). What the visitor's widget receives is
@@ -290,4 +292,36 @@ export interface ToolsOverview {
 export interface ToolTestResult {
   readonly content: string
   readonly detail: string
+}
+
+/** What the widget editor changes on a site: its words and its looks. */
+export interface WidgetSettings {
+  readonly name: string
+  /** `#RRGGBB` */
+  readonly color: string
+  readonly language: 'fr' | 'en' | 'de' | 'es'
+  readonly title: string | null
+  readonly tagline: string | null
+  readonly welcome: string | null
+  readonly suggestions: readonly string[]
+  readonly appearance: WidgetAppearance
+}
+
+export interface WidgetEditorSite {
+  readonly id: string
+  /** Where the widget may show, from basedb. */
+  readonly domains: readonly string[]
+  /** The AI answers first on this site. */
+  readonly ai: boolean
+  /** The first names the widget shows behind the AI. */
+  readonly team: readonly string[]
+  readonly settings: WidgetSettings
+}
+
+export interface WidgetEditor {
+  readonly sites: readonly WidgetEditorSite[]
+  /** False: settings from the template, changed in memory only — lost at restart. */
+  readonly persistent: boolean
+  /** A supervisor may save. */
+  readonly canEdit: boolean
 }

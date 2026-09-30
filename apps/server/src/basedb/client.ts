@@ -129,6 +129,30 @@ export class BasedbClient {
   }
 
   /**
+   * Changes a row — values by physical name — as `token`'s owner when given: basedb then
+   * applies that person's rights and keeps their name in the row's history.
+   */
+  async update(
+    table: string,
+    id: string,
+    values: Readonly<Record<string, unknown>>,
+    token?: string,
+  ): Promise<Row> {
+    const { data } = await this.call<{ data: Row }>(
+      this.data(`/data/{base}/${encodeURIComponent(table)}/${encodeURIComponent(id)}`),
+      {
+        method: 'PATCH',
+        headers: {
+          'content-type': 'application/json',
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ values }),
+      },
+    )
+    return data
+  }
+
+  /**
    * Follows a table's changes — signals, never values: `onChange` is told that rows
    * changed, and reads them again. basedb closes a stream after thirty minutes and on a
    * revoked token; it is reopened, with a pause that grows up to thirty seconds.

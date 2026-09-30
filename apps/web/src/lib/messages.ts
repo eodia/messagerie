@@ -37,6 +37,10 @@ export function messageFor(code: string): string {
       return $t('Réservé aux superviseurs.')
     case 'TOOL_NOT_FOUND':
       return $t('Cet outil n’existe plus, ou n’est plus actif.')
+    case 'SETTINGS_WRITE_REFUSED':
+      return $t(
+        'basedb a refusé l’enregistrement : votre compte ne peut pas modifier la table « Sites ».',
+      )
     case 'CONTACT_NOT_FOUND':
       return $t('Ce contact n’existe plus.')
     case 'NOT_AN_AGENT':

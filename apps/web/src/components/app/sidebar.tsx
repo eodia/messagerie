@@ -18,6 +18,7 @@ import {
   type LucideIcon,
   MessageSquareText,
   MessagesSquare,
+  Palette,
   ShieldAlert,
   UsersRound,
   Wrench,
@@ -38,6 +39,7 @@ const SCREENS: readonly Screen[] = [
   { href: '/connaissance', label: msg('Connaissance'), icon: BookOpen },
   { href: '/statistiques', label: msg('Statistiques'), icon: ChartColumn },
   { href: '/outils', label: msg('Outils IA'), icon: Wrench },
+  { href: '/widget', label: msg('Widget'), icon: Palette },
 ]
 
 /**

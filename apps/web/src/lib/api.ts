@@ -17,6 +17,9 @@ import type {
   ToolTestBody,
   ToolTestResult,
   ToolsOverview,
+  WidgetEditor,
+  WidgetEditorSite,
+  WidgetSettings,
 } from '@chat/contracts'
 import { SignedOut, accessToken, forgetToken } from './basedb-session'
 
@@ -120,6 +123,9 @@ export const api = {
   stats: () => request<InboxStats>('GET', '/stats'),
   knowledge: () => request<KnowledgeItem[]>('GET', '/knowledge'),
   tools: () => request<ToolsOverview>('GET', '/tools'),
+  widget: () => request<WidgetEditor>('GET', '/widget'),
+  saveWidget: (site: string, settings: WidgetSettings) =>
+    request<WidgetEditorSite>('PUT', `/widget/${encodeURIComponent(site)}`, settings),
   testTool: (body: ToolTestBody) => request<ToolTestResult>('POST', '/tools/test', body),
   runTool: (id: string, body: ToolTestBody) =>
     request<ToolTestResult>('POST', `${conversation(id)}/tools`, body),

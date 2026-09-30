@@ -58,6 +58,7 @@ const noSettings = new Settings({
   kind: 'template',
   rows: async (): Promise<LabeledRow[]> => [],
   follow: () => null,
+  update: async () => {},
 } satisfies SettingsSource)
 
 const context = {
