@@ -12,6 +12,7 @@ import { $t } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
 import { useInbox } from '@/lib/store/inbox'
 import {
+  CircleCheck,
   ExternalLink,
   LoaderCircle,
   LogIn,
@@ -35,6 +36,7 @@ export function Inbox() {
   const detail = useInbox((s) => s.detail)
   const summary = useInbox((s) => s.summaries.find((c) => c.id === s.selectedId))
   const error = useInbox((s) => s.error)
+  const notice = useInbox((s) => s.notice)
   const [detailsOpen, setDetailsOpen] = useState(true)
   const basedbUrl = useBasedbUrl()
   const searchRef = useRef<HTMLInputElement>(null)
@@ -142,6 +144,21 @@ export function Inbox() {
   return (
     <>
       {header}
+      {notice && (
+        <div className="flex items-center gap-2 border-b border-emerald-500/30 bg-emerald-500/5 px-4 py-2 text-sm text-emerald-800 dark:text-emerald-300">
+          <CircleCheck className="size-4 shrink-0" />
+          <span className="flex-1">{notice}</span>
+          <Hint label={$t('Fermer')}>
+            <button
+              type="button"
+              onClick={() => useInbox.getState().dismissError()}
+              className="rounded p-0.5 hover:bg-emerald-500/10"
+            >
+              <X className="size-4" />
+            </button>
+          </Hint>
+        </div>
+      )}
       {error && (
         <div className="flex items-center gap-2 border-b border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive">
           <span className="flex-1">{messageFor(error)}</span>

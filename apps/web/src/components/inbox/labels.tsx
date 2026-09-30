@@ -39,6 +39,15 @@ export function StateChip({
   )
 }
 
+/** A status alone — for a past conversation, whose assignee does not matter here. */
+export function StatusChip({ status }: { readonly status: ConversationSummary['status'] }) {
+  const { label, tint } =
+    status === 'open'
+      ? { label: $t('Ouverte'), tint: 'sky' as const }
+      : conversationState({ status, assignee: null, handedOff: false })
+  return <Chip tint={tint}>{label}</Chip>
+}
+
 /** A confidence score, coloured by how far it clears the site's threshold. */
 export function ConfidenceChip({
   value,

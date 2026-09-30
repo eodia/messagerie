@@ -20,6 +20,7 @@ import {
   MessagesSquare,
   ShieldAlert,
   UsersRound,
+  Wrench,
 } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -36,6 +37,7 @@ const SCREENS: readonly Screen[] = [
   { href: '/contacts', label: msg('Contacts'), icon: UsersRound },
   { href: '/connaissance', label: msg('Connaissance'), icon: BookOpen },
   { href: '/statistiques', label: msg('Statistiques'), icon: ChartColumn },
+  { href: '/outils', label: msg('Outils IA'), icon: Wrench },
 ]
 
 /**

@@ -27,6 +27,18 @@ export function messageFor(code: string): string {
       return $t('La connexion en direct a expiré ; elle se rétablit seule.')
     case 'AGENT_NOT_FOUND':
       return $t('Ce conseiller n’est plus actif.')
+    case 'AI_UNAVAILABLE':
+      return $t('Aucun modèle d’IA n’est configuré sur le serveur (CHAT_AI_API_KEY).')
+    case 'PROMOTION_UNAVAILABLE':
+      return $t(
+        'Promouvoir une conversation demande basedb, et un jeton de la base « Messagerie » créé en écriture.',
+      )
+    case 'NOT_ALLOWED':
+      return $t('Réservé aux superviseurs.')
+    case 'TOOL_NOT_FOUND':
+      return $t('Cet outil n’existe plus, ou n’est plus actif.')
+    case 'CONTACT_NOT_FOUND':
+      return $t('Ce contact n’existe plus.')
     case 'NOT_AN_AGENT':
       return $t('Votre compte ne figure pas, actif, dans la table « Conseillers » de basedb.')
     case 'CONVERSATION_NOT_FOUND':

@@ -1,13 +1,22 @@
 import type {
   Agent,
   ApiError,
+  CannedReply,
+  ContactDetail,
+  ContactListItem,
   Conversation,
   ConversationSummary,
   ErrorCode,
   FeedbackBody,
+  InboxStats,
+  KnowledgeItem,
   NotificationList,
+  Rewording,
   SendMessageBody,
   Ticket,
+  ToolTestBody,
+  ToolTestResult,
+  ToolsOverview,
 } from '@chat/contracts'
 import { SignedOut, accessToken, forgetToken } from './basedb-session'
 
@@ -104,6 +113,20 @@ export const api = {
       `${conversation(id)}/messages/${encodeURIComponent(messageId)}/feedback`,
       body,
     ),
+  canned: () => request<CannedReply[]>('GET', '/canned'),
+  contacts: (query: string) =>
+    request<ContactListItem[]>('GET', `/contacts?q=${encodeURIComponent(query)}`),
+  contact: (id: string) => request<ContactDetail>('GET', `/contacts/${encodeURIComponent(id)}`),
+  stats: () => request<InboxStats>('GET', '/stats'),
+  knowledge: () => request<KnowledgeItem[]>('GET', '/knowledge'),
+  tools: () => request<ToolsOverview>('GET', '/tools'),
+  testTool: (body: ToolTestBody) => request<ToolTestResult>('POST', '/tools/test', body),
+  runTool: (id: string, body: ToolTestBody) =>
+    request<ToolTestResult>('POST', `${conversation(id)}/tools`, body),
+  suggest: (id: string) => request<void>('POST', `${conversation(id)}/suggestions`),
+  rephrase: (id: string, text: string, how: Rewording) =>
+    request<{ text: string }>('POST', `${conversation(id)}/rephrase`, { text, how }),
+  promote: (id: string) => request<void>('POST', `${conversation(id)}/promote`),
   notifications: () => request<NotificationList>('GET', '/notifications'),
   readNotifications: (conversationId?: string) =>
     request<void>('POST', '/notifications/read', conversationId ? { conversationId } : {}),

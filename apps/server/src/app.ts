@@ -29,7 +29,7 @@ import {
 } from './inbox/extras.js'
 import { listNotifications, readNotifications } from './inbox/notifications.js'
 import { loadConversation, loadSummaries, toAgent } from './inbox/read.js'
-import { testTool, toolsOverview } from './inbox/tools-screen.js'
+import { runInConversation, testTool, toolsOverview } from './inbox/tools-screen.js'
 import {
   assign,
   listAgents,
@@ -200,6 +200,26 @@ export function createApp({
   inbox.get('/knowledge', async (c) => c.json(await knowledge(db)))
 
   inbox.get('/tools', async (c) => c.json(await toolsOverview(settings, mcp)))
+
+  /** An agent runs a copilot tool in a conversation; its trace joins the thread. */
+  inbox.post('/conversations/:id/tools', async (c) => {
+    const { tool, server, arguments: args } = await jsonBody(c.req.raw)
+    if (typeof tool !== 'string' || (server !== undefined && typeof server !== 'string')) {
+      throw new Refusal('INVALID_REQUEST', 400, { expected: '{ tool, server?, arguments }' })
+    }
+    const values =
+      typeof args === 'object' && args !== null && !Array.isArray(args)
+        ? (args as Record<string, unknown>)
+        : {}
+    const id = uuidParam(c.req.param('id'))
+    return c.json(
+      await runInConversation({ db, settings, basedb, mcp }, id, {
+        tool,
+        ...(server ? { server } : {}),
+        arguments: values,
+      }),
+    )
+  })
 
   /** A supervisor tries a tool, outside any conversation. */
   inbox.post('/tools/test', async (c) => {

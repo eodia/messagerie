@@ -1,9 +1,11 @@
 import { Redactor } from '@chat/ai'
 import type { ToolTestBody, ToolTestResult, ToolsOverview } from '@chat/contracts'
+import { eq } from 'drizzle-orm'
 import type { McpConnections } from '../ai/mcp.js'
 import { ToolBox } from '../ai/tools.js'
 import type { BasedbClient } from '../basedb/client.js'
 import type { Db } from '../db/client.js'
+import { contacts, conversations } from '../db/schema.js'
 import { Refusal } from '../refusal.js'
 import type { Settings } from '../settings/settings.js'
 import type { AgentRow } from './read.js'
@@ -94,6 +96,60 @@ export async function testTool(
   if (!spec) throw new Refusal('TOOL_NOT_FOUND', 404)
   const ran = await box.run({
     id: 'test',
+    name: spec.name,
+    arguments: JSON.stringify(body.arguments),
+  })
+  return { content: ran.content, detail: ran.detail }
+}
+
+/**
+ * An agent runs one of the copilot's tools in a conversation — with its customer's record,
+ * and its trace in the thread, as when the AI calls it.
+ */
+export async function runInConversation(
+  deps: {
+    readonly db: Db
+    readonly settings: Settings | null
+    readonly basedb: BasedbClient | null
+    readonly mcp: McpConnections
+  },
+  conversationId: string,
+  body: ToolTestBody,
+): Promise<ToolTestResult> {
+  const { settings, db } = deps
+  if (!settings) throw new Refusal('TOOL_NOT_FOUND', 404)
+  const [row] = await db
+    .select({ contact: contacts })
+    .from(conversations)
+    .innerJoin(contacts, eq(contacts.id, conversations.contactId))
+    .where(eq(conversations.id, conversationId))
+  if (!row) throw new Refusal('CONVERSATION_NOT_FOUND', 404)
+  const context = {
+    db,
+    settings,
+    basedb: deps.basedb,
+    mcp: deps.mcp,
+    conversationId,
+    contact: row.contact,
+    redactor: new Redactor(false),
+  }
+  let box: ToolBox
+  if (body.server) {
+    const server = (await settings.mcpServers()).find((s) => s.id === body.server && s.copilot)
+    const tool = server
+      ? (await deps.mcp.tools(server)).find((t) => t.name === body.tool)
+      : undefined
+    if (!tool) throw new Refusal('TOOL_NOT_FOUND', 404)
+    box = new ToolBox([], [tool], context)
+  } else {
+    const definition = (await settings.tools()).find((t) => t.id === body.tool && t.copilot)
+    if (!definition) throw new Refusal('TOOL_NOT_FOUND', 404)
+    box = new ToolBox([definition], [], context)
+  }
+  const [spec] = box.specs()
+  if (!spec) throw new Refusal('TOOL_NOT_FOUND', 404)
+  const ran = await box.run({
+    id: 'agent',
     name: spec.name,
     arguments: JSON.stringify(body.arguments),
   })

@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Hint } from '@/components/ui/tooltip'
+import { api } from '@/lib/api'
 import { $t } from '@/lib/i18n'
 import { useInbox } from '@/lib/store/inbox'
 import { dayLabel } from '@/lib/time'
@@ -174,7 +175,23 @@ export function Thread({
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
               <DropdownMenuSeparator />
-              <DropdownMenuItem disabled={status !== 'resolved'}>
+              <DropdownMenuItem
+                disabled={status !== 'resolved'}
+                onSelect={() =>
+                  api
+                    .promote(conversation.id)
+                    .then(() =>
+                      useInbox
+                        .getState()
+                        .say(
+                          $t(
+                            'Conversation envoyée à la relecture, dans basedb (« Conversations promues »).',
+                          ),
+                        ),
+                    )
+                    .catch(useInbox.getState().fail)
+                }
+              >
                 <BookmarkPlus />
                 {$t('Promouvoir en source pour l’IA')}
               </DropdownMenuItem>

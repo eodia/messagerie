@@ -1,36 +1,34 @@
 'use client'
 
 import { Chip, ColorBadge } from '@/components/app/chip'
+import { ToolDialog, type ToolTarget } from '@/components/app/tool-dialog'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Hint } from '@/components/ui/tooltip'
+import { api } from '@/lib/api'
 import { $t, msg } from '@/lib/i18n'
 import { useInbox } from '@/lib/store/inbox'
 import { dayLabel } from '@/lib/time'
-import type { Contact, ContactAttribute, Conversation, PastConversation } from '@chat/contracts'
+import type {
+  Contact,
+  ContactAttribute,
+  Conversation,
+  PastConversation,
+  ToolsOverview,
+} from '@chat/contracts'
 import {
   CalendarClock,
   Copy,
-  ExternalLink,
   FileText,
-  FolderOpen,
+  Globe,
   type LucideIcon,
+  Plug,
   Plus,
   ShieldCheck,
   Sparkles,
 } from 'lucide-react'
-import type { ReactNode } from 'react'
-import { ContactAvatar, PriorityChip, SentimentChip, conversationState } from './labels'
-
-/**
- * The tools an agent may launch from here — in the product, the rows of the « Outils IA »
- * table of basedb whose « Copilote » box is ticked.
- */
-const TOOLS: readonly { readonly label: string; readonly icon: LucideIcon }[] = [
-  { label: msg('Consulter le contrat'), icon: FileText },
-  { label: msg('Voir le dossier sinistre'), icon: FolderOpen },
-  { label: msg('Créer un rappel'), icon: CalendarClock },
-]
+import { type ReactNode, useEffect, useState } from 'react'
+import { ContactAvatar, PriorityChip, SentimentChip, StatusChip } from './labels'
 
 function Section({
   title,
@@ -100,29 +98,7 @@ export function DetailsPanel({ conversation }: { readonly conversation: Conversa
             )}
           </Section>
 
-          <Section title={$t('Outils IA')}>
-            <div className="space-y-1.5">
-              {TOOLS.map(({ label, icon: Icon }) => (
-                <Button
-                  key={label}
-                  variant="outline"
-                  size="sm"
-                  className="h-8 w-full justify-start gap-2.5 text-xs font-normal"
-                >
-                  <Icon className="size-3.5 text-muted-foreground" />
-                  {$t(label)}
-                </Button>
-              ))}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-full justify-start gap-2.5 text-xs font-normal text-muted-foreground"
-              >
-                <ExternalLink className="size-3.5" />
-                {$t('Ouvrir dans l’outil métier')}
-              </Button>
-            </div>
-          </Section>
+          <CopilotTools conversationId={conversation.id} />
 
           <Section title={$t('Intention et étiquettes')}>
             {conversation.intent && (
@@ -258,14 +234,115 @@ function Attribute({ attribute }: { readonly attribute: ContactAttribute }) {
 }
 
 function PastRow({ past }: { readonly past: PastConversation }) {
-  const state = conversationState({ status: past.status, assignee: null, handedOff: false })
   return (
     <li className="rounded-lg border p-3">
       <div className="text-sm">{past.subject}</div>
       <div className="mt-1.5 flex items-center gap-2 text-[11px] text-muted-foreground tabular-nums">
         {dayLabel(past.at)}
-        <Chip tint={state.tint}>{state.label}</Chip>
+        <StatusChip status={past.status} />
       </div>
     </li>
+  )
+}
+
+/** The copilot's tools — basedb's « Outils IA » and its MCP servers' — read once per page. */
+let toolsOnce: Promise<ToolsOverview> | null = null
+function loadTools(): Promise<ToolsOverview> {
+  toolsOnce ??= api.tools().catch(() => {
+    toolsOnce = null
+    return { tools: [], mcp: [] }
+  })
+  return toolsOnce
+}
+
+interface CopilotTool extends ToolTarget {
+  readonly key: string
+  readonly tool: string
+  readonly server?: string
+  readonly icon: LucideIcon
+}
+
+/**
+ * The tools an agent may run from here: those basedb gives the copilot. Each runs with the
+ * conversation's customer, and leaves its trace in the thread, as when the AI calls it.
+ */
+function CopilotTools({ conversationId }: { readonly conversationId: string }) {
+  const [tools, setTools] = useState<CopilotTool[] | null>(null)
+  const [open, setOpen] = useState<CopilotTool | null>(null)
+
+  useEffect(() => {
+    void loadTools().then((overview) =>
+      setTools([
+        ...overview.tools
+          .filter((t) => t.copilot)
+          .map((t) => ({
+            key: t.id,
+            tool: t.id,
+            title: t.name,
+            description: t.description,
+            parameters: t.parameters,
+            icon: t.type === 'http' ? Globe : t.type === 'callback' ? CalendarClock : FileText,
+          })),
+        ...overview.mcp
+          .filter((m) => m.copilot)
+          .flatMap((m) =>
+            m.tools.map((t) => ({
+              key: `${m.id}/${t.name}`,
+              tool: t.name,
+              server: m.id,
+              title: `${m.name} › ${t.name}`,
+              description: t.description,
+              parameters: t.parameters,
+              icon: Plug,
+            })),
+          ),
+      ]),
+    )
+  }, [])
+
+  return (
+    <Section title={$t('Outils IA')}>
+      {tools === null ? (
+        <p className="text-xs text-muted-foreground">{$t('Chargement…')}</p>
+      ) : tools.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          {$t(
+            'Aucun outil pour le copilote : ils se déclarent dans basedb, tables « Outils IA » et « Serveurs MCP ».',
+          )}
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          {tools.map((tool) => {
+            const Icon = tool.icon
+            return (
+              <Button
+                key={tool.key}
+                variant="outline"
+                size="sm"
+                onClick={() => setOpen(tool)}
+                className="h-8 w-full justify-start gap-2.5 text-xs font-normal"
+              >
+                <Icon className="size-3.5 text-muted-foreground" />
+                <span className="truncate">{tool.title}</span>
+              </Button>
+            )
+          })}
+        </div>
+      )}
+      <ToolDialog
+        tool={open}
+        onClose={() => setOpen(null)}
+        note={$t(
+          'L’appel se fait pour le client de cette conversation, et reste dans son fil — visible de l’équipe seulement.',
+        )}
+        run={(args) =>
+          api.runTool(conversationId, {
+            tool: open?.tool ?? '',
+            ...(open?.server ? { server: open.server } : {}),
+            arguments: args,
+          })
+        }
+      />
+    </Section>
   )
 }

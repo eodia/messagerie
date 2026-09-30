@@ -78,6 +78,8 @@ interface InboxState {
   readonly sending: boolean
   /** The code of the last refused action, until dismissed. */
   readonly error: string | null
+  /** A sentence saying an action went through — promoted, run — until dismissed. */
+  readonly notice: string | null
   /** The clock the list reads its times against, moved every half minute. */
   readonly now: Date
   /** How the app goes to a screen — set by the shell, which holds the router. */
@@ -94,6 +96,9 @@ interface InboxState {
   setQuery: (query: string) => void
   setDraft: (id: string, text: string) => void
   dismissError: () => void
+  /** A failure's code, shown like the refusal of an action. */
+  fail: (error: unknown) => void
+  say: (notice: string) => void
   send: (id: string, body: string, kind: 'reply' | 'note', resolve?: boolean) => Promise<boolean>
   takeOver: (id: string) => Promise<void>
   resolve: (id: string) => Promise<void>
@@ -184,6 +189,7 @@ export const useInbox = create<InboxState>((set, get) => {
     drafts: {},
     sending: false,
     error: null,
+    notice: null,
     now: new Date(),
     navigate: () => {},
 
@@ -285,7 +291,14 @@ export const useInbox = create<InboxState>((set, get) => {
     setFilter: (filter) => set({ filter }),
     setQuery: (query) => set({ query }),
     setDraft: (id, text) => set((state) => ({ drafts: { ...state.drafts, [id]: text } })),
-    dismissError: () => set({ error: null }),
+    dismissError: () => set({ error: null, notice: null }),
+    fail: (error) => set({ error: codeOf(error), notice: null }),
+    say: (notice) => {
+      set({ notice, error: null })
+      setTimeout(() => {
+        if (get().notice === notice) set({ notice: null })
+      }, 6000)
+    },
 
     send: async (id, body, kind, resolve = false) => {
       set({ sending: true })
