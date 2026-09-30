@@ -29,6 +29,9 @@ import {
 import type { InboxHub } from './realtime/hub.js'
 import { Refusal } from './refusal.js'
 import type { Settings } from './settings/settings.js'
+import { demoPage } from './widget/demo.js'
+import type { WidgetHub } from './widget/hub.js'
+import { widgetRoutes, widgetScript } from './widget/routes.js'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const FEEDBACK: readonly Feedback[] = ['accepted', 'edited', 'rejected']
@@ -84,6 +87,8 @@ export function createApp({
   basedb,
   settings,
   tickets,
+  widgetHub,
+  onVisitorMessage,
 }: {
   db: Db
   hub: InboxHub
@@ -91,6 +96,8 @@ export function createApp({
   basedb: BasedbClient | null
   settings: Settings | null
   tickets: TicketBook
+  widgetHub: WidgetHub
+  onVisitorMessage?: (conversationId: string) => void
 }) {
   const app = new Hono()
   const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app })
@@ -201,6 +208,31 @@ export function createApp({
   })
 
   app.route('/api/inbox', inbox)
+
+  // The widget: its API, when there are settings to know the sites by, and its script.
+  if (settings !== null) {
+    app.route(
+      '/api/widget',
+      widgetRoutes(
+        { db, config, settings, onVisitorMessage },
+        widgetHub,
+        tickets,
+        upgradeWebSocket,
+      ),
+    )
+  }
+  const script = widgetScript(config.production)
+  app.get('/widget.js', (c) => {
+    const source = script()
+    if (source === null)
+      return c.text('// Widget non construit : pnpm --filter @chat/widget build', 404)
+    c.header('content-type', 'text/javascript; charset=utf-8')
+    c.header('cache-control', config.production ? 'public, max-age=300' : 'no-store')
+    return c.body(source)
+  })
+  if (!config.production) {
+    app.get('/demo', async (c) => c.html(await demoPage(db, c.req.query('client') === 'sophie')))
+  }
 
   app.onError((error, c) => {
     if (error instanceof Refusal) {

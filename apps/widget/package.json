@@ -1,0 +1,23 @@
+{
+  "name": "@chat/widget",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    "./widget.js": "./dist/widget.js"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "preact": "^11.0.0"
+  },
+  "devDependencies": {
+    "@chat/contracts": "workspace:*",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.7.2"
+  }
+}

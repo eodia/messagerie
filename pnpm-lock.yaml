@@ -23,6 +23,9 @@ importers:
       '@chat/basedb-template':
         specifier: workspace:*
         version: link:../../packages/basedb-template
+      '@chat/widget':
+        specifier: workspace:*
+        version: link:../widget
       '@hono/node-server':
         specifier: ^1.19.11
         version: 1.19.17(hono@4.13.12)
@@ -130,6 +133,22 @@ importers:
       '@types/react-dom':
         specifier: ^19.0.2
         version: 19.3.0(@types/react@19.3.0)
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
+  apps/widget:
+    dependencies:
+      preact:
+        specifier: ^11.0.0
+        version: 11.0.0
+    devDependencies:
+      '@chat/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
@@ -2319,6 +2338,14 @@ packages:
     resolution: {integrity: sha512-9ZhXKM/rw350N1ovuWHbGxnGh/SNJ4cnxHiM0rxE4VN41wsg8P8zWn9hv/buK00RP4WvlOyr/RBDiptyxVbkZQ==}
     engines: {node: '>=0.10.0'}
 
+  preact@11.0.0:
+    resolution: {integrity: sha512-LRTLKuSe6VYPhvBDjwFaX+nuZnpsw6IN2GSboisAvhGsncylBmrbDCERhgKDn6yP2mAwbGvsB5OVyTe33M8gBg==}
+    peerDependencies:
+      preact-render-to-string: '>=6.7.0'
+    peerDependenciesMeta:
+      preact-render-to-string:
+        optional: true
+
   process-nextick-args@2.0.1:
     resolution: {integrity: sha512-3ouUOpQhtgrbOa17J7+uxOTpITYWaGP7/AhoR3+A+/1e9skrzelGi/dXzEYyvbxubEF6Wn2ypscTKiKJFFn1ag==}
 
@@ -4473,6 +4500,8 @@ snapshots:
   postgres-interval@1.2.0:
     dependencies:
       xtend: 4.0.2
+
+  preact@11.0.0: {}
 
   process-nextick-args@2.0.1: {}
 

@@ -1,7 +1,7 @@
 /**
  * The inbox's model — the `chat` schema as the server hands it over to the agents
  * (docs/architecture/00-decisions-structurantes.md, D1). What the visitor's widget receives is
- * a narrower projection: no note, no event, no confidence ever reaches it.
+ * a narrower projection (`widget.ts`): no note, no event, no confidence ever reaches it.
  *
  * A conversation is a sequence of typed messages: what the visitor writes, what an agent or
  * the AI answers, the internal notes and the events (a tool called, a handoff) live in the

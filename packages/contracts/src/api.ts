@@ -28,6 +28,12 @@ export type ErrorCode =
   | 'EMPTY_MESSAGE'
   | 'INVALID_REQUEST'
   | 'INTERNAL_ERROR'
+  /** The widget: a site that does not exist, is inactive, or does not allow this page. */
+  | 'SITE_NOT_FOUND'
+  | 'ORIGIN_NOT_ALLOWED'
+  | 'VISITOR_INVALID'
+  | 'IDENTITY_INVALID'
+  | 'RATE_LIMITED'
 
 /** Opens the inbox's WebSocket, once, within thirty seconds. */
 export interface Ticket {

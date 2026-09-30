@@ -12,6 +12,7 @@ import { type Db, connect, migrateDatabase } from '../../src/db/client.js'
 import { InboxHub } from '../../src/realtime/hub.js'
 import { Settings } from '../../src/settings/settings.js'
 import { BasedbSource } from '../../src/settings/source.js'
+import { WidgetHub } from '../../src/widget/hub.js'
 
 /**
  * Agents authenticated by basedb (D4, B2), against a stand-in for basedb 0.5.0 that
@@ -106,6 +107,8 @@ beforeAll(async () => {
     production: true,
     devAgent: null,
     basedb: { url, tenant: TENANT, base: BASE, token: CHAT_TOKEN },
+    secret: 'a-secret-for-the-tests-of-the-chat-server',
+    trustProxy: false,
   }
   const basedbClient = new BasedbClient(config.basedb as NonNullable<Config['basedb']>)
   const settings = new Settings(new BasedbSource(basedbClient))
@@ -116,6 +119,7 @@ beforeAll(async () => {
     basedb: basedbClient,
     settings,
     tickets: new TicketBook(),
+    widgetHub: new WidgetHub(),
   }))
 }, 180_000)
 

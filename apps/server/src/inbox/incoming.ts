@@ -18,6 +18,34 @@ async function lock(tx: Db, id: string) {
 }
 
 /**
+ * A new conversation for a visitor: the AI answers first when the site says so, and the
+ * site's default team takes what it hands over.
+ */
+export async function createConversation(
+  db: Db,
+  contactId: string,
+  site: {
+    readonly id: string
+    readonly name: string
+    readonly aiEnabled: boolean
+    readonly defaultTeamId: string | null
+  },
+): Promise<string> {
+  const [row] = await db
+    .insert(conversations)
+    .values({
+      contactId,
+      siteId: site.id,
+      siteName: site.name,
+      status: site.aiEnabled ? 'ai' : 'open',
+      teamId: site.defaultTeamId,
+    })
+    .returning({ id: conversations.id })
+  if (!row) throw new Refusal('INTERNAL_ERROR', 500)
+  return row.id
+}
+
+/**
  * A visitor wrote. While the AI has the conversation, nobody is called: it answers. Once
  * an agent has it, that agent is; unassigned, the inbox rings for everyone and the row
  * waits in « Non assignées ». A resolved conversation opens again.

@@ -15,7 +15,17 @@ export interface Config {
   readonly devAgent: string | null
   /** basedb, once the « Messagerie » base exists and the chat has its token (D2, D4). */
   readonly basedb: BasedbConfig | null
+  /** Signs the visitors' tokens. Required in production; a fixed one in development. */
+  readonly secret: string
+  /**
+   * Behind a proxy that sets `X-Forwarded-For`: the visitor's address is read there.
+   * Without one, that header is anyone's to write, and only the socket's address counts.
+   */
+  readonly trustProxy: boolean
 }
+
+/** The configuration cannot run: said once, at start, rather than at the first request. */
+export class ConfigError extends Error {}
 
 export interface BasedbConfig {
   /** Where basedb's API answers: `/auth/…` and `/api/v1/…` are under it. */
@@ -36,7 +46,15 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const token = env.BASEDB_TOKEN || ''
   const basedb =
     url && tenant && base && token ? { url: url.replace(/\/+$/, ''), tenant, base, token } : null
+  const secret = env.CHAT_SECRET || (production ? '' : 'development-only-secret-of-the-chat')
+  if (secret.length < 32) {
+    throw new ConfigError(
+      'CHAT_SECRET est requis en production, 32 caractères au moins (openssl rand -base64 32).',
+    )
+  }
   return {
+    secret,
+    trustProxy: env.CHAT_TRUST_PROXY === '1',
     port: Number(env.CHAT_PORT || 8810),
     databaseUrl: env.DATABASE_URL || 'postgres://chat:chat@127.0.0.1:55440/chat',
     webOrigin: env.CHAT_WEB_ORIGIN || 'http://localhost:3210',
