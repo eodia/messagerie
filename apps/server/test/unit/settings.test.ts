@@ -43,7 +43,10 @@ describe('the demonstration settings', () => {
 
   it('read the weather tool as a GET with its headers, and the MCP server', async () => {
     const weather = (await demo.tools()).find((t) => t.name === 'Météo')
-    expect(weather).toMatchObject({ method: 'GET', headers: { 'User-Agent': 'Messagerie-Acme/1.0' } })
+    expect(weather).toMatchObject({
+      method: 'GET',
+      headers: { 'User-Agent': 'Messagerie-Acme/1.0' },
+    })
     expect(await demo.mcpServers()).toMatchObject([
       { name: 'Agences Acme (démo)', url: 'http://localhost:8820/mcp', agent: true, allowed: [] },
     ])
