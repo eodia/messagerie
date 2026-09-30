@@ -1,0 +1,579 @@
+{
+  "format": 1,
+  "key": "messagerie",
+  "label": "Messagerie",
+  "summary": "Le paramétrage de la messagerie client : sites, équipes, conseillers, réponses types, base de connaissance, garde-fous et outils de l'agent IA.",
+  "description": "La base que la messagerie lit pour savoir où s'affiche le widget, qui répond, avec quelles réponses types, et ce que l'agent IA a le droit de dire et de faire. Les conversations elles-mêmes vivent dans la messagerie ; cette base en est le paramétrage, modifiable dans basedb avec son historique et ses droits.",
+  "category": "Relation client",
+  "icon": "messages-square",
+  "color": "#2da31e",
+  "tags": ["Messagerie", "IA", "Support", "Paramétrage"],
+  "base": {
+    "label": "Messagerie",
+    "description": "Le paramétrage de la messagerie client. Les conversations n'y sont pas : elles vivent dans la messagerie."
+  },
+  "tables": [
+    {
+      "key": "sites",
+      "label": "Sites",
+      "icon": "globe",
+      "color": "#2da31e",
+      "description": "Un site ou une marque qui embarque le widget de chat.",
+      "fields": [
+        {
+          "label": "Nom",
+          "kind": "short_text",
+          "required": true,
+          "description": "Affiché en tête du widget."
+        },
+        {
+          "label": "Domaines autorisés",
+          "kind": "long_text",
+          "description": "Un domaine par ligne. Le widget refuse de s'afficher ailleurs."
+        },
+        {
+          "label": "Message d'accueil",
+          "kind": "long_text",
+          "description": "Le premier message que lit le visiteur en ouvrant le widget."
+        },
+        {
+          "label": "Couleur du widget",
+          "kind": "short_text",
+          "description": "Code hexadécimal, par exemple #2DA31E."
+        },
+        {
+          "label": "Langue",
+          "kind": "select",
+          "options": [
+            { "label": "Français", "color": "#3b82f6" },
+            { "label": "English", "color": "#ef4444" },
+            { "label": "Deutsch", "color": "#f59e0b" },
+            { "label": "Español", "color": "#10b981" }
+          ]
+        },
+        {
+          "label": "Fuseau horaire",
+          "kind": "short_text",
+          "description": "Nom IANA, par exemple Europe/Paris. Les horaires d'ouverture s'y lisent."
+        },
+        {
+          "label": "Agent IA actif",
+          "kind": "boolean",
+          "description": "Coché : l'IA répond en premier. Décoché : chaque conversation va directement à un conseiller."
+        },
+        {
+          "label": "Seuil de confiance (%)",
+          "kind": "number",
+          "format": { "display": "integer" },
+          "description": "En dessous de ce score, l'IA ne répond pas seule : elle transfère à un conseiller avec un résumé."
+        },
+        {
+          "label": "Consignes de l'agent IA",
+          "kind": "long_text",
+          "description": "Le ton, ce que l'IA doit toujours dire, ce qu'elle ne doit jamais promettre."
+        },
+        {
+          "label": "Conservation (jours)",
+          "kind": "number",
+          "format": { "display": "integer" },
+          "description": "Au-delà, une conversation est purgée avec ses pièces jointes et ses extraits indexés pour l'IA."
+        },
+        { "label": "Actif", "kind": "boolean" }
+      ]
+    },
+    {
+      "key": "horaires",
+      "label": "Horaires d'ouverture",
+      "icon": "clock",
+      "color": "#0ea5e9",
+      "description": "Les créneaux où des conseillers répondent. Hors créneau, l'IA répond seule et le dit.",
+      "fields": [
+        {
+          "label": "Créneau",
+          "kind": "short_text",
+          "required": true,
+          "description": "Un nom libre, par exemple « Semaine »."
+        },
+        {
+          "label": "Jours",
+          "kind": "multi_select",
+          "options": [
+            { "label": "Lundi" },
+            { "label": "Mardi" },
+            { "label": "Mercredi" },
+            { "label": "Jeudi" },
+            { "label": "Vendredi" },
+            { "label": "Samedi" },
+            { "label": "Dimanche" }
+          ]
+        },
+        { "label": "Ouverture", "kind": "short_text", "description": "Heure au format 09:00." },
+        { "label": "Fermeture", "kind": "short_text", "description": "Heure au format 18:00." }
+      ]
+    },
+    {
+      "key": "equipes",
+      "label": "Équipes",
+      "icon": "users",
+      "color": "#8b5cf6",
+      "description": "Des groupes de conseillers, vers lesquels on affecte et on transfère.",
+      "fields": [
+        { "label": "Nom", "kind": "short_text", "required": true },
+        { "label": "Description", "kind": "long_text" },
+        {
+          "label": "Conseillers",
+          "kind": "count",
+          "rollup": { "via": "Équipes", "table": "conseillers" }
+        }
+      ]
+    },
+    {
+      "key": "conseillers",
+      "label": "Conseillers",
+      "icon": "headset",
+      "color": "#8b5cf6",
+      "description": "Les personnes qui répondent aux visiteurs. Figurer ici, avec un compte basedb, c'est pouvoir se connecter à la messagerie.",
+      "fields": [
+        { "label": "Nom", "kind": "short_text", "required": true },
+        {
+          "label": "Compte basedb",
+          "kind": "user",
+          "description": "La personne qui se connecte, avec son compte basedb."
+        },
+        {
+          "label": "Rôle",
+          "kind": "select",
+          "options": [
+            { "label": "Conseiller", "color": "#3b82f6" },
+            { "label": "Superviseur", "color": "#8b5cf6" }
+          ],
+          "description": "Un superviseur voit toutes les conversations et peut les réaffecter."
+        },
+        {
+          "label": "Conversations simultanées",
+          "kind": "number",
+          "format": { "display": "integer" },
+          "description": "Au-delà, plus aucune conversation ne lui est affectée automatiquement."
+        },
+        { "label": "Actif", "kind": "boolean" }
+      ]
+    },
+    {
+      "key": "reponses_types",
+      "label": "Réponses types",
+      "icon": "message-square-text",
+      "color": "#f59e0b",
+      "description": "Des réponses prêtes à l'emploi, insérées dans le composeur en tapant « / ».",
+      "fields": [
+        { "label": "Titre", "kind": "short_text", "required": true },
+        {
+          "label": "Raccourci",
+          "kind": "short_text",
+          "description": "Tapé après « / » dans le composeur, sans espace. Par exemple : delai-remboursement."
+        },
+        {
+          "label": "Contenu",
+          "kind": "long_text",
+          "description": "Peut citer le contact : {prénom}, {nom}, {email}."
+        }
+      ]
+    },
+    {
+      "key": "etiquettes",
+      "label": "Étiquettes",
+      "icon": "tag",
+      "color": "#ec4899",
+      "description": "Les étiquettes posées sur les conversations, à la main ou par l'IA.",
+      "fields": [
+        { "label": "Nom", "kind": "short_text", "required": true },
+        { "label": "Couleur", "kind": "short_text", "description": "Code hexadécimal." },
+        {
+          "label": "Quand l'appliquer",
+          "kind": "long_text",
+          "description": "Lu par l'IA pour étiqueter les conversations : décrivez les cas en une ou deux phrases."
+        },
+        {
+          "label": "Posée par l'IA",
+          "kind": "boolean",
+          "description": "Coché : l'IA peut poser cette étiquette seule. Décoché : seuls les conseillers la posent."
+        }
+      ]
+    },
+    {
+      "key": "categories",
+      "label": "Catégories",
+      "icon": "folder",
+      "color": "#64748b",
+      "description": "Les thèmes qui rangent la base de connaissance.",
+      "fields": [
+        { "label": "Nom", "kind": "short_text", "required": true },
+        { "label": "Description", "kind": "long_text" },
+        {
+          "label": "Articles",
+          "kind": "count",
+          "rollup": { "via": "Catégorie", "table": "articles" }
+        }
+      ]
+    },
+    {
+      "key": "articles",
+      "label": "Articles",
+      "icon": "book-open",
+      "color": "#10b981",
+      "description": "La base de connaissance interne. Les articles publiés sont indexés : l'IA y puise ses réponses et les cite.",
+      "fields": [
+        { "label": "Titre", "kind": "short_text", "required": true },
+        {
+          "label": "Contenu",
+          "kind": "long_text",
+          "description": "En Markdown. Un titre par sujet aide l'IA à citer le bon passage."
+        },
+        {
+          "label": "Statut",
+          "kind": "select",
+          "options": [
+            { "label": "Brouillon", "color": "#94a3b8" },
+            { "label": "En révision", "color": "#f59e0b" },
+            { "label": "Publié", "color": "#10b981" },
+            { "label": "Archivé", "color": "#64748b" }
+          ],
+          "description": "Seuls les articles publiés sont indexés pour l'IA."
+        },
+        { "label": "Auteur", "kind": "user" },
+        { "label": "Relu le", "kind": "date" }
+      ]
+    },
+    {
+      "key": "conversations_promues",
+      "label": "Conversations promues",
+      "icon": "message-circle-heart",
+      "color": "#10b981",
+      "description": "Des conversations bien résolues, relues puis publiées : l'IA s'en inspire comme d'un article.",
+      "fields": [
+        {
+          "label": "Question",
+          "kind": "short_text",
+          "required": true,
+          "description": "La question du visiteur, reformulée pour être retrouvée."
+        },
+        {
+          "label": "Réponse",
+          "kind": "long_text",
+          "description": "La réponse validée, sans données personnelles."
+        },
+        {
+          "label": "Statut",
+          "kind": "select",
+          "options": [
+            { "label": "À relire", "color": "#f59e0b" },
+            { "label": "Publiée", "color": "#10b981" },
+            { "label": "Rejetée", "color": "#94a3b8" }
+          ],
+          "description": "Seules les conversations publiées sont indexées pour l'IA."
+        },
+        {
+          "label": "Origine",
+          "kind": "select",
+          "options": [
+            { "label": "Conseiller", "color": "#3b82f6" },
+            { "label": "Historique", "color": "#8b5cf6" }
+          ],
+          "description": "Promue par un conseiller depuis la messagerie, ou reprise de l'historique lors d'une migration."
+        },
+        {
+          "label": "Conversation",
+          "kind": "url",
+          "description": "Le lien vers la conversation d'origine dans la messagerie."
+        },
+        { "label": "Promue par", "kind": "user" },
+        { "label": "Relue par", "kind": "user" }
+      ]
+    },
+    {
+      "key": "garde_fous",
+      "label": "Garde-fous",
+      "icon": "shield-alert",
+      "color": "#ef4444",
+      "description": "Les sujets sur lesquels l'IA ne répond pas elle-même : elle transfère directement à un conseiller.",
+      "fields": [
+        { "label": "Nom", "kind": "short_text", "required": true },
+        {
+          "label": "Sujet",
+          "kind": "long_text",
+          "description": "Décrit à l'IA ce qui déclenche le garde-fou, avec des exemples si besoin."
+        },
+        {
+          "label": "Action",
+          "kind": "select",
+          "options": [
+            { "label": "Transférer à un conseiller", "color": "#f59e0b" },
+            { "label": "Répondre sans traiter", "color": "#94a3b8" }
+          ]
+        },
+        {
+          "label": "Message au visiteur",
+          "kind": "long_text",
+          "description": "Ce que l'IA dit au visiteur quand le garde-fou se déclenche."
+        },
+        { "label": "Actif", "kind": "boolean" }
+      ]
+    },
+    {
+      "key": "outils_ia",
+      "label": "Outils IA",
+      "icon": "wrench",
+      "color": "#0ea5e9",
+      "description": "Les seules actions que l'IA peut mener : consulter un dossier, créer un rappel… Un outil qui n'est pas ici n'existe pas pour elle.",
+      "fields": [
+        { "label": "Nom", "kind": "short_text", "required": true },
+        {
+          "label": "Description pour l'IA",
+          "kind": "long_text",
+          "description": "Ce que fait l'outil et quand l'appeler. C'est tout ce que le modèle en sait."
+        },
+        {
+          "label": "Type",
+          "kind": "select",
+          "options": [
+            { "label": "Lecture dans basedb", "color": "#10b981" },
+            { "label": "Appel HTTP", "color": "#3b82f6" },
+            { "label": "Rappel", "color": "#f59e0b" }
+          ]
+        },
+        {
+          "label": "Cible",
+          "kind": "short_text",
+          "description": "La table basedb lue, ou l'adresse appelée."
+        },
+        {
+          "label": "Paramètres",
+          "kind": "long_text",
+          "description": "Le schéma JSON des paramètres attendus."
+        },
+        {
+          "label": "Agent IA",
+          "kind": "boolean",
+          "description": "Coché : l'agent premier répondant peut l'appeler seul."
+        },
+        {
+          "label": "Copilote",
+          "kind": "boolean",
+          "description": "Coché : proposé aux conseillers dans le panneau de la conversation."
+        },
+        { "label": "Actif", "kind": "boolean" }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "from": "sites",
+      "label": "Équipe par défaut",
+      "to": "equipes",
+      "multiple": false,
+      "description": "L'équipe qui reçoit les conversations transférées par l'IA."
+    },
+    { "from": "horaires", "label": "Site", "to": "sites", "multiple": false },
+    { "from": "conseillers", "label": "Équipes", "to": "equipes", "multiple": true },
+    {
+      "from": "reponses_types",
+      "label": "Équipes",
+      "to": "equipes",
+      "multiple": true,
+      "description": "Vide : proposée à tous les conseillers."
+    },
+    { "from": "articles", "label": "Catégorie", "to": "categories", "multiple": false },
+    {
+      "from": "articles",
+      "label": "Sites",
+      "to": "sites",
+      "multiple": true,
+      "description": "Vide : valable pour tous les sites."
+    },
+    {
+      "from": "conversations_promues",
+      "label": "Catégorie",
+      "to": "categories",
+      "multiple": false
+    },
+    {
+      "from": "garde_fous",
+      "label": "Équipe",
+      "to": "equipes",
+      "multiple": false,
+      "description": "Où transférer. Vide : l'équipe par défaut du site."
+    }
+  ],
+  "rows": {
+    "equipes": [
+      {
+        "$key": "support",
+        "Nom": "Support",
+        "Description": "Répond aux questions de premier niveau transférées par l'IA."
+      }
+    ],
+    "sites": [
+      {
+        "$key": "principal",
+        "Nom": "Site principal",
+        "Domaines autorisés": "exemple.fr\nwww.exemple.fr",
+        "Message d'accueil": "Bonjour 👋 Je suis l'assistant virtuel. Comment puis-je vous aider ?",
+        "Couleur du widget": "#2DA31E",
+        "Langue": "Français",
+        "Fuseau horaire": "Europe/Paris",
+        "Agent IA actif": true,
+        "Seuil de confiance (%)": 75,
+        "Consignes de l'agent IA": "Vouvoie le visiteur. Réponds en trois phrases au plus. Ne promets jamais un délai ou un montant qui ne figure pas dans la base de connaissance.",
+        "Conservation (jours)": 365,
+        "Actif": true,
+        "Équipe par défaut": "@support"
+      }
+    ],
+    "horaires": [
+      {
+        "Créneau": "Semaine",
+        "Jours": ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"],
+        "Ouverture": "09:00",
+        "Fermeture": "18:00",
+        "Site": "@principal"
+      },
+      {
+        "Créneau": "Samedi matin",
+        "Jours": ["Samedi"],
+        "Ouverture": "09:00",
+        "Fermeture": "12:00",
+        "Site": "@principal"
+      }
+    ],
+    "conseillers": [
+      {
+        "Nom": "Administrateur",
+        "Compte basedb": "$moi",
+        "Rôle": "Superviseur",
+        "Conversations simultanées": 5,
+        "Actif": true,
+        "Équipes": ["@support"]
+      }
+    ],
+    "reponses_types": [
+      {
+        "Titre": "Salutation",
+        "Raccourci": "bonjour",
+        "Contenu": "Bonjour {prénom}, je prends votre demande en charge. Je reviens vers vous dans un instant."
+      },
+      {
+        "Titre": "Clôture",
+        "Raccourci": "merci",
+        "Contenu": "Je vous en prie, {prénom}. N'hésitez pas à revenir vers nous si besoin. Bonne journée !"
+      }
+    ],
+    "etiquettes": [
+      {
+        "Nom": "Facturation",
+        "Couleur": "#3b82f6",
+        "Quand l'appliquer": "Une question sur une facture, un paiement, un remboursement ou un prélèvement.",
+        "Posée par l'IA": true
+      },
+      {
+        "Nom": "Compte",
+        "Couleur": "#8b5cf6",
+        "Quand l'appliquer": "Connexion, mot de passe, changement d'adresse ou de coordonnées.",
+        "Posée par l'IA": true
+      },
+      {
+        "Nom": "Réclamation",
+        "Couleur": "#ef4444",
+        "Quand l'appliquer": "Le visiteur exprime un mécontentement ou conteste une décision.",
+        "Posée par l'IA": true
+      },
+      { "Nom": "À rappeler", "Couleur": "#f59e0b", "Posée par l'IA": false }
+    ],
+    "categories": [
+      { "$key": "compte", "Nom": "Compte et accès" },
+      { "$key": "facturation", "Nom": "Facturation" }
+    ],
+    "articles": [
+      {
+        "Titre": "Modifier son adresse",
+        "Contenu": "## Depuis l'espace client\n\nOuvrez **Mon profil**, puis **Coordonnées**. La nouvelle adresse s'applique dès l'enregistrement.\n\n## Sans espace client\n\nUn conseiller peut la modifier pour vous après vérification de votre identité.",
+        "Statut": "Publié",
+        "Catégorie": "@compte",
+        "Auteur": "$moi",
+        "Relu le": "-7d"
+      },
+      {
+        "Titre": "Délais de remboursement",
+        "Contenu": "## Délai habituel\n\nUn remboursement est versé sous 5 à 10 jours ouvrés après réception de tous les justificatifs.\n\n## Suivre un remboursement\n\nSon avancement est visible dans l'espace client, rubrique **Mes demandes**.",
+        "Statut": "En révision",
+        "Catégorie": "@facturation",
+        "Auteur": "$moi"
+      }
+    ],
+    "garde_fous": [
+      {
+        "Nom": "Litiges et réclamations",
+        "Sujet": "Le visiteur conteste une décision, menace d'une action en justice, ou formule une réclamation.",
+        "Action": "Transférer à un conseiller",
+        "Message au visiteur": "Je transmets votre demande à un conseiller, qui la reprend personnellement.",
+        "Actif": true
+      },
+      {
+        "Nom": "Données de santé",
+        "Sujet": "Le visiteur donne ou demande des informations médicales : diagnostic, traitement, arrêt de travail, handicap.",
+        "Action": "Transférer à un conseiller",
+        "Message au visiteur": "Pour protéger vos informations, un conseiller reprend cette demande avec vous.",
+        "Actif": true
+      }
+    ],
+    "outils_ia": [
+      {
+        "Nom": "Consulter une demande",
+        "Description pour l'IA": "Lit le statut d'une demande du visiteur identifié : étape, date de dernière mise à jour, pièces manquantes. À appeler quand le visiteur demande où en est sa demande.",
+        "Type": "Lecture dans basedb",
+        "Cible": "Demandes",
+        "Paramètres": "{\n  \"type\": \"object\",\n  \"properties\": { \"numero\": { \"type\": \"string\" } },\n  \"required\": [\"numero\"]\n}",
+        "Agent IA": true,
+        "Copilote": true,
+        "Actif": false
+      },
+      {
+        "Nom": "Créer un rappel",
+        "Description pour l'IA": "Programme un rappel téléphonique par un conseiller. À proposer quand la demande ne peut pas se régler par écrit.",
+        "Type": "Rappel",
+        "Paramètres": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"telephone\": { \"type\": \"string\" },\n    \"creneau\": { \"type\": \"string\" }\n  },\n  \"required\": [\"telephone\"]\n}",
+        "Agent IA": false,
+        "Copilote": true,
+        "Actif": true
+      }
+    ]
+  },
+  "views": [
+    {
+      "table": "articles",
+      "label": "Par statut",
+      "kind": "kanban",
+      "spec": {
+        "group_by": "Statut",
+        "card_fields": ["Catégorie", "Auteur", "Relu le"],
+        "group_order": ["Brouillon", "En révision", "Publié", "Archivé"],
+        "hide_empty": false
+      }
+    },
+    {
+      "table": "conversations_promues",
+      "label": "À relire",
+      "kind": "kanban",
+      "spec": {
+        "group_by": "Statut",
+        "card_fields": ["Catégorie", "Origine", "Promue par"],
+        "group_order": ["À relire", "Publiée", "Rejetée"],
+        "hide_empty": false
+      }
+    },
+    {
+      "table": "conseillers",
+      "label": "Par rôle",
+      "kind": "grid",
+      "spec": { "group_by": "Rôle" }
+    }
+  ]
+}
