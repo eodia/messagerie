@@ -88,6 +88,8 @@ export interface Handoff {
   readonly assigneeId: string | null
   readonly team: string
   readonly model: string
+  /** The trace of the decision to hand over, when the AI already recorded it. */
+  readonly runId?: string
 }
 
 /** The AI hands the conversation over, with what the agent needs to pick it up. */
@@ -98,17 +100,22 @@ export async function handOff(db: Db, id: string, handoff: Handoff): Promise<voi
       ? await tx.select().from(agents).where(eq(agents.id, handoff.assigneeId))
       : []
     const at = new Date()
-    const [run] = await tx
-      .insert(aiRuns)
-      .values({
-        conversationId: id,
-        kind: 'answer',
-        model: handoff.model,
-        output: { handoff: handoff.reason },
-        confidence: handoff.confidence,
-        createdAt: at,
-      })
-      .returning()
+    const runId =
+      handoff.runId ??
+      (
+        await tx
+          .insert(aiRuns)
+          .values({
+            conversationId: id,
+            kind: 'answer',
+            model: handoff.model,
+            output: { handoff: handoff.reason },
+            confidence: handoff.confidence,
+            createdAt: at,
+          })
+          .returning()
+      )[0]?.id ??
+      null
     await tx.insert(messages).values({
       conversationId: id,
       author: 'ai',
@@ -122,7 +129,7 @@ export async function handOff(db: Db, id: string, handoff: Handoff): Promise<voi
           team: handoff.team,
         },
       },
-      aiRunId: run?.id ?? null,
+      aiRunId: runId,
       createdAt: at,
     })
     await tx

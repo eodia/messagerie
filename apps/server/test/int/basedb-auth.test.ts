@@ -120,6 +120,7 @@ beforeAll(async () => {
     settings,
     tickets: new TicketBook(),
     widgetHub: new WidgetHub(),
+    ai: null,
   }))
 }, 180_000)
 

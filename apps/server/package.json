@@ -15,16 +15,19 @@
     "provision": "tsx --env-file-if-exists=.env src/provision.ts",
     "simulate": "tsx --env-file-if-exists=.env src/simulate.ts",
     "test:unit": "vitest run test/unit",
-    "site-secret": "tsx --env-file-if-exists=.env src/site-secret.ts"
+    "site-secret": "tsx --env-file-if-exists=.env src/site-secret.ts",
+    "worker": "tsx --env-file-if-exists=.env src/worker.ts"
   },
   "dependencies": {
+    "@chat/ai": "workspace:*",
     "@chat/basedb-template": "workspace:*",
     "@chat/widget": "workspace:*",
     "@hono/node-server": "^1.19.11",
     "@hono/node-ws": "^1.3.1",
     "drizzle-orm": "^0.45.3",
     "hono": "^4.13.12",
-    "pg": "^8.23.1"
+    "pg": "^8.23.1",
+    "pg-boss": "^12.35.1"
   },
   "devDependencies": {
     "@chat/contracts": "workspace:*",

@@ -24,6 +24,8 @@ export interface WidgetDeps {
   readonly db: Db
   readonly config: Config
   readonly settings: Settings
+  /** A model is configured: the sites that want it get the AI first. */
+  readonly aiAvailable: boolean
   /** Told of each visitor message — the AI's cue to answer. */
   readonly onVisitorMessage?: (conversationId: string) => void
 }
@@ -160,7 +162,7 @@ export async function openSession(
       welcome: site.welcome,
       color: site.color,
       language: LANGUAGES[site.language] ?? 'fr',
-      ai: site.aiEnabled,
+      ai: site.aiEnabled && deps.aiAvailable,
     },
     availability: await whenAvailable(settings, site),
     conversation: await visitorConversation(db, contact.id),
@@ -236,7 +238,12 @@ export async function postVisitorMessage(
   if (text === '') throw new Refusal('EMPTY_MESSAGE', 400)
   if (text.length > 4000) throw new Refusal('INVALID_REQUEST', 400, { max: 4000 })
   const current = await currentConversation(deps.db, visitor.contactId)
-  const id = current?.id ?? (await createConversation(deps.db, visitor.contactId, visitor.site))
+  const id =
+    current?.id ??
+    (await createConversation(deps.db, visitor.contactId, {
+      ...visitor.site,
+      aiEnabled: visitor.site.aiEnabled && deps.aiAvailable,
+    }))
   await receiveVisitorMessage(deps.db, id, text)
   deps.onVisitorMessage?.(id)
   const conversation = await visitorConversation(deps.db, visitor.contactId)

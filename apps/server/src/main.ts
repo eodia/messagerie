@@ -2,66 +2,54 @@ import { serve } from '@hono/node-server'
 import { eq } from 'drizzle-orm'
 import { createApp, startPings } from './app.js'
 import { TicketBook } from './auth/tickets.js'
-import { BasedbClient } from './basedb/client.js'
-import { ConfigError, readConfig } from './config.js'
-import { connect, migrateDatabase } from './db/client.js'
+import { boot } from './boot.js'
 import { conversations } from './db/schema.js'
 import { loadSummaries } from './inbox/read.js'
 import { InboxHub } from './realtime/hub.js'
 import { listenForChanges } from './realtime/signals.js'
-import { Settings } from './settings/settings.js'
-import { BasedbSource, TemplateSource } from './settings/source.js'
 import { WidgetHub } from './widget/hub.js'
 
 /**
- * Starts the chat server: the schema brought up to date, basedb followed, the change
- * listener, then the HTTP and WebSocket server. Stops cleanly on Ctrl+C and `docker stop`.
+ * Starts the chat server: what `boot` starts, the change listener, then the HTTP and
+ * WebSocket server. Stops cleanly on Ctrl+C and `docker stop`.
  */
-let config: ReturnType<typeof readConfig>
-try {
-  config = readConfig()
-} catch (error) {
-  if (!(error instanceof ConfigError)) throw error
-  console.error(`chat : ${error.message}`)
-  process.exit(1)
-}
-const { pool, db } = connect(config.databaseUrl)
-await migrateDatabase(db)
-
-// The settings come from basedb; in development without it, from the template and the
-// demonstration rows of Acme Assurances. In production without basedb, there are none.
-const basedb = config.basedb ? new BasedbClient(config.basedb) : null
-const source = basedb
-  ? new BasedbSource(basedb)
-  : config.production
-    ? null
-    : new TemplateSource(config.devAgent, true)
-const settings = source ? new Settings(source) : null
-const stopFollowing =
-  settings?.follow((error) => console.error('chat : flux basedb', error)) ?? (() => {})
+const { config, db, basedb, settings, settingsKind, ai, stop: stopBoot } = await boot('server')
 
 const hub = new InboxHub()
 const widgetHub = new WidgetHub()
+
+/** The visitor whose conversation it is — told only if their widget is open. */
+async function contactOf(conversationId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ contactId: conversations.contactId })
+    .from(conversations)
+    .where(eq(conversations.id, conversationId))
+  return row?.contactId ?? null
+}
+
 const stopListening = listenForChanges(
   config.databaseUrl,
-  ({ conversationId, alert, notify }) => {
+  ({ conversationId, alert, notify, typing }) => {
     for (const agentId of notify ?? []) hub.sendTo(agentId, { type: 'notifications' })
     if (conversationId === undefined) return
     const failed = (error: unknown) =>
       console.error('chat : mise à jour en direct impossible', error)
-    if (hub.size > 0) {
-      loadSummaries(db, [conversationId])
-        .then(([summary]) => summary && hub.broadcast({ type: 'conversation', summary, alert }))
-        .catch(failed)
-    }
-    // The visitor whose conversation it is, if their widget is open.
     if (widgetHub.size > 0) {
-      db.select({ contactId: conversations.contactId })
-        .from(conversations)
-        .where(eq(conversations.id, conversationId))
-        .then(([row]) => row && widgetHub.send(row.contactId, { type: 'conversation' }))
+      contactOf(conversationId)
+        .then((contactId) => {
+          if (contactId === null) return
+          widgetHub.send(
+            contactId,
+            typing ? { type: 'typing', who: typing } : { type: 'conversation' },
+          )
+        })
         .catch(failed)
     }
+    // Typing changes nothing the inbox shows.
+    if (typing || hub.size === 0) return
+    loadSummaries(db, [conversationId])
+      .then(([summary]) => summary && hub.broadcast({ type: 'conversation', summary, alert }))
+      .catch(failed)
   },
   (error) => console.error('chat : écoute des changements', error),
 )
@@ -76,15 +64,16 @@ const { app, injectWebSocket } = createApp({
   settings,
   tickets: new TicketBook(),
   widgetHub,
+  ai,
 })
 const server = serve({ fetch: app.fetch, port: config.port }, ({ port }) => {
   console.log(`chat : à l’écoute sur http://localhost:${port}`)
-  if (source?.kind === 'template') {
+  if (settingsKind === 'template') {
     console.log('chat : paramétrage de démonstration (Acme Assurances), sans basedb')
   }
   if (config.basedb) {
     console.log(
-      `chat : conseillers lus dans basedb ${config.basedb.url}, base ${config.basedb.base}`,
+      `chat : paramétrage lu dans basedb ${config.basedb.url}, base ${config.basedb.base}`,
     )
   }
   if (config.devAgent) console.log(`chat : identité de développement ${config.devAgent} sans jeton`)
@@ -100,10 +89,9 @@ async function stop(): Promise<void> {
   stopping = true
   stopPings()
   clearInterval(widgetPings)
-  stopFollowing()
   server.close()
   await stopListening()
-  await pool.end()
+  await stopBoot()
   process.exit(0)
 }
 process.on('SIGINT', stop)

@@ -39,7 +39,13 @@ export const priority = chat.enum('priority', ['low', 'normal', 'high', 'urgent'
 export const sentiment = chat.enum('sentiment', ['positive', 'neutral', 'negative'])
 export const messageAuthor = chat.enum('message_author', ['contact', 'agent', 'ai', 'system'])
 export const messageKind = chat.enum('message_kind', ['text', 'note', 'event', 'handoff', 'file'])
-export const aiRunKind = chat.enum('ai_run_kind', ['answer', 'suggestion', 'tag', 'summary'])
+export const aiRunKind = chat.enum('ai_run_kind', [
+  'answer',
+  'suggestion',
+  'tag',
+  'summary',
+  'rephrase',
+])
 export const feedbackAction = chat.enum('feedback_action', ['accepted', 'edited', 'rejected'])
 export const tagOrigin = chat.enum('tag_origin', ['agent', 'ai'])
 export const chunkSource = chat.enum('chunk_source', ['article', 'conversation'])
@@ -230,6 +236,10 @@ export const kbChunks = chat.table(
     title: text('title').notNull(),
     text: text('text').notNull(),
     embedding: vector('embedding', { dimensions: 1024 }),
+    /** The source's text, hashed: an article that did not change is not embedded again. */
+    digest: text('digest').notNull().default(''),
+    /** The sites it answers for; empty, every site. */
+    siteIds: text('site_ids').array().notNull().default(sql`'{}'::text[]`),
     updatedAt: updatedAt(),
   },
   (t) => [

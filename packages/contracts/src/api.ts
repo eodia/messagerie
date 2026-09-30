@@ -34,6 +34,8 @@ export type ErrorCode =
   | 'VISITOR_INVALID'
   | 'IDENTITY_INVALID'
   | 'RATE_LIMITED'
+  /** No model is configured (CHAT_AI_API_KEY). */
+  | 'AI_UNAVAILABLE'
 
 /** Opens the inbox's WebSocket, once, within thirty seconds. */
 export interface Ticket {

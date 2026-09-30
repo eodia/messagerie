@@ -17,6 +17,8 @@ export interface Signal {
   readonly alert?: AlertKind
   /** The agents whose notifications changed: their sockets are told to read them again. */
   readonly notify?: readonly string[]
+  /** Nothing changed yet: the AI is writing. */
+  readonly typing?: 'ai'
 }
 
 /** Call inside the transaction that made the change. */
@@ -26,6 +28,11 @@ export async function signalChange(
   extra: Omit<Signal, 'conversationId'> = {},
 ): Promise<void> {
   await send(db, { conversationId, ...extra })
+}
+
+/** The AI is writing in a conversation — for the visitor's three dots. */
+export async function signalTyping(db: Db, conversationId: string): Promise<void> {
+  await send(db, { conversationId, typing: 'ai' })
 }
 
 /** Tells agents that their notifications changed, and nothing else did. */

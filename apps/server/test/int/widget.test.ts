@@ -51,7 +51,24 @@ beforeAll(async () => {
     settings: new Settings(new TemplateSource(null, true)),
     tickets: new TicketBook(),
     widgetHub: new WidgetHub(),
-    onVisitorMessage: (id) => told.push(id),
+    // A model that is never called here: the jobs only record what they were told.
+    ai: {
+      llm: {
+        model: 'test',
+        embeddingModel: 'test',
+        external: false,
+        complete: () => Promise.reject(new Error('not in these tests')),
+        embed: () => Promise.reject(new Error('not in these tests')),
+      },
+      redact: false,
+      jobs: {
+        visitorMessage: (id: string) => told.push(id),
+        takenOver: () => {},
+        resolved: () => {},
+        suggest: () => {},
+        knowledgeChanged: () => {},
+      },
+    },
   }))
 }, 180_000)
 

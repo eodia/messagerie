@@ -1,3 +1,4 @@
+import type { Llm } from '@chat/ai'
 import type {
   ApiError,
   AssignBody,
@@ -10,6 +11,8 @@ import type {
 import { createNodeWebSocket } from '@hono/node-ws'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { type Rewording, rephrase } from './ai/copilot.js'
+import type { AiJobs } from './ai/jobs.js'
 import { type AgentEnv, agentAuth } from './auth/agent.js'
 import type { TicketBook } from './auth/tickets.js'
 import type { BasedbClient } from './basedb/client.js'
@@ -88,7 +91,7 @@ export function createApp({
   settings,
   tickets,
   widgetHub,
-  onVisitorMessage,
+  ai,
 }: {
   db: Db
   hub: InboxHub
@@ -97,7 +100,8 @@ export function createApp({
   settings: Settings | null
   tickets: TicketBook
   widgetHub: WidgetHub
-  onVisitorMessage?: (conversationId: string) => void
+  /** The model and its queues; null without AI — conversations then go to the agents. */
+  ai: { readonly llm: Llm; readonly redact: boolean; readonly jobs: AiJobs } | null
 }) {
   const app = new Hono()
   const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app })
@@ -183,21 +187,57 @@ export function createApp({
 
   inbox.post('/conversations/:id/messages', async (c) => {
     const request = sendBody(await jsonBody(c.req.raw))
-    return c.json(await sendMessage(db, c.get('agent'), uuidParam(c.req.param('id')), request))
+    const id = uuidParam(c.req.param('id'))
+    const sent = await sendMessage(db, c.get('agent'), id, request)
+    if (request.resolve) ai?.jobs.resolved(id)
+    return c.json(sent)
   })
 
-  inbox.post('/conversations/:id/takeover', async (c) =>
-    c.json(await takeOver(db, c.get('agent'), uuidParam(c.req.param('id')))),
-  )
+  inbox.post('/conversations/:id/takeover', async (c) => {
+    const id = uuidParam(c.req.param('id'))
+    const taken = await takeOver(db, c.get('agent'), id)
+    ai?.jobs.takenOver(id)
+    return c.json(taken)
+  })
+
+  /** New suggestions from the copilot: they arrive by the live stream. */
+  inbox.post('/conversations/:id/suggestions', (c) => {
+    if (!ai) throw new Refusal('AI_UNAVAILABLE', 503)
+    ai.jobs.suggest(uuidParam(c.req.param('id')))
+    return c.body(null, 202)
+  })
+
+  inbox.post('/conversations/:id/rephrase', async (c) => {
+    if (!ai) throw new Refusal('AI_UNAVAILABLE', 503)
+    const { text, how } = await jsonBody(c.req.raw)
+    const ways: readonly Rewording[] = ['clearer', 'shorter', 'warmer', 'correct']
+    if (typeof text !== 'string' || !ways.includes(how as Rewording)) {
+      throw new Refusal('INVALID_REQUEST', 400, {
+        expected: '{ text, how: clearer|shorter|warmer|correct }',
+      })
+    }
+    const id = uuidParam(c.req.param('id'))
+    const reworded = await rephrase(
+      { db, llm: ai.llm, redact: ai.redact },
+      c.get('agent'),
+      id,
+      text,
+      how as Rewording,
+    )
+    return c.json({ text: reworded })
+  })
 
   inbox.post('/conversations/:id/assign', async (c) => {
     const { assigneeId } = assignBody(await jsonBody(c.req.raw))
     return c.json(await assign(db, c.get('agent'), uuidParam(c.req.param('id')), assigneeId))
   })
 
-  inbox.post('/conversations/:id/resolve', async (c) =>
-    c.json(await resolve(db, c.get('agent'), uuidParam(c.req.param('id')))),
-  )
+  inbox.post('/conversations/:id/resolve', async (c) => {
+    const id = uuidParam(c.req.param('id'))
+    const resolved = await resolve(db, c.get('agent'), id)
+    ai?.jobs.resolved(id)
+    return c.json(resolved)
+  })
 
   inbox.put('/conversations/:id/messages/:messageId/feedback', async (c) => {
     const { action } = feedbackBody(await jsonBody(c.req.raw))
@@ -214,7 +254,13 @@ export function createApp({
     app.route(
       '/api/widget',
       widgetRoutes(
-        { db, config, settings, onVisitorMessage },
+        {
+          db,
+          config,
+          settings,
+          aiAvailable: ai !== null,
+          onVisitorMessage: (id) => ai?.jobs.visitorMessage(id),
+        },
         widgetHub,
         tickets,
         upgradeWebSocket,
