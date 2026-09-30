@@ -12,7 +12,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { type AgentEnv, agentAuth } from './auth/agent.js'
 import type { TicketBook } from './auth/tickets.js'
-import type { MessagerieSettings } from './basedb/settings.js'
+import type { BasedbClient } from './basedb/client.js'
 import type { Config } from './config.js'
 import type { Db } from './db/client.js'
 import { listNotifications, readNotifications } from './inbox/notifications.js'
@@ -28,6 +28,7 @@ import {
 } from './inbox/write.js'
 import type { InboxHub } from './realtime/hub.js'
 import { Refusal } from './refusal.js'
+import type { Settings } from './settings/settings.js'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const FEEDBACK: readonly Feedback[] = ['accepted', 'edited', 'rejected']
@@ -80,13 +81,15 @@ export function createApp({
   db,
   hub,
   config,
+  basedb,
   settings,
   tickets,
 }: {
   db: Db
   hub: InboxHub
   config: Config
-  settings: MessagerieSettings | null
+  basedb: BasedbClient | null
+  settings: Settings | null
   tickets: TicketBook
 }) {
   const app = new Hono()
@@ -135,7 +138,7 @@ export function createApp({
   )
 
   const inbox = new Hono<AgentEnv>()
-  inbox.use(agentAuth(db, config, settings))
+  inbox.use(agentAuth(db, config, basedb, settings))
 
   inbox.get('/me', (c) => c.json(toAgent(c.get('agent'))))
 

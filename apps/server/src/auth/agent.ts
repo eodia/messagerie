@@ -1,12 +1,12 @@
 import { and, eq } from 'drizzle-orm'
 import type { MiddlewareHandler } from 'hono'
-import { BasedbFailure, type Introspection } from '../basedb/client.js'
-import type { MessagerieSettings } from '../basedb/settings.js'
+import { type BasedbClient, BasedbFailure, type Introspection } from '../basedb/client.js'
 import type { Config } from '../config.js'
 import type { Db } from '../db/client.js'
 import { agents } from '../db/schema.js'
 import type { AgentRow } from '../inbox/read.js'
 import { Refusal } from '../refusal.js'
+import type { Settings } from '../settings/settings.js'
 
 export type AgentEnv = { Variables: { agent: AgentRow } }
 
@@ -24,18 +24,22 @@ export type AgentEnv = { Variables: { agent: AgentRow } }
 export function agentAuth(
   db: Db,
   config: Config,
-  settings: MessagerieSettings | null,
+  basedb: BasedbClient | null,
+  settings: Settings | null,
 ): MiddlewareHandler<AgentEnv> {
   const cache = new IdentityCache()
   return async (c, next) => {
     const header = c.req.header('authorization')
     const token = header?.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : ''
     if (token !== '') {
-      if (settings === null) throw new Refusal('AUTH_NOT_CONFIGURED', 503)
-      c.set('agent', await cache.agent(token, () => agentFromToken(db, config, settings, token)))
+      if (basedb === null || settings === null) throw new Refusal('AUTH_NOT_CONFIGURED', 503)
+      c.set(
+        'agent',
+        await cache.agent(token, () => agentFromToken(db, config, basedb, settings, token)),
+      )
     } else if (config.devAgent !== null) {
       c.set('agent', await devAgent(db, config.devAgent))
-    } else if (settings !== null) {
+    } else if (basedb !== null) {
       throw new Refusal('SESSION_INVALID', 401)
     } else {
       throw new Refusal('AUTH_NOT_CONFIGURED', 503)
@@ -56,10 +60,11 @@ async function devAgent(db: Db, basedbUserId: string): Promise<AgentRow> {
 async function agentFromToken(
   db: Db,
   config: Config,
-  settings: MessagerieSettings,
+  basedb: BasedbClient,
+  settings: Settings,
   token: string,
 ): Promise<AgentRow> {
-  const answer: Introspection = await settings.client.introspect(token).catch((error: unknown) => {
+  const answer: Introspection = await basedb.introspect(token).catch((error: unknown) => {
     throw unreachable(error)
   })
   // A person's token, of basedb's tenant. An integration token is a program, not an agent.

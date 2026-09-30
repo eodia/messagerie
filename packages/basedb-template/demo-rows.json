@@ -1,0 +1,267 @@
+{
+  "sites": [
+    {
+      "$key": "acme",
+      "Nom": "Acme Assurances",
+      "Domaines autorisés": "localhost\n127.0.0.1",
+      "Message d'accueil": "Bonjour 👋 Je suis l'assistant virtuel d'Acme Assurances. Comment puis-je vous aider aujourd'hui ?",
+      "Couleur du widget": "#2563EB",
+      "Langue": "Français",
+      "Fuseau horaire": "Europe/Paris",
+      "Agent IA actif": true,
+      "Seuil de confiance (%)": 70,
+      "Consignes de l'agent IA": "Tu es l'assistant d'Acme Assurances. Vouvoie le client et appelle-le par son prénom quand tu le connais. Réponds en trois phrases au plus, simplement. Ne promets jamais un montant d'indemnisation ni une décision sur un dossier : seul un conseiller peut s'y engager. Si la réponse n'est pas dans les sources, dis-le et propose un conseiller.",
+      "Conservation (jours)": 365,
+      "Actif": true,
+      "Équipe par défaut": "@support"
+    }
+  ],
+  "horaires": [
+    {
+      "Créneau": "Semaine",
+      "Jours": ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"],
+      "Ouverture": "09:00",
+      "Fermeture": "18:00",
+      "Site": "@acme"
+    },
+    {
+      "Créneau": "Samedi matin",
+      "Jours": ["Samedi"],
+      "Ouverture": "09:00",
+      "Fermeture": "12:00",
+      "Site": "@acme"
+    }
+  ],
+  "fermetures": [
+    {
+      "Motif": "Noël",
+      "Du": "2026-12-25",
+      "Message aux visiteurs": "Nous sommes fermés pour Noël. L'assistant répond à vos questions ; un conseiller reprendra votre demande dès le 26 décembre."
+    },
+    { "Motif": "Jour de l'an", "Du": "2027-01-01" }
+  ],
+  "equipes": [
+    { "$key": "support", "Nom": "Support", "Description": "Les questions de premier niveau." },
+    { "$key": "auto", "Nom": "Équipe Auto", "Description": "Contrats et sinistres automobile." },
+    {
+      "$key": "habitation",
+      "Nom": "Équipe Habitation",
+      "Description": "Contrats et sinistres habitation."
+    }
+  ],
+  "conseillers": [
+    {
+      "Nom": "Marc JAMAIN",
+      "Compte basedb": "$moi",
+      "Rôle": "Superviseur",
+      "Conversations simultanées": 6,
+      "Actif": true,
+      "Équipes": ["@support", "@auto"]
+    }
+  ],
+  "reponses_types": [
+    {
+      "Titre": "Salutation",
+      "Raccourci": "bonjour",
+      "Contenu": "Bonjour {prénom}, je prends votre demande en charge. Je reviens vers vous dans un instant."
+    },
+    {
+      "Titre": "Délai de remboursement",
+      "Raccourci": "delai-remboursement",
+      "Contenu": "Le remboursement est versé sous 5 à 10 jours ouvrés après réception de toutes les pièces du dossier. Vous suivez son avancement dans votre espace client, rubrique « Mes sinistres »."
+    },
+    {
+      "Titre": "Pièces justificatives",
+      "Raccourci": "pieces",
+      "Contenu": "Pour instruire votre dossier, il nous faut : le constat amiable ou une déclaration sur l'honneur, des photos des dommages, et les factures ou devis de réparation. Vous pouvez les déposer dans votre espace client."
+    },
+    {
+      "Titre": "Attestation d'assurance",
+      "Raccourci": "attestation",
+      "Contenu": "Votre attestation d'assurance est téléchargeable à tout moment dans votre espace client, rubrique « Mes contrats ». Je peux aussi vous l'envoyer à {email} si vous le souhaitez."
+    },
+    {
+      "Titre": "Clôture",
+      "Raccourci": "merci",
+      "Contenu": "Je vous en prie, {prénom}. N'hésitez pas à revenir vers nous si besoin. Bonne journée !"
+    }
+  ],
+  "etiquettes": [
+    {
+      "Nom": "Remboursement",
+      "Couleur": "#f59e0b",
+      "Quand l'appliquer": "Une question sur un remboursement, un versement ou un délai de paiement.",
+      "Posée par l'IA": true
+    },
+    {
+      "Nom": "Sinistre",
+      "Couleur": "#3b82f6",
+      "Quand l'appliquer": "Un sinistre à déclarer ou un dossier de sinistre en cours : accident, dégât des eaux, vol, bris.",
+      "Posée par l'IA": true
+    },
+    {
+      "Nom": "Auto",
+      "Couleur": "#8b5cf6",
+      "Quand l'appliquer": "La demande concerne un véhicule ou un contrat d'assurance automobile.",
+      "Posée par l'IA": true
+    },
+    {
+      "Nom": "Habitation",
+      "Couleur": "#10b981",
+      "Quand l'appliquer": "La demande concerne un logement ou un contrat d'assurance habitation.",
+      "Posée par l'IA": true
+    },
+    {
+      "Nom": "Contrat",
+      "Couleur": "#0ea5e9",
+      "Quand l'appliquer": "Souscription, modification, garanties, échéance ou résiliation d'un contrat.",
+      "Posée par l'IA": true
+    },
+    {
+      "Nom": "Réclamation",
+      "Couleur": "#ef4444",
+      "Quand l'appliquer": "Le client exprime un mécontentement ou conteste une décision.",
+      "Posée par l'IA": true
+    },
+    { "Nom": "À rappeler", "Couleur": "#ef4444", "Posée par l'IA": false }
+  ],
+  "categories": [
+    { "$key": "remboursement", "Nom": "Remboursement" },
+    { "$key": "sinistre", "Nom": "Sinistre" },
+    { "$key": "contrat", "Nom": "Contrat" },
+    { "$key": "compte", "Nom": "Compte et espace client" }
+  ],
+  "articles": [
+    {
+      "Titre": "Délai de remboursement d'un sinistre auto",
+      "Contenu": "## Délai habituel\n\nUne fois le dossier complet, le remboursement est versé sous 5 à 10 jours ouvrés, par virement sur le compte enregistré au contrat.\n\n## Quand le dossier est-il complet ?\n\nLe dossier est complet quand nous avons reçu le constat amiable (ou une déclaration sur l'honneur), les photos des dommages, et la facture de réparation ou le rapport d'expertise.\n\n## Suivre son remboursement\n\nL'avancement est visible dans l'espace client, rubrique « Mes sinistres » : dossier reçu, en cours d'instruction, en paiement, payé.",
+      "Statut": "Publié",
+      "Catégorie": "@remboursement",
+      "Auteur": "$moi",
+      "Relu le": "-12d"
+    },
+    {
+      "Titre": "Déclarer un dégât des eaux",
+      "Contenu": "## Dans les cinq jours ouvrés\n\nUn dégât des eaux se déclare dans les cinq jours ouvrés qui suivent sa découverte, depuis l'espace client (rubrique « Mes sinistres ») ou auprès d'un conseiller.\n\n## Si un voisin est concerné\n\nRemplissez avec lui le constat amiable dégât des eaux : il permet de savoir d'où vient la fuite et qui prend en charge quoi.\n\n## Ce qu'il faut joindre\n\nDes photos des dommages, et les factures des biens abîmés si vous les avez. Ne jetez rien avant le passage éventuel de l'expert.",
+      "Statut": "Publié",
+      "Catégorie": "@sinistre",
+      "Auteur": "$moi",
+      "Relu le": "-20d"
+    },
+    {
+      "Titre": "Pièces à fournir pour un sinistre",
+      "Contenu": "## Accident de la route\n\nLe constat amiable signé des deux conducteurs, ou une déclaration sur l'honneur s'il n'y en a pas ; des photos du véhicule ; le devis ou la facture du garage.\n\n## Vol\n\nLe récépissé du dépôt de plainte, les clés du véhicule, et la carte grise.\n\n## Où les déposer\n\nDans l'espace client, rubrique « Mes sinistres », ou en réponse à l'e-mail qui accuse réception de votre déclaration.",
+      "Statut": "Publié",
+      "Catégorie": "@sinistre",
+      "Auteur": "$moi",
+      "Relu le": "-20d"
+    },
+    {
+      "Titre": "Renouvellement et résiliation du contrat",
+      "Contenu": "## Renouvellement\n\nLes contrats sont reconduits chaque année par tacite reconduction. Un avis d'échéance est envoyé au moins quinze jours avant la date anniversaire.\n\n## Résilier\n\nAprès un an de contrat, la résiliation est possible à tout moment, sans frais : elle prend effet un mois après la demande. Avant un an, elle n'est possible qu'à l'échéance ou pour un motif prévu par la loi (vente du véhicule, déménagement…).",
+      "Statut": "Publié",
+      "Catégorie": "@contrat",
+      "Auteur": "$moi",
+      "Relu le": "-30d"
+    },
+    {
+      "Titre": "Ajouter un conducteur secondaire",
+      "Contenu": "## Possible à tout moment\n\nUn conducteur secondaire s'ajoute au contrat auto à tout moment, depuis l'espace client ou auprès d'un conseiller.\n\n## Ce qu'il faut fournir\n\nSa date de naissance, la date d'obtention de son permis, et son relevé d'information s'il a déjà été assuré.\n\n## Les garanties\n\nLe conducteur secondaire est couvert par les mêmes garanties que le conducteur principal. La cotisation peut changer selon son profil : un conseiller vous indique le nouveau tarif avant toute modification.",
+      "Statut": "Publié",
+      "Catégorie": "@contrat",
+      "Auteur": "$moi",
+      "Relu le": "-9d"
+    },
+    {
+      "Titre": "Garanties auto : tiers, tiers étendu, tous risques",
+      "Contenu": "## Tiers\n\nLa responsabilité civile, obligatoire : les dommages causés aux autres.\n\n## Tiers étendu\n\nLe tiers, plus le vol, l'incendie, le bris de glace et les catastrophes naturelles.\n\n## Tous risques\n\nLe tiers étendu, plus les dommages à votre propre véhicule, même si vous êtes responsable.",
+      "Statut": "Publié",
+      "Catégorie": "@contrat",
+      "Auteur": "$moi",
+      "Relu le": "-40d"
+    },
+    {
+      "Titre": "Obtenir une attestation d'assurance",
+      "Contenu": "## Dans l'espace client\n\nL'attestation se télécharge à tout moment, rubrique « Mes contrats » : choisissez le contrat, puis « Attestation ».\n\n## Par e-mail\n\nUn conseiller peut vous l'envoyer à l'adresse enregistrée au contrat.",
+      "Statut": "Publié",
+      "Catégorie": "@compte",
+      "Auteur": "$moi",
+      "Relu le": "-15d"
+    },
+    {
+      "Titre": "Changer d'adresse",
+      "Contenu": "## Depuis l'espace client\n\nOuvrez « Mon profil », puis « Coordonnées ». La nouvelle adresse s'applique dès l'enregistrement.\n\n## Contrat habitation\n\nUn déménagement change le logement assuré : il faut un nouveau contrat pour le nouveau logement. Un conseiller s'en occupe avec vous.\n\n## Sans accès à l'espace client\n\nUn conseiller peut modifier l'adresse après vérification de votre identité.",
+      "Statut": "Publié",
+      "Catégorie": "@compte",
+      "Auteur": "$moi",
+      "Relu le": "-5d"
+    }
+  ],
+  "conversations_promues": [
+    {
+      "Question": "Mon dossier est complet, pourquoi je ne suis pas encore remboursé ?",
+      "Réponse": "Le remboursement part sous 5 à 10 jours ouvrés après que le dossier est complet. S'il est complet depuis plus de 10 jours ouvrés, un conseiller vérifie le paiement avec vous.",
+      "Statut": "Publiée",
+      "Catégorie": "@remboursement",
+      "Origine": "Conseiller"
+    },
+    {
+      "Question": "Est-ce que je peux suivre mon remboursement en ligne ?",
+      "Réponse": "Oui : dans l'espace client, rubrique « Mes sinistres », chaque dossier indique son étape — reçu, en instruction, en paiement, payé.",
+      "Statut": "Publiée",
+      "Catégorie": "@remboursement",
+      "Origine": "Historique"
+    },
+    {
+      "Question": "Le garage a-t-il besoin de l'accord de l'assurance pour réparer ?",
+      "Réponse": "Pour une réparation de plus de 1 500 €, attendez le rapport de l'expert avant de lancer les travaux ; en dessous, le devis du garage suffit.",
+      "Statut": "À relire",
+      "Catégorie": "@sinistre",
+      "Origine": "Conseiller"
+    }
+  ],
+  "garde_fous": [
+    {
+      "Nom": "Litiges et réclamations",
+      "Sujet": "Le client conteste une décision, parle d'avocat ou de tribunal, ou formule une réclamation.",
+      "Action": "Transférer à un conseiller",
+      "Message au visiteur": "Je transmets votre demande à un conseiller, qui la reprend personnellement.",
+      "Actif": true
+    },
+    {
+      "Nom": "Données de santé",
+      "Sujet": "Le client donne ou demande des informations médicales : blessures, diagnostic, arrêt de travail, handicap.",
+      "Action": "Transférer à un conseiller",
+      "Message au visiteur": "Pour protéger vos informations, un conseiller reprend cette demande avec vous.",
+      "Actif": true
+    },
+    {
+      "Nom": "Montant d'indemnisation",
+      "Sujet": "Le client demande combien il sera indemnisé, ou si un sinistre précis sera pris en charge.",
+      "Action": "Transférer à un conseiller",
+      "Message au visiteur": "Seul un conseiller peut s'engager sur la prise en charge de votre dossier : je lui transmets votre demande.",
+      "Actif": true
+    }
+  ],
+  "outils_ia": [
+    {
+      "Nom": "Consulter la fiche du client",
+      "Description pour l'IA": "Lit ce que le site a transmis du client connecté : numéro de client, contrat, produit, garanties, statut du dossier en cours, dernier sinistre. À appeler quand le client demande où en est son dossier ou ce que couvre son contrat.",
+      "Type": "Lecture dans basedb",
+      "Cible": "Fiche du visiteur",
+      "Paramètres": "{ \"type\": \"object\", \"properties\": {} }",
+      "Agent IA": true,
+      "Copilote": true,
+      "Actif": true
+    },
+    {
+      "Nom": "Créer un rappel",
+      "Description pour l'IA": "Programme un rappel téléphonique par un conseiller. À proposer quand la demande ne peut pas se régler par écrit, ou quand le client le demande.",
+      "Type": "Rappel",
+      "Paramètres": "{ \"type\": \"object\", \"properties\": { \"telephone\": { \"type\": \"string\", \"description\": \"Le numéro à rappeler\" }, \"creneau\": { \"type\": \"string\", \"description\": \"Quand rappeler, en clair\" } }, \"required\": [\"telephone\"] }",
+      "Agent IA": true,
+      "Copilote": true,
+      "Actif": true
+    }
+  ]
+}

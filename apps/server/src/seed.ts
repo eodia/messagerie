@@ -31,7 +31,8 @@ const MOCKUP_NOW = new Date('2026-09-30T10:30:00').getTime()
 const shift = Date.now() - MOCKUP_NOW
 const at = (mockupTime: string) => new Date(new Date(mockupTime).getTime() + shift)
 
-const SITE = { id: 'demo-site', name: 'Acme Assurances' }
+/** The demonstration site of `demo-rows.json` — its `$key`. */
+const SITE = { id: 'acme', name: 'Acme Assurances' }
 const MODEL = 'demo'
 
 const TAGS = {

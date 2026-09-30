@@ -15,6 +15,9 @@
     "test:int": {
       "dependsOn": ["^build"],
       "cache": false
+    },
+    "test:unit": {
+      "dependsOn": ["^build"]
     }
   }
 }

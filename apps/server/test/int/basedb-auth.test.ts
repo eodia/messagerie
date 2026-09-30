@@ -7,10 +7,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createApp } from '../../src/app.js'
 import { TicketBook } from '../../src/auth/tickets.js'
 import { BasedbClient } from '../../src/basedb/client.js'
-import { MessagerieSettings } from '../../src/basedb/settings.js'
 import type { Config } from '../../src/config.js'
 import { type Db, connect, migrateDatabase } from '../../src/db/client.js'
 import { InboxHub } from '../../src/realtime/hub.js'
+import { Settings } from '../../src/settings/settings.js'
+import { BasedbSource } from '../../src/settings/source.js'
 
 /**
  * Agents authenticated by basedb (D4, B2), against a stand-in for basedb 0.5.0 that
@@ -106,10 +107,16 @@ beforeAll(async () => {
     devAgent: null,
     basedb: { url, tenant: TENANT, base: BASE, token: CHAT_TOKEN },
   }
-  const settings = new MessagerieSettings(
-    new BasedbClient(config.basedb as NonNullable<Config['basedb']>),
-  )
-  ;({ app } = createApp({ db, hub: new InboxHub(), config, settings, tickets: new TicketBook() }))
+  const basedbClient = new BasedbClient(config.basedb as NonNullable<Config['basedb']>)
+  const settings = new Settings(new BasedbSource(basedbClient))
+  ;({ app } = createApp({
+    db,
+    hub: new InboxHub(),
+    config,
+    basedb: basedbClient,
+    settings,
+    tickets: new TicketBook(),
+  }))
 }, 180_000)
 
 afterAll(async () => {
@@ -183,19 +190,21 @@ describe('everyone else', () => {
 
 describe('the « Conseillers » rows', () => {
   it('are read once, then again after basedb signals a change', async () => {
-    const settings = new MessagerieSettings(
-      new BasedbClient({
-        url: `http://127.0.0.1:${(basedb.address() as AddressInfo).port}`,
-        tenant: TENANT,
-        base: BASE,
-        token: CHAT_TOKEN,
-      }),
+    const settings = new Settings(
+      new BasedbSource(
+        new BasedbClient({
+          url: `http://127.0.0.1:${(basedb.address() as AddressInfo).port}`,
+          tenant: TENANT,
+          base: BASE,
+          token: CHAT_TOKEN,
+        }),
+      ),
     )
     const before = rowsRead
     await settings.agent('u-marc')
     await settings.agent('u-marc')
     expect(rowsRead).toBe(before + 1)
-    settings.invalidate()
+    settings.invalidate('Conseillers')
     expect(await settings.agent('u-retired')).toMatchObject({ active: false, role: 'agent' })
     expect(rowsRead).toBe(before + 2)
   })

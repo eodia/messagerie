@@ -16,7 +16,8 @@
     "template:check": "pnpm --filter @chat/basedb-template check",
     "test:int": "turbo run test:int",
     "db:up": "docker compose up -d",
-    "seed": "pnpm --filter @chat/server seed"
+    "seed": "pnpm --filter @chat/server seed",
+    "test:unit": "turbo run test:unit"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

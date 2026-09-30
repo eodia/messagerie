@@ -5,7 +5,7 @@ import { createRequire } from 'node:module'
  * Creates the « Messagerie » base in basedb from the chat's template — in one operation,
  * the whole base or none (basedb 0.5.0, B1).
  *
- *   pnpm --filter @chat/server provision [--label "Messagerie"] [--no-rows]
+ *   pnpm --filter @chat/server provision [--label "Messagerie"] [--no-rows | --demo]
  *
  * As an administrator of basedb: `BASEDB_ADMIN_TOKEN` (an access token), or
  * `BASEDB_ADMIN_EMAIL` and `BASEDB_ADMIN_PASSWORD`, with which it signs in the way the
@@ -16,9 +16,8 @@ import { createRequire } from 'node:module'
  */
 
 const require = createRequire(import.meta.url)
-const template: unknown = JSON.parse(
-  readFileSync(require.resolve('@chat/basedb-template/messagerie.json'), 'utf8'),
-)
+const read = (name: string): Record<string, unknown> =>
+  JSON.parse(readFileSync(require.resolve(`@chat/basedb-template/${name}`), 'utf8'))
 
 const args = process.argv.slice(2)
 const option = (name: string) => {
@@ -27,6 +26,10 @@ const option = (name: string) => {
 }
 const label = option('--label') ?? 'Messagerie'
 const rows = !args.includes('--no-rows')
+// `--demo`: the rows of Acme Assurances rather than the template's defaults.
+const template = args.includes('--demo')
+  ? { ...read('messagerie.json'), rows: read('demo-rows.json') }
+  : read('messagerie.json')
 
 const url = (process.env.BASEDB_API_URL || '').replace(/\/+$/, '')
 const tenant = process.env.BASEDB_TENANT || ''

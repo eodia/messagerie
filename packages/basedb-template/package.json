@@ -5,9 +5,10 @@
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "exports": {
-    "./messagerie.json": "./messagerie.json"
+    "./messagerie.json": "./messagerie.json",
+    "./demo-rows.json": "./demo-rows.json"
   },
-  "files": ["messagerie.json"],
+  "files": ["messagerie.json", "demo-rows.json"],
   "scripts": {
     "check": "node scripts/check.mjs"
   }

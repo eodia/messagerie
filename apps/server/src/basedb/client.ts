@@ -94,12 +94,15 @@ export class BasedbClient {
     return data
   }
 
-  /** Every row of a table that passes `filter`, page after page. */
+  /**
+   * Every row of a table that passes `filter`, page after page — relations as the ids of
+   * the rows they point at.
+   */
   async rows(table: string, filter?: string): Promise<Row[]> {
     const rows: Row[] = []
     let after: string | undefined
     do {
-      const query = new URLSearchParams({ limit: '500' })
+      const query = new URLSearchParams({ limit: '500', links: 'id' })
       if (filter) query.set('filter', filter)
       if (after) query.set('after', after)
       const page = await this.call<{

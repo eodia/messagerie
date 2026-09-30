@@ -13,7 +13,8 @@
     "db:generate": "drizzle-kit generate",
     "test:int": "vitest run test/int",
     "provision": "tsx --env-file-if-exists=.env src/provision.ts",
-    "simulate": "tsx --env-file-if-exists=.env src/simulate.ts"
+    "simulate": "tsx --env-file-if-exists=.env src/simulate.ts",
+    "test:unit": "vitest run test/unit"
   },
   "dependencies": {
     "@chat/basedb-template": "workspace:*",

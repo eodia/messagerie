@@ -21,17 +21,26 @@ if (!existsSync(validator)) {
 }
 
 const { checkTemplate } = await import(pathToFileURL(validator).href)
-const template = JSON.parse(readFileSync(join(here, '..', 'messagerie.json'), 'utf8'))
-const result = checkTemplate(template)
+const read = (name) => JSON.parse(readFileSync(join(here, '..', name), 'utf8'))
+const template = read('messagerie.json')
+// The demonstration: the same tables, Acme Assurances' rows (`provision --demo`).
+const demo = { ...template, rows: read('demo-rows.json') }
 
-if (!result.ok) {
-  for (const issue of result.issues)
-    console.error(`✗ ${issue.path || '(racine)'} — ${issue.message}`)
-  process.exit(1)
+let failed = false
+for (const [name, candidate] of [
+  ['messagerie.json', template],
+  ['messagerie.json + demo-rows.json', demo],
+]) {
+  const result = checkTemplate(candidate)
+  if (!result.ok || result.issues.length > 0) {
+    failed = true
+    for (const issue of result.issues)
+      console.error(`✗ ${name} ${issue.path || '(racine)'} — ${issue.message}`)
+    continue
+  }
+  const rows = Object.values(result.template.rows).reduce((sum, list) => sum + list.length, 0)
+  console.log(
+    `✓ ${name} — ${result.template.tables.length} tables, ${result.template.links.length} relations, ${rows} lignes`,
+  )
 }
-
-const tables = result.template.tables
-const rows = Object.values(result.template.rows).reduce((sum, list) => sum + list.length, 0)
-console.log(
-  `✓ messagerie.json — ${tables.length} tables, ${result.template.links.length} relations, ${rows} lignes`,
-)
+if (failed) process.exit(1)
