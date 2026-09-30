@@ -4,6 +4,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testconta
 import { Hono } from 'hono'
 import type pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { McpConnections } from '../../src/ai/mcp.js'
 import { createApp } from '../../src/app.js'
 import { TicketBook } from '../../src/auth/tickets.js'
 import { BasedbClient } from '../../src/basedb/client.js'
@@ -120,6 +121,7 @@ beforeAll(async () => {
     settings,
     tickets: new TicketBook(),
     widgetHub: new WidgetHub(),
+    mcp: new McpConnections(),
     ai: null,
   }))
 }, 180_000)

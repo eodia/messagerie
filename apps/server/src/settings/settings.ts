@@ -21,6 +21,7 @@ export const TABLES = {
   promoted: 'Conversations promues',
   guardrails: 'Garde-fous',
   tools: 'Outils IA',
+  mcp: 'Serveurs MCP',
 } as const
 
 type TableLabel = (typeof TABLES)[keyof typeof TABLES]
@@ -44,6 +45,8 @@ export interface Site {
   /** Host names, lower case: `exemple.fr`, `www.exemple.fr`. */
   readonly domains: readonly string[]
   readonly welcome: string | null
+  /** Questions offered in the widget before the visitor writes. */
+  readonly suggestions: readonly string[]
   readonly color: string
   readonly language: string
   readonly timezone: string
@@ -126,7 +129,27 @@ export interface ToolDefinition {
   readonly description: string
   readonly type: 'basedb' | 'http' | 'callback'
   readonly target: string | null
+  /** For an HTTP call: POST sends the parameters as JSON, GET puts them in the address. */
+  readonly method: 'GET' | 'POST'
+  /** The NAME of the environment variable that holds the token — never the token (D5). */
+  readonly tokenEnv: string | null
+  /** Headers as written, `${NAME}` not yet replaced: see `resolveHeaders`. */
+  readonly headers: Readonly<Record<string, string>>
   readonly parameters: Readonly<Record<string, unknown>>
+  readonly agent: boolean
+  readonly copilot: boolean
+}
+
+export interface McpServerDefinition {
+  readonly id: string
+  readonly name: string
+  readonly url: string
+  readonly description: string | null
+  readonly tokenEnv: string | null
+  /** Headers as written, `${NAME}` not yet replaced: see `resolveHeaders`. */
+  readonly headers: Readonly<Record<string, string>>
+  /** Empty: every tool of the server. */
+  readonly allowed: readonly string[]
   readonly agent: boolean
   readonly copilot: boolean
 }
@@ -191,6 +214,40 @@ function jsonObject(value: unknown): Record<string, unknown> {
   } catch {
     return { type: 'object', properties: {} }
   }
+}
+
+/** « Nom: valeur », a line each. A name that is not a header's is left out. */
+function headersOf(value: unknown): Record<string, string> {
+  const headers: Record<string, string> = {}
+  for (const line of (text(value) ?? '').split('\n')) {
+    const at = line.indexOf(':')
+    if (at <= 0) continue
+    const name = line.slice(0, at).trim()
+    if (!/^[A-Za-z0-9-]+$/.test(name) || /^(host|content-length|connection)$/i.test(name)) continue
+    headers[name] = line.slice(at + 1).trim()
+  }
+  return headers
+}
+
+/**
+ * The headers to send: `${NAME}` replaced by the server's environment variable NAME. A
+ * header whose variable is not set is left out rather than sent empty.
+ */
+export function resolveHeaders(
+  headers: Readonly<Record<string, string>>,
+  env: NodeJS.ProcessEnv = process.env,
+): Record<string, string> {
+  const resolved: Record<string, string> = {}
+  for (const [name, value] of Object.entries(headers)) {
+    let missing = false
+    const filled = value.replace(/\$\{(\w+)\}/g, (_all, variable: string) => {
+      const found = env[variable]
+      if (found === undefined) missing = true
+      return found ?? ''
+    })
+    if (!missing) resolved[name] = filled
+  }
+  return resolved
 }
 
 // ── The settings ──────────────────────────────────────────────────────────────────────
@@ -259,6 +316,11 @@ export class Settings {
         .map(hostOf)
         .filter((h): h is string => h !== null),
       welcome: text(values["Message d'accueil"]),
+      suggestions: (text(values['Questions suggérées']) ?? '')
+        .split('\n')
+        .map((q) => q.trim())
+        .filter(Boolean)
+        .slice(0, 6),
       color: /^#[0-9a-f]{6}$/i.test(text(values['Couleur du widget']) ?? '')
         ? (text(values['Couleur du widget']) as string)
         : '#2DA31E',
@@ -407,7 +469,34 @@ export class Settings {
                 ? 'callback'
                 : 'basedb',
           target: text(values.Cible),
+          method: values.Méthode === 'GET' ? 'GET' : 'POST',
+          tokenEnv: text(values["Jeton (variable d'environnement)"]),
+          headers: headersOf(values['En-têtes']),
           parameters: jsonObject(values.Paramètres),
+          agent: bool(values['Agent IA']),
+          copilot: bool(values.Copilote),
+        },
+      ]
+    })
+  }
+
+  /** The active MCP servers, with an address that reads. */
+  async mcpServers(): Promise<McpServerDefinition[]> {
+    return (await this.table(TABLES.mcp)).flatMap(({ id, values }) => {
+      const url = text(values.Adresse)
+      if (!bool(values.Actif) || !url || !/^https?:\/\//.test(url)) return []
+      return [
+        {
+          id,
+          name: text(values.Nom) ?? id,
+          url,
+          description: text(values.Description),
+          tokenEnv: text(values["Jeton (variable d'environnement)"]),
+          headers: headersOf(values['En-têtes']),
+          allowed: (text(values['Outils autorisés']) ?? '')
+            .split(/[\n,]+/)
+            .map((t) => t.trim())
+            .filter(Boolean),
           agent: bool(values['Agent IA']),
           copilot: bool(values.Copilote),
         },

@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm'
 import type { Hono } from 'hono'
 import type pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { McpConnections } from '../../src/ai/mcp.js'
 import { createApp } from '../../src/app.js'
 import { TicketBook } from '../../src/auth/tickets.js'
 import type { Config } from '../../src/config.js'
@@ -51,6 +52,7 @@ beforeAll(async () => {
     settings: new Settings(new TemplateSource(null, true)),
     tickets: new TicketBook(),
     widgetHub: new WidgetHub(),
+    mcp: new McpConnections(),
     // A model that is never called here: the jobs only record what they were told.
     ai: {
       llm: {

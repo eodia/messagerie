@@ -13,7 +13,8 @@
       "Consignes de l'agent IA": "Tu es l'assistant d'Acme Assurances. Vouvoie le client et appelle-le par son prénom quand tu le connais. Réponds en trois phrases au plus, simplement. Ne promets jamais un montant d'indemnisation ni une décision sur un dossier : seul un conseiller peut s'y engager. Si la réponse n'est pas dans les sources, dis-le et propose un conseiller.",
       "Conservation (jours)": 365,
       "Actif": true,
-      "Équipe par défaut": "@support"
+      "Équipe par défaut": "@support",
+      "Questions suggérées": "Quel est le délai de remboursement ?\nComment déclarer un sinistre ?\nOù trouver mon attestation ?\nQuelle agence près de chez moi ?"
     }
   ],
   "horaires": [
@@ -38,11 +39,22 @@
       "Du": "2026-12-25",
       "Message aux visiteurs": "Nous sommes fermés pour Noël. L'assistant répond à vos questions ; un conseiller reprendra votre demande dès le 26 décembre."
     },
-    { "Motif": "Jour de l'an", "Du": "2027-01-01" }
+    {
+      "Motif": "Jour de l'an",
+      "Du": "2027-01-01"
+    }
   ],
   "equipes": [
-    { "$key": "support", "Nom": "Support", "Description": "Les questions de premier niveau." },
-    { "$key": "auto", "Nom": "Équipe Auto", "Description": "Contrats et sinistres automobile." },
+    {
+      "$key": "support",
+      "Nom": "Support",
+      "Description": "Les questions de premier niveau."
+    },
+    {
+      "$key": "auto",
+      "Nom": "Équipe Auto",
+      "Description": "Contrats et sinistres automobile."
+    },
     {
       "$key": "habitation",
       "Nom": "Équipe Habitation",
@@ -123,13 +135,29 @@
       "Quand l'appliquer": "Le client exprime un mécontentement ou conteste une décision.",
       "Posée par l'IA": true
     },
-    { "Nom": "À rappeler", "Couleur": "#ef4444", "Posée par l'IA": false }
+    {
+      "Nom": "À rappeler",
+      "Couleur": "#ef4444",
+      "Posée par l'IA": false
+    }
   ],
   "categories": [
-    { "$key": "remboursement", "Nom": "Remboursement" },
-    { "$key": "sinistre", "Nom": "Sinistre" },
-    { "$key": "contrat", "Nom": "Contrat" },
-    { "$key": "compte", "Nom": "Compte et espace client" }
+    {
+      "$key": "remboursement",
+      "Nom": "Remboursement"
+    },
+    {
+      "$key": "sinistre",
+      "Nom": "Sinistre"
+    },
+    {
+      "$key": "contrat",
+      "Nom": "Contrat"
+    },
+    {
+      "$key": "compte",
+      "Nom": "Compte et espace client"
+    }
   ],
   "articles": [
     {
@@ -259,6 +287,28 @@
       "Description pour l'IA": "Programme un rappel téléphonique par un conseiller. À proposer quand la demande ne peut pas se régler par écrit, ou quand le client le demande.",
       "Type": "Rappel",
       "Paramètres": "{ \"type\": \"object\", \"properties\": { \"telephone\": { \"type\": \"string\", \"description\": \"Le numéro à rappeler\" }, \"creneau\": { \"type\": \"string\", \"description\": \"Quand rappeler, en clair\" } }, \"required\": [\"telephone\"] }",
+      "Agent IA": true,
+      "Copilote": true,
+      "Actif": true
+    },
+    {
+      "Nom": "Météo",
+      "Description pour l'IA": "Donne la météo actuelle et celle des prochaines heures à un endroit : température, pluie, vent, grêle possible. À appeler quand le client demande s'il doit protéger son véhicule ou son logement, ou parle d'intempéries. Donne la latitude et la longitude de la ville.",
+      "Type": "Appel HTTP",
+      "Cible": "https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_gusts_10m&hourly=precipitation_probability&forecast_hours=12&timezone=auto",
+      "Méthode": "GET",
+      "Paramètres": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"ville\": { \"type\": \"string\", \"description\": \"La ville, en clair\" },\n    \"latitude\": { \"type\": \"number\", \"description\": \"Latitude de la ville\" },\n    \"longitude\": { \"type\": \"number\", \"description\": \"Longitude de la ville\" }\n  },\n  \"required\": [\"latitude\", \"longitude\"]\n}",
+      "Agent IA": true,
+      "Copilote": true,
+      "Actif": true,
+      "En-têtes": "User-Agent: Messagerie-Acme/1.0"
+    }
+  ],
+  "serveurs_mcp": [
+    {
+      "Nom": "Agences Acme (démo)",
+      "Adresse": "http://localhost:8820/mcp",
+      "Description": "Les agences d'Acme Assurances : la plus proche d'une ville, ses horaires, son téléphone.",
       "Agent IA": true,
       "Copilote": true,
       "Actif": true

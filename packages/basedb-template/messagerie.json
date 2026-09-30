@@ -37,6 +37,11 @@
           "description": "Le premier message que lit le visiteur en ouvrant le widget."
         },
         {
+          "label": "Questions suggérées",
+          "kind": "long_text",
+          "description": "Une question par ligne, proposée d'un clic dans le widget avant que le visiteur écrive."
+        },
+        {
           "label": "Couleur du widget",
           "kind": "short_text",
           "description": "Code hexadécimal, par exemple #2DA31E."
@@ -530,12 +535,37 @@
         {
           "label": "Cible",
           "kind": "short_text",
-          "description": "La table basedb lue, ou l'adresse appelée."
+          "description": "La table basedb lue ; ou l'adresse appelée, où {paramètre} est remplacé par la valeur que l'IA donne : https://api.exemple.fr/meteo?ville={ville}."
+        },
+        {
+          "label": "Méthode",
+          "kind": "select",
+          "options": [
+            {
+              "label": "POST",
+              "color": "#3b82f6"
+            },
+            {
+              "label": "GET",
+              "color": "#10b981"
+            }
+          ],
+          "description": "Pour un appel HTTP. POST envoie les paramètres en JSON ; GET les met dans l'adresse."
+        },
+        {
+          "label": "Jeton (variable d'environnement)",
+          "kind": "short_text",
+          "description": "Le NOM de la variable d'environnement du serveur de la messagerie qui contient le jeton, envoyé en « Authorization: Bearer ». Jamais le jeton lui-même : il serait lisible de tous ceux qui lisent cette base."
+        },
+        {
+          "label": "En-têtes",
+          "kind": "long_text",
+          "description": "Un en-tête par ligne : « Nom: valeur ». ${NOM} est remplacé par la variable d'environnement NOM du serveur de la messagerie — c'est ainsi qu'un secret reste hors de basedb : « X-Api-Key: ${METEO_CLE} »."
         },
         {
           "label": "Paramètres",
           "kind": "long_text",
-          "description": "Le schéma JSON des paramètres attendus."
+          "description": "Le schéma JSON des paramètres que l'IA doit fournir, avec une description de chacun."
         },
         {
           "label": "Agent IA",
@@ -546,6 +576,59 @@
           "label": "Copilote",
           "kind": "boolean",
           "description": "Coché : proposé aux conseillers dans le panneau de la conversation."
+        },
+        {
+          "label": "Actif",
+          "kind": "boolean"
+        }
+      ]
+    },
+    {
+      "key": "serveurs_mcp",
+      "label": "Serveurs MCP",
+      "icon": "plug",
+      "color": "#0ea5e9",
+      "description": "Des serveurs MCP (Model Context Protocol) dont les outils sont offerts à l'IA : un service interne, une API métier, une base documentaire.",
+      "fields": [
+        {
+          "label": "Nom",
+          "kind": "short_text",
+          "required": true
+        },
+        {
+          "label": "Adresse",
+          "kind": "url",
+          "description": "Le point d'entrée MCP en HTTP (Streamable HTTP), par exemple https://outils.exemple.fr/mcp."
+        },
+        {
+          "label": "Description",
+          "kind": "long_text",
+          "description": "Ce que l'IA y trouve — elle le lit pour choisir ses outils."
+        },
+        {
+          "label": "Jeton (variable d'environnement)",
+          "kind": "short_text",
+          "description": "Le NOM de la variable d'environnement du serveur de la messagerie qui contient le jeton. Jamais le jeton lui-même."
+        },
+        {
+          "label": "En-têtes",
+          "kind": "long_text",
+          "description": "Un en-tête par ligne : « Nom: valeur ». ${NOM} est remplacé par la variable d'environnement NOM du serveur de la messagerie — c'est ainsi qu'un secret reste hors de basedb : « X-Api-Key: ${METEO_CLE} »."
+        },
+        {
+          "label": "Outils autorisés",
+          "kind": "long_text",
+          "description": "Un nom d'outil par ligne. Vide : tous les outils du serveur."
+        },
+        {
+          "label": "Agent IA",
+          "kind": "boolean",
+          "description": "Coché : l'agent premier répondant peut appeler ses outils."
+        },
+        {
+          "label": "Copilote",
+          "kind": "boolean",
+          "description": "Coché : ses outils sont proposés aux conseillers."
         },
         {
           "label": "Actif",

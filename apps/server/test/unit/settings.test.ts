@@ -38,7 +38,20 @@ describe('the demonstration settings', () => {
     // Two of the three promoted conversations are published; the third waits for review.
     expect(await demo.promotedConversations()).toHaveLength(2)
     expect((await demo.guardrails()).every((g) => g.action === 'handoff')).toBe(true)
-    expect((await demo.tools()).map((t) => t.type)).toEqual(['basedb', 'callback'])
+    expect((await demo.tools()).map((t) => t.type)).toEqual(['basedb', 'callback', 'http'])
+  })
+
+  it('read the weather tool as a GET with its headers, and the MCP server', async () => {
+    const weather = (await demo.tools()).find((t) => t.name === 'Météo')
+    expect(weather).toMatchObject({ method: 'GET', headers: { 'User-Agent': 'Messagerie-Acme/1.0' } })
+    expect(await demo.mcpServers()).toMatchObject([
+      { name: 'Agences Acme (démo)', url: 'http://localhost:8820/mcp', agent: true, allowed: [] },
+    ])
+  })
+
+  it('offer the site’s suggested questions', async () => {
+    const [site] = await demo.sites()
+    expect(site?.suggestions).toContain('Quel est le délai de remboursement ?')
   })
 
   it('read canned replies with their shortcut', async () => {

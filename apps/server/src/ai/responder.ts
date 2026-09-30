@@ -10,8 +10,9 @@ import { signalChange, signalTyping } from '../realtime/signals.js'
 import type { Settings } from '../settings/settings.js'
 import { type Context, customer, loadContext, numbered, siteLocale, whenLabel } from './context.js'
 import type { Knowledge } from './knowledge.js'
+import type { McpConnections } from './mcp.js'
 import { recordRun } from './runs.js'
-import { ToolBox } from './tools.js'
+import { toolBoxFor } from './tools.js'
 
 /**
  * The AI in the first line (framing, phase 4): it answers the visitor from the knowledge
@@ -27,6 +28,7 @@ export interface AiDeps {
   readonly llm: Llm
   readonly redact: boolean
   readonly basedb: BasedbClient | null
+  readonly mcp: McpConnections
 }
 
 interface Decision {
@@ -125,16 +127,17 @@ export async function answerVisitor(deps: AiDeps, conversationId: string): Promi
   if (!context.site.aiEnabled) return
   await signalTyping(db, conversationId)
 
-  const tools = new ToolBox(
-    (await settings.tools()).filter((t) => t.agent),
+  const tools = await toolBoxFor(
     {
       db,
       settings,
       basedb: deps.basedb,
+      mcp: deps.mcp,
       conversationId,
       contact: context.contact,
       redactor: context.redactor,
     },
+    'agent',
   )
   const conversation: ChatMessage[] = [
     { role: 'system', content: await systemPrompt(deps, context) },

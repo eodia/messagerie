@@ -48,6 +48,8 @@ export interface WidgetAvailability {
 export interface WidgetSite {
   readonly name: string
   readonly welcome: string | null
+  /** Questions offered with a click before the visitor writes. */
+  readonly suggestions: readonly string[]
   /** `#RRGGBB` */
   readonly color: string
   /** `fr`, `en`, `de`, `es` — the widget's language. */

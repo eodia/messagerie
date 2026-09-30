@@ -2,6 +2,7 @@ import type { Llm } from '@chat/ai'
 import { readAi } from './ai/config.js'
 import { type AiJobs, startJobs } from './ai/jobs.js'
 import { Knowledge } from './ai/knowledge.js'
+import { McpConnections } from './ai/mcp.js'
 import { BasedbClient } from './basedb/client.js'
 import { type Config, ConfigError, readConfig } from './config.js'
 import { type Db, connect, migrateDatabase } from './db/client.js'
@@ -22,6 +23,8 @@ export interface Booted {
   readonly settings: Settings | null
   readonly settingsKind: 'basedb' | 'template' | null
   readonly ai: { readonly llm: Llm; readonly redact: boolean; readonly jobs: AiJobs } | null
+  /** The MCP servers' connections — shared by the AI and the tools screen. */
+  readonly mcp: McpConnections
   stop(): Promise<void>
 }
 
@@ -50,12 +53,13 @@ export async function boot(role: 'server' | 'worker'): Promise<Booted> {
   const setup = readAi()
   let ai: Booted['ai'] = null
   let stopJobs = async () => {}
+  const mcp = new McpConnections()
   if (setup && settings) {
     const knowledge = new Knowledge(db, settings, setup.llm)
     const work = role === 'worker' || process.env.CHAT_WORKER !== 'separate'
     const started = await startJobs(
       config.databaseUrl,
-      { db, settings, knowledge, llm: setup.llm, redact: setup.redact, basedb },
+      { db, settings, knowledge, llm: setup.llm, redact: setup.redact, basedb, mcp },
       { work },
     )
     stopJobs = started.stop
@@ -81,9 +85,11 @@ export async function boot(role: 'server' | 'worker'): Promise<Booted> {
     settings,
     settingsKind: source?.kind ?? null,
     ai,
+    mcp,
     stop: async () => {
       stopFollowing()
       await stopJobs()
+      await mcp.close()
       await pool.end()
     },
   }

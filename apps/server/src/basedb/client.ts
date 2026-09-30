@@ -115,6 +115,19 @@ export class BasedbClient {
     return rows
   }
 
+  /** Creates a row — values by physical name. Needs a token issued with write access. */
+  async create(table: string, values: Readonly<Record<string, unknown>>): Promise<Row> {
+    const { data } = await this.call<{ data: Row }>(
+      this.data(`/data/{base}/${encodeURIComponent(table)}`),
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ values }),
+      },
+    )
+    return data
+  }
+
   /**
    * Follows a table's changes — signals, never values: `onChange` is told that rows
    * changed, and reads them again. basedb closes a stream after thirty minutes and on a

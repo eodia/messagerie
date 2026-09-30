@@ -195,3 +195,99 @@ export interface NotificationList {
   /** The latest, newest first. */
   readonly items: readonly Notification[]
 }
+
+/** A canned reply of basedb's « Réponses types », offered after « / » in the composer. */
+export interface CannedReply {
+  readonly id: string
+  readonly title: string
+  /** Typed after « / »; null when it has none. */
+  readonly shortcut: string | null
+  /** May cite the contact: {prénom}, {nom}, {email}. */
+  readonly body: string
+}
+
+export interface ContactListItem {
+  readonly id: string
+  readonly name: string
+  readonly email: string | null
+  readonly identified: boolean
+  readonly site: string | null
+  readonly conversations: number
+  readonly lastMessageAt: string | null
+}
+
+export interface ContactDetail {
+  readonly contact: Contact
+  readonly site: string | null
+  readonly conversations: readonly {
+    readonly id: string
+    readonly subject: string
+    readonly status: ConversationStatus
+    readonly at: string
+  }[]
+}
+
+/** The simple counters of the framing's MVP — full dashboards are basedb's. */
+export interface InboxStats {
+  /** The last seven days, today included. */
+  readonly conversations: number
+  /** Conversations the AI answered at least once. */
+  readonly aiAnswered: number
+  /** Of those, answered by the AI alone: no handoff, no agent. */
+  readonly aiResolved: number
+  readonly handedOff: number
+  /** `aiResolved / aiAnswered`, null without any. */
+  readonly aiResolutionRate: number | null
+  /** From the visitor's first message to the first answer, AI or agent. */
+  readonly medianFirstResponseSeconds: number | null
+  readonly open: { readonly ai: number; readonly queue: number; readonly mine: number }
+  readonly perDay: readonly {
+    readonly day: string
+    readonly total: number
+    readonly ai: number
+    readonly handedOff: number
+  }[]
+}
+
+/** What the AI answers from, as it is indexed now. */
+export interface KnowledgeItem {
+  readonly id: string
+  readonly source: 'article' | 'conversation'
+  readonly title: string
+  readonly passages: number
+  readonly indexedAt: string
+}
+
+/** The AI's tools, as the tools screen shows them — declared in basedb. */
+export interface ToolsOverview {
+  readonly tools: readonly {
+    readonly id: string
+    readonly name: string
+    readonly description: string
+    readonly type: 'basedb' | 'http' | 'callback'
+    readonly target: string | null
+    readonly method: 'GET' | 'POST'
+    readonly agent: boolean
+    readonly copilot: boolean
+    readonly parameters: Readonly<Record<string, unknown>>
+  }[]
+  readonly mcp: readonly {
+    readonly id: string
+    readonly name: string
+    readonly url: string
+    readonly agent: boolean
+    readonly copilot: boolean
+    /** It answered, and listed its tools. */
+    readonly reachable: boolean
+    readonly tools: readonly {
+      readonly name: string
+      readonly description: string
+      readonly parameters: Readonly<Record<string, unknown>>
+    }[]
+  }[]
+}
+
+export interface ToolTestResult {
+  readonly content: string
+  readonly detail: string
+}

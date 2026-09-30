@@ -6,6 +6,7 @@ import type pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { enrich, suggest } from '../../src/ai/copilot.js'
 import { Knowledge } from '../../src/ai/knowledge.js'
+import { McpConnections } from '../../src/ai/mcp.js'
 import { type AiDeps, answerVisitor } from '../../src/ai/responder.js'
 import { purgeExpired } from '../../src/ai/retention.js'
 import { type Db, connect, migrateDatabase } from '../../src/db/client.js'
@@ -79,6 +80,7 @@ beforeAll(async () => {
     llm,
     redact: true,
     basedb: null,
+    mcp: new McpConnections(),
   }
   await deps.knowledge.sync()
 }, 180_000)

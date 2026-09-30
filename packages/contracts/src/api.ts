@@ -36,6 +36,12 @@ export type ErrorCode =
   | 'RATE_LIMITED'
   /** No model is configured (CHAT_AI_API_KEY). */
   | 'AI_UNAVAILABLE'
+  /** Promoting needs basedb, and a token that may write in the « Messagerie » base. */
+  | 'PROMOTION_UNAVAILABLE'
+  | 'CONTACT_NOT_FOUND'
+  /** Reserved to supervisors. */
+  | 'NOT_ALLOWED'
+  | 'TOOL_NOT_FOUND'
 
 /** Opens the inbox's WebSocket, once, within thirty seconds. */
 export interface Ticket {
@@ -80,3 +86,20 @@ export type InboxEvent =
   /** The reader's notifications changed: read them again. Sent to that agent only. */
   | { readonly type: 'notifications' }
   | { readonly type: 'ping' }
+
+/** How the copilot rewords a draft. */
+export type Rewording = 'clearer' | 'shorter' | 'warmer' | 'correct'
+
+export interface RephraseBody {
+  readonly text: string
+  readonly how: Rewording
+}
+
+/** A tool tried from the tools screen, outside any conversation. */
+export interface ToolTestBody {
+  /** An « Outils IA » row's id; or, with `server`, an MCP tool's name. */
+  readonly tool: string
+  /** The « Serveurs MCP » row's id, for one of its tools. */
+  readonly server?: string
+  readonly arguments: Readonly<Record<string, unknown>>
+}

@@ -13,13 +13,23 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { type Rewording, rephrase } from './ai/copilot.js'
 import type { AiJobs } from './ai/jobs.js'
+import type { McpConnections } from './ai/mcp.js'
 import { type AgentEnv, agentAuth } from './auth/agent.js'
 import type { TicketBook } from './auth/tickets.js'
 import type { BasedbClient } from './basedb/client.js'
 import type { Config } from './config.js'
 import type { Db } from './db/client.js'
+import {
+  cannedReplies,
+  contactDetail,
+  knowledge,
+  listContacts,
+  promote,
+  stats,
+} from './inbox/extras.js'
 import { listNotifications, readNotifications } from './inbox/notifications.js'
 import { loadConversation, loadSummaries, toAgent } from './inbox/read.js'
+import { testTool, toolsOverview } from './inbox/tools-screen.js'
 import {
   assign,
   listAgents,
@@ -92,6 +102,7 @@ export function createApp({
   tickets,
   widgetHub,
   ai,
+  mcp,
 }: {
   db: Db
   hub: InboxHub
@@ -102,6 +113,7 @@ export function createApp({
   widgetHub: WidgetHub
   /** The model and its queues; null without AI — conversations then go to the agents. */
   ai: { readonly llm: Llm; readonly redact: boolean; readonly jobs: AiJobs } | null
+  mcp: McpConnections
 }) {
   const app = new Hono()
   const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app })
@@ -173,7 +185,53 @@ export function createApp({
     return c.body(null, 204)
   })
 
+  inbox.get('/canned', async (c) => c.json(await cannedReplies(settings)))
+
+  inbox.get('/contacts', async (c) => c.json(await listContacts(db, c.req.query('q') ?? '')))
+
+  inbox.get('/contacts/:id', async (c) => {
+    const id = c.req.param('id')
+    if (!UUID.test(id)) throw new Refusal('CONTACT_NOT_FOUND', 404)
+    return c.json(await contactDetail(db, id))
+  })
+
+  inbox.get('/stats', async (c) => c.json(await stats(db, c.get('agent'))))
+
+  inbox.get('/knowledge', async (c) => c.json(await knowledge(db)))
+
+  inbox.get('/tools', async (c) => c.json(await toolsOverview(settings, mcp)))
+
+  /** A supervisor tries a tool, outside any conversation. */
+  inbox.post('/tools/test', async (c) => {
+    const { tool, server, arguments: args } = await jsonBody(c.req.raw)
+    if (typeof tool !== 'string' || (server !== undefined && typeof server !== 'string')) {
+      throw new Refusal('INVALID_REQUEST', 400, { expected: '{ tool, server?, arguments }' })
+    }
+    const values =
+      typeof args === 'object' && args !== null && !Array.isArray(args)
+        ? (args as Record<string, unknown>)
+        : {}
+    return c.json(
+      await testTool({ db, settings, basedb, mcp }, c.get('agent'), {
+        tool,
+        ...(server ? { server } : {}),
+        arguments: values,
+      }),
+    )
+  })
+
   inbox.get('/conversations', async (c) => c.json(await loadSummaries(db)))
+
+  /** Into basedb's « Conversations promues », « À relire ». */
+  inbox.post('/conversations/:id/promote', async (c) => {
+    const id = uuidParam(c.req.param('id'))
+    await promote(
+      { db, basedb, llm: ai?.llm ?? null, webOrigin: config.webOrigin },
+      c.get('agent'),
+      id,
+    )
+    return c.body(null, 204)
+  })
 
   inbox.get('/conversations/:id', async (c) => {
     const id = uuidParam(c.req.param('id'))

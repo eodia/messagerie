@@ -160,6 +160,7 @@ export async function openSession(
     site: {
       name: site.name,
       welcome: site.welcome,
+      suggestions: site.suggestions,
       color: site.color,
       language: LANGUAGES[site.language] ?? 'fr',
       ai: site.aiEnabled && deps.aiAvailable,
