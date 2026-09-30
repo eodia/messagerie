@@ -20,6 +20,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@chat/basedb-template':
+        specifier: workspace:*
+        version: link:../../packages/basedb-template
       '@hono/node-server':
         specifier: ^1.19.11
         version: 1.19.17(hono@4.13.12)

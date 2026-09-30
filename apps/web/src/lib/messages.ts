@@ -10,8 +10,23 @@ export function messageFor(code: string): string {
       return $t('Le serveur de la messagerie ne répond pas.')
     case 'AUTH_NOT_CONFIGURED':
       return $t(
-        'Aucune identité : basedb ne sait pas encore authentifier un conseiller pour la messagerie. En développement, définissez CHAT_DEV_AGENT.',
+        'Le serveur de la messagerie n’est relié à aucun basedb : renseignez BASEDB_API_URL, BASEDB_TENANT, BASEDB_BASE et BASEDB_TOKEN — ou CHAT_DEV_AGENT en développement.',
       )
+    case 'SIGNED_OUT':
+    case 'SESSION_INVALID':
+      return $t(
+        'Connectez-vous à basedb dans ce navigateur : la messagerie reconnaît les conseillers par leur compte basedb.',
+      )
+    case 'BASEDB_UNREACHABLE':
+      return $t('basedb ne répond pas : la messagerie ne peut pas vérifier qui vous êtes.')
+    case 'SETTINGS_MISMATCH':
+      return $t(
+        'La base « Messagerie » de basedb ne correspond plus au modèle attendu : une table ou un champ a été renommé.',
+      )
+    case 'TICKET_INVALID':
+      return $t('La connexion en direct a expiré ; elle se rétablit seule.')
+    case 'AGENT_NOT_FOUND':
+      return $t('Ce conseiller n’est plus actif.')
     case 'NOT_AN_AGENT':
       return $t('Votre compte ne figure pas, actif, dans la table « Conseillers » de basedb.')
     case 'CONVERSATION_NOT_FOUND':

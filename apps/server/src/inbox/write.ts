@@ -1,10 +1,24 @@
-import type { Conversation, ConversationEvent, Feedback, SendMessageBody } from '@chat/contracts'
-import { and, eq } from 'drizzle-orm'
+import type {
+  Agent,
+  Conversation,
+  ConversationEvent,
+  Feedback,
+  SendMessageBody,
+} from '@chat/contracts'
+import { and, asc, eq, isNull } from 'drizzle-orm'
 import type { Db } from '../db/client.js'
-import { accessLog, aiFeedback, conversations, messages } from '../db/schema.js'
+import {
+  accessLog,
+  agents,
+  aiFeedback,
+  conversations,
+  messages,
+  notifications,
+} from '../db/schema.js'
 import { signalChange } from '../realtime/signals.js'
 import { Refusal } from '../refusal.js'
-import { type AgentRow, loadConversation } from './read.js'
+import { notify } from './notifications.js'
+import { type AgentRow, loadConversation, toAgent } from './read.js'
 
 /**
  * The agents' writes. Each one runs in a transaction that locks the conversation, so that
@@ -45,9 +59,24 @@ export async function markRead(db: Db, agent: AgentRow, id: string): Promise<voi
   await db.transaction(async (tx) => {
     const row = await lock(tx, id)
     await tx.insert(accessLog).values({ agentId: agent.id, conversationId: id })
-    if (!row.agentUnread) return
-    await tx.update(conversations).set({ agentUnread: false }).where(eq(conversations.id, id))
-    await signalChange(tx, id)
+    // Opening it answers the bell too: its lines for this agent are read.
+    const bell = await tx
+      .update(notifications)
+      .set({ readAt: new Date() })
+      .where(
+        and(
+          eq(notifications.agentId, agent.id),
+          eq(notifications.conversationId, id),
+          isNull(notifications.readAt),
+        ),
+      )
+      .returning({ id: notifications.id })
+    if (row.agentUnread) {
+      await tx.update(conversations).set({ agentUnread: false }).where(eq(conversations.id, id))
+    }
+    if (row.agentUnread || bell.length > 0) {
+      await signalChange(tx, id, bell.length > 0 ? { notify: [agent.id] } : {})
+    }
   })
 }
 
@@ -184,4 +213,57 @@ export async function setFeedback(
       })
   }
   return loadConversation(db, conversationId, agent)
+}
+
+/** The agents a conversation can be given to. */
+export async function listAgents(db: Db): Promise<Agent[]> {
+  const rows = await db
+    .select()
+    .from(agents)
+    .where(eq(agents.active, true))
+    .orderBy(asc(agents.name))
+  return rows.map(toAgent)
+}
+
+/**
+ * Gives the conversation to an agent — or back to the queue with `null`. Given to a
+ * person, it leaves the AI. The one who receives it is told, unless they gave it to
+ * themselves.
+ */
+export async function assign(
+  db: Db,
+  agent: AgentRow,
+  id: string,
+  assigneeId: string | null,
+): Promise<Conversation> {
+  await db.transaction(async (tx) => {
+    const row = await lock(tx, id)
+    if (row.assigneeId === assigneeId) return
+    let assignee: AgentRow | undefined
+    if (assigneeId !== null) {
+      ;[assignee] = await tx
+        .select()
+        .from(agents)
+        .where(and(eq(agents.id, assigneeId), eq(agents.active, true)))
+      if (!assignee) throw new Refusal('AGENT_NOT_FOUND', 404)
+    }
+    const at = clock()()
+    await tx
+      .insert(messages)
+      .values(eventRow(id, { type: 'assigned', agent: assignee?.name ?? null, by: agent.name }, at))
+    await tx
+      .update(conversations)
+      .set({
+        assigneeId,
+        status: row.status === 'ai' && assigneeId !== null ? 'open' : row.status,
+        updatedAt: at,
+      })
+      .where(eq(conversations.id, id))
+    const told =
+      assignee && assignee.id !== agent.id
+        ? await notify(tx, [assignee.id], id, 'assigned', agent.id)
+        : []
+    await signalChange(tx, id, told.length > 0 ? { alert: 'assigned', notify: told } : {})
+  })
+  return loadConversation(db, id, agent)
 }

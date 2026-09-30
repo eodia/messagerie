@@ -5,7 +5,7 @@ import { Separator } from '@/components/ui/separator'
 import { Hint } from '@/components/ui/tooltip'
 import { $t, msg } from '@/lib/i18n'
 import { PRODUCT_NAME } from '@/lib/product'
-import { matchesFilter, useInbox } from '@/lib/store/inbox'
+import { useInbox, waitingCount } from '@/lib/store/inbox'
 import { useSidebar } from '@/lib/store/sidebar'
 import { cn } from '@/lib/utils'
 import {
@@ -52,9 +52,7 @@ const SETTINGS: readonly { readonly label: string; readonly icon: LucideIcon }[]
 export function Sidebar({ basedbUrl }: { readonly basedbUrl: string }) {
   const collapsed = useSidebar((s) => s.collapsed)
   const pathname = usePathname()
-  const waiting = useInbox(
-    (s) => s.summaries.filter((c) => matchesFilter(c, 'all') && c.unread).length,
-  )
+  const waiting = useInbox(waitingCount)
 
   return (
     <aside

@@ -11,9 +11,12 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "seed": "tsx --env-file-if-exists=.env src/seed.ts",
     "db:generate": "drizzle-kit generate",
-    "test:int": "vitest run test/int"
+    "test:int": "vitest run test/int",
+    "provision": "tsx --env-file-if-exists=.env src/provision.ts",
+    "simulate": "tsx --env-file-if-exists=.env src/simulate.ts"
   },
   "dependencies": {
+    "@chat/basedb-template": "workspace:*",
     "@hono/node-server": "^1.19.11",
     "@hono/node-ws": "^1.3.1",
     "drizzle-orm": "^0.45.3",

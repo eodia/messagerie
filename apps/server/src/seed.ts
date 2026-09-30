@@ -23,7 +23,7 @@ import {
  */
 const config = readConfig()
 if (config.production) {
-  console.error('seed: refused in production — it empties the chat schema.')
+  console.error('seed : refusé en production — il vide le schéma chat.')
   process.exit(1)
 }
 

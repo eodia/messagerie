@@ -7,10 +7,11 @@ import type { WSContext } from 'hono/ws'
  * reconnect and read the list again.
  */
 export class InboxHub {
-  private readonly sockets = new Set<WSContext>()
+  /** Each socket, and the agent it was opened for. */
+  private readonly sockets = new Map<WSContext, string>()
 
-  add(socket: WSContext): void {
-    this.sockets.add(socket)
+  add(socket: WSContext, agentId: string): void {
+    this.sockets.set(socket, agentId)
   }
 
   remove(socket: WSContext): void {
@@ -22,8 +23,18 @@ export class InboxHub {
   }
 
   broadcast(event: InboxEvent): void {
+    this.send(event, () => true)
+  }
+
+  /** To the sockets of one agent only — a notification is theirs. */
+  sendTo(agentId: string, event: InboxEvent): void {
+    this.send(event, (owner) => owner === agentId)
+  }
+
+  private send(event: InboxEvent, to: (agentId: string) => boolean): void {
     const data = JSON.stringify(event)
-    for (const socket of this.sockets) {
+    for (const [socket, owner] of this.sockets) {
+      if (!to(owner)) continue
       try {
         socket.send(data)
       } catch {

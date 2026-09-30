@@ -25,7 +25,8 @@ Les décisions qui expliquent le reste sont dans
 | Modèle basedb « Messagerie » | Écrit, validé par le validateur de basedb |
 | Serveur (`apps/server`) | API de l'inbox, temps réel par WebSocket et `LISTEN/NOTIFY`, schéma `chat` en Drizzle, tests d'intégration |
 | Inbox (`apps/web`) | Branchée sur le serveur : liste, fil, réponses, notes, prise en main, résolution, avis sur l'IA |
-| Identité des conseillers | Provisoire : `CHAT_DEV_AGENT` en développement, en attendant basedb (B2) |
+| basedb (0.5.0 et plus) | Base « Messagerie » créée par `pnpm provision` ; conseillers reconnus par introspection de leur jeton basedb ; « Conseillers » suivie en direct |
+| Alertes | Son, notifications du bureau, pastilles de l'onglet, cloche par conseiller, réglables |
 | IA (`packages/ai`) | À venir ; les réponses et suggestions de la démo sont enregistrées d'avance |
 | Widget (`apps/widget`) | À venir |
 
@@ -43,6 +44,24 @@ corepack pnpm --filter @chat/server dev      # le serveur sur http://localhost:8
 corepack pnpm --filter @chat/web dev         # l'inbox sur http://localhost:3210
 ```
 
+Sans basedb, l'inbox fonctionne au nom de `CHAT_DEV_AGENT`. Pour la brancher sur basedb :
+
+```bash
+# BASEDB_API_URL, BASEDB_TENANT et un administrateur (BASEDB_ADMIN_TOKEN, ou e-mail et mot de passe)
+corepack pnpm --filter @chat/server provision
+# puis, dans basedb, un jeton d'intégration de la base créée : BASEDB_BASE et BASEDB_TOKEN
+```
+
+L'inbox reçoit alors `BASEDB_API_URL` elle aussi, et doit être servie **sur le même hôte
+que basedb** (D4) : elle obtient le jeton du conseiller auprès de sa session basedb.
+
+Pour voir l'inbox sonner, sans widget ni IA :
+
+```bash
+corepack pnpm --filter @chat/server simulate message "Lucas Petit" "Vous avez reçu le rapport ?"
+corepack pnpm --filter @chat/server simulate transfert "Julie Martin"
+```
+
 ```bash
 corepack pnpm lint                 # Biome
 corepack pnpm typecheck
@@ -53,7 +72,9 @@ corepack pnpm template:check       # le modèle basedb, passé au validateur de 
 | Variable | Où | Rôle |
 |---|---|---|
 | `DATABASE_URL` | serveur | le PostgreSQL du schéma `chat` |
-| `CHAT_DEV_AGENT` | serveur | développement seulement : le conseiller au nom duquel tout se fait |
+| `BASEDB_API_URL` | serveur, inbox | l'API de basedb (`/auth/…`, `/api/v1/…`) |
+| `BASEDB_TENANT`, `BASEDB_BASE`, `BASEDB_TOKEN` | serveur | le tenant, la base « Messagerie » et le jeton d'intégration du chat |
+| `CHAT_DEV_AGENT` | serveur | développement seulement : le conseiller des requêtes sans jeton |
 | `CHAT_WEB_ORIGIN` | serveur | l'origine de l'inbox, seule admise (CORS et WebSocket) |
 | `CHAT_API_URL` | inbox | l'adresse du serveur, lue à chaque requête |
 | `BASEDB_URL` | inbox | l'adresse de basedb, pour les liens de paramétrage |

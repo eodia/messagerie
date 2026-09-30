@@ -1,3 +1,4 @@
+import type { AlertKind } from '@chat/contracts'
 import { sql } from 'drizzle-orm'
 import pg from 'pg'
 import type { Db } from '../db/client.js'
@@ -9,13 +10,30 @@ import type { Db } from '../db/client.js'
  */
 const CHANNEL = 'chat_events'
 
-interface Signal {
-  readonly conversationId: string
+export interface Signal {
+  /** The conversation that changed — none when only notifications did. */
+  readonly conversationId?: string
+  /** Why the change calls for attention, if it does. */
+  readonly alert?: AlertKind
+  /** The agents whose notifications changed: their sockets are told to read them again. */
+  readonly notify?: readonly string[]
 }
 
 /** Call inside the transaction that made the change. */
-export async function signalChange(db: Db, conversationId: string): Promise<void> {
-  const payload: Signal = { conversationId }
+export async function signalChange(
+  db: Db,
+  conversationId: string,
+  extra: Omit<Signal, 'conversationId'> = {},
+): Promise<void> {
+  await send(db, { conversationId, ...extra })
+}
+
+/** Tells agents that their notifications changed, and nothing else did. */
+export async function signalNotifications(db: Db, agentIds: readonly string[]): Promise<void> {
+  if (agentIds.length > 0) await send(db, { notify: agentIds })
+}
+
+async function send(db: Db, payload: Signal): Promise<void> {
   await db.execute(sql`select pg_notify(${CHANNEL}, ${JSON.stringify(payload)})`)
 }
 
@@ -26,7 +44,7 @@ export async function signalChange(db: Db, conversationId: string): Promise<void
  */
 export function listenForChanges(
   databaseUrl: string,
-  onChange: (conversationId: string) => void,
+  onChange: (signal: Signal) => void,
   onError: (error: unknown) => void = () => {},
 ): () => Promise<void> {
   let client: pg.Client | null = null
@@ -39,8 +57,7 @@ export function listenForChanges(
     next.on('notification', (message) => {
       if (message.channel !== CHANNEL || !message.payload) return
       try {
-        const signal = JSON.parse(message.payload) as Signal
-        onChange(signal.conversationId)
+        onChange(JSON.parse(message.payload) as Signal)
       } catch (error) {
         onError(error)
       }

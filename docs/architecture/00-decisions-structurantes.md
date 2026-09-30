@@ -70,10 +70,20 @@ ses tableaux de bord. C'est ainsi que viendront les statistiques complètes.
 
 ## D3 — L'installation crée la base « Messagerie » en une opération
 
-Au premier démarrage, le serveur du chat demande à basedb d'appliquer le modèle
-`messagerie.json` côté serveur, en une seule opération (dépendance B1). Le modèle est
-versionné avec le chat. `pnpm template:check` le fait passer au validateur de basedb,
-le même que celui de son serveur.
+basedb 0.5.0 applique un modèle côté serveur, en une seule opération (B1) :
+`POST /api/v1/<tenant>/admin/bases {"template": …, "label": …, "rows": …}`, avec le jeton
+d'accès d'un administrateur, et les étapes en NDJSON à la demande.
+
+`pnpm --filter @chat/server provision` le fait avec `messagerie.json`. Il prend le jeton
+d'un administrateur (`BASEDB_ADMIN_TOKEN`), ou son adresse et son mot de passe, avec
+lesquels il se connecte comme le fait l'interface. Les lignes du modèle sont écrites par
+défaut : ce sont les réglages de départ (un site, une équipe, les garde-fous), et elles
+font de celui qui lance la commande le premier superviseur. `--no-rows` les omet.
+
+Reste à faire à la main, dans basedb : créer un jeton d'intégration de la base, pour la
+surface REST et en lecture, puis le donner au serveur (`BASEDB_BASE`, `BASEDB_TOKEN`).
+`pnpm template:check` fait passer le modèle au validateur de basedb, celui-là même que
+son serveur applique.
 
 Question ouverte : faire évoluer une base déjà créée quand le modèle change (un champ
 ajouté dans une version du chat). Il faudra une étape de migration du chat, qui passe
@@ -81,22 +91,40 @@ par l'API d'administration de basedb.
 
 ## D4 — Les conseillers sont des comptes basedb
 
-Un conseiller se connecte avec son compte basedb : le chat vérifie l'identité auprès de
-basedb (dépendance B2). Le SSO vient donc de la configuration OIDC de basedb, sans
-réglage propre au chat.
+Un conseiller se connecte à basedb, pas au chat. L'inbox demande à la session basedb du
+navigateur un jeton d'accès (`POST /auth/session/access`, avec le cookie de session et,
+dans `X-Basedb-Csrf`, la valeur du cookie CSRF). Elle l'envoie au serveur du chat, qui
+demande à basedb ce qu'il vaut (introspection RFC 7662, B2). Le SSO vient donc de la
+configuration OIDC de basedb, sans réglage propre au chat.
 
-En attendant B2, la seule identité est celle du développement : `CHAT_DEV_AGENT` désigne
-le compte au nom duquel tout se fait, et cette variable est ignorée en production. Là,
-faute de savoir qui demande, le serveur refuse tout (`AUTH_NOT_CONFIGURED`) plutôt que de
-faire confiance.
-
-Le chat garde une copie des conseillers dans `chat.agent`, pour qu'un message nomme
-encore son auteur quand la ligne de basedb a disparu.
-
-- **Être conseiller**, c'est figurer dans la table « Conseillers », case « Actif »
-  cochée.
+- **Être conseiller**, c'est figurer dans la table « Conseillers », avec son compte basedb
+  et la case « Actif » cochée. Le rôle « Superviseur » y est lu.
 - **Administrer la messagerie**, c'est avoir le droit de modifier la base « Messagerie »
   dans basedb. Les droits par groupe, par table et par champ viennent de basedb.
+- **Un jeton d'intégration n'est pas un conseiller** : un programme ne répond pas aux
+  visiteurs.
+- **Réponse gardée 30 secondes au plus**, jamais au-delà de l'échéance du jeton. C'est la
+  même fenêtre de révocation que basedb.
+- **« Conseillers » gardée jusqu'au prochain signal.** Le serveur relit la table quand
+  basedb signale un changement, sur son flux SSE ouvert aux jetons d'intégration (B3).
+- **Copie locale.** Le chat garde une copie des conseillers dans `chat.agent`, pour qu'un
+  message nomme encore son auteur quand la ligne de basedb a disparu.
+
+**Contrainte de déploiement : l'inbox est servie sur le même hôte que basedb.** Le cookie
+CSRF de basedb n'est lisible que par les scripts de son hôte. C'est voulu : aucune autre
+origine ne doit pouvoir obtenir un jeton. L'inbox vit donc sous un autre chemin du même
+hôte, derrière la même passerelle (`https://support.exemple.fr/` pour l'inbox,
+`/basedb/` pour basedb). En développement, `localhost` suffit, car les cookies ignorent
+les ports. Pour lever cette contrainte, il faudrait un transfert de jeton explicite fourni
+par basedb, par exemple un lien « Ouvrir la messagerie » qui le remet à l'inbox.
+
+**Le WebSocket s'ouvre par ticket.** Un navigateur ne peut pas y mettre d'en-tête
+`Authorization`, et un jeton dans l'URL finit dans les journaux. L'inbox demande donc un
+ticket par HTTP authentifié : il vaut une fois, pendant trente secondes.
+
+Sans basedb configuré, et en développement seulement, `CHAT_DEV_AGENT` désigne le compte
+au nom duquel se font les requêtes sans jeton. En production, une requête sans jeton est
+refusée.
 
 ## D5 — Les visiteurs ne sont jamais des comptes basedb, et les secrets restent au chat
 
@@ -156,6 +184,34 @@ acceptée, modifiée ou rejetée. Ces lignes forment le jeu d'évaluation.
 Toute réponse de l'IA est présentée comme telle au visiteur. L'IA n'agit que par les
 outils de la table « Outils IA ».
 
+## D9 ter — Les alertes : le serveur dit pourquoi, l'inbox décide pour qui
+
+**Côté serveur.** Chaque écriture qui appelle un conseiller le dit dans son signal : un
+visiteur a écrit (`visitor_message`), l'IA a transféré (`handoff`), quelqu'un a confié la
+conversation (`assigned`). Dans la même transaction, elle écrit une ligne dans la cloche
+de chaque conseiller concerné (`chat.notification`) :
+- **un message de visiteur** va à celui qui a la conversation. Personne n'est appelé tant
+  que l'IA répond ;
+- **un transfert** va à l'affecté, ou à tous les conseillers actifs s'il n'y en a pas ;
+- **une affectation** va à celui qui la reçoit, sauf s'il se l'est donnée lui-même.
+
+Une seule ligne non lue par conseiller, conversation et cause : un visiteur qui écrit cinq
+fois sonne cinq fois, mais laisse une ligne, remontée en tête. Ouvrir la conversation lit
+ses lignes. Les onglets ouverts de ce conseiller reçoivent un signal « relisez vos
+notifications ».
+
+**Côté inbox.** Une alerte concerne le lecteur si la conversation est la sienne, ou si
+elle attend dans la file sans affecté. Alors :
+- un son, synthétisé (deux notes pour un message, trois pour ce qu'on lui confie) ;
+- une notification du bureau si l'onglet n'est pas au premier plan, une seule par
+  conversation ;
+- rien s'il a déjà la conversation sous les yeux : elle est marquée lue.
+
+Les pastilles — le compteur de l'onglet, le point sur son icône, la barre latérale —
+comptent ce qui attend le lecteur : les conversations non lues qui sont les siennes ou
+dans la file. La cloche compte ses lignes non lues. Le son et les notifications du bureau
+se règlent par navigateur, dans le menu du compte.
+
 ## D9 bis — Le serveur ne rédige pas de phrases
 
 Ce que le serveur enregistre pour être lu par un humain est une donnée, pas une phrase :
@@ -192,10 +248,11 @@ réseau leur doit le code source de sa version.
 
 | Réf. | Besoin | État |
 |---|---|---|
-| B1 | Appliquer un modèle côté serveur, en une seule opération | Demandé |
-| B2 | Vérifier une identité basedb depuis une autre application | Demandé |
-| B3 | Prévenir un serveur interne d'un changement de lignes | Demandé |
+| B1 | Appliquer un modèle côté serveur, en une seule opération | basedb 0.5.0 — `pnpm provision` |
+| B2 | Vérifier une identité basedb depuis une autre application | basedb 0.5.0 — introspection, D4 |
+| B3 | Prévenir un serveur interne d'un changement de lignes | basedb 0.5.0 — flux SSE suivi pour « Conseillers » |
 | B4 | Des vues SQL basedb qui lisent un schéma que basedb ne gère pas | À vérifier |
+| B5 | Remettre le jeton d'une personne à une application déclarée (code + PKCE, « Ouvrir la messagerie ») | Demandé — lève la contrainte du même hôte (D4) |
 
 ## Questions ouvertes
 

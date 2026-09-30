@@ -6,7 +6,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Hint } from '@/components/ui/tooltip'
@@ -23,6 +28,7 @@ import {
   MapPin,
   PanelRight,
   ShieldCheck,
+  Undo2,
   UserRoundPlus,
 } from 'lucide-react'
 import { Fragment, useEffect, useRef } from 'react'
@@ -62,7 +68,9 @@ export function Thread({
   readonly onToggleDetails: () => void
 }) {
   const now = useInbox((s) => s.now)
-  const { takeOver, resolve, giveFeedback, setDraft } = useInbox.getState()
+  const me = useInbox((s) => s.me)
+  const agents = useInbox((s) => s.agents)
+  const { takeOver, resolve, assign, giveFeedback, setDraft } = useInbox.getState()
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const { scroller, content } = useStickToBottom(conversation.id)
   const { contact, messages, status } = conversation
@@ -137,10 +145,34 @@ export function Thread({
               </DropdownMenuTrigger>
             </Hint>
             <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuItem>
-                <UserRoundPlus />
-                {$t('Affecter à…')}
-              </DropdownMenuItem>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <UserRoundPlus />
+                  {$t('Affecter à')}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="w-56">
+                  <DropdownMenuRadioGroup
+                    value={conversation.assigneeId ?? ''}
+                    onValueChange={(id) => void assign(conversation.id, id)}
+                  >
+                    {agents.map((agent) => (
+                      <DropdownMenuRadioItem key={agent.id} value={agent.id}>
+                        {agent.id === me?.id
+                          ? $t('{name} (vous)', { name: agent.name })
+                          : agent.name}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    disabled={conversation.assigneeId === null}
+                    onSelect={() => void assign(conversation.id, null)}
+                  >
+                    <Undo2 />
+                    {$t('Remettre dans la file')}
+                  </DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
               <DropdownMenuSeparator />
               <DropdownMenuItem disabled={status !== 'resolved'}>
                 <BookmarkPlus />

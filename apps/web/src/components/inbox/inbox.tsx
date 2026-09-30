@@ -1,5 +1,6 @@
 'use client'
 
+import { useBasedbUrl } from '@/components/app/app-shell'
 import { Chip } from '@/components/app/chip'
 import { EmptyState } from '@/components/app/empty-state'
 import { ScreenHeader, Slash } from '@/components/app/screen-header'
@@ -10,7 +11,16 @@ import { apiAddress } from '@/lib/api'
 import { $t } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
 import { useInbox } from '@/lib/store/inbox'
-import { Bell, LoaderCircle, MessagesSquare, RefreshCw, Search, Unplug, X } from 'lucide-react'
+import {
+  ExternalLink,
+  LoaderCircle,
+  LogIn,
+  MessagesSquare,
+  RefreshCw,
+  Search,
+  Unplug,
+  X,
+} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { ConversationList } from './conversation-list'
 import { DetailsPanel } from './details-panel'
@@ -26,6 +36,7 @@ export function Inbox() {
   const summary = useInbox((s) => s.summaries.find((c) => c.id === s.selectedId))
   const error = useInbox((s) => s.error)
   const [detailsOpen, setDetailsOpen] = useState(true)
+  const basedbUrl = useBasedbUrl()
   const searchRef = useRef<HTMLInputElement>(null)
   const mod = useModKey()
 
@@ -66,11 +77,6 @@ export function Inbox() {
             <Kbd>{mod}</Kbd>
             <Kbd>K</Kbd>
           </button>
-          <Hint label={$t('Notifications')}>
-            <Button variant="ghost" size="icon-sm">
-              <Bell className="text-muted-foreground" />
-            </Button>
-          </Hint>
         </>
       }
     >
@@ -93,6 +99,27 @@ export function Inbox() {
             <LoaderCircle className="size-4 animate-spin" />
             {$t('Chargement des conversations…')}
           </div>
+        ) : loadError === 'SIGNED_OUT' || loadError === 'SESSION_INVALID' ? (
+          <EmptyState
+            icon={LogIn}
+            title={$t('Connectez-vous à basedb')}
+            actions={
+              <>
+                <Button asChild>
+                  <a href={basedbUrl} target="_blank" rel="noreferrer">
+                    <ExternalLink />
+                    {$t('Ouvrir basedb')}
+                  </a>
+                </Button>
+                <Button variant="outline" onClick={() => void useInbox.getState().reload()}>
+                  <RefreshCw />
+                  {$t('Réessayer')}
+                </Button>
+              </>
+            }
+          >
+            {messageFor(loadError)}
+          </EmptyState>
         ) : (
           <EmptyState
             icon={Unplug}

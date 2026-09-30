@@ -28,6 +28,7 @@ import {
   Pencil,
   RotateCcw,
   StickyNote,
+  UserRoundPlus,
   Wrench,
   X,
 } from 'lucide-react'
@@ -107,6 +108,7 @@ const EVENT_ICONS = {
   takeover: Hand,
   resolved: CircleCheck,
   reopened: RotateCcw,
+  assigned: UserRoundPlus,
 } as const
 
 /** An event, said in the reader's language: the server stores what happened, not words. */
@@ -118,6 +120,12 @@ function eventText(event: ConversationEvent): string {
       return $t('{agent} a résolu la conversation.', { agent: event.agent })
     case 'reopened':
       return $t('{agent} a rouvert la conversation.', { agent: event.agent })
+    case 'assigned':
+      if (event.agent === null) {
+        return $t('{by} a remis la conversation dans la file.', { by: event.by })
+      }
+      if (event.agent === event.by) return $t('{by} a pris la conversation.', { by: event.by })
+      return $t('{by} a confié la conversation à {agent}.', { by: event.by, agent: event.agent })
     case 'tool':
       return $t('L’IA a utilisé l’outil « {tool} » : {detail}.', {
         tool: event.tool,
@@ -165,7 +173,8 @@ export function HandoffCard({ message }: { readonly message: HandoffMessage }) {
           </dd>
           <dt className="text-muted-foreground">{$t('Affectée à')}</dt>
           <dd>
-            {message.assignee} <span className="text-muted-foreground">· {message.team}</span>
+            {message.assignee || $t('L’équipe')}{' '}
+            <span className="text-muted-foreground">· {message.team}</span>
           </dd>
         </dl>
       </article>

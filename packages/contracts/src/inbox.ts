@@ -91,6 +91,8 @@ export type ConversationEvent =
   | { readonly type: 'takeover'; readonly agent: string }
   | { readonly type: 'resolved'; readonly agent: string }
   | { readonly type: 'reopened'; readonly agent: string }
+  /** `agent` has it now, given by `by`; `agent` is null when it was taken back to the queue. */
+  | { readonly type: 'assigned'; readonly agent: string | null; readonly by: string }
   /** The AI called one of basedb's « Outils IA »; `detail` is what it looked at. */
   | { readonly type: 'tool'; readonly tool: string; readonly detail: string }
 
@@ -130,6 +132,7 @@ export interface Conversation {
   readonly site: string
   readonly status: ConversationStatus
   readonly assignee: string | null
+  readonly assigneeId: string | null
   readonly unread: boolean
   readonly intent: string | null
   readonly tags: readonly Tag[]
@@ -158,6 +161,8 @@ export interface ConversationSummary {
   readonly site: string
   readonly status: ConversationStatus
   readonly assignee: string | null
+  /** Who has it, to tell « mine » from « someone else's » without comparing names. */
+  readonly assigneeId: string | null
   readonly unread: boolean
   /** An AI handed it over — the row says « Transférée » while an agent has it. */
   readonly handedOff: boolean
@@ -165,4 +170,28 @@ export interface ConversationSummary {
   readonly previewAuthor: 'visitor' | 'agent' | 'ai' | null
   readonly previewAgent: string | null
   readonly lastMessageAt: string
+}
+
+/**
+ * Why a conversation calls for an agent's attention: a visitor wrote, the AI handed it
+ * over, or someone gave it to them. What rings, what shows in the bell.
+ */
+export type AlertKind = 'visitor_message' | 'handoff' | 'assigned'
+
+/** One entry of an agent's bell. Kept by the server, so that a reload loses none. */
+export interface Notification {
+  readonly id: string
+  readonly kind: AlertKind
+  readonly conversationId: string
+  readonly contactName: string
+  /** Who assigned the conversation, for `assigned`. */
+  readonly by: string | null
+  readonly at: string
+  readonly read: boolean
+}
+
+export interface NotificationList {
+  readonly unread: number
+  /** The latest, newest first. */
+  readonly items: readonly Notification[]
 }

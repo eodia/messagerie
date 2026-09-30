@@ -3,9 +3,25 @@ import { eq, sql } from 'drizzle-orm'
 import type pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { type Db, connect, migrateDatabase } from '../../src/db/client.js'
-import { agents, aiRuns, contacts, conversations, messages } from '../../src/db/schema.js'
+import {
+  agents,
+  aiRuns,
+  contacts,
+  conversations,
+  messages,
+  notifications,
+} from '../../src/db/schema.js'
+import { handOff, receiveVisitorMessage } from '../../src/inbox/incoming.js'
+import { listNotifications } from '../../src/inbox/notifications.js'
 import { type AgentRow, loadConversation, loadSummaries } from '../../src/inbox/read.js'
-import { resolve, sendMessage, setFeedback, takeOver } from '../../src/inbox/write.js'
+import {
+  assign,
+  markRead,
+  resolve,
+  sendMessage,
+  setFeedback,
+  takeOver,
+} from '../../src/inbox/write.js'
 import { listenForChanges, signalChange } from '../../src/realtime/signals.js'
 import { Refusal } from '../../src/refusal.js'
 
@@ -133,7 +149,9 @@ describe('feedback', () => {
 describe('change signals', () => {
   it('leave with the write that commits, and never with one that rolls back', async () => {
     const heard: string[] = []
-    const stop = listenForChanges(container.getConnectionUri(), (id) => heard.push(id))
+    const stop = listenForChanges(container.getConnectionUri(), ({ conversationId }) => {
+      if (conversationId) heard.push(conversationId)
+    })
     // The listener connects on its own; a signal sent before it listens would be lost.
     await expect.poll(() => listenerReady(), { timeout: 10_000 }).toBe(true)
 
@@ -178,5 +196,89 @@ describe('reading', () => {
       .where(eq(conversations.id, older.id))
     const ids = (await loadSummaries(db)).map((s) => s.id)
     expect(ids.indexOf(newer.id)).toBeLessThan(ids.indexOf(older.id))
+  })
+})
+
+describe('alerts and notifications', () => {
+  let colleague: AgentRow
+
+  beforeAll(async () => {
+    const [row] = await db
+      .insert(agents)
+      .values({ basedbUserId: 'test-colleague', name: 'Collègue' })
+      .returning()
+    if (!row) throw new Error('colleague not inserted')
+    colleague = row
+  })
+
+  const bell = async (who: AgentRow, conversationId: string) =>
+    (await listNotifications(db, who)).items.filter((n) => n.conversationId === conversationId)
+
+  it('rings nobody while the AI answers', async () => {
+    const { id } = await aiConversation()
+    await receiveVisitorMessage(db, id, 'Encore une question')
+    expect(await bell(agent, id)).toHaveLength(0)
+    const [summary] = await loadSummaries(db, [id])
+    expect(summary).toMatchObject({ status: 'ai', unread: true })
+  })
+
+  it('tells the agent who has the conversation, once however often the visitor writes', async () => {
+    const { id } = await aiConversation()
+    await takeOver(db, agent, id)
+    await receiveVisitorMessage(db, id, 'Un')
+    await receiveVisitorMessage(db, id, 'Deux')
+    const lines = await bell(agent, id)
+    expect(lines).toMatchObject([{ kind: 'visitor_message', read: false }])
+    expect(await bell(colleague, id)).toHaveLength(0)
+  })
+
+  it('reads the bell when the conversation is opened', async () => {
+    const { id } = await aiConversation()
+    await takeOver(db, agent, id)
+    await receiveVisitorMessage(db, id, 'Bonjour ?')
+    await markRead(db, agent, id)
+    expect(await bell(agent, id)).toMatchObject([{ read: true }])
+    // A new message after that is a new line.
+    await receiveVisitorMessage(db, id, 'Toujours là ?')
+    expect((await bell(agent, id)).filter((n) => !n.read)).toHaveLength(1)
+  })
+
+  it('tells every active agent of a handoff to nobody in particular', async () => {
+    const { id } = await aiConversation()
+    await handOff(db, id, {
+      reason: 'Hors sujet',
+      summary: 'Résumé',
+      confidence: 0.3,
+      assigneeId: null,
+      team: 'Support',
+      model: 'test',
+    })
+    expect(await bell(agent, id)).toMatchObject([{ kind: 'handoff' }])
+    expect(await bell(colleague, id)).toMatchObject([{ kind: 'handoff' }])
+    const [summary] = await loadSummaries(db, [id])
+    expect(summary).toMatchObject({ status: 'open', handedOff: true, assigneeId: null })
+  })
+
+  it('tells the one a conversation is given to, with who gave it — not the giver', async () => {
+    const { id } = await aiConversation()
+    const after = await assign(db, agent, id, colleague.id)
+    expect(after).toMatchObject({ status: 'open', assignee: 'Collègue' })
+    expect(await bell(colleague, id)).toMatchObject([{ kind: 'assigned', by: 'Agent de test' }])
+    await assign(db, colleague, id, colleague.id)
+    await assign(db, colleague, id, agent.id)
+    expect(await bell(agent, id)).toMatchObject([{ kind: 'assigned', by: 'Collègue' }])
+    const self = await aiConversation()
+    await assign(db, agent, self.id, agent.id)
+    expect(await bell(agent, self.id)).toHaveLength(0)
+  })
+
+  it('refuses to give a conversation to an agent who does not exist', async () => {
+    const { id } = await aiConversation()
+    await expect(
+      assign(db, agent, id, '00000000-0000-4000-8000-000000000000'),
+    ).rejects.toMatchObject({ code: 'AGENT_NOT_FOUND' })
+    expect(
+      await db.select().from(notifications).where(eq(notifications.conversationId, id)),
+    ).toHaveLength(0)
   })
 })

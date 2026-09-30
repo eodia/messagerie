@@ -6,10 +6,12 @@ import { $t } from '@/lib/i18n'
 import { useSidebar } from '@/lib/store/sidebar'
 import { PanelLeft } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { NotificationBell } from './notification-bell'
 
 /**
  * The bar at the top of every screen, as basedb draws its own: the sidebar's toggle at the
- * far left, where the thumb finds it on every screen, then where one is, then the tools.
+ * far left, where the thumb finds it on every screen, then where one is, then the tools —
+ * and the bell, on every screen, since an alert does not wait for the inbox to be open.
  */
 export function ScreenHeader({
   children,
@@ -28,7 +30,10 @@ export function ScreenHeader({
         </Button>
       </Hint>
       <div className="flex min-w-0 flex-1 items-center gap-2 text-sm">{children}</div>
-      {tools && <div className="flex shrink-0 items-center gap-1.5">{tools}</div>}
+      <div className="flex shrink-0 items-center gap-1.5">
+        {tools}
+        <NotificationBell />
+      </div>
     </header>
   )
 }

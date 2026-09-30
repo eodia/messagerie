@@ -1,12 +1,31 @@
-import type { ApiError, Feedback, FeedbackBody, InboxEvent, SendMessageBody } from '@chat/contracts'
+import type {
+  ApiError,
+  AssignBody,
+  Feedback,
+  FeedbackBody,
+  InboxEvent,
+  SendMessageBody,
+  Ticket,
+} from '@chat/contracts'
 import { createNodeWebSocket } from '@hono/node-ws'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { type AgentEnv, agentAuth } from './auth/agent.js'
+import type { TicketBook } from './auth/tickets.js'
+import type { MessagerieSettings } from './basedb/settings.js'
 import type { Config } from './config.js'
 import type { Db } from './db/client.js'
+import { listNotifications, readNotifications } from './inbox/notifications.js'
 import { loadConversation, loadSummaries, toAgent } from './inbox/read.js'
-import { markRead, resolve, sendMessage, setFeedback, takeOver } from './inbox/write.js'
+import {
+  assign,
+  listAgents,
+  markRead,
+  resolve,
+  sendMessage,
+  setFeedback,
+  takeOver,
+} from './inbox/write.js'
 import type { InboxHub } from './realtime/hub.js'
 import { Refusal } from './refusal.js'
 
@@ -37,6 +56,13 @@ function sendBody(raw: Record<string, unknown>): SendMessageBody {
   return { body, kind, resolve: resolve === true }
 }
 
+function assignBody(raw: Record<string, unknown>): AssignBody {
+  const { assigneeId } = raw
+  if (assigneeId === null) return { assigneeId: null }
+  if (typeof assigneeId === 'string' && UUID.test(assigneeId)) return { assigneeId }
+  throw new Refusal('INVALID_REQUEST', 400, { field: 'assigneeId' })
+}
+
 function feedbackBody(raw: Record<string, unknown>): FeedbackBody {
   const { action } = raw
   if (action === null) return { action: null }
@@ -50,7 +76,19 @@ function feedbackBody(raw: Record<string, unknown>): FeedbackBody {
  * The chat server's HTTP and WebSocket surface. Only the inbox's routes exist so far; the
  * widget's arrive under `/api/widget`.
  */
-export function createApp({ db, hub, config }: { db: Db; hub: InboxHub; config: Config }) {
+export function createApp({
+  db,
+  hub,
+  config,
+  settings,
+  tickets,
+}: {
+  db: Db
+  hub: InboxHub
+  config: Config
+  settings: MessagerieSettings | null
+  tickets: TicketBook
+}) {
   const app = new Hono()
   const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app })
 
@@ -59,7 +97,7 @@ export function createApp({ db, hub, config }: { db: Db; hub: InboxHub; config: 
   const withCors = cors({
     origin: config.webOrigin,
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowHeaders: ['content-type'],
+    allowHeaders: ['content-type', 'authorization'],
     maxAge: 600,
   })
   app.use('/api/*', (c, next) =>
@@ -68,10 +106,58 @@ export function createApp({ db, hub, config }: { db: Db; hub: InboxHub; config: 
 
   app.get('/health', (c) => c.json({ ok: true }))
 
+  /**
+   * The live signals. A WebSocket escapes CORS, so the origin is checked here: any page
+   * the agent has open could otherwise open this socket and read along. It opens with a
+   * ticket (`POST /api/inbox/ticket`), not a token: a browser cannot send a header here.
+   * Registered before the inbox's routes, whose authentication it replaces.
+   */
+  app.get(
+    '/api/inbox/events',
+    async (c, next) => {
+      const origin = c.req.header('origin')
+      if (origin !== undefined && origin !== config.webOrigin) {
+        return c.json({ code: 'INVALID_REQUEST', details: { origin } } satisfies ApiError, 403)
+      }
+      await next()
+    },
+    upgradeWebSocket((c) => {
+      const agentId = tickets.redeem(c.req.query('ticket'))
+      return {
+        onOpen: (_event, socket) => {
+          if (agentId === null) socket.close(4401, 'TICKET_INVALID')
+          else hub.add(socket, agentId)
+        },
+        onClose: (_event, socket) => hub.remove(socket),
+        onError: (_event, socket) => hub.remove(socket),
+      }
+    }),
+  )
+
   const inbox = new Hono<AgentEnv>()
-  inbox.use(agentAuth(db, config))
+  inbox.use(agentAuth(db, config, settings))
 
   inbox.get('/me', (c) => c.json(toAgent(c.get('agent'))))
+
+  inbox.post('/ticket', (c) =>
+    c.json({ ticket: tickets.issue(c.get('agent').id) } satisfies Ticket),
+  )
+
+  inbox.get('/agents', async (c) => c.json(await listAgents(db)))
+
+  inbox.get('/notifications', async (c) => c.json(await listNotifications(db, c.get('agent'))))
+
+  inbox.post('/notifications/read', async (c) => {
+    const { conversationId } = await jsonBody(c.req.raw)
+    if (
+      conversationId !== undefined &&
+      (typeof conversationId !== 'string' || !UUID.test(conversationId))
+    ) {
+      throw new Refusal('INVALID_REQUEST', 400, { field: 'conversationId' })
+    }
+    await readNotifications(db, c.get('agent'), conversationId)
+    return c.body(null, 204)
+  })
 
   inbox.get('/conversations', async (c) => c.json(await loadSummaries(db)))
 
@@ -94,6 +180,11 @@ export function createApp({ db, hub, config }: { db: Db; hub: InboxHub; config: 
     c.json(await takeOver(db, c.get('agent'), uuidParam(c.req.param('id')))),
   )
 
+  inbox.post('/conversations/:id/assign', async (c) => {
+    const { assigneeId } = assignBody(await jsonBody(c.req.raw))
+    return c.json(await assign(db, c.get('agent'), uuidParam(c.req.param('id')), assigneeId))
+  })
+
   inbox.post('/conversations/:id/resolve', async (c) =>
     c.json(await resolve(db, c.get('agent'), uuidParam(c.req.param('id')))),
   )
@@ -105,27 +196,6 @@ export function createApp({ db, hub, config }: { db: Db; hub: InboxHub; config: 
     const id = uuidParam(c.req.param('id'))
     return c.json(await setFeedback(db, c.get('agent'), id, messageId, action))
   })
-
-  /**
-   * The live signals: one message per conversation that changed, anywhere. A WebSocket
-   * escapes CORS, so the origin is checked here: any page the agent has open could
-   * otherwise open this socket with the agent's credentials and read along.
-   */
-  inbox.get(
-    '/events',
-    async (c, next) => {
-      const origin = c.req.header('origin')
-      if (origin !== undefined && origin !== config.webOrigin) {
-        return c.json({ code: 'INVALID_REQUEST', details: { origin } } satisfies ApiError, 403)
-      }
-      await next()
-    },
-    upgradeWebSocket(() => ({
-      onOpen: (_event, socket) => hub.add(socket),
-      onClose: (_event, socket) => hub.remove(socket),
-      onError: (_event, socket) => hub.remove(socket),
-    })),
-  )
 
   app.route('/api/inbox', inbox)
 

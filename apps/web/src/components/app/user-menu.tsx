@@ -3,6 +3,7 @@
 import { initials } from '@/components/inbox/labels'
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -12,10 +13,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { $t } from '@/lib/i18n'
+import { useAlertSettings } from '@/lib/store/alert-settings'
 import { useInbox } from '@/lib/store/inbox'
 import { type ThemePreference, useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
-import { ChevronsUpDown, Database, LogOut } from 'lucide-react'
+import { BellRing, ChevronsUpDown, Database, LogOut, Volume2 } from 'lucide-react'
 import { useState } from 'react'
 
 type Presence = 'available' | 'away'
@@ -32,6 +34,7 @@ export function UserMenu({
   readonly basedbUrl: string
 }) {
   const me = useInbox((s) => s.me)
+  const { sound, desktop, permission, setSound, setDesktop } = useAlertSettings()
   const preference = useTheme((s) => s.preference)
   const setPreference = useTheme((s) => s.setPreference)
   const [presence, setPresence] = useState<Presence>('available')
@@ -83,6 +86,28 @@ export function UserMenu({
             {$t('Absent : aucune nouvelle conversation')}
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>{$t('Alertes')}</DropdownMenuLabel>
+        {/* A toggle keeps the menu open: the agent sees what they just changed. */}
+        <DropdownMenuCheckboxItem
+          checked={sound}
+          onCheckedChange={(on) => setSound(on === true)}
+          onSelect={(event) => event.preventDefault()}
+        >
+          <Volume2 />
+          {$t('Son à chaque nouveau message')}
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
+          checked={desktop}
+          disabled={permission === 'denied' || permission === 'unsupported'}
+          onCheckedChange={(on) => void setDesktop(on === true)}
+          onSelect={(event) => event.preventDefault()}
+        >
+          <BellRing />
+          {permission === 'denied'
+            ? $t('Notifications bloquées par le navigateur')
+            : $t('Notifications du bureau')}
+        </DropdownMenuCheckboxItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>{$t('Thème')}</DropdownMenuLabel>
         <DropdownMenuRadioGroup

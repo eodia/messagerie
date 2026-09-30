@@ -1,4 +1,5 @@
 import type { ContactAttribute, ConversationEvent, Source } from '@chat/contracts'
+import { sql } from 'drizzle-orm'
 import {
   boolean,
   index,
@@ -11,6 +12,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
   vector,
 } from 'drizzle-orm/pg-core'
@@ -41,6 +43,7 @@ export const aiRunKind = chat.enum('ai_run_kind', ['answer', 'suggestion', 'tag'
 export const feedbackAction = chat.enum('feedback_action', ['accepted', 'edited', 'rejected'])
 export const tagOrigin = chat.enum('tag_origin', ['agent', 'ai'])
 export const chunkSource = chat.enum('chunk_source', ['article', 'conversation'])
+export const alertKind = chat.enum('alert_kind', ['visitor_message', 'handoff', 'assigned'])
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 const updatedAt = () => timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
@@ -270,4 +273,33 @@ export const accessLog = chat.table(
     at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('access_log_conversation_idx').on(t.conversationId, t.at)],
+)
+
+/**
+ * An agent's bell: what called for their attention, until they open the conversation.
+ * One unread entry per agent, conversation and kind — a visitor who writes five times
+ * rings five times but leaves one line, brought back to the top.
+ */
+export const notifications = chat.table(
+  'notification',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    agentId: uuid('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
+    conversationId: uuid('conversation_id')
+      .notNull()
+      .references(() => conversations.id, { onDelete: 'cascade' }),
+    kind: alertKind('kind').notNull(),
+    /** Who assigned the conversation, for `assigned`. */
+    byAgentId: uuid('by_agent_id').references(() => agents.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+    readAt: timestamp('read_at', { withTimezone: true }),
+  },
+  (t) => [
+    index('notification_agent_idx').on(t.agentId, t.createdAt.desc()),
+    uniqueIndex('notification_unread_key')
+      .on(t.agentId, t.conversationId, t.kind)
+      .where(sql`${t.readAt} is null`),
+  ],
 )

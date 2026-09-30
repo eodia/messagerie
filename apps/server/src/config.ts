@@ -9,20 +9,39 @@ export interface Config {
   readonly webOrigin: string
   readonly production: boolean
   /**
-   * Development only: the basedb user every request is made as, until basedb can vouch
-   * for an identity (dependency B2). Ignored in production.
+   * Development only: the basedb user every request is made as when it carries no token
+   * — the inbox without basedb. Ignored in production.
    */
   readonly devAgent: string | null
+  /** basedb, once the « Messagerie » base exists and the chat has its token (D2, D4). */
+  readonly basedb: BasedbConfig | null
+}
+
+export interface BasedbConfig {
+  /** Where basedb's API answers: `/auth/…` and `/api/v1/…` are under it. */
+  readonly url: string
+  readonly tenant: string
+  /** The « Messagerie » base, by the name its creation returned (`b_…_messagerie`). */
+  readonly base: string
+  /** An integration token of that base, issued for `rest`: reads, introspects, follows. */
+  readonly token: string
 }
 
 export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const production = env.NODE_ENV === 'production'
   // `||`, not `??`: an empty variable in a `.env` file means unset.
+  const url = env.BASEDB_API_URL || ''
+  const tenant = env.BASEDB_TENANT || ''
+  const base = env.BASEDB_BASE || ''
+  const token = env.BASEDB_TOKEN || ''
+  const basedb =
+    url && tenant && base && token ? { url: url.replace(/\/+$/, ''), tenant, base, token } : null
   return {
     port: Number(env.CHAT_PORT || 8810),
     databaseUrl: env.DATABASE_URL || 'postgres://chat:chat@127.0.0.1:55440/chat',
     webOrigin: env.CHAT_WEB_ORIGIN || 'http://localhost:3210',
     production,
     devAgent: production ? null : env.CHAT_DEV_AGENT || null,
+    basedb,
   }
 }

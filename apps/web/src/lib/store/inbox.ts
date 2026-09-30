@@ -2,13 +2,17 @@
 
 import type {
   Agent,
+  AlertKind,
   Conversation,
   ConversationSummary,
   Feedback,
   InboxEvent,
+  NotificationList,
 } from '@chat/contracts'
 import { create } from 'zustand'
+import { chime, inView, notifyDesktop } from '../alerts'
 import { ApiFailure, api, eventsUrl } from '../api'
+import { $t } from '../i18n'
 
 /**
  * The inbox's state, fed by the chat server.
@@ -17,6 +21,9 @@ import { ApiFailure, api, eventsUrl } from '../api'
  * conversation's new summary, and the open conversation's thread is read again when it is
  * the one that changed. A socket that drops comes back by itself, and the list is read
  * again then — whatever happened meanwhile is not lost.
+ *
+ * A signal may carry an alert: the inbox decides here whether it is the reader's, and
+ * then rings, notifies the desktop, and counts it on the tab.
  */
 
 export type InboxFilter = 'all' | 'ai' | 'open' | 'unassigned' | 'resolved'
@@ -38,8 +45,23 @@ export function matchesFilter(conversation: Status, filter: InboxFilter): boolea
   }
 }
 
+/**
+ * Whether a conversation is the reader's to answer: theirs, or waiting in the queue for
+ * anyone. What the AI is answering, or a colleague has, is not.
+ */
+export function concernsMe(summary: ConversationSummary, me: Agent | null): boolean {
+  if (me === null) return false
+  if (summary.assigneeId === me.id) return summary.status !== 'resolved'
+  return summary.status === 'open' && summary.assigneeId === null
+}
+
+/** What waits for the reader: unread, and theirs to answer — the tab's and sidebar's count. */
+export const waitingCount = (state: Pick<InboxState, 'summaries' | 'me'>): number =>
+  state.summaries.filter((s) => s.unread && concernsMe(s, state.me)).length
+
 interface InboxState {
   readonly me: Agent | null
+  readonly agents: readonly Agent[]
   /** The first read of the list: while it runs, and whether it failed and why. */
   readonly loading: boolean
   readonly loadError: string | null
@@ -48,6 +70,7 @@ interface InboxState {
   readonly selectedId: string | null
   /** The thread of the selected conversation, once read. */
   readonly detail: Conversation | null
+  readonly notifications: NotificationList
   readonly filter: InboxFilter
   readonly query: string
   /** What an agent is writing, by conversation: switching away keeps it. */
@@ -57,11 +80,16 @@ interface InboxState {
   readonly error: string | null
   /** The clock the list reads its times against, moved every half minute. */
   readonly now: Date
+  /** How the app goes to a screen — set by the shell, which holds the router. */
+  readonly navigate: (path: string) => void
 
   /** Reads the list and opens the live stream. Returns what stops both. */
   start: () => () => void
   reload: () => Promise<void>
+  setNavigator: (navigate: (path: string) => void) => void
   select: (id: string) => void
+  /** Goes to the inbox and opens a conversation — from the bell or the desktop. */
+  open: (id: string) => void
   setFilter: (filter: InboxFilter) => void
   setQuery: (query: string) => void
   setDraft: (id: string, text: string) => void
@@ -69,7 +97,9 @@ interface InboxState {
   send: (id: string, body: string, kind: 'reply' | 'note', resolve?: boolean) => Promise<boolean>
   takeOver: (id: string) => Promise<void>
   resolve: (id: string) => Promise<void>
+  assign: (id: string, assigneeId: string | null) => Promise<void>
   giveFeedback: (id: string, messageId: string, feedback: Feedback | null) => Promise<void>
+  readAllNotifications: () => Promise<void>
 }
 
 const newestFirst = (a: ConversationSummary, b: ConversationSummary) =>
@@ -77,6 +107,8 @@ const newestFirst = (a: ConversationSummary, b: ConversationSummary) =>
 
 const codeOf = (error: unknown): string =>
   error instanceof ApiFailure ? error.code : 'INTERNAL_ERROR'
+
+const NO_NOTIFICATIONS: NotificationList = { unread: 0, items: [] }
 
 export const useInbox = create<InboxState>((set, get) => {
   /** Reads the open thread again — unless another conversation got selected meanwhile. */
@@ -89,10 +121,40 @@ export const useInbox = create<InboxState>((set, get) => {
     }
   }
 
-  function applySummary(summary: ConversationSummary): void {
+  async function refreshNotifications(): Promise<void> {
+    try {
+      set({ notifications: await api.notifications() })
+    } catch {
+      // The bell keeps what it showed; the next signal reads it again.
+    }
+  }
+
+  function applySummary(summary: ConversationSummary, alert: AlertKind | undefined): void {
     const others = get().summaries.filter((s) => s.id !== summary.id)
     set({ summaries: [...others, summary].sort(newestFirst) })
     if (summary.id === get().selectedId) void refreshDetail(summary.id)
+    if (alert !== undefined) raise(summary, alert)
+  }
+
+  /** An alert, if it is the reader's: a chime, the desktop, and nothing if they are on it. */
+  function raise(summary: ConversationSummary, alert: AlertKind): void {
+    const { me, selectedId } = get()
+    const concerns = alert === 'assigned' ? summary.assigneeId === me?.id : concernsMe(summary, me)
+    if (!concerns) return
+    // Looking at it already: it is read, no need to call.
+    if (summary.id === selectedId && inView()) {
+      api.markRead(summary.id).catch(() => {})
+      return
+    }
+    chime(alert)
+    const name = summary.contact.name
+    const title =
+      alert === 'visitor_message'
+        ? name
+        : alert === 'handoff'
+          ? $t('L’IA transfère {name}', { name })
+          : $t('Conversation confiée : {name}', { name })
+    notifyDesktop(title, summary.preview, summary.id, () => get().open(summary.id))
   }
 
   /** Runs an action whose answer is the conversation as it now stands. */
@@ -109,18 +171,21 @@ export const useInbox = create<InboxState>((set, get) => {
 
   return {
     me: null,
+    agents: [],
     loading: true,
     loadError: null,
     live: 'connecting',
     summaries: [],
     selectedId: null,
     detail: null,
+    notifications: NO_NOTIFICATIONS,
     filter: 'all',
     query: '',
     drafts: {},
     sending: false,
     error: null,
     now: new Date(),
+    navigate: () => {},
 
     start: () => {
       let stopped = false
@@ -129,10 +194,25 @@ export const useInbox = create<InboxState>((set, get) => {
       let delay = 500
       let opened = false
 
-      function connect(): void {
+      function again(): void {
+        if (stopped) return
+        set({ live: 'closed' })
+        retry = setTimeout(connect, delay)
+        delay = Math.min(delay * 2, 10_000)
+      }
+
+      async function connect(): Promise<void> {
         if (stopped) return
         set({ live: 'connecting' })
-        const next = new WebSocket(eventsUrl())
+        let ticket: string
+        try {
+          ;({ ticket } = await api.ticket())
+        } catch {
+          again()
+          return
+        }
+        if (stopped) return
+        const next = new WebSocket(eventsUrl(ticket))
         socket = next
         next.onopen = () => {
           delay = 500
@@ -143,18 +223,16 @@ export const useInbox = create<InboxState>((set, get) => {
         }
         next.onmessage = (message) => {
           const event = JSON.parse(String(message.data)) as InboxEvent
-          if (event.type === 'conversation') applySummary(event.summary)
+          if (event.type === 'conversation') applySummary(event.summary, event.alert)
+          else if (event.type === 'notifications') void refreshNotifications()
         }
         next.onclose = () => {
-          if (stopped || socket !== next) return
-          set({ live: 'closed' })
-          retry = setTimeout(connect, delay)
-          delay = Math.min(delay * 2, 10_000)
+          if (socket === next) again()
         }
       }
 
       void get().reload()
-      connect()
+      void connect()
       const clock = setInterval(() => set({ now: new Date() }), 30_000)
       return () => {
         stopped = true
@@ -166,8 +244,20 @@ export const useInbox = create<InboxState>((set, get) => {
 
     reload: async () => {
       try {
-        const [me, summaries] = await Promise.all([api.me(), api.conversations()])
-        set({ me, summaries: [...summaries].sort(newestFirst), loading: false, loadError: null })
+        const [me, summaries, notifications, agents] = await Promise.all([
+          api.me(),
+          api.conversations(),
+          api.notifications(),
+          api.agents(),
+        ])
+        set({
+          me,
+          agents,
+          notifications,
+          summaries: [...summaries].sort(newestFirst),
+          loading: false,
+          loadError: null,
+        })
         const { selectedId } = get()
         const first = summaries.find((s) => matchesFilter(s, get().filter))
         if (selectedId === null && first) get().select(first.id)
@@ -177,11 +267,19 @@ export const useInbox = create<InboxState>((set, get) => {
       }
     },
 
+    setNavigator: (navigate) => set({ navigate }),
+
     select: (id) => {
       if (get().selectedId !== id) set({ selectedId: id, detail: null })
       void refreshDetail(id)
-      // Opening is reading: the server records who opened it (the access journal).
+      // Opening is reading — the conversation, and its lines in the bell. The server
+      // records who opened it (the access journal).
       api.markRead(id).catch((error: unknown) => set({ error: codeOf(error) }))
+    },
+
+    open: (id) => {
+      get().navigate('/conversations')
+      get().select(id)
     },
 
     setFilter: (filter) => set({ filter }),
@@ -207,8 +305,21 @@ export const useInbox = create<InboxState>((set, get) => {
       await act(id, () => api.resolve(id))
     },
 
+    assign: async (id, assigneeId) => {
+      await act(id, () => api.assign(id, assigneeId))
+    },
+
     giveFeedback: async (id, messageId, feedback) => {
       await act(id, () => api.feedback(id, messageId, { action: feedback }))
+    },
+
+    readAllNotifications: async () => {
+      try {
+        await api.readNotifications()
+        await refreshNotifications()
+      } catch (error) {
+        set({ error: codeOf(error) })
+      }
     },
   }
 })
