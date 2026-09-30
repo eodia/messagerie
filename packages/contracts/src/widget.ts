@@ -56,6 +56,8 @@ export interface WidgetSite {
   readonly language: string
   /** The AI answers first. */
   readonly ai: boolean
+  /** The first names of a few agents: the people behind the AI. */
+  readonly team: readonly string[]
 }
 
 export interface WidgetSessionBody {

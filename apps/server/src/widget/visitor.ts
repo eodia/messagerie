@@ -164,6 +164,7 @@ export async function openSession(
       color: site.color,
       language: LANGUAGES[site.language] ?? 'fr',
       ai: site.aiEnabled && deps.aiAvailable,
+      team: (await settings.teamFirstNames()).slice(0, 3),
     },
     availability: await whenAvailable(settings, site),
     conversation: await visitorConversation(db, contact.id),

@@ -14,6 +14,12 @@ export const ChatIcon = () => (
   </svg>
 )
 
+export const ChevronDownIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
+    <path d="m6 9 6 6 6-6" />
+  </svg>
+)
+
 export const CloseIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
     <path d="M18 6 6 18" />
@@ -23,18 +29,21 @@ export const CloseIcon = () => (
 
 export const SendIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
-    <path d="M3.714 3.048a.498.498 0 0 0-.683.627l2.843 7.627a2 2 0 0 1 0 1.396l-2.842 7.627a.498.498 0 0 0 .682.627l18-8.5a.5.5 0 0 0 0-.904z" />
-    <path d="M6 12h16" />
+    <path d="m5 12 7-7 7 7" />
+    <path d="M12 19V5" />
   </svg>
 )
 
-export const BotIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
-    <path d="M12 8V4H8" />
-    <rect width="16" height="12" x="4" y="8" rx="2" />
-    <path d="M2 14h2" />
-    <path d="M20 14h2" />
-    <path d="M15 13v2" />
-    <path d="M9 13v2" />
-  </svg>
+/**
+ * The AI, drawn as an orb in the site's colour and the AI's violet — still while it waits,
+ * turning while it writes. The one mark of the AI in the widget, next to the « IA » word.
+ */
+export const Orb = ({ busy = false, size = 28 }: { busy?: boolean; size?: number }) => (
+  <span
+    class={busy ? 'orb busy' : 'orb'}
+    style={{ width: `${size}px`, height: `${size}px` }}
+    aria-hidden="true"
+  >
+    <span class="orb-core" />
+  </span>
 )

@@ -307,6 +307,14 @@ export class Settings {
     return null
   }
 
+  /** The first names of the active agents — the team the widget shows behind the AI. */
+  async teamFirstNames(): Promise<string[]> {
+    return (await this.table(TABLES.agents)).flatMap(({ values }) => {
+      const name = text(values.Nom)
+      return bool(values.Actif) && name ? [name.split(/\s+/)[0] ?? name] : []
+    })
+  }
+
   async sites(): Promise<Site[]> {
     return (await this.table(TABLES.sites)).map(({ id, values }) => ({
       id,
