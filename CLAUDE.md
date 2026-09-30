@@ -12,6 +12,11 @@ Messagerie client libre, sœur de basedb (`../basedb`). Les décisions qui font 
 - Le chat lit basedb par son SDK, jamais en SQL sur les tables `b_…` (D2).
 - **Aucun secret dans basedb** : clés de signature des sites, clés des fournisseurs
   d'IA (D5).
+  Un outil ou un serveur MCP y nomme la variable d'environnement (`${NOM}`), jamais la valeur.
+- **Une seule exception d'écran** : l'éditeur du widget, dans l'inbox, pour l'aperçu en
+  direct. Il écrit dans la ligne du site, dans basedb, avec le jeton du superviseur (D10).
+  Un réglage du widget ajouté au modèle passe aussi par `settings/widget.ts` (lecture,
+  vérification, écriture) et par l'éditeur.
 
 ## L'interface est celle de basedb
 
@@ -55,3 +60,11 @@ Messagerie client libre, sœur de basedb (`../basedb`). Les décisions qui font 
   rien d'autre du schéma.
 - `pnpm test:int` lance les tests sur un vrai PostgreSQL (Testcontainers, image
   `pgvector/pgvector:pg16`).
+
+## Widget (`apps/widget`)
+
+- Preact dans un Shadow DOM, un seul script (`pnpm --filter @chat/widget build`), que le
+  serveur sert à `/widget.js`. Aucune dépendance de la page, aucune police chargée.
+- Ce que le site règle arrive en propriétés CSS et en classes sur `.root` (`styles.ts`).
+- `data-preview` : le mode aperçu de l'éditeur, nourri par `postMessage` depuis l'origine de
+  l'inbox seule (`preview.ts`).

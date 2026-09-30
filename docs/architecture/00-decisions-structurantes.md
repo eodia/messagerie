@@ -237,6 +237,25 @@ Le widget fait exception : il est écrit en Preact dans un Shadow DOM, pour pese
 quelques dizaines de Ko sur le site du client. Il reprend la palette, pas les
 composants.
 
+### L'éditeur du widget : le seul réglage fait hors de basedb
+
+L'apparence du widget se règle mieux en le voyant. L'inbox a donc un écran « Widget » :
+couleur, thème, coins, police, logo, côté et marges, bouton rond ou avec libellé, titre et
+sous-titre d'accueil, message d'accueil, questions suggérées, bulle d'accueil, masquages,
+mention du logiciel — et, à côté, le vrai widget en mode aperçu, dans une page que le
+serveur sert (`/widget/preview`, encadrable par l'inbox seule). L'éditeur lui envoie le
+brouillon par `postMessage`, et le widget n'appelle alors jamais le serveur.
+
+Les réglages restent dans basedb : ce sont des colonnes de la table « Sites ». L'éditeur
+les lit par le serveur et les enregistre dans la ligne du site, **avec le jeton du
+superviseur** : basedb applique ses droits, et l'historique de la ligne porte son nom.
+Sans basedb (démonstration), l'enregistrement reste en mémoire.
+
+Le widget ne charge aucune police sur le site d'un client : « Police du site » reprend
+celle de la page, « Personnalisée » nomme une police que la page charge déjà. Un nom de
+police, un logo qui n'est pas en https, une marge hors bornes sont lus comme vides, qu'ils
+viennent de l'éditeur ou d'une saisie directe dans basedb.
+
 ## D11 — Licence AGPL-3.0-or-later
 
 Comme basedb. Qui modifie le produit et le propose à des utilisateurs à travers un

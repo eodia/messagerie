@@ -6,14 +6,14 @@
 conseillers. Son paramétrage et sa base de connaissance vivent dans [basedb](https://github.com/eodia/basedb).**
 
 - **Le widget** : un script à coller dans votre site. L'agent IA répond à partir de votre
-  base de connaissance, cite ses sources et passe la main à un conseiller, avec un
-  résumé, dès qu'il n'est pas sûr de lui.
+  base de connaissance, peut appeler des outils (une API, un serveur MCP, une fiche dans
+  basedb) et passe la main à un conseiller, avec un résumé, dès qu'il n'est pas sûr de lui.
 - **L'inbox** : les conversations, le fil, et ce que le copilote propose. L'avis du
   conseiller sur chaque réponse de l'IA (acceptée, modifiée, rejetée) nourrit le jeu
-  d'évaluation.
+  d'évaluation. On y règle aussi l'apparence du widget, avec un aperçu en direct.
 - **Le paramétrage dans basedb** : sites, horaires, équipes, conseillers, réponses types,
-  articles, garde-fous et outils de l'IA. On les édite dans les grilles de basedb, avec
-  leur historique et leurs droits.
+  articles, garde-fous, outils de l'IA et serveurs MCP. On les édite dans les grilles de
+  basedb, avec leur historique et leurs droits.
 
 Les décisions qui expliquent le reste sont dans
 [`docs/architecture/00-decisions-structurantes.md`](docs/architecture/00-decisions-structurantes.md).
@@ -22,13 +22,14 @@ Les décisions qui expliquent le reste sont dans
 
 | Partie | État |
 |---|---|
-| Modèle basedb « Messagerie » | Écrit, validé par le validateur de basedb |
-| Serveur (`apps/server`) | API de l'inbox, temps réel par WebSocket et `LISTEN/NOTIFY`, schéma `chat` en Drizzle, tests d'intégration |
-| Inbox (`apps/web`) | Branchée sur le serveur : liste, fil, réponses, notes, prise en main, résolution, avis sur l'IA |
-| basedb (0.5.0 et plus) | Base « Messagerie » créée par `pnpm provision` ; conseillers reconnus par introspection de leur jeton basedb ; « Conseillers » suivie en direct |
+| Modèle basedb « Messagerie » | 13 tables, validé par le validateur de basedb, avec les lignes de démonstration d'Acme Assurances |
+| Serveur (`apps/server`) | API de l'inbox et du widget, temps réel par WebSocket et `LISTEN/NOTIFY`, schéma `chat` en Drizzle, tâches pg-boss, tests d'intégration |
+| Inbox (`apps/web`) | Conversations, contacts, connaissance, statistiques, outils IA, éditeur du widget ; réponses types, copilote, promotion d'une conversation vers basedb |
+| Widget (`apps/widget`) | Preact dans un Shadow DOM, ~40 Ko ; visiteur anonyme ou client connecté (identité signée par le site) ; apparence réglée par site |
+| IA (`packages/ai`) | Mistral par défaut (tout serveur compatible OpenAI) ; réponses sourcées, seuil de confiance, garde-fous, transfert avec résumé, données personnelles masquées |
+| Outils de l'IA | Lecture dans basedb, appels HTTP (en-têtes et jetons lus dans l'environnement), rappels, serveurs MCP |
 | Alertes | Son, notifications du bureau, pastilles de l'onglet, cloche par conseiller, réglables |
-| IA (`packages/ai`) | À venir ; les réponses et suggestions de la démo sont enregistrées d'avance |
-| Widget (`apps/widget`) | À venir |
+| basedb (0.5.0 et plus) | Base créée par `pnpm provision` ; conseillers reconnus par introspection de leur jeton ; tables suivies en direct |
 
 ## Développer
 
@@ -38,11 +39,19 @@ dépôt (`../basedb`, ou `BASEDB_DIR`) pour vérifier le modèle.
 ```bash
 corepack pnpm install
 corepack pnpm db:up                          # PostgreSQL 16 + pgvector, sur 127.0.0.1:55440
-cp apps/server/.env.example apps/server/.env
+cp apps/server/.env.example apps/server/.env # et CHAT_AI_API_KEY pour l'IA
 corepack pnpm seed                           # vide le schéma chat, y met les conversations de démo
+corepack pnpm --filter @chat/widget build    # le script du widget, servi par le serveur
 corepack pnpm --filter @chat/server dev      # le serveur sur http://localhost:8810
 corepack pnpm --filter @chat/web dev         # l'inbox sur http://localhost:3210
 ```
+
+- http://localhost:8810/demo : une page d'Acme Assurances avec le widget, en visiteur
+  anonyme ou en cliente connectée (`?client=sophie`).
+- http://localhost:3210/widget : l'éditeur du widget. Sans basedb, un enregistrement est
+  gardé en mémoire jusqu'au redémarrage du serveur.
+- `corepack pnpm --filter @chat/server mcp-demo` : un serveur MCP de démonstration (les
+  agences d'Acme, port 8820), que la ligne « Agences Acme » de la démo déclare à l'IA.
 
 Sans basedb, l'inbox fonctionne au nom de `CHAT_DEV_AGENT`. Pour la brancher sur basedb :
 
@@ -51,6 +60,10 @@ Sans basedb, l'inbox fonctionne au nom de `CHAT_DEV_AGENT`. Pour la brancher sur
 corepack pnpm --filter @chat/server provision
 # puis, dans basedb, un jeton d'intégration de la base créée : BASEDB_BASE et BASEDB_TOKEN
 ```
+
+Le jeton d'intégration doit pouvoir **écrire** dans la base pour promouvoir une
+conversation en « Conversations promues ». L'éditeur du widget, lui, écrit avec le jeton du
+superviseur connecté : basedb applique ses droits sur la table « Sites ».
 
 L'inbox reçoit alors `BASEDB_API_URL` elle aussi, et doit être servie **sur le même hôte
 que basedb** (D4) : elle obtient le jeton du conseiller auprès de sa session basedb.
@@ -65,6 +78,7 @@ corepack pnpm --filter @chat/server simulate transfert "Julie Martin"
 ```bash
 corepack pnpm lint                 # Biome
 corepack pnpm typecheck
+corepack pnpm test:unit
 corepack pnpm test:int             # un vrai PostgreSQL par Testcontainers
 corepack pnpm template:check       # le modèle basedb, passé au validateur de basedb
 ```
@@ -72,18 +86,30 @@ corepack pnpm template:check       # le modèle basedb, passé au validateur de 
 | Variable | Où | Rôle |
 |---|---|---|
 | `DATABASE_URL` | serveur | le PostgreSQL du schéma `chat` |
+| `CHAT_SECRET` | serveur | signe les jetons des visiteurs ; requis en production, 32 caractères au moins |
+| `CHAT_WEB_ORIGIN` | serveur | l'origine de l'inbox, seule admise (CORS, WebSocket, aperçu du widget) |
+| `CHAT_TRUST_PROXY` | serveur | `1` derrière un proxy : l'adresse du visiteur est lue dans `X-Forwarded-For` |
 | `BASEDB_API_URL` | serveur, inbox | l'API de basedb (`/auth/…`, `/api/v1/…`) |
 | `BASEDB_TENANT`, `BASEDB_BASE`, `BASEDB_TOKEN` | serveur | le tenant, la base « Messagerie » et le jeton d'intégration du chat |
+| `CHAT_AI_PROVIDER`, `CHAT_AI_BASE_URL` | serveur | `mistral` (défaut), `openai`, `ollama`, ou l'adresse d'un serveur compatible |
+| `CHAT_AI_API_KEY` | serveur | sans elle, pas d'IA : les conversations vont aux conseillers |
+| `CHAT_AI_MODEL`, `CHAT_AI_EMBEDDING_MODEL` | serveur | `mistral-small-latest` et `mistral-embed` par défaut |
+| `CHAT_AI_REDACT` | serveur | `0` pour envoyer les données personnelles telles quelles ; masquées par défaut vers un modèle externe |
+| `CHAT_WORKER` | serveur | `separate` : les tâches de l'IA tournent dans `pnpm worker`, pas dans le serveur |
 | `CHAT_DEV_AGENT` | serveur | développement seulement : le conseiller des requêtes sans jeton |
-| `CHAT_WEB_ORIGIN` | serveur | l'origine de l'inbox, seule admise (CORS et WebSocket) |
 | `CHAT_API_URL` | inbox | l'adresse du serveur, lue à chaque requête |
 | `BASEDB_URL` | inbox | l'adresse de basedb, pour les liens de paramétrage |
+
+Un secret ne s'écrit jamais dans basedb (D5) : un outil ou un serveur MCP y nomme la
+variable d'environnement qui le porte (`${METEO_TOKEN}` dans un en-tête, par exemple).
 
 | Dossier | Contenu |
 |---|---|
 | [`apps/web`](apps/web) | l'inbox des conseillers — Next.js, shadcn/ui, le style de basedb |
-| [`apps/server`](apps/server) | le serveur — Hono, WebSocket, Drizzle, migrations dans `drizzle/` |
-| [`packages/contracts`](packages/contracts) | les types échangés entre le serveur et l'inbox |
+| [`apps/server`](apps/server) | le serveur — Hono, WebSocket, Drizzle, pg-boss, migrations dans `drizzle/` |
+| [`apps/widget`](apps/widget) | le widget — Preact, esbuild, un seul script |
+| [`packages/ai`](packages/ai) | le modèle derrière une interface, le masquage des données personnelles, le découpage des articles |
+| [`packages/contracts`](packages/contracts) | les types échangés entre le serveur, l'inbox et le widget |
 | [`packages/basedb-template`](packages/basedb-template) | le modèle de la base « Messagerie » |
 | [`docs/architecture`](docs/architecture) | les décisions d'architecture |
 
