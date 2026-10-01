@@ -26,6 +26,11 @@
     "typescript": "^5.7.2"
   },
   "pnpm": {
+    "supportedArchitectures": {
+      "os": ["current", "win32", "linux"],
+      "cpu": ["current", "x64"],
+      "libc": ["current", "glibc"]
+    },
     "onlyBuiltDependencies": ["@biomejs/biome", "esbuild"]
   }
 }

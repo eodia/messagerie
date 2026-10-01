@@ -35,7 +35,9 @@ Les décisions qui expliquent le reste sont dans
 
 ## Développer
 
-Prérequis : Node 22 ou plus, Docker, et `corepack enable`. Une copie de basedb à côté de ce
+Prérequis : Node 22 ou plus, Docker, et `corepack enable`. Sous Windows, le même dossier
+sert depuis Windows et depuis WSL : l'installation y met les binaires natifs des deux
+(esbuild, Next, Tailwind, Biome — `supportedArchitectures` dans `package.json`). Une copie de basedb à côté de ce
 dépôt (`../basedb`, ou `BASEDB_DIR`) pour vérifier le modèle.
 
 ```bash
