@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import type { Db } from '../db/client.js'
 import { siteSecrets } from '../db/schema.js'
+import type { Settings } from '../settings/settings.js'
 import { newSecret, signIdentity } from './tokens.js'
 
 /**
@@ -9,17 +10,15 @@ import { newSecret, signIdentity } from './tokens.js'
  * site's server would.
  */
 
-const SITE = 'acme'
-
-async function siteSecret(db: Db): Promise<string> {
-  const [found] = await db.select().from(siteSecrets).where(eq(siteSecrets.siteId, SITE))
+async function siteSecret(db: Db, site: string): Promise<string> {
+  const [found] = await db.select().from(siteSecrets).where(eq(siteSecrets.siteId, site))
   if (found) return found.identitySecret
   const secret = newSecret()
   await db
     .insert(siteSecrets)
-    .values({ siteId: SITE, identitySecret: secret })
+    .values({ siteId: site, identitySecret: secret })
     .onConflictDoNothing()
-  const [kept] = await db.select().from(siteSecrets).where(eq(siteSecrets.siteId, SITE))
+  const [kept] = await db.select().from(siteSecrets).where(eq(siteSecrets.siteId, site))
   return kept?.identitySecret ?? secret
 }
 
@@ -39,9 +38,15 @@ const SOPHIE = {
 
 const htmlEscape = (value: string) => value.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`)
 
-export async function demoPage(db: Db, signedIn: boolean): Promise<string> {
+export async function demoPage(db: Db, settings: Settings, signedIn: boolean): Promise<string> {
+  // Acme Assurances: the first active site — `acme` in the template's rows, an id of basedb's
+  // once the chat has its basedb.
+  const site = (await settings.sites()).find((s) => s.active)?.id ?? 'acme'
   const identity = signedIn
-    ? signIdentity(await siteSecret(db), { ...SOPHIE, exp: Math.floor(Date.now() / 1000) + 3600 })
+    ? signIdentity(await siteSecret(db, site), {
+        ...SOPHIE,
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      })
     : null
   return `<!doctype html>
 <html lang="fr">
@@ -90,7 +95,7 @@ export async function demoPage(db: Db, signedIn: boolean): Promise<string> {
       : 'Page de démonstration : visiteur anonyme — le widget se souvient de lui par un jeton qu’il garde.'
   }</p>
 </main>
-<script src="/widget.js" data-site="${SITE}"${identity ? ` data-identity="${htmlEscape(identity)}"` : ''} async></script>
+<script src="/widget.js" data-site="${htmlEscape(site)}"${identity ? ` data-identity="${htmlEscape(identity)}"` : ''} async></script>
 </body>
 </html>`
 }

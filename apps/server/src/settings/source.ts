@@ -206,3 +206,17 @@ export class TemplateSource implements SettingsSource {
     return null
   }
 }
+
+/**
+ * The settings the configuration gives: basedb's when it names one; otherwise, in
+ * development only, the template's demonstration rows; in production without basedb,
+ * none.
+ */
+export function sourceFor(
+  basedb: BasedbClient | null,
+  production: boolean,
+  devAgent: string | null,
+): SettingsSource | null {
+  if (basedb) return new BasedbSource(basedb)
+  return production ? null : new TemplateSource(devAgent, true)
+}

@@ -384,8 +384,10 @@ export function createApp({
     c.header('cache-control', 'no-store')
     return c.html(previewPage(config.webOrigin))
   })
-  if (!config.production) {
-    app.get('/demo', async (c) => c.html(await demoPage(db, c.req.query('client') === 'sophie')))
+  if (!config.production && settings) {
+    app.get('/demo', async (c) =>
+      c.html(await demoPage(db, settings, c.req.query('client') === 'sophie')),
+    )
   }
 
   app.onError((error, c) => {

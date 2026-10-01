@@ -7,7 +7,7 @@ import { BasedbClient } from './basedb/client.js'
 import { type Config, ConfigError, readConfig } from './config.js'
 import { type Db, connect, migrateDatabase } from './db/client.js'
 import { Settings, TABLES } from './settings/settings.js'
-import { BasedbSource, TemplateSource } from './settings/source.js'
+import { sourceFor } from './settings/source.js'
 
 /**
  * What the server and the worker both start with: the configuration, the schema up to
@@ -41,11 +41,7 @@ export async function boot(role: 'server' | 'worker'): Promise<Booted> {
   await migrateDatabase(db)
 
   const basedb = config.basedb ? new BasedbClient(config.basedb) : null
-  const source = basedb
-    ? new BasedbSource(basedb)
-    : config.production
-      ? null
-      : new TemplateSource(config.devAgent, true)
+  const source = sourceFor(basedb, config.production, config.devAgent)
   const settings = source ? new Settings(source) : null
   const stopFollowing =
     settings?.follow((error) => console.error('chat : flux basedb', error)) ?? (() => {})

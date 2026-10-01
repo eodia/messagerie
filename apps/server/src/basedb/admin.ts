@@ -1,0 +1,201 @@
+/**
+ * What the chat asks of basedb as one of its administrators — only at installation, by
+ * `pnpm provision` and `pnpm basedb:setup`, never by the running server: sign in, create
+ * the « Messagerie » base from the template (B1), confirm the password, and issue the
+ * chat's integration token.
+ */
+
+export class AdminFailure extends Error {}
+
+/** A signed-in administrator: the session's cookies, as a browser keeps and echoes them. */
+export interface AdminSession {
+  readonly url: string
+  readonly tenant: string
+  readonly email: string
+  readonly password: string
+  cookies: string[]
+}
+
+const csrfOf = (session: AdminSession) =>
+  session.cookies.find((c) => c.startsWith('__Host-basedb_csrf='))?.split('=')[1] ?? ''
+
+function keep(session: AdminSession, response: Response): void {
+  const fresh = response.headers.getSetCookie().map((c) => c.split(';')[0] ?? '')
+  if (fresh.length === 0) return
+  const names = new Set(fresh.map((c) => c.split('=')[0]))
+  session.cookies = [...session.cookies.filter((c) => !names.has(c.split('=')[0])), ...fresh]
+}
+
+export async function signIn(
+  url: string,
+  tenant: string,
+  email: string,
+  password: string,
+): Promise<AdminSession> {
+  const session: AdminSession = { url, tenant, email, password, cookies: [] }
+  const login = await fetch(`${url}/auth/password/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  }).catch(() => {
+    throw new AdminFailure(`basedb ne répond pas à ${url}`)
+  })
+  if (!login.ok) throw new AdminFailure(`connexion refusée (${login.status})`)
+  keep(session, login)
+  if (!csrfOf(session)) throw new AdminFailure('pas de cookie de session dans la réponse')
+  return session
+}
+
+/** An access token of the session — anew after an elevation, which changes the session. */
+export async function accessToken(session: AdminSession): Promise<string> {
+  const response = await fetch(`${session.url}/auth/session/access`, {
+    method: 'POST',
+    headers: { cookie: session.cookies.join('; '), 'x-basedb-csrf': csrfOf(session) },
+  })
+  if (!response.ok) throw new AdminFailure(`pas de jeton d’accès (${response.status})`)
+  const { data } = (await response.json()) as { data: { token: string } }
+  return data.token
+}
+
+/** Who the session is: basedb's account id — the value a « Personne » field holds. */
+export async function whoAmI(
+  session: AdminSession,
+): Promise<{ readonly id: string; readonly email: string }> {
+  const response = await fetch(`${session.url}/auth/me`, {
+    headers: { cookie: session.cookies.join('; ') },
+  })
+  if (!response.ok) throw new AdminFailure(`compte introuvable (${response.status})`)
+  const { data } = (await response.json()) as { data: { id: string; email: string } }
+  return { id: data.id, email: data.email }
+}
+
+/** The password, confirmed: issuing a token asks for a session elevated minutes ago. */
+export async function elevate(session: AdminSession): Promise<void> {
+  const response = await fetch(`${session.url}/auth/elevate`, {
+    method: 'POST',
+    headers: {
+      cookie: session.cookies.join('; '),
+      'x-basedb-csrf': csrfOf(session),
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ password: session.password }),
+  })
+  if (!response.ok)
+    throw new AdminFailure(`confirmation du mot de passe refusée (${response.status})`)
+  keep(session, response)
+}
+
+const api = (session: AdminSession, path: string) =>
+  `${session.url}/api/v1/${encodeURIComponent(session.tenant)}${path}`
+
+export interface BaseSummary {
+  readonly name: string
+  readonly label: string
+}
+
+/** The bases this administrator sees. */
+export async function listBases(session: AdminSession, token: string): Promise<BaseSummary[]> {
+  const response = await fetch(api(session, '/meta/bases'), {
+    headers: { authorization: `Bearer ${token}` },
+  })
+  if (!response.ok) throw new AdminFailure(`liste des bases refusée (${response.status})`)
+  const { data } = (await response.json()) as { data: { name: string; label: string }[] }
+  return data.map(({ name, label }) => ({ name, label }))
+}
+
+interface Step {
+  readonly kind: string
+  readonly label?: string
+  readonly table?: string
+  readonly index?: number
+  readonly count?: number
+}
+
+function describe(step: Step): string {
+  switch (step.kind) {
+    case 'table':
+      return `table ${step.index ?? '?'}/${step.count ?? '?'} : ${step.label}`
+    case 'fields':
+      return `champs : ${step.table}`
+    case 'rows':
+      return `lignes : ${step.table}`
+    case 'row_links':
+      return 'relations entre les lignes'
+    default:
+      return `${step.kind}${step.label ? ` : ${step.label}` : ''}`
+  }
+}
+
+/**
+ * Creates a base from a template, the whole base or none, telling each step as it starts.
+ */
+export async function createBase(
+  session: AdminSession,
+  token: string,
+  request: { readonly template: unknown; readonly label: string; readonly rows: boolean },
+  onStep: (text: string) => void = () => {},
+): Promise<BaseSummary> {
+  const response = await fetch(api(session, '/admin/bases'), {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${token}`,
+      'content-type': 'application/json',
+      accept: 'application/x-ndjson',
+    },
+    body: JSON.stringify(request),
+  })
+  if (!response.ok || !response.body) {
+    throw new AdminFailure(`création refusée (${response.status}) ${await response.text()}`)
+  }
+  // One JSON object a line: the steps as they start, then the base — or the refusal.
+  let last: unknown = null
+  let buffer = ''
+  const decoder = new TextDecoder()
+  const line = (text: string) => {
+    if (!text) return
+    const value = JSON.parse(text) as { step?: Step }
+    if (value.step) onStep(describe(value.step))
+    else last = value
+  }
+  for await (const chunk of response.body as unknown as AsyncIterable<Uint8Array>) {
+    buffer += decoder.decode(chunk, { stream: true })
+    let end = buffer.indexOf('\n')
+    while (end !== -1) {
+      line(buffer.slice(0, end).trim())
+      buffer = buffer.slice(end + 1)
+      end = buffer.indexOf('\n')
+    }
+  }
+  line(buffer.trim())
+  const outcome = last as {
+    data?: { name: string; label: string }
+    error?: { code: string; details?: unknown }
+  } | null
+  if (!outcome?.data) {
+    throw new AdminFailure(`création refusée : ${JSON.stringify(outcome?.error ?? outcome)}`)
+  }
+  return { name: outcome.data.name, label: outcome.data.label }
+}
+
+/** An integration token of a base; its secret is in this answer and nowhere else, ever. */
+export async function issueToken(
+  session: AdminSession,
+  base: string,
+  label: string,
+  access: 'read' | 'write',
+): Promise<string> {
+  await elevate(session)
+  const response = await fetch(api(session, '/admin/tokens'), {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${await accessToken(session)}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ label, base, access, surfaces: ['rest'] }),
+  })
+  if (!response.ok) {
+    throw new AdminFailure(`jeton refusé (${response.status}) ${await response.text()}`)
+  }
+  const { data } = (await response.json()) as { data: { secret: string } }
+  return data.secret
+}

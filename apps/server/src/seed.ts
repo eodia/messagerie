@@ -1,5 +1,6 @@
 import type { ContactAttribute, ConversationEvent, Source } from '@chat/contracts'
 import { sql } from 'drizzle-orm'
+import { BasedbClient } from './basedb/client.js'
 import { readConfig } from './config.js'
 import { connect, migrateDatabase } from './db/client.js'
 import {
@@ -11,6 +12,8 @@ import {
   conversations,
   messages,
 } from './db/schema.js'
+import { Settings } from './settings/settings.js'
+import { sourceFor } from './settings/source.js'
 
 /**
  * Development data: the conversations of the mockup, in the `chat` schema.
@@ -31,8 +34,19 @@ const MOCKUP_NOW = new Date('2026-09-30T10:30:00').getTime()
 const shift = Date.now() - MOCKUP_NOW
 const at = (mockupTime: string) => new Date(new Date(mockupTime).getTime() + shift)
 
-/** The demonstration site of `demo-rows.json` — its `$key`. */
-const SITE = { id: 'acme', name: 'Acme Assurances' }
+/**
+ * The demonstration site, Acme Assurances: the first active site of the settings — of the
+ * chat's basedb, or of the template's demonstration rows.
+ */
+const source = sourceFor(
+  config.basedb ? new BasedbClient(config.basedb) : null,
+  false,
+  config.devAgent,
+)
+const found = source ? (await new Settings(source).sites()).find((s) => s.active) : undefined
+const SITE = { id: found?.id ?? 'acme', name: found?.name ?? 'Acme Assurances' }
+/** The person running the demonstration: `CHAT_DEV_AGENT`, basedb's administrator once linked. */
+const ME_ACCOUNT = config.devAgent ?? 'dev-marc'
 const MODEL = 'demo'
 
 const TAGS = {
@@ -397,7 +411,7 @@ await db.transaction(async (tx) => {
   const agentRows = await tx
     .insert(agents)
     .values([
-      { basedbUserId: 'dev-marc', name: ME, email: 'marc.jamain@exemple.fr', role: 'supervisor' },
+      { basedbUserId: ME_ACCOUNT, name: ME, email: 'marc.jamain@exemple.fr', role: 'supervisor' },
       { basedbUserId: 'dev-mdupuis', name: 'Marc Dupuis', email: 'marc.dupuis@exemple.fr' },
       { basedbUserId: 'dev-nbenali', name: 'Nadia Benali', email: 'nadia.benali@exemple.fr' },
     ])
@@ -587,6 +601,6 @@ const [counts] = (
   )
 ).rows
 console.log(
-  `seed: ${counts?.conversations} conversations, ${counts?.messages} messages — agent de développement : dev-marc`,
+  `seed: ${counts?.conversations} conversations, ${counts?.messages} messages — agent de développement : ${ME_ACCOUNT}`,
 )
 await pool.end()

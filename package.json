@@ -15,7 +15,8 @@
     "format": "biome format --write .",
     "template:check": "pnpm --filter @chat/basedb-template check",
     "test:int": "turbo run test:int",
-    "db:up": "docker compose up -d",
+    "db:up": "node scripts/dev-env.mjs && docker compose up -d",
+    "basedb:setup": "pnpm --filter @chat/server basedb:setup",
     "seed": "pnpm --filter @chat/server seed",
     "test:unit": "turbo run test:unit"
   },

@@ -352,6 +352,34 @@
       ]
     },
     {
+      "key": "boites",
+      "label": "Boîtes de réception",
+      "icon": "inbox",
+      "color": "#0ea5e9",
+      "description": "Où arrivent les conversations, et qui y répond. Une même équipe peut servir plusieurs boîtes.",
+      "fields": [
+        {
+          "label": "Nom",
+          "kind": "short_text",
+          "required": true,
+          "description": "Affiché dans le menu de la messagerie."
+        },
+        {
+          "label": "Description",
+          "kind": "long_text"
+        },
+        {
+          "label": "Couleur",
+          "kind": "short_text",
+          "description": "Code hexadécimal, par exemple #0EA5E9 : la pastille de la boîte dans le menu."
+        },
+        {
+          "label": "Actif",
+          "kind": "boolean"
+        }
+      ]
+    },
+    {
       "key": "equipes",
       "label": "Équipes",
       "icon": "users",
@@ -804,6 +832,13 @@
   "links": [
     {
       "from": "sites",
+      "label": "Boîte de réception",
+      "to": "boites",
+      "multiple": false,
+      "description": "Où arrivent les conversations du site. Vide : la première boîte active."
+    },
+    {
+      "from": "sites",
       "label": "Équipe par défaut",
       "to": "equipes",
       "multiple": false,
@@ -861,9 +896,34 @@
       "to": "equipes",
       "multiple": false,
       "description": "Où transférer. Vide : l'équipe par défaut du site."
+    },
+    {
+      "from": "boites",
+      "label": "Équipes",
+      "to": "equipes",
+      "multiple": true,
+      "description": "Les équipes qui y répondent : leurs conseillers voient la boîte."
+    },
+    {
+      "from": "boites",
+      "label": "Équipe par défaut",
+      "to": "equipes",
+      "multiple": false,
+      "description": "L'équipe à qui une nouvelle conversation est confiée. Vide : celle du site."
     }
   ],
   "rows": {
+    "boites": [
+      {
+        "$key": "principale",
+        "Nom": "Boîte principale",
+        "Description": "Toutes les conversations du site, jusqu'à ce que vous en créiez d'autres.",
+        "Couleur": "#2DA31E",
+        "Actif": true,
+        "Équipes": ["@support"],
+        "Équipe par défaut": "@support"
+      }
+    ],
     "equipes": [
       {
         "$key": "support",
@@ -885,7 +945,8 @@
         "Consignes de l'agent IA": "Vouvoie le visiteur. Réponds en trois phrases au plus. Ne promets jamais un délai ou un montant qui ne figure pas dans la base de connaissance.",
         "Conservation (jours)": 365,
         "Actif": true,
-        "Équipe par défaut": "@support"
+        "Équipe par défaut": "@support",
+        "Boîte de réception": "@principale"
       }
     ],
     "horaires": [

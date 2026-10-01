@@ -312,6 +312,23 @@ export class Settings {
     return null
   }
 
+  /** Every agent of « Conseillers ». */
+  async agents(): Promise<AgentEntry[]> {
+    return (await this.table(TABLES.agents)).flatMap(({ values }) => {
+      const basedbUserId = one(values['Compte basedb'])
+      return basedbUserId
+        ? [
+            {
+              basedbUserId,
+              name: text(values.Nom) ?? '',
+              role: values.Rôle === 'Superviseur' ? ('supervisor' as const) : ('agent' as const),
+              active: bool(values.Actif),
+            },
+          ]
+        : []
+    })
+  }
+
   /** The first names of the active agents — the team the widget shows behind the AI. */
   async teamFirstNames(): Promise<string[]> {
     return (await this.table(TABLES.agents)).flatMap(({ values }) => {

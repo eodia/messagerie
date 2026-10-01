@@ -17,7 +17,8 @@
     "test:unit": "vitest run test/unit",
     "site-secret": "tsx --env-file-if-exists=.env src/site-secret.ts",
     "worker": "tsx --env-file-if-exists=.env src/worker.ts",
-    "mcp-demo": "tsx src/dev/agencies-mcp.ts"
+    "mcp-demo": "tsx src/dev/agencies-mcp.ts",
+    "basedb:setup": "tsx --env-file-if-exists=../../.env src/setup-basedb.ts"
   },
   "dependencies": {
     "@chat/ai": "workspace:*",

@@ -22,7 +22,8 @@
       "Police": "Police du site",
       "Thème": "Automatique",
       "Coins": "Arrondis",
-      "Bulle d'accueil après (secondes)": 4
+      "Bulle d'accueil après (secondes)": 4,
+      "Boîte de réception": "@service-client"
     }
   ],
   "horaires": [
@@ -50,6 +51,35 @@
     {
       "Motif": "Jour de l'an",
       "Du": "2027-01-01"
+    }
+  ],
+  "boites": [
+    {
+      "$key": "service-client",
+      "Nom": "Service client",
+      "Description": "Les questions des clients et des visiteurs du site.",
+      "Couleur": "#2563EB",
+      "Actif": true,
+      "Équipes": ["@support"],
+      "Équipe par défaut": "@support"
+    },
+    {
+      "$key": "sinistres",
+      "Nom": "Sinistres",
+      "Description": "Les déclarations et le suivi des sinistres, auto et habitation.",
+      "Couleur": "#EA580C",
+      "Actif": true,
+      "Équipes": ["@auto", "@habitation"],
+      "Équipe par défaut": "@auto"
+    },
+    {
+      "$key": "reclamations",
+      "Nom": "Réclamations",
+      "Description": "Les mécontentements, traités par le support avec l'équipe habitation.",
+      "Couleur": "#DB2777",
+      "Actif": true,
+      "Équipes": ["@support", "@habitation"],
+      "Équipe par défaut": "@support"
     }
   ],
   "equipes": [
