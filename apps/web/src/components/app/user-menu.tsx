@@ -136,7 +136,7 @@ export function UserMenu({
           <span>
             {$t('Mode audio')}
             <span className="block text-xs text-muted-foreground">
-              {$t('Messages du visiteur lus à voix haute, réponses dictées')}
+              {$t('Les messages lus à voix haute, les nouveaux du visiteur dès qu’ils arrivent')}
             </span>
           </span>
         </DropdownMenuCheckboxItem>

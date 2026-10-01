@@ -16,7 +16,7 @@ import { Hint } from '@/components/ui/tooltip'
 import { ApiFailure, api } from '@/lib/api'
 import { $t, $tp, msg } from '@/lib/i18n'
 import { plainOf } from '@/lib/rich-text'
-import { canDictate, useDictation, useSpeech } from '@/lib/speech'
+import { canDictate, useDictation } from '@/lib/speech'
 import { useInbox } from '@/lib/store/inbox'
 import { cn } from '@/lib/utils'
 import type { CannedReply, Contact, Conversation, Rewording } from '@chat/contracts'
@@ -249,10 +249,9 @@ export function Composer({
 
   useImperativeHandle(inputRef, () => ({ focus: () => editor?.commands.focus('end') }), [editor])
 
-  // In audio mode — chosen in the profile menu —, a reply dictated by the browser.
+  // A reply dictated by the browser, where it can.
   const [dictable, setDictable] = useState(false)
   useEffect(() => setDictable(canDictate()), [])
-  const audioMode = useSpeech((s) => s.audioMode)
   const dictation = useDictation((text) => {
     if (!editor || text === '') return
     const { from } = editor.state.selection
@@ -669,7 +668,7 @@ export function Composer({
                   </DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              {audioMode && dictable && (
+              {dictable && (
                 <Hint
                   label={
                     dictation.listening

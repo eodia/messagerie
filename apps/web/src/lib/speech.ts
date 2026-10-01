@@ -7,13 +7,13 @@ import { intlLocale } from './i18n'
 import { plainOf } from './rich-text'
 
 /**
- * The inbox's voice, in audio mode:
+ * The inbox's voice:
  *
- * - a message read aloud — by the server's AI voice (Mistral's Voxtral TTS), or by the
- *   browser's (`speechSynthesis`) where the server has none —, on demand, and each new
- *   message of the visitor in the conversation open, as it arrives;
- * - a reply dictated by the browser (`SpeechRecognition`), where it has it — Chrome and
- *   Edge recognise the voice on their maker's servers, which the button says.
+ * - in audio mode, a message read aloud — by the server's AI voice (Mistral's Voxtral
+ *   TTS), or by the browser's (`speechSynthesis`) where the server has none —, on demand,
+ *   and each new message of the visitor in the conversation open, as it arrives;
+ * - always, a reply dictated by the browser (`SpeechRecognition`), where it has it —
+ *   Chrome and Edge recognise the voice on their maker's servers, which the button says.
  */
 
 const AUDIO_KEY = 'chat.audio'
@@ -21,7 +21,7 @@ const AUDIO_KEY = 'chat.audio'
 interface SpeechState {
   /** What is being read, by its key — a message's id. */
   readonly speaking: string | null
-  /** The audio mode: messages read aloud, replies dictated. */
+  /** The audio mode: messages read aloud. */
   readonly audioMode: boolean
   setAudioMode: (on: boolean) => void
   /** Reads a message aloud — `key` is its id, which the server's voice reads it by. */
