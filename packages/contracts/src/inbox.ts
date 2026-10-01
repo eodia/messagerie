@@ -441,6 +441,25 @@ export interface SettingsOverview {
   readonly canEdit: boolean
 }
 
+/** Someone a supervisor invites as an agent: their basedb account is created with it. */
+export interface InviteBody {
+  readonly name: string
+  readonly email: string
+  readonly role: 'agent' | 'supervisor'
+  readonly teamIds: readonly string[]
+}
+
+export interface Invited {
+  /** Their row in « Conseillers ». */
+  readonly row: SettingsRow
+  /** Shown once, to hand over; null when the address already had an account. */
+  readonly temporaryPassword: string | null
+}
+
+export interface PasswordReset {
+  readonly temporaryPassword: string
+}
+
 /** A tag « Étiquettes » offers, to put on a conversation. */
 export interface TagOption {
   readonly name: string

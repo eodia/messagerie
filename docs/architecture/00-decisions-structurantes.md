@@ -118,6 +118,14 @@ configuration OIDC de basedb, sans réglage propre au chat.
   et la case « Actif » cochée. Le rôle « Superviseur » y est lu.
 - **Administrer la messagerie**, c'est avoir le droit de modifier la base « Messagerie »
   dans basedb. Les droits par groupe, par table et par champ viennent de basedb.
+  `pnpm basedb:setup` crée le groupe « Superviseurs de la messagerie », qui peut modifier
+  la base (`BASEDB_SUPERVISORS_GROUP`). Un conseiller nommé superviseur dans l'inbox y
+  entre, et en sort quand il redevient conseiller.
+- **Inviter un conseiller** se fait dans l'inbox : son compte basedb est créé avec lui, son
+  mot de passe temporaire s'affiche une fois, et il choisit le sien à la première
+  connexion. Une adresse qui a déjà un compte le garde. Créer un compte, redonner un mot de
+  passe ou changer un rôle demande à basedb un administrateur qui a confirmé son mot de
+  passe dans les cinq minutes : l'inbox le redemande quand basedb l'exige.
 - **Un jeton d'intégration n'est pas un conseiller** : un programme ne répond pas aux
   visiteurs.
 - **Réponse gardée 30 secondes au plus**, jamais au-delà de l'échéance du jeton. C'est la
@@ -262,16 +270,23 @@ menu ouvre les écrans des boîtes de réception, des équipes et des conseiller
 de leurs horaires, des réponses types et des étiquettes, des garde-fous, des outils de l'IA
 et des serveurs MCP, des articles, et du widget.
 
+Chaque écran est bâti comme l'éditeur du widget : les lignes à gauche, le formulaire au
+milieu, et à droite ce que le réglage change, dessiné en direct — la boîte dans le menu et
+le chemin d'une conversation, la semaine d'ouverture, la réponse type dans le composeur,
+le garde-fou qui se déclenche, l'outil tel que l'IA le lit et la requête qu'il envoie. Les
+changements restent des brouillons, ligne par ligne, jusqu'à « Enregistrer » (ou Ctrl+S).
+
 Ces écrans ne copient rien : ils lisent et écrivent les tables de la base « Messagerie »
 par l'API de basedb (D2). Les champs, leurs genres, leurs choix et leurs relations sont
-ceux que déclare `messagerie.json` : un champ ajouté au modèle apparaît dans le formulaire.
+ceux que déclare `messagerie.json` : un champ ajouté au modèle que l'écran ne range pas
+encore apparaît sous « Autres réglages ».
 Le serveur vérifie chaque valeur contre le modèle, puis écrit dans basedb **avec le jeton
 du superviseur** : basedb applique ses droits, et l'historique de la ligne porte son nom.
 basedb réserve la suppression d'une ligne à ses administrateurs. Sans basedb, en
 démonstration, les lignes du modèle changent en mémoire jusqu'au redémarrage.
 
 basedb reste ouvert à qui veut ses grilles, ses vues, ses formulaires ou ses droits fins :
-chaque écran a son lien « Ouvrir dans basedb ».
+le menu garde son lien. Rien de courant ne demande plus de s'y rendre.
 
 ### L'éditeur du widget
 

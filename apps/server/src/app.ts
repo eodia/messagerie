@@ -23,6 +23,7 @@ import type { Db } from './db/client.js'
 import { conversations } from './db/schema.js'
 import { homePage } from './home-page.js'
 import { Access, canSee, inboxDirectory } from './inbox/access.js'
+import { followRole, inviteAgent, resetAgentPassword } from './inbox/accounts.js'
 import {
   cannedReplies,
   contactDetail,
@@ -204,7 +205,7 @@ export function createApp({
     return settings
   }
   inbox.get('/settings', async (c) =>
-    c.json(await settingsOverview(configured(), basedb, c.get('agent'))),
+    c.json(await settingsOverview(configured(), basedb, c.get('agent'), c.get('basedbToken'))),
   )
   inbox.get('/settings/:table', async (c) =>
     c.json(await settingsRows(configured(), c.req.param('table'))),
@@ -212,6 +213,9 @@ export function createApp({
   inbox.post('/settings/:table', async (c) => {
     const { values } = await jsonBody(c.req.raw)
     const agent = c.get('agent')
+    if (c.req.param('table') === 'conseillers') {
+      await followRole(configured(), basedb, agent, c.get('basedbToken'), null, values)
+    }
     return c.json(
       await createRow(configured(), agent, c.get('basedbToken'), c.req.param('table'), values),
       201,
@@ -220,6 +224,9 @@ export function createApp({
   inbox.patch('/settings/:table/:id', async (c) => {
     const { values } = await jsonBody(c.req.raw)
     const { table, id } = c.req.param()
+    if (table === 'conseillers') {
+      await followRole(configured(), basedb, c.get('agent'), c.get('basedbToken'), id, values)
+    }
     await updateRow(configured(), c.get('agent'), c.get('basedbToken'), table, id, values)
     return c.body(null, 204)
   })
@@ -228,6 +235,30 @@ export function createApp({
     await deleteRow(configured(), c.get('agent'), c.get('basedbToken'), table, id)
     return c.body(null, 204)
   })
+  // Agents' accounts, created and reset from the inbox — by a basedb administrator.
+  inbox.post('/agents/invite', async (c) =>
+    c.json(
+      await inviteAgent(
+        configured(),
+        basedb,
+        c.get('agent'),
+        c.get('basedbToken'),
+        await jsonBody(c.req.raw),
+      ),
+      201,
+    ),
+  )
+  inbox.post('/agents/:id/password', async (c) =>
+    c.json(
+      await resetAgentPassword(
+        configured(),
+        basedb,
+        c.get('agent'),
+        c.get('basedbToken'),
+        c.req.param('id'),
+      ),
+    ),
+  )
 
   inbox.get('/tags', async (c) => c.json(await tagOptions(settings)))
 

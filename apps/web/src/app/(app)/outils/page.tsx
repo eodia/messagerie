@@ -1,7 +1,7 @@
 'use client'
 
-import { ToolsScreen } from '@/components/tools/tools-screen'
+import { ToolsStudio } from '@/components/settings/screens/tools'
 
 export default function ToolsPage() {
-  return <ToolsScreen />
+  return <ToolsStudio />
 }

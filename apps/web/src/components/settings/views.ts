@@ -32,7 +32,7 @@ export interface TableView {
 }
 
 /** The widget's words and looks: the widget editor's, with its preview. */
-const WIDGET_FIELDS = [
+export const WIDGET_FIELDS = [
   'Couleur du widget',
   "Message d'accueil",
   'Questions suggérées',

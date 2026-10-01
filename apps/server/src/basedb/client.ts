@@ -146,14 +146,79 @@ export class BasedbClient {
     )
   }
 
-  /** The tenant's accounts — whom a « Personne » field may name. */
-  async users(): Promise<{ id: string; name: string; email: string | null }[]> {
+  /**
+   * The tenant's accounts — whom a « Personne » field may name — as `token`'s owner sees
+   * them when given: an administrator sees every account, the chat's token only those who
+   * share a project with it.
+   */
+  async users(token?: string): Promise<{ id: string; name: string; email: string | null }[]> {
     const { data } = await this.call<{
       data: { id: string; display_name: string | null; email: string | null; disabled: boolean }[]
-    }>(`/api/v1/${encodeURIComponent(this.config.tenant)}/meta/users`)
+    }>(
+      `/api/v1/${encodeURIComponent(this.config.tenant)}/meta/users`,
+      token ? { headers: { authorization: `Bearer ${token}` } } : {},
+    )
     return data
       .filter((u) => !u.disabled)
       .map((u) => ({ id: u.id, name: u.display_name || u.email || u.id, email: u.email }))
+  }
+
+  /**
+   * Creates an account, as `token`'s owner — a basedb administrator whose session was
+   * elevated minutes ago. Its temporary password is in this answer only.
+   */
+  async createAccount(
+    token: string,
+    account: { readonly email: string; readonly name: string; readonly groups: readonly string[] },
+  ): Promise<{ id: string; temporaryPassword: string }> {
+    const { data } = await this.call<{
+      data: { user: { id: string }; temporary_password: string }
+    }>(`/api/v1/${encodeURIComponent(this.config.tenant)}/admin/users`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        email: account.email,
+        display_name: account.name,
+        groups: account.groups,
+      }),
+    })
+    return { id: data.user.id, temporaryPassword: data.temporary_password }
+  }
+
+  /** Puts an account in a group, or takes it out — as an elevated administrator. */
+  async setGroupMember(
+    token: string,
+    groupId: string,
+    userId: string,
+    member: boolean,
+  ): Promise<void> {
+    await this.call<unknown>(
+      `/api/v1/${encodeURIComponent(this.config.tenant)}/admin/groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(userId)}`,
+      { method: member ? 'PUT' : 'DELETE', headers: { authorization: `Bearer ${token}` } },
+    )
+  }
+
+  /** The group's members' ids. */
+  async groupMembers(token: string, groupId: string): Promise<string[]> {
+    const { data } = await this.call<{ data: { id: string }[] }>(
+      `/api/v1/${encodeURIComponent(this.config.tenant)}/admin/groups/${encodeURIComponent(groupId)}/members`,
+      { headers: { authorization: `Bearer ${token}` } },
+    )
+    return data.map((m) => m.id)
+  }
+
+  /** The group of supervisors, if the chat has one in basedb. */
+  get supervisorsGroup(): string | null {
+    return this.config.supervisorsGroup
+  }
+
+  /** A new temporary password for an account, as `token`'s owner — an elevated administrator. */
+  async resetPassword(token: string, userId: string): Promise<string> {
+    const { data } = await this.call<{ data: { temporary_password: string } }>(
+      `/api/v1/${encodeURIComponent(this.config.tenant)}/admin/users/${encodeURIComponent(userId)}/password`,
+      { method: 'POST', headers: { authorization: `Bearer ${token}` } },
+    )
+    return data.temporary_password
   }
 
   /**

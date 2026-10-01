@@ -20,7 +20,7 @@ import { type Problems, contrastOn } from './settings'
  * until « Enregistrer ».
  */
 
-const SWATCHES = [
+export const SWATCHES = [
   '#2563EB',
   '#7C3AED',
   '#DB2777',

@@ -111,13 +111,34 @@ function tableOf(key: string): SettingsTable {
   return table
 }
 
+/**
+ * The accounts a « Personne » field may name. A supervisor's own token sees every account
+ * when they administer basedb — those just invited too; the chat's token, only those who
+ * share a project with it.
+ */
+async function accountsFor(
+  basedb: BasedbClient,
+  agent: AgentRow,
+  token: string | null,
+): Promise<SettingsOverview['users']> {
+  if (agent.role === 'supervisor' && token) {
+    try {
+      return await basedb.users(token)
+    } catch {
+      // Not theirs to list: the chat's view will do.
+    }
+  }
+  return basedb.users().catch(() => [])
+}
+
 export async function settingsOverview(
   settings: Settings,
   basedb: BasedbClient | null,
   agent: AgentRow,
+  token: string | null,
 ): Promise<SettingsOverview> {
   const users = basedb
-    ? await basedb.users().catch(() => [])
+    ? await accountsFor(basedb, agent, token)
     : [{ id: agent.basedbUserId, name: agent.name, email: agent.email }]
   return {
     tables: settingsSchema(),

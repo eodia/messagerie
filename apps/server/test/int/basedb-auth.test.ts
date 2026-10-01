@@ -107,7 +107,7 @@ beforeAll(async () => {
     webOrigin: 'http://localhost:3210',
     production: true,
     devAgent: null,
-    basedb: { url, tenant: TENANT, base: BASE, token: CHAT_TOKEN },
+    basedb: { url, tenant: TENANT, base: BASE, token: CHAT_TOKEN, supervisorsGroup: null },
     secret: 'a-secret-for-the-tests-of-the-chat-server',
     trustProxy: false,
   }
@@ -204,6 +204,7 @@ describe('the « Conseillers » rows', () => {
           tenant: TENANT,
           base: BASE,
           token: CHAT_TOKEN,
+          supervisorsGroup: null,
         }),
       ),
     )

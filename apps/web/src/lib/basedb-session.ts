@@ -103,6 +103,29 @@ export async function changePassword(current: string, next: string): Promise<voi
   held = null
 }
 
+/**
+ * Confirms one's password for the next minutes: basedb asks it before an administrator
+ * creates an account or resets a password. The session's token changes: the access token
+ * is asked again.
+ */
+export async function elevate(password: string): Promise<void> {
+  if (basedbApi === null) return
+  let response: Response
+  try {
+    response = await fetch(`${basedbApi}/auth/elevate`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ password }),
+    })
+  } catch {
+    throw new SignInFailure('UNREACHABLE')
+  }
+  if (!response.ok) throw await failureOf(response)
+  // The session rotates with it, and the tokens it handed out with it.
+  held = null
+}
+
 /** Ends the basedb session — the inbox's and basedb's, which are one. */
 export async function signOut(): Promise<void> {
   held = null

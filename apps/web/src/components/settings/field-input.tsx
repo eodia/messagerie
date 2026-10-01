@@ -36,7 +36,7 @@ const NONE = '__none__'
  * One choice among many, in a menu — never a native `<select>`: its popup is drawn by the
  * system, ignores the theme and reads as a white box in the dark (basedb's rule).
  */
-function ChoiceMenu({
+export function ChoiceMenu({
   id,
   value,
   choices,
@@ -88,7 +88,7 @@ function ChoiceMenu({
 }
 
 /** Several choices, all in view: pills that toggle. */
-function Toggles({
+export function Toggles({
   value,
   choices,
   onChange,

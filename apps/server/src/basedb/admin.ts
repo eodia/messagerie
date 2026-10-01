@@ -93,14 +93,56 @@ export interface BaseSummary {
   readonly label: string
 }
 
-/** The bases this administrator sees. */
-export async function listBases(session: AdminSession, token: string): Promise<BaseSummary[]> {
+/** The bases this administrator sees, with their ids — which the access grid speaks. */
+export async function listBases(
+  session: AdminSession,
+  token: string,
+): Promise<(BaseSummary & { readonly id: string })[]> {
   const response = await fetch(api(session, '/meta/bases'), {
     headers: { authorization: `Bearer ${token}` },
   })
   if (!response.ok) throw new AdminFailure(`liste des bases refusée (${response.status})`)
-  const { data } = (await response.json()) as { data: { name: string; label: string }[] }
-  return data.map(({ name, label }) => ({ name, label }))
+  const { data } = (await response.json()) as {
+    data: { id: string; name: string; label: string }[]
+  }
+  return data.map(({ id, name, label }) => ({ id, name, label }))
+}
+
+/**
+ * A group that may edit a base — created if it has no namesake, given `edit` on the base
+ * otherwise kept as it is. The session must be elevated. Returns the group's id.
+ */
+export async function groupEditing(
+  session: AdminSession,
+  label: string,
+  baseId: string,
+): Promise<string> {
+  const token = await accessToken(session)
+  const headers = { authorization: `Bearer ${token}`, 'content-type': 'application/json' }
+  const listed = await fetch(api(session, '/admin/groups'), { headers })
+  if (!listed.ok) throw new AdminFailure(`liste des groupes refusée (${listed.status})`)
+  const { data: groups } = (await listed.json()) as { data: { id: string; label: string }[] }
+  let id = groups.find((g) => g.label === label)?.id
+  if (!id) {
+    const created = await fetch(api(session, '/admin/groups'), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ label }),
+    })
+    if (!created.ok)
+      throw new AdminFailure(`groupe refusé (${created.status}) ${await created.text()}`)
+    id = ((await created.json()) as { data: { id: string } }).data.id
+  }
+  const granted = await fetch(api(session, '/admin/access'), {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      changes: [{ group: id, scope: { kind: 'base', id: baseId }, level: 'edit' }],
+    }),
+  })
+  if (!granted.ok)
+    throw new AdminFailure(`droit refusé (${granted.status}) ${await granted.text()}`)
+  return id
 }
 
 interface Step {

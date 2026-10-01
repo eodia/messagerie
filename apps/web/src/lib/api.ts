@@ -10,10 +10,13 @@ import type {
   FeedbackBody,
   InboxDirectory,
   InboxStats,
+  InviteBody,
+  Invited,
   KnowledgeItem,
   Metadata,
   MetadataValue,
   NotificationList,
+  PasswordReset,
   Rewording,
   SendMessageBody,
   SettingsOverview,
@@ -158,6 +161,9 @@ export const api = {
     }),
   deleteRow: (table: string, id: string) =>
     request<void>('DELETE', `/settings/${encodeURIComponent(table)}/${encodeURIComponent(id)}`),
+  inviteAgent: (body: InviteBody) => request<Invited>('POST', '/agents/invite', body),
+  resetAgentPassword: (rowId: string) =>
+    request<PasswordReset>('POST', `/agents/${encodeURIComponent(rowId)}/password`),
   widget: () => request<WidgetEditor>('GET', '/widget'),
   saveWidget: (site: string, settings: WidgetSettings) =>
     request<WidgetEditorSite>('PUT', `/widget/${encodeURIComponent(site)}`, settings),

@@ -176,6 +176,16 @@
     scrollbar-color: var(--border) transparent;
   }
 
+  /* The settings previews' ground: a dotted sheet, as a design canvas. */
+  .bg-canvas {
+    background-color: color-mix(in oklab, var(--muted) 45%, var(--background));
+    background-image: radial-gradient(
+      color-mix(in oklab, var(--foreground) 13%, transparent) 1px,
+      transparent 1px
+    );
+    background-size: 18px 18px;
+  }
+
   .bg-ai-edge {
     background: conic-gradient(
       from var(--ai-angle),

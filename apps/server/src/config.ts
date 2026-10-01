@@ -35,6 +35,11 @@ export interface BasedbConfig {
   readonly base: string
   /** An integration token of that base, issued for `rest`: reads, introspects, follows. */
   readonly token: string
+  /**
+   * The basedb group that may edit the base: an agent made a supervisor in the inbox joins
+   * it, and may then change the settings. Null: rights are given in basedb.
+   */
+  readonly supervisorsGroup: string | null
 }
 
 export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -45,7 +50,15 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const base = env.BASEDB_BASE || ''
   const token = env.BASEDB_TOKEN || ''
   const basedb =
-    url && tenant && base && token ? { url: url.replace(/\/+$/, ''), tenant, base, token } : null
+    url && tenant && base && token
+      ? {
+          url: url.replace(/\/+$/, ''),
+          tenant,
+          base,
+          token,
+          supervisorsGroup: env.BASEDB_SUPERVISORS_GROUP || null,
+        }
+      : null
   const secret = env.CHAT_SECRET || (production ? '' : 'development-only-secret-of-the-chat')
   if (secret.length < 32) {
     throw new ConfigError(

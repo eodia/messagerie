@@ -15,9 +15,12 @@ Messagerie client libre, sœur de basedb (`../basedb`). Les décisions qui font 
   Un outil ou un serveur MCP y nomme la variable d'environnement (`${NOM}`), jamais la valeur.
 - **Le paramétrage se fait dans l'inbox, ses données restent dans basedb** (D10) : les
   écrans « Paramétrage » lisent et écrivent la base par l'API, avec le jeton du
-  superviseur. Ils suivent le modèle (`inbox/settings-screen.ts`) : un champ ajouté à
-  `messagerie.json` apparaît dans son formulaire ; `components/settings/views.ts` dit
-  seulement quelles colonnes la liste montre et ce qui s'édite ailleurs.
+  superviseur. Chacun est dans `components/settings/screens`, bâti sur le kit
+  `components/settings/kit` (`Studio` : liste, formulaire, aperçu en direct). Un champ
+  ajouté à `messagerie.json` qu'un écran ne range pas paraît sous « Autres réglages » :
+  rangez-le dans le formulaire et dans `used`.
+- Les comptes des conseillers se créent depuis l'inbox (`inbox/accounts.ts`, D4) ; un
+  superviseur entre dans le groupe basedb `BASEDB_SUPERVISORS_GROUP`.
 - Un réglage du widget ajouté au modèle passe aussi par `settings/widget.ts` (lecture,
   vérification, écriture) et par l'éditeur du widget.
 - **Le basedb de développement** tourne dans `docker compose` (http://localhost:8890) :

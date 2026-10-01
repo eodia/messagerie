@@ -3,8 +3,11 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import {
   AdminFailure,
+  type BaseSummary,
   accessToken,
   createBase,
+  elevate,
+  groupEditing,
   issueToken,
   listBases,
   signIn,
@@ -18,12 +21,14 @@ import {
  *
  * Waits for basedb; signs in as the administrator `.env` names; creates the « Messagerie »
  * base with the rows of Acme Assurances, unless it exists; issues the chat's integration
- * token (REST, write) unless the chat already holds a good one; and writes what the server
+ * token (REST, write) unless the chat already holds a good one; gives the group of the
+ * supervisors the right to edit the base; and writes what the server
  * and the inbox need into `apps/server/.env` and `apps/web/.env.local`. Run again, it
  * changes nothing that works.
  */
 
 const LABEL = 'Messagerie'
+const SUPERVISORS = 'Superviseurs de la messagerie'
 const port = process.env.BASEDB_PORT || '8890'
 const url = `http://localhost:${port}`
 const tenant = process.env.BASEDB_TENANT || 't4z56fq'
@@ -87,7 +92,9 @@ try {
   const session = await signIn(url, tenant, email, password)
   const token = await accessToken(session)
 
-  let base = (await listBases(session, token)).find((b) => b.label === LABEL)
+  let base: BaseSummary | undefined = (await listBases(session, token)).find(
+    (b) => b.label === LABEL,
+  )
   if (base) {
     console.log(`basedb : la base « ${LABEL} » existe déjà (${base.name}).`)
   } else {
@@ -106,6 +113,16 @@ try {
     console.log('basedb : jeton d’intégration du chat émis (REST, écriture).')
   }
 
+  // The supervisors named in the inbox join this group, which may edit the base: they
+  // change the settings without anyone opening basedb.
+  await elevate(session)
+  const baseId = (await listBases(session, await accessToken(session))).find(
+    (b) => b.name === base.name,
+  )?.id
+  if (!baseId) throw new AdminFailure(`la base ${base.name} n’apparaît pas dans la liste`)
+  const supervisors = await groupEditing(session, SUPERVISORS, baseId)
+  console.log(`basedb : le groupe « ${SUPERVISORS} » peut modifier la base.`)
+
   // Requests without a token — scripts, curl — are made as this administrator, who is the
   // supervisor « $moi » of the demonstration rows: the same person as in the browser.
   const admin = await whoAmI(session)
@@ -115,6 +132,7 @@ try {
     BASEDB_BASE: base.name,
     BASEDB_TOKEN: chatToken ?? '',
     CHAT_DEV_AGENT: admin.id,
+    BASEDB_SUPERVISORS_GROUP: supervisors,
   })
   setEnv(webEnv, { BASEDB_URL: url, BASEDB_API_URL: url })
 

@@ -50,6 +50,12 @@ export type ErrorCode =
   | 'TEAM_NOT_FOUND'
   /** A settings row that no longer exists. */
   | 'ROW_NOT_FOUND'
+  /** basedb asks the supervisor's password again before an account is created or reset. */
+  | 'ELEVATION_REQUIRED'
+  /** Only a basedb administrator creates accounts and resets passwords. */
+  | 'ACCOUNTS_ADMIN_REQUIRED'
+  /** That account is an agent already. */
+  | 'AGENT_EXISTS'
 
 /** Opens the inbox's WebSocket, once, within thirty seconds. */
 export interface Ticket {
