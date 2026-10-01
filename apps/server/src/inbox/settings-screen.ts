@@ -229,6 +229,11 @@ function supervisorOnly(agent: AgentRow): void {
   if (agent.role !== 'supervisor') throw new Refusal('NOT_ALLOWED', 403)
 }
 
+/** What a new row of some tables starts with, unless given: an article is its writer's draft. */
+const ON_CREATE: Readonly<Record<string, (agent: AgentRow) => Record<string, unknown>>> = {
+  articles: (agent) => ({ Statut: 'Brouillon', Auteur: agent.basedbUserId }),
+}
+
 export async function createRow(
   settings: Settings,
   agent: AgentRow,
@@ -238,7 +243,7 @@ export async function createRow(
 ): Promise<SettingsRow> {
   supervisorOnly(agent)
   const table = tableOf(key)
-  const values = cleanValues(table, raw, true)
+  const values = { ...ON_CREATE[key]?.(agent), ...cleanValues(table, raw, true) }
   const id = await written(() => settings.source.create(table.label, values, token))
   settings.invalidate(table.label)
   return { id, values }
