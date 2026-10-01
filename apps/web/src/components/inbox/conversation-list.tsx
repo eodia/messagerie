@@ -10,7 +10,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Segmented } from '@/components/ui/segmented'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Hint } from '@/components/ui/tooltip'
 import { $t, formatCount, msg } from '@/lib/i18n'
 import { type InboxFilter, inInbox, matchesFilter, useInbox } from '@/lib/store/inbox'
@@ -123,30 +123,26 @@ export function ConversationList({
         </DropdownMenu>
       </div>
 
-      <div className="flex h-11 shrink-0 items-center border-b px-3">
-        <Segmented
-          aria-label={$t('Filtrer les conversations')}
-          value={filter}
-          onValueChange={setFilter}
-          className="w-full"
-          // Each option as wide as what it says, so the longest gives way first — truncated
-          // if the pane is narrower still, never overflowing.
-          itemClassName="min-w-0 flex-auto gap-1 px-1.5"
-          options={TABS.map((tab) => ({
-            value: tab.filter,
-            label: (
-              <>
-                <Hint label={tab.short && $t(tab.label)}>
-                  <span className="truncate">{$t(tab.short ?? tab.label)}</span>
-                </Hint>
-                <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
-                  {formatCount(inThisInbox.filter((s) => matchesFilter(s, tab.filter)).length)}
-                </span>
-              </>
-            ),
-          }))}
-        />
-      </div>
+      {/* Underlined, as the inbox's other tabs: short labels and quiet counts, so that the
+          row fits the pane at its narrowest. « Résolues » is in the filter menu. */}
+      <Tabs
+        value={filter}
+        onValueChange={(value) => setFilter(value as InboxFilter)}
+        className="shrink-0"
+      >
+        <TabsList className="h-10 w-full justify-start gap-4 px-3">
+          {TABS.map((tab) => (
+            <TabsTrigger key={tab.filter} value={tab.filter} className="h-10 min-w-0 gap-1 text-xs">
+              <Hint label={tab.short && $t(tab.label)}>
+                <span className="truncate">{$t(tab.short ?? tab.label)}</span>
+              </Hint>
+              <span className="shrink-0 text-[11px] font-normal text-muted-foreground tabular-nums">
+                {formatCount(inThisInbox.filter((s) => matchesFilter(s, tab.filter)).length)}
+              </span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       <ul className="flex-1 overflow-y-auto scroll-discret">
         {shown.map((summary) => (
