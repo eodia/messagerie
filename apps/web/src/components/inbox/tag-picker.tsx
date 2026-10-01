@@ -17,7 +17,7 @@ import { type KeyboardEvent, useEffect, useMemo, useState } from 'react'
  */
 
 let optionsOnce: Promise<TagOption[]> | null = null
-function loadOptions(): Promise<TagOption[]> {
+export function loadOptions(): Promise<TagOption[]> {
   optionsOnce ??= api.tags().catch(() => {
     optionsOnce = null
     return []

@@ -121,16 +121,60 @@ const LOCALES: Readonly<Record<string, string>> = {
 /** The site's language as `Intl` names it. */
 export const siteLocale = (site: Site): string => LOCALES[site.language] ?? 'fr-FR'
 
-/** « lundi 5 octobre à 09:00 », in the site's language and time zone. */
-export function whenLabel(at: Date, site: Site): string {
-  return new Intl.DateTimeFormat(siteLocale(site), {
-    timeZone: site.timezone,
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
+/** The word between a day and its time: « demain à 9 h », « tomorrow at 9:00 AM ». */
+const AT: Readonly<Record<string, string>> = { fr: 'à', en: 'at', de: 'um', es: 'a las' }
+
+/** A day of the calendar where the site is, as `YYYY-MM-DD` — to count days between two. */
+function dayOf(at: Date, timeZone: string): number {
+  const [year, month, day] = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+    .format(at)
+    .split('-')
+    .map(Number) as [number, number, number]
+  return Date.UTC(year, month - 1, day) / 86_400_000
+}
+
+/**
+ * When the advisors are back, as a visitor says it, in the site's language and time zone:
+ * « aujourd’hui à 14 h », « demain à 9 h », « lundi à 9 h » within the week, the full date
+ * beyond — never « vendredi 2 octobre à 09:00 » for tomorrow.
+ */
+export function whenLabel(at: Date, site: Site, now: Date = new Date()): string {
+  const locale = siteLocale(site)
+  const language = locale.slice(0, 2)
+  const timeZone = site.timezone
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
     hour: '2-digit',
     minute: '2-digit',
-  }).format(at)
+    hourCycle: 'h23',
+  }).formatToParts(at)
+  const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? 0)
+  const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? 0)
+  const time =
+    language === 'fr'
+      ? minute === 0
+        ? `${hour} h`
+        : `${hour} h ${String(minute).padStart(2, '0')}`
+      : new Intl.DateTimeFormat(locale, { timeZone, hour: 'numeric', minute: '2-digit' }).format(at)
+
+  const days = dayOf(at, timeZone) - dayOf(now, timeZone)
+  const day =
+    days === 0 || days === 1
+      ? new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(days, 'day')
+      : days > 1 && days < 7
+        ? new Intl.DateTimeFormat(locale, { timeZone, weekday: 'long' }).format(at)
+        : new Intl.DateTimeFormat(locale, {
+            timeZone,
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+          }).format(at)
+  return `${day} ${AT[language] ?? AT.fr} ${time}`
 }
 
 /** The sources, numbered, as the prompts cite them. */

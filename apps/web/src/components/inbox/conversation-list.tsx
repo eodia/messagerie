@@ -3,19 +3,11 @@
 import { Chip, ColorBadge } from '@/components/app/chip'
 import { InboxGlyph } from '@/components/app/look'
 import { ResizablePanel } from '@/components/app/resizable-panel'
-import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Hint } from '@/components/ui/tooltip'
 import { $t, $tp, formatCount, msg } from '@/lib/i18n'
 import { type InboxFilter, inInbox, matchesFilter, useInbox } from '@/lib/store/inbox'
+import { type Sort, matchesFilters, sorted, useListFilters } from '@/lib/store/list-filters'
 import { inboxTime } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import type { Agent, ConversationSummary, InboxItem } from '@chat/contracts'
@@ -26,13 +18,13 @@ import {
   Clock,
   Frown,
   Inbox,
-  ListFilter,
   Paperclip,
   Search,
   Sparkles,
 } from 'lucide-react'
-import { type RefObject, useMemo } from 'react'
+import { type RefObject, useLayoutEffect, useMemo } from 'react'
 import { ContactAvatar, StateChip } from './labels'
+import { ActiveFilters, FiltersButton } from './list-filters'
 
 /**
  * The filters above the list. `short` is what the list shows where the label would not fit
@@ -78,12 +70,25 @@ export function ConversationList({
   const inbox = useInbox((s) => s.inbox)
   const inboxes = useInbox((s) => s.directory.inboxes)
   const { select, setFilter, setQuery } = useInbox.getState()
+  const filters = useListFilters()
 
-  // The chosen inbox's conversations — the filters count within it.
+  // The filters kept in this browser, before the first paint.
+  useLayoutEffect(() => useListFilters.getState().initialize(), [])
+
+  // The chosen inbox's conversations — the tabs count within it, its filters applied.
   const inThisInbox = useMemo(() => summaries.filter((s) => inInbox(s, inbox)), [summaries, inbox])
+  const narrowed = useMemo(
+    () => inThisInbox.filter((s) => matchesFilters(s, filters, me, now)),
+    [inThisInbox, filters, me, now],
+  )
   const shown = useMemo(
-    () => inThisInbox.filter((s) => matchesFilter(s, filter) && matchesQuery(s, query.trim())),
-    [inThisInbox, filter, query],
+    () =>
+      sorted(
+        narrowed.filter((s) => matchesFilter(s, filter) && matchesQuery(s, query.trim())),
+        filters.sort,
+        now,
+      ),
+    [narrowed, filter, query, filters.sort, now],
   )
 
   return (
@@ -99,33 +104,7 @@ export function ConversationList({
             className="h-8 w-full rounded-lg border bg-muted/40 pr-2 pl-8 text-xs shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/25"
           />
         </div>
-        <DropdownMenu>
-          <Hint label={$t('Filtrer')}>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant={filter === 'resolved' ? 'secondary' : 'ghost'}
-                size="icon-sm"
-                className="size-8"
-              >
-                <ListFilter className="size-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-          </Hint>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>{$t('Afficher')}</DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              value={filter}
-              onValueChange={(value) => setFilter(value as InboxFilter)}
-            >
-              {TABS.map((tab) => (
-                <DropdownMenuRadioItem key={tab.filter} value={tab.filter}>
-                  {$t(tab.label)}
-                </DropdownMenuRadioItem>
-              ))}
-              <DropdownMenuRadioItem value="resolved">{$t('Résolues')}</DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <FiltersButton rows={inThisInbox} />
       </div>
 
       {/* Underlined, as the inbox's other tabs: short labels and quiet counts, so that the
@@ -142,37 +121,40 @@ export function ConversationList({
                 <span className="truncate">{$t(tab.short ?? tab.label)}</span>
               </Hint>
               <span className="shrink-0 text-[11px] font-normal text-muted-foreground tabular-nums">
-                {formatCount(inThisInbox.filter((s) => matchesFilter(s, tab.filter)).length)}
+                {formatCount(narrowed.filter((s) => matchesFilter(s, tab.filter)).length)}
               </span>
             </TabsTrigger>
           ))}
         </TabsList>
       </Tabs>
+      <ActiveFilters />
 
       <div className="flex-1 overflow-y-auto scroll-discret">
-        {groupsOf(shown, now).map((group) => (
-          <section key={group.key} aria-label={$t(group.label)}>
-            <h3 className="sticky top-0 z-10 flex items-center gap-2 bg-background/85 px-4 pt-3 pb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase backdrop-blur-sm">
-              {$t(group.label)}
-              <span className="font-normal tabular-nums">{group.items.length}</span>
-            </h3>
-            <ul className="space-y-0.5 px-1.5 pb-1">
-              {group.items.map((summary) => (
-                <li key={summary.id}>
-                  <ConversationRow
-                    summary={summary}
-                    me={me}
-                    inbox={inboxes.find((i) => i.id === summary.inboxId) ?? null}
-                    selected={summary.id === selectedId}
-                    time={inboxTime(summary.lastMessageAt, now)}
-                    now={now}
-                    onSelect={() => select(summary.id)}
-                  />
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
+        {(filters.sort === 'recent' ? groupsOf(shown, now) : orderedBy(shown, filters.sort)).map(
+          (group) => (
+            <section key={group.key} aria-label={$t(group.label)}>
+              <h3 className="sticky top-0 z-10 flex items-center gap-2 bg-background/85 px-4 pt-3 pb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase backdrop-blur-sm">
+                {$t(group.label)}
+                <span className="font-normal tabular-nums">{group.items.length}</span>
+              </h3>
+              <ul className="space-y-0.5 px-1.5 pb-1">
+                {group.items.map((summary) => (
+                  <li key={summary.id}>
+                    <ConversationRow
+                      summary={summary}
+                      me={me}
+                      inbox={inboxes.find((i) => i.id === summary.inboxId) ?? null}
+                      selected={summary.id === selectedId}
+                      time={inboxTime(summary.lastMessageAt, now)}
+                      now={now}
+                      onSelect={() => select(summary.id)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ),
+        )}
         {shown.length === 0 && (
           <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
             <span className="flex size-11 items-center justify-center rounded-2xl bg-muted">
@@ -399,6 +381,20 @@ function waitingOf(
         ? $t('{count} h', { count: Math.floor(minutes / 60) })
         : $t('{count} j', { count: Math.floor(minutes / (24 * 60)) })
   return { label, level: minutes >= 30 ? 'late' : minutes >= 5 ? 'slow' : 'fresh' }
+}
+
+/** One group, named by the order chosen, when the rows are not read by day. */
+function orderedBy(rows: readonly ConversationSummary[], sort: Sort) {
+  return rows.length === 0
+    ? []
+    : [
+        {
+          key: sort,
+          label:
+            sort === 'waiting' ? msg('Par attente, la plus longue d’abord') : msg('Par priorité'),
+          items: rows,
+        },
+      ]
 }
 
 const GROUPS = [

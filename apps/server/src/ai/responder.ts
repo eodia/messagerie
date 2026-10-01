@@ -74,7 +74,7 @@ async function systemPrompt(deps: AiDeps, context: Context): Promise<string> {
   const availability = hours.open
     ? 'Des conseillers sont disponibles en ce moment.'
     : hours.nextOpening
-      ? `Aucun conseiller n’est disponible avant ${whenLabel(hours.nextOpening, site)}. Si tu transfères, dis-le au visiteur.`
+      ? `Aucun conseiller n’est disponible avant ${whenLabel(hours.nextOpening, site)}. Si tu transfères, dis-le au visiteur avec ces mots-là (« ${whenLabel(hours.nextOpening, site)} »), sans les changer en date complète.`
       : 'Aucun conseiller n’est disponible pour le moment. Si tu transfères, dis-le au visiteur.'
   return [
     `Tu es l’assistant virtuel de ${site.name}, dans la messagerie de son site. Tu réponds au visiteur dans sa langue (par défaut : ${site.language}).`,
