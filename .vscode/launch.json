@@ -1,0 +1,55 @@
+{
+  // Démarrer la messagerie depuis VS Code (Exécuter et déboguer, F5).
+  //
+  // « Messagerie » lance tout : PostgreSQL et basedb dans Docker (tâche préalable), le
+  // serveur, l'inbox, la reconstruction du widget et le serveur MCP de démonstration — et
+  // ouvre l'inbox. Chaque partie se lance aussi seule. Les points d'arrêt marchent dans le
+  // serveur et dans l'inbox.
+  //
+  // Première fois : tâches « Installer les dépendances », puis « basedb : créer la base et
+  // relier la messagerie » et « Données de démonstration » (Terminal › Exécuter la tâche).
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Serveur",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "corepack pnpm --filter @chat/server dev",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Inbox",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "corepack pnpm --filter @chat/web dev",
+      "cwd": "${workspaceFolder}",
+      "serverReadyAction": {
+        "pattern": "- Local:\\s+(https?://\\S+)",
+        "uriFormat": "%s",
+        "action": "openExternally"
+      }
+    },
+    {
+      "name": "Widget (reconstruction)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "corepack pnpm --filter @chat/widget dev",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Serveur MCP de démo",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "corepack pnpm --filter @chat/server mcp-demo",
+      "cwd": "${workspaceFolder}"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Messagerie",
+      "configurations": ["Serveur", "Inbox", "Widget (reconstruction)", "Serveur MCP de démo"],
+      "preLaunchTask": "Docker : PostgreSQL et basedb",
+      "stopAll": true
+    }
+  ]
+}

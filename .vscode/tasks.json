@@ -1,0 +1,67 @@
+{
+  // Les tâches de la messagerie (Terminal › Exécuter la tâche). « Docker : PostgreSQL et
+  // basedb » précède le lancement « Messagerie » de launch.json.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Docker : PostgreSQL et basedb",
+      "detail": "PostgreSQL 16 + pgvector (55440) et basedb (http://localhost:8890) ; écrit .env au premier lancement",
+      "type": "shell",
+      "command": "corepack pnpm db:up",
+      "problemMatcher": [],
+      "presentation": { "reveal": "silent", "panel": "shared" }
+    },
+    {
+      "label": "Installer les dépendances",
+      "type": "shell",
+      "command": "corepack pnpm install",
+      "problemMatcher": []
+    },
+    {
+      "label": "basedb : créer la base et relier la messagerie",
+      "detail": "La base « Messagerie » avec Acme Assurances, le jeton du chat, apps/server/.env et apps/web/.env.local",
+      "type": "shell",
+      "command": "corepack pnpm basedb:setup",
+      "dependsOn": "Docker : PostgreSQL et basedb",
+      "problemMatcher": []
+    },
+    {
+      "label": "Données de démonstration",
+      "detail": "Vide le schéma chat et y met les conversations de démo",
+      "type": "shell",
+      "command": "corepack pnpm seed",
+      "dependsOn": "Docker : PostgreSQL et basedb",
+      "problemMatcher": []
+    },
+    {
+      "label": "Construire le widget",
+      "type": "shell",
+      "command": "corepack pnpm --filter @chat/widget build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Lint",
+      "type": "shell",
+      "command": "corepack pnpm lint",
+      "problemMatcher": []
+    },
+    {
+      "label": "Types",
+      "type": "shell",
+      "command": "corepack pnpm typecheck",
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "Tests unitaires",
+      "type": "shell",
+      "command": "corepack pnpm test:unit",
+      "problemMatcher": []
+    },
+    {
+      "label": "Vérifier (lint, types, tests unitaires)",
+      "dependsOn": ["Lint", "Types", "Tests unitaires"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    }
+  ]
+}
