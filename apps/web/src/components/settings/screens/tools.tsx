@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Hint } from '@/components/ui/tooltip'
 import { api } from '@/lib/api'
 import { $t, $tp, msg } from '@/lib/i18n'
+import { useAddressTab } from '@/lib/use-address-tab'
 import { cn } from '@/lib/utils'
 import type { ToolsOverview } from '@chat/contracts'
 import {
@@ -407,7 +408,11 @@ function Highlighted({ line }: { readonly line: string }) {
 
 export function ToolsStudio() {
   const data = useSettingsData(['outils_ia', 'serveurs_mcp'])
-  const [tab, setTab] = useState<Tab>('tools')
+  // Served at /outils and in the settings: its address is where it is.
+  const [toolsBase] = useState(() =>
+    window.location.pathname.startsWith('/parametrage/outils') ? '/parametrage/outils' : '/outils',
+  )
+  const [tab, setTab, tabBase] = useAddressTab<Tab>(toolsBase, { tools: null, mcp: 'serveurs-mcp' })
   const tools = useRowEditor(data, 'outils_ia', {
     defaults: {
       Type: TYPES.http,
@@ -476,6 +481,7 @@ export function ToolsStudio() {
     return (
       <>
         <Studio
+          base={tabBase}
           section={$t('Outils IA')}
           data={data}
           editor={servers}
@@ -640,6 +646,7 @@ export function ToolsStudio() {
   return (
     <>
       <Studio
+        base={tabBase}
         section={$t('Outils IA')}
         data={data}
         editor={tools}

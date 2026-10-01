@@ -1,6 +1,6 @@
 import type { AlertKind } from '@chat/contracts'
-import { PRODUCT_NAME } from './product'
 import { useAlertSettings } from './store/alert-settings'
+import { titleCount } from './title'
 
 /**
  * How the inbox gets an agent's attention: a chime, a notification of the desktop when
@@ -88,7 +88,7 @@ export function notifyDesktop(
  * twenty says it has something waiting.
  */
 export function showWaiting(count: number): void {
-  document.title = count > 0 ? `(${count}) ${PRODUCT_NAME}` : PRODUCT_NAME
+  titleCount(count)
   const link = document.querySelector<HTMLLinkElement>('link[rel~="icon"]')
   if (!link) return
   link.dataset.plain ??= link.href

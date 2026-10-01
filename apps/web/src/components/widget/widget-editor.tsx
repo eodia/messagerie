@@ -10,15 +10,26 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Segmented } from '@/components/ui/segmented'
+import { addressOf, idOfWord, wordOf, wordsAfter } from '@/lib/address'
 import { api, apiAddress } from '@/lib/api'
 import { $t } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
+import { useTitle } from '@/lib/title'
+import { useAddressBar } from '@/lib/use-address-bar'
 import { cn } from '@/lib/utils'
 import type { WidgetEditor, WidgetSettings } from '@chat/contracts'
 import { Check, ChevronDown, LoaderCircle, Monitor, Smartphone } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { hasProblems, normalize, previewSite, problemsOf } from './settings'
 import { WidgetForm } from './widget-form'
+
+const BASE = '/widget'
+
+/** The site the address names, among those given. */
+const siteInAddress = (ids: readonly string[]): string | null => {
+  const word = wordsAfter(BASE)?.[0]
+  return word ? idOfWord(word, ids) : null
+}
 
 type Scene = 'closed' | 'nudge' | 'welcome' | 'conversation'
 
@@ -48,12 +59,27 @@ export function WidgetEditorScreen() {
       .widget()
       .then((loaded) => {
         setEditor(loaded)
-        setSiteId((current) => current ?? loaded.sites[0]?.id ?? null)
+        // The site the address names, else the first.
+        const named = siteInAddress(loaded.sites.map((s) => s.id))
+        setSiteId((current) => current ?? named ?? loaded.sites[0]?.id ?? null)
       })
       .catch((failure: { code?: string }) => setError(failure.code ?? 'INTERNAL_ERROR'))
   }, [])
 
   const site = editor?.sites.find((s) => s.id === siteId) ?? null
+
+  // The address: the site whose widget is shown.
+  const address =
+    editor === null
+      ? null
+      : site
+        ? addressOf(BASE, wordOf(site.id, site.settings.name, 'site'))
+        : BASE
+  useTitle([site?.settings.name, $t('Widget')])
+  useAddressBar(address, async () => {
+    const named = siteInAddress(editor?.sites.map((s) => s.id) ?? [])
+    if (named) setSiteId(named)
+  })
   const draft = site ? (drafts[site.id] ?? site.settings) : null
   const problems = draft ? problemsOf(draft) : null
   const dirty =

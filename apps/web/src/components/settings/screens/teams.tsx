@@ -10,6 +10,7 @@ import { Segmented } from '@/components/ui/segmented'
 import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'
 import { $t, $tp } from '@/lib/i18n'
+import { useAddressTab } from '@/lib/use-address-tab'
 import { cn } from '@/lib/utils'
 import type { SettingsRow } from '@chat/contracts'
 import {
@@ -56,7 +57,10 @@ const sameSet = (a: readonly string[], b: readonly string[]) =>
 
 export function TeamsScreen() {
   const data = useSettingsData(['equipes', 'conseillers', 'boites'])
-  const [tab, setTab] = useState<Tab>('teams')
+  const [tab, setTab, tabBase] = useAddressTab<Tab>('/parametrage/equipes', {
+    teams: null,
+    agents: 'conseillers',
+  })
   const agents = data.rows('conseillers')
 
   // A team's members, as chosen on the team: written on the agents' rows when it is saved.
@@ -106,8 +110,7 @@ export function TeamsScreen() {
     if (!new URLSearchParams(window.location.search).has('inviter')) return
     setTab('agents')
     setInviting(true)
-    window.history.replaceState(null, '', window.location.pathname)
-  }, [])
+  }, [setTab])
 
   const tabs = (
     <StudioTabs
@@ -123,6 +126,7 @@ export function TeamsScreen() {
   if (tab === 'teams') {
     return (
       <Studio
+        base={tabBase}
         section={$t('Équipes et conseillers')}
         data={data}
         editor={teams}
@@ -212,6 +216,7 @@ export function TeamsScreen() {
   return (
     <>
       <Studio
+        base={tabBase}
         section={$t('Équipes et conseillers')}
         data={data}
         editor={people}

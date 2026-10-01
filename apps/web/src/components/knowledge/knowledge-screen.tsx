@@ -15,10 +15,13 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Hint } from '@/components/ui/tooltip'
+import { addressOf, idOfWord, wordOf, wordsAfter } from '@/lib/address'
 import { api } from '@/lib/api'
 import { $t, $tp, msg } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
 import { dayLabel } from '@/lib/time'
+import { useTitle } from '@/lib/title'
+import { useAddressBar } from '@/lib/use-address-bar'
 import { cn } from '@/lib/utils'
 import type { KnowledgeItem, SettingsOverview, SettingsRow } from '@chat/contracts'
 import {
@@ -118,6 +121,8 @@ const today = () => new Date().toISOString().slice(0, 10)
 
 const codeOf = (failure: unknown) => (failure as { code?: string }).code ?? 'INTERNAL_ERROR'
 
+const BASE = '/connaissance'
+
 export function KnowledgeScreen() {
   const basedbUrl = useBasedbUrl()
   const [overview, setOverview] = useState<SettingsOverview | null>(null)
@@ -156,16 +161,40 @@ export function KnowledgeScreen() {
     void load()
   }, [load])
 
-  // Reached from the palette: an article to open, or one to start.
-  const asked = useRef(false)
+  // The address: the article open — and the article an address names, once they are read.
+  // `?nouveau` starts one (the palette's « Nouvel article »). Nothing is written before the
+  // address was followed.
+  const [arrived, setArrived] = useState(false)
+  const opened = articles?.find((a) => a.id === selectedId) ?? null
+  const address = !arrived
+    ? null
+    : opened
+      ? addressOf(BASE, wordOf(opened.id, opened.title, 'article'))
+      : BASE
+  const follow = () => {
+    if (articles === null) return
+    const word = wordsAfter(BASE)?.[0] ?? new URLSearchParams(window.location.search).get('article')
+    if (!word) return setSelectedId(null)
+    const id =
+      idOfWord(
+        word,
+        articles.map((a) => a.id),
+      ) ?? articles.find((a) => a.id === word)?.id
+    if (id) setSelectedId(id)
+    else {
+      setSelectedId(null)
+      setError('ROW_NOT_FOUND')
+    }
+  }
+  useAddressBar(address, async () => follow())
+  useTitle([opened?.title || null, $t('Connaissance')])
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once, when the articles are read
   useEffect(() => {
-    if (asked.current || articles === null || overview === null) return
-    asked.current = true
-    const params = new URLSearchParams(window.location.search)
-    const article = params.get('article')
-    if (article && articles.some((a) => a.id === article)) setSelectedId(article)
-    else if (params.has('nouveau') && overview.canEdit) void create()
-    if (article || params.has('nouveau')) window.history.replaceState(null, '', '/connaissance')
+    if (arrived || articles === null || overview === null) return
+    setArrived(true)
+    if (new URLSearchParams(window.location.search).has('nouveau') && overview.canEdit) {
+      void create()
+    } else follow()
   }, [articles, overview])
 
   // ── Saving as one types: after a pause, the changed fields go to basedb ─────────────

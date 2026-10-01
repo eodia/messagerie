@@ -36,6 +36,7 @@ export function InboxesScreen() {
 
   return (
     <Studio
+      base="/parametrage/boites"
       section={$t('Boîtes de réception')}
       data={data}
       editor={editor}

@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
 import { $t, $tp } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
+import { useTitle } from '@/lib/title'
 import type { SettingsField, SettingsOverview, SettingsRow, SettingsTable } from '@chat/contracts'
 import { Check, ExternalLink, LoaderCircle, Plus, RefreshCw } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -33,6 +34,7 @@ function titleOf(table: SettingsTable | undefined, row: SettingsRow): string {
 export function SettingsScreen({ group: key }: { readonly group: string }) {
   const group = GROUPS[key]
   const basedbUrl = useBasedbUrl()
+  useTitle([group ? $t(group.title) : null])
   const [overview, setOverview] = useState<SettingsOverview | null>(null)
   const [rows, setRows] = useState<Readonly<Record<string, readonly SettingsRow[]>>>({})
   const [active, setActive] = useState(group?.tables[0] ?? '')

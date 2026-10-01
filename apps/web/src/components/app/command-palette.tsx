@@ -8,6 +8,7 @@ import { ContactAvatar, StateChip } from '@/components/inbox/labels'
 import { loadOptions } from '@/components/inbox/tag-picker'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Kbd } from '@/components/ui/kbd'
+import { addressOf, wordOf } from '@/lib/address'
 import { api } from '@/lib/api'
 import { $t, $tp, msg } from '@/lib/i18n'
 import {
@@ -344,8 +345,8 @@ function Palette({ seed, onClose }: { readonly seed: string; readonly onClose: (
         title: c.name,
         subtitle: c.email ?? c.site ?? undefined,
         icon: <ContactAvatar name={c.name} className="size-7 text-[10px]" />,
-        href: `/contacts?contact=${encodeURIComponent(c.id)}`,
-        run: () => go(`/contacts?contact=${encodeURIComponent(c.id)}`),
+        href: addressOf('/contacts', wordOf(c.id, c.name, 'contact')),
+        run: () => go(addressOf('/contacts', wordOf(c.id, c.name, 'contact'))),
         preview: { kind: 'contact', contact: c },
         found: true,
       })
@@ -577,8 +578,8 @@ function Palette({ seed, onClose }: { readonly seed: string; readonly onClose: (
         subtitle: status,
         keywords: body.slice(0, 400),
         icon: <IconBox icon={FileText} />,
-        href: `/connaissance?article=${encodeURIComponent(article.id)}`,
-        run: () => go(`/connaissance?article=${encodeURIComponent(article.id)}`),
+        href: addressOf('/connaissance', wordOf(article.id, title, 'article')),
+        run: () => go(addressOf('/connaissance', wordOf(article.id, title, 'article'))),
         preview: { kind: 'text', text: body.replace(/[#*_`>]/g, '').slice(0, 600) },
       })
     }

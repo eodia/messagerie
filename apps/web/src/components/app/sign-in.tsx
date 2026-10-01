@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label'
 import { SignInFailure, type SsoProvider, ssoProviders } from '@/lib/basedb-session'
 import { $t } from '@/lib/i18n'
 import { useSession } from '@/lib/store/session'
+import { useTitle } from '@/lib/title'
 import { cn } from '@/lib/utils'
 import { Check, ChevronDown, KeyRound, Loader2 } from 'lucide-react'
 import { type FormEvent, useEffect, useState } from 'react'
@@ -60,6 +61,7 @@ type Refusal = { readonly failure: SignInFailure; readonly attempt: number }
 
 export function SignInScreen({ basedbUrl }: { readonly basedbUrl: string }) {
   const status = useSession((s) => s.status)
+  useTitle([status === 'must-change' ? $t('Nouveau mot de passe') : $t('Connexion')])
   return status === 'must-change' ? <ChoosePassword /> : <SignIn basedbUrl={basedbUrl} />
 }
 

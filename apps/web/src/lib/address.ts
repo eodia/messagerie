@@ -5,11 +5,15 @@ import type { InboxItem } from '@chat/contracts'
  * in French, the screen's state and nothing else.
  *
  *   /conversations/<boîte>[/<conversation>][?filtre=ia|ouvertes|en-file|resolues]
+ *   /contacts[/<contact>]
+ *   /connaissance[/<article>]
+ *   /parametrage/<groupe>[/<onglet>][/<ligne>|/nouveau]    /outils[/<outil>]
+ *   /widget[/<site>]
  *
  * `<boîte>` is the inbox's name made a word (`service-client`), `toutes` for all of them.
- * `<conversation>` is its contact's name and the end of its id (`lea-martin-9f0c3b2a71de`):
- * the id finds it, the name only reads well — a visitor who gave their name since still
- * reaches it, and the address is then written again with the new one.
+ * A thing chosen in a list is its name and the end of its id (`lea-martin-9f0c3b2a71de`):
+ * the id finds it, the name only reads well — renamed since, it is still reached, and the
+ * address is then written again with its new name.
  */
 
 /** A text as an address says it: lower case, without accents, words joined by dashes. */
@@ -48,17 +52,47 @@ export function inboxWord(inbox: InboxItem, inboxes: readonly InboxItem[]): stri
 export const inboxOfWord = (word: string, inboxes: readonly InboxItem[]): InboxItem | null =>
   inboxes.find((inbox) => inboxWord(inbox, inboxes) === word) ?? null
 
-/** A conversation's word: who it is with, then the end of its id. */
-export const conversationWord = (id: string, name: string): string =>
-  `${slugOf(name, 40) || 'conversation'}-${compact(id).slice(-TAIL)}`
+/** A thing's word: its name, then the end of its id. */
+export const wordOf = (id: string, name: string, fallback: string): string =>
+  `${slugOf(name, 40) || fallback}-${compact(id).slice(-TAIL)}`
 
-/** The conversation a word names, among those the reader sees — `null` if none. */
-export function conversationOfWord(word: string, ids: Iterable<string>): string | null {
-  const tail = /([0-9a-f]{12})$/i.exec(word)?.[1]?.toLowerCase()
+/** The end of the id a word carries — `null` if it carries none. */
+export const tailOf = (word: string): string | null =>
+  /([0-9a-f]{12})$/i.exec(word)?.[1]?.toLowerCase() ?? null
+
+/** The thing a word names, among those known — `null` if none. */
+export function idOfWord(word: string, ids: Iterable<string>): string | null {
+  const tail = tailOf(word)
   if (!tail) return null
   for (const id of ids) if (compact(id).endsWith(tail)) return id
   return null
 }
+
+/** A conversation's word: who it is with, then the end of its id. */
+export const conversationWord = (id: string, name: string): string =>
+  wordOf(id, name, 'conversation')
+
+/** The conversation a word names, among those the reader sees — `null` if none. */
+export const conversationOfWord = idOfWord
+
+/** A row not saved yet, in a settings screen's address. */
+export const NEW_WORD = 'nouveau'
+
+/**
+ * The words of the address after `base` — `[]` on `base` itself, `null` on another screen.
+ */
+export function wordsAfter(base: string, pathname = window.location.pathname): string[] | null {
+  if (pathname !== base && !pathname.startsWith(`${base}/`)) return null
+  try {
+    return pathname.slice(base.length).split('/').filter(Boolean).map(decodeURIComponent)
+  } catch {
+    return null
+  }
+}
+
+/** `base`, then the words given, each made safe for an address. */
+export const addressOf = (base: string, ...words: readonly (string | null)[]): string =>
+  [base, ...words.filter((w): w is string => w !== null).map(encodeURIComponent)].join('/')
 
 export type ListFilter = 'all' | 'ai' | 'open' | 'unassigned' | 'resolved'
 

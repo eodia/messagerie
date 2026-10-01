@@ -16,6 +16,7 @@ import { inboxAddress, useInbox } from '@/lib/store/inbox'
 import { usePalette } from '@/lib/store/palette'
 import { usePanels } from '@/lib/store/panels'
 import { useSession } from '@/lib/store/session'
+import { useTitle } from '@/lib/title'
 import { useAddressBar } from '@/lib/use-address-bar'
 import {
   CircleCheck,
@@ -64,6 +65,10 @@ export function Inbox() {
   useLayoutEffect(() => followAddress(), [])
   const address = useInbox((s) => (s.loading || s.arriving ? null : inboxAddress(s)))
   useAddressBar(address, async () => followAddress())
+  useTitle([
+    selectedId ? (summary?.contact.name ?? detail?.contact.name) : null,
+    inboxName ?? $t('Conversations'),
+  ])
 
   const header = (
     <ScreenHeader

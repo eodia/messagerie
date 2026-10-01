@@ -5,6 +5,7 @@ import { ContactAvatar } from '@/components/inbox/labels'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { $t } from '@/lib/i18n'
+import { useAddressTab } from '@/lib/use-address-tab'
 import { cn } from '@/lib/utils'
 import { MessageSquareText, Sparkles, Tag } from 'lucide-react'
 import { useRef, useState } from 'react'
@@ -38,7 +39,10 @@ const shortcutOf = (raw: string) =>
 
 export function RepliesScreen() {
   const data = useSettingsData(['reponses_types', 'etiquettes', 'equipes'])
-  const [tab, setTab] = useState<Tab>('replies')
+  const [tab, setTab, tabBase] = useAddressTab<Tab>('/parametrage/reponses', {
+    replies: null,
+    tags: 'etiquettes',
+  })
   const replies = useRowEditor(data, 'reponses_types')
   const tags = useRowEditor(data, 'etiquettes', { defaults: { Couleur: '#2563EB' } })
   const content = useRef<HTMLTextAreaElement>(null)
@@ -61,6 +65,7 @@ export function RepliesScreen() {
   if (tab === 'tags') {
     return (
       <Studio
+        base={tabBase}
         section={$t('Réponses types')}
         data={data}
         editor={tags}
@@ -139,6 +144,7 @@ export function RepliesScreen() {
 
   return (
     <Studio
+      base={tabBase}
       section={$t('Réponses types')}
       data={data}
       editor={replies}

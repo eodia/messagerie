@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { Textarea } from '@/components/ui/textarea'
 import { $t, $tp, intlLocale, msg } from '@/lib/i18n'
+import { useAddressTab } from '@/lib/use-address-tab'
 import { cn } from '@/lib/utils'
 import { ArrowUpRight, CalendarOff, Clock, Globe, Palette, Sparkles } from 'lucide-react'
 import Link from 'next/link'
@@ -86,7 +87,11 @@ const dateLabel = (iso: string) =>
 
 export function SitesScreen() {
   const data = useSettingsData(['sites', 'horaires', 'fermetures', 'boites', 'equipes'])
-  const [tab, setTab] = useState<Tab>('sites')
+  const [tab, setTab, tabBase] = useAddressTab<Tab>('/parametrage/sites', {
+    sites: null,
+    hours: 'horaires',
+    closures: 'fermetures',
+  })
   const sites = useRowEditor(data, 'sites', {
     defaults: {
       Langue: 'Français',
@@ -124,6 +129,7 @@ export function SitesScreen() {
   if (tab === 'hours') {
     return (
       <Studio
+        base={tabBase}
         section={section}
         data={data}
         editor={hours}
@@ -265,6 +271,7 @@ export function SitesScreen() {
   if (tab === 'closures') {
     return (
       <Studio
+        base={tabBase}
         section={section}
         data={data}
         editor={closures}
@@ -404,6 +411,7 @@ export function SitesScreen() {
 
   return (
     <Studio
+      base={tabBase}
       section={section}
       data={data}
       editor={sites}

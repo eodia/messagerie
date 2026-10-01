@@ -30,6 +30,7 @@ import { Access, canSee, inboxDirectory } from './inbox/access.js'
 import { followRole, inviteAgent, resetAgentPassword } from './inbox/accounts.js'
 import {
   cannedReplies,
+  contactByTail,
   contactDetail,
   knowledge,
   listContacts,
@@ -320,9 +321,13 @@ export function createApp({
 
   inbox.get('/contacts', async (c) => c.json(await listContacts(db, c.req.query('q') ?? '')))
 
+  // By its id, or by the word the inbox's address names it with: its name, then the end
+  // of its id.
   inbox.get('/contacts/:id', async (c) => {
-    const id = c.req.param('id')
-    if (!UUID.test(id)) throw new Refusal('CONTACT_NOT_FOUND', 404)
+    const asked = c.req.param('id')
+    const tail = /(?:^|-)([0-9a-f]{12})$/i.exec(asked)?.[1]
+    const id = UUID.test(asked) ? asked : tail ? await contactByTail(db, tail) : null
+    if (id === null) throw new Refusal('CONTACT_NOT_FOUND', 404)
     return c.json(await contactDetail(db, id))
   })
 

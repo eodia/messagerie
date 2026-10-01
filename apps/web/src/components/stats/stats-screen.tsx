@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import { $t, $tp, formatCount, intlLocale, msg } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
+import { useTitle } from '@/lib/title'
 import { cn } from '@/lib/utils'
 import type { InboxStats } from '@chat/contracts'
 import { ExternalLink, LoaderCircle, RefreshCw, Table2 } from 'lucide-react'
@@ -56,6 +57,7 @@ function duration(seconds: number | null): string {
 
 export function StatsScreen() {
   const basedbUrl = useBasedbUrl()
+  useTitle([$t('Statistiques')])
   const [stats, setStats] = useState<InboxStats | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)

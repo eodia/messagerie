@@ -11,6 +11,7 @@ import {
   messages,
   notifications,
 } from '../../src/db/schema.js'
+import { contactByTail } from '../../src/inbox/extras.js'
 import { handOff, receiveVisitorMessage } from '../../src/inbox/incoming.js'
 import { listNotifications } from '../../src/inbox/notifications.js'
 import {
@@ -154,6 +155,20 @@ describe('feedback', () => {
     const refused = await setFeedback(db, agent, id, questionId, 'accepted').catch((e) => e)
     expect(refused).toBeInstanceOf(Refusal)
     expect(refused.code).toBe('NOT_AN_AI_ANSWER')
+  })
+})
+
+describe('contact addresses', () => {
+  it('find a contact by the end of its id, whatever the name before it', async () => {
+    const [contact] = await db
+      .insert(contacts)
+      .values({ siteId: 'site', name: 'Léa Martin' })
+      .returning()
+    const id = contact?.id ?? ''
+    const tail = id.replace(/-/g, '').slice(-12)
+    expect(await contactByTail(db, tail)).toBe(id)
+    expect(await contactByTail(db, tail.toUpperCase())).toBe(id)
+    expect(await contactByTail(db, '000000000000')).toBeNull()
   })
 })
 

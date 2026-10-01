@@ -10,6 +10,9 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { usesBasedb } from '@/lib/basedb-session'
@@ -19,14 +22,23 @@ import { useInbox } from '@/lib/store/inbox'
 import { useSession } from '@/lib/store/session'
 import { type ThemePreference, useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
-import { BellRing, ChevronsUpDown, Database, LogOut, Volume2 } from 'lucide-react'
+import {
+  BellRing,
+  ChevronsUpDown,
+  Database,
+  LogOut,
+  Monitor,
+  Moon,
+  Sun,
+  Volume2,
+} from 'lucide-react'
 import { useState } from 'react'
 
 type Presence = 'available' | 'away'
 
 /**
  * Who is signed in — with a basedb account (D4) — whether they take new conversations,
- * and the theme. Opens upwards, as basedb's does.
+ * and the theme, in a submenu as basedb's. Opens upwards, as basedb's does.
  */
 export function UserMenu({
   collapsed,
@@ -111,16 +123,31 @@ export function UserMenu({
             : $t('Notifications du bureau')}
         </DropdownMenuCheckboxItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel>{$t('Thème')}</DropdownMenuLabel>
-        <DropdownMenuRadioGroup
-          value={preference}
-          onValueChange={(value) => setPreference(value as ThemePreference)}
-        >
-          <DropdownMenuRadioItem value="system">{$t('Suivre le système')}</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="light">{$t('Clair')}</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="dark">{$t('Sombre')}</DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
-        <DropdownMenuSeparator />
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            {preference === 'system' ? <Monitor /> : preference === 'dark' ? <Moon /> : <Sun />}
+            {$t('Apparence')}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-48">
+            <DropdownMenuRadioGroup
+              value={preference}
+              onValueChange={(value) => setPreference(value as ThemePreference)}
+            >
+              <DropdownMenuRadioItem value="system">
+                <Monitor />
+                {$t('Suivre le système')}
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="light">
+                <Sun />
+                {$t('Clair')}
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="dark">
+                <Moon />
+                {$t('Sombre')}
+              </DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         <DropdownMenuItem asChild>
           <a href={basedbUrl} target="_blank" rel="noreferrer">
             <Database />
@@ -128,10 +155,13 @@ export function UserMenu({
           </a>
         </DropdownMenuItem>
         {usesBasedb() && (
-          <DropdownMenuItem onSelect={() => void useSession.getState().signOut()}>
-            <LogOut />
-            {$t('Se déconnecter')}
-          </DropdownMenuItem>
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => void useSession.getState().signOut()}>
+              <LogOut />
+              {$t('Se déconnecter')}
+            </DropdownMenuItem>
+          </>
         )}
       </DropdownMenuContent>
     </DropdownMenu>

@@ -27,6 +27,7 @@ export function GuardrailsScreen() {
 
   return (
     <Studio
+      base="/parametrage/garde-fous"
       section={$t('Garde-fous')}
       data={data}
       editor={editor}

@@ -73,7 +73,8 @@ export function useRowEditor(
 
   // The first row, once there are rows and none is chosen.
   useEffect(() => {
-    if (selectedId === null && saved[0]) setSelectedId(saved[0].id)
+    const first = saved[0]?.id
+    if (selectedId === null && first) setSelectedId((chosen) => chosen ?? first)
   }, [selectedId, saved])
 
   const original = useCallback(

@@ -5,8 +5,11 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Hint } from '@/components/ui/tooltip'
+import { NEW_WORD, addressOf, idOfWord, tailOf, wordOf, wordsAfter } from '@/lib/address'
 import { $t } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
+import { useTitle } from '@/lib/title'
+import { useAddressBar } from '@/lib/use-address-bar'
 import { cn } from '@/lib/utils'
 import type { SettingsRow } from '@chat/contracts'
 import { Check, LoaderCircle, Plus, Search, Trash2 } from 'lucide-react'
@@ -32,6 +35,7 @@ export interface Nouns {
 }
 
 export function Studio({
+  base,
   section,
   data,
   editor,
@@ -48,6 +52,8 @@ export function Studio({
   tools,
   canDelete = true,
 }: {
+  /** The screen's address — the tab's, when it has tabs: the row open is written after it. */
+  readonly base?: string
   readonly section: string
   readonly data: SettingsData
   readonly editor: RowEditor
@@ -73,16 +79,41 @@ export function Studio({
   const [confirming, setConfirming] = useState(false)
   const activeId = useId()
 
-  // Reached from the palette with ?nouveau: a new row, once the table is read.
-  const startedNew = useRef(false)
+  // The address: the row open, `/nouveau` for one not saved yet — and the row an address
+  // names, once the table is read. `?nouveau` starts one (the palette's « Nouvelle … »).
+  const [arrived, setArrived] = useState(base === undefined)
+  const shownRow = editor.rows.find((r) => r.id === selectedId && r.id !== NEW)
+  const address =
+    base === undefined || !arrived || !table
+      ? null
+      : selectedId === NEW
+        ? addressOf(base, NEW_WORD)
+        : shownRow
+          ? addressOf(base, wordOf(shownRow.id, nameOf(table, shownRow.values), 'ligne'))
+          : base
+  const follow = () => {
+    if (base === undefined) return
+    const word = wordsAfter(base)?.[0]
+    if (word === NEW_WORD || new URLSearchParams(window.location.search).has('nouveau')) {
+      if (canEdit) editor.create()
+      return
+    }
+    if (word === undefined) return
+    const id = idOfWord(
+      word,
+      editor.rows.map((r) => r.id),
+    )
+    if (id) editor.select(id)
+    // A word without an id is another tab's, not a row gone.
+    else if (tailOf(word)) data.setError('ROW_NOT_FOUND')
+  }
+  useAddressBar(address, async () => follow())
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once, when the table is read
   useEffect(() => {
-    if (startedNew.current || !table || !canEdit) return
-    startedNew.current = true
-    const params = new URLSearchParams(window.location.search)
-    if (!params.has('nouveau')) return
-    editor.create()
-    window.history.replaceState(null, '', window.location.pathname)
-  }, [table, canEdit, editor])
+    if (arrived || !table) return
+    follow()
+    setArrived(true)
+  }, [arrived, table])
 
   // Ctrl+S saves, as in a document.
   useEffect(() => {
@@ -131,6 +162,7 @@ export function Studio({
       (searchOf?.(row.values) ?? nameOf(table, row.values)).toLowerCase().includes(folded),
   )
   const name = values ? nameOf(table, values) : ''
+  useTitle([name || (selectedId === NEW ? nouns.fresh : null), section])
 
   return (
     <>

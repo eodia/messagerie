@@ -4,15 +4,25 @@ import { Chip } from '@/components/app/chip'
 import { EmptyState } from '@/components/app/empty-state'
 import { ScreenHeader } from '@/components/app/screen-header'
 import { ContactAvatar, StatusChip } from '@/components/inbox/labels'
+import { addressOf, wordOf, wordsAfter } from '@/lib/address'
 import { api } from '@/lib/api'
 import { $t, $tp } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
 import { useInbox } from '@/lib/store/inbox'
 import { dayLabel, inboxTime } from '@/lib/time'
+import { useTitle } from '@/lib/title'
+import { useAddressBar } from '@/lib/use-address-bar'
 import { cn } from '@/lib/utils'
 import type { ContactDetail, ContactListItem } from '@chat/contracts'
 import { LoaderCircle, Search, ShieldCheck, UsersRound } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+
+const BASE = '/contacts'
+
+/** The contact the address names — its word, or an id as the palette once wrote it. */
+function contactInAddress(): string | null {
+  return wordsAfter(BASE)?.[0] ?? new URLSearchParams(window.location.search).get('contact') ?? null
+}
 
 /**
  * The visitors, anonymous then signed in by their site: who they are, what the site says
@@ -22,14 +32,22 @@ export function ContactsScreen() {
   const now = useInbox((s) => s.now)
   const [query, setQuery] = useState('')
   const [contacts, setContacts] = useState<ContactListItem[] | null>(null)
-  // Reached from the palette with ?contact=<id>: that contact, open.
+  // The contact the address names, open: its id, or its word until the server answers.
   const [selected, setSelected] = useState<string | null>(() =>
-    typeof window === 'undefined'
-      ? null
-      : new URLSearchParams(window.location.search).get('contact'),
+    typeof window === 'undefined' ? null : contactInAddress(),
   )
   const [detail, setDetail] = useState<ContactDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const shownId = useRef<string | null>(null)
+
+  const address =
+    selected === null
+      ? BASE
+      : detail?.contact.id === selected
+        ? addressOf(BASE, wordOf(selected, detail.contact.name, 'contact'))
+        : null
+  useAddressBar(address, async () => setSelected(contactInAddress()))
+  useTitle([selected !== null ? detail?.contact.name : null, $t('Contacts')])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -45,12 +63,26 @@ export function ContactsScreen() {
   }, [query])
 
   useEffect(() => {
-    if (selected === null) return
+    if (selected === null || shownId.current === selected) return
+    let stale = false
     setDetail(null)
     api
       .contact(selected)
-      .then(setDetail)
-      .catch((failure: { code?: string }) => setError(failure.code ?? 'INTERNAL_ERROR'))
+      .then((found) => {
+        if (stale) return
+        // Named by its word: from now on, by its id.
+        shownId.current = found.contact.id
+        setDetail(found)
+        setSelected(found.contact.id)
+      })
+      .catch((failure: { code?: string }) => {
+        if (stale) return
+        setError(failure.code ?? 'INTERNAL_ERROR')
+        setSelected(null)
+      })
+    return () => {
+      stale = true
+    }
   }, [selected])
 
   return (

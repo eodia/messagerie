@@ -396,6 +396,35 @@ le système les dessine.
 - **L'agent IA sait qu'un fichier a été joint** : son contexte nomme chaque pièce, avec ce
   qu'en a dit l'analyse quand elle existe.
 
+## D15 — L'adresse dit où l'on est
+
+Comme dans basedb, l'adresse suit l'écran et l'écran suit l'adresse, en mots lisibles et
+en français (`apps/web/src/lib/address.ts`) :
+
+- `/conversations/<boîte>/<conversation>?filtre=ia`, `toutes` pour toutes les boîtes ;
+- `/contacts/<contact>`, `/connaissance/<article>`, `/widget/<site>` ;
+- `/parametrage/<groupe>/<onglet>/<ligne>`, `/nouveau` pour une ligne pas encore créée,
+  et `/outils/<outil>`.
+
+Un élément choisi dans une liste s'écrit par son nom, puis la fin de son identifiant
+(`lea-martin-a9ce42ba3084`, douze chiffres hexadécimaux). L'identifiant le retrouve, le nom
+ne sert qu'à lire : un visiteur qui a donné son nom depuis est toujours trouvé, et
+l'adresse est réécrite avec le nouveau. Les conversations, les articles et les lignes de
+paramétrage sont trouvés parmi ceux que l'écran a lus. Un contact est trouvé par le
+serveur (`GET /contacts/<mot>`), car l'écran ne les lit pas tous.
+
+L'historique est celui de basedb (`useAddressBar`) :
+
+- un clic ou une touche ouvre une entrée ;
+- ce que l'écran choisit de lui-même la remplace (la première conversation, un nom remis
+  à jour) ;
+- un élément renommé reste la même entrée ;
+- précédent et suivant sont suivis après que tous les écouteurs les ont entendus, Next
+  compris.
+
+Le titre de l'onglet suit de même, le plus précis d'abord : « (3) Léa Martin — Service
+client · Messagerie ».
+
 ---
 
 ## Ce que le chat attend de basedb

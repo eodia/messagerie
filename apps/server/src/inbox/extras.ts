@@ -31,6 +31,19 @@ export async function cannedReplies(settings: Settings | null): Promise<CannedRe
 
 // ── Contacts ──────────────────────────────────────────────────────────────────────────
 
+/**
+ * The contact whose id ends with `tail` — twelve hex digits, what the inbox's address names
+ * a contact by (`/contacts/lea-martin-9f0c3b2a71de`). `null` if none, or if two share it.
+ */
+export async function contactByTail(db: Db, tail: string): Promise<string | null> {
+  const rows = await db
+    .select({ id: contacts.id })
+    .from(contacts)
+    .where(sql`right(replace(${contacts.id}::text, '-', ''), 12) = ${tail.toLowerCase()}`)
+    .limit(2)
+  return rows.length === 1 ? (rows[0]?.id ?? null) : null
+}
+
 export async function listContacts(db: Db, query: string): Promise<ContactListItem[]> {
   const needle = query.trim()
   const rows = await db
