@@ -3,6 +3,7 @@ import type { Db } from '../db/client.js'
 import { agents, aiRuns, conversations, messages } from '../db/schema.js'
 import { signalChange } from '../realtime/signals.js'
 import { Refusal } from '../refusal.js'
+import type { Access } from './access.js'
 import { activeAgentIds, notify } from './notifications.js'
 
 /**
@@ -18,8 +19,9 @@ async function lock(tx: Db, id: string) {
 }
 
 /**
- * A new conversation for a visitor: the AI answers first when the site says so, and the
- * site's default team takes what it hands over.
+ * A new conversation for a visitor: the AI answers first when the site says so; it
+ * arrives in the site's inbox, whose default team — or the site's — takes what the AI
+ * hands over.
  */
 export async function createConversation(
   db: Db,
@@ -30,6 +32,7 @@ export async function createConversation(
     readonly aiEnabled: boolean
     readonly defaultTeamId: string | null
   },
+  route: { readonly inboxId: string | null; readonly teamId: string | null } | null = null,
 ): Promise<string> {
   const [row] = await db
     .insert(conversations)
@@ -38,7 +41,8 @@ export async function createConversation(
       siteId: site.id,
       siteName: site.name,
       status: site.aiEnabled ? 'ai' : 'open',
-      teamId: site.defaultTeamId,
+      inboxId: route?.inboxId ?? null,
+      teamId: route ? route.teamId : site.defaultTeamId,
     })
     .returning({ id: conversations.id })
   if (!row) throw new Refusal('INTERNAL_ERROR', 500)
@@ -87,15 +91,25 @@ export interface Handoff {
   /** The agent it goes to; `null` leaves it to the team, and every agent is told. */
   readonly assigneeId: string | null
   readonly team: string
+  /** The team it goes to, when known: the conversation is now theirs. */
+  readonly teamId?: string | null
   readonly model: string
   /** The trace of the decision to hand over, when the AI already recorded it. */
   readonly runId?: string
 }
 
-/** The AI hands the conversation over, with what the agent needs to pick it up. */
-export async function handOff(db: Db, id: string, handoff: Handoff): Promise<void> {
+/**
+ * The AI hands the conversation over, with what the agent needs to pick it up. Left to the
+ * team, it rings for those who answer in its inbox (`access`) — or for every agent.
+ */
+export async function handOff(
+  db: Db,
+  id: string,
+  handoff: Handoff,
+  access: Access | null = null,
+): Promise<void> {
   await db.transaction(async (tx) => {
-    await lock(tx, id)
+    const row = await lock(tx, id)
     const [assignee] = handoff.assigneeId
       ? await tx.select().from(agents).where(eq(agents.id, handoff.assigneeId))
       : []
@@ -137,6 +151,7 @@ export async function handOff(db: Db, id: string, handoff: Handoff): Promise<voi
       .set({
         status: 'open',
         assigneeId: assignee?.id ?? null,
+        ...(handoff.teamId ? { teamId: handoff.teamId } : {}),
         summary: handoff.summary,
         agentUnread: true,
         updatedAt: at,
@@ -144,7 +159,11 @@ export async function handOff(db: Db, id: string, handoff: Handoff): Promise<voi
       .where(eq(conversations.id, id))
     const told = await notify(
       tx,
-      assignee ? [assignee.id] : await activeAgentIds(tx),
+      assignee
+        ? [assignee.id]
+        : access
+          ? await access.audience(tx, row.inboxId, handoff.teamId ?? row.teamId)
+          : await activeAgentIds(tx),
       id,
       'handoff',
     )

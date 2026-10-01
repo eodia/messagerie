@@ -1,4 +1,4 @@
-import type { ContactAttribute, ConversationEvent, Source } from '@chat/contracts'
+import type { ContactAttribute, ConversationEvent, Metadata, Source } from '@chat/contracts'
 import { sql } from 'drizzle-orm'
 import {
   boolean,
@@ -49,7 +49,12 @@ export const aiRunKind = chat.enum('ai_run_kind', [
 export const feedbackAction = chat.enum('feedback_action', ['accepted', 'edited', 'rejected'])
 export const tagOrigin = chat.enum('tag_origin', ['agent', 'ai'])
 export const chunkSource = chat.enum('chunk_source', ['article', 'conversation'])
-export const alertKind = chat.enum('alert_kind', ['visitor_message', 'handoff', 'assigned'])
+export const alertKind = chat.enum('alert_kind', [
+  'visitor_message',
+  'handoff',
+  'assigned',
+  'transferred',
+])
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 const updatedAt = () => timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
@@ -84,6 +89,12 @@ export const contacts = chat.table(
     location: text('location'),
     segment: text('segment'),
     attributes: jsonb('attributes').$type<ContactAttribute[]>().notNull().default([]),
+    phone: text('phone'),
+    /**
+     * What the page or an agent said of the contact (`MessagerieChat.setContactData`, the
+     * details panel) — never checked, unlike `attributes`, which the site signed.
+     */
+    data: jsonb('data').$type<Metadata>().notNull().default({}),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -102,7 +113,11 @@ export const conversations = chat.table(
     siteName: text('site_name').notNull(),
     status: conversationStatus('status').notNull().default('ai'),
     assigneeId: uuid('assignee_id').references(() => agents.id, { onDelete: 'set null' }),
+    /** « Boîtes de réception »: where it arrived, or was transferred. Null: before inboxes. */
+    inboxId: text('inbox_id'),
     teamId: text('team_id'),
+    /** What the page or an agent attached to it: an order, a page, a cart. */
+    data: jsonb('data').$type<Metadata>().notNull().default({}),
     priority: priority('priority').notNull().default('normal'),
     sentiment: sentiment('sentiment'),
     intent: text('intent'),
@@ -118,6 +133,7 @@ export const conversations = chat.table(
     index('conversation_inbox_idx').on(t.status, t.lastMessageAt.desc()),
     index('conversation_site_idx').on(t.siteId, t.status, t.updatedAt),
     index('conversation_contact_idx').on(t.contactId),
+    index('conversation_box_idx').on(t.inboxId, t.status),
   ],
 )
 

@@ -45,6 +45,25 @@ const source = sourceFor(
 )
 const found = source ? (await new Settings(source).sites()).find((s) => s.active) : undefined
 const SITE = { id: found?.id ?? 'acme', name: found?.name ?? 'Acme Assurances' }
+
+/**
+ * The demonstration's inboxes, by name: a claim goes to « Sinistres », an unhappy customer
+ * to « Réclamations », the rest to « Service client » — with its inbox's default team.
+ */
+const inboxes = source ? await new Settings(source).inboxes() : []
+const inboxNamed = (name: string) => inboxes.find((i) => i.name === name) ?? inboxes[0] ?? null
+function routeOf(demo: {
+  readonly tags: readonly { label: string }[]
+  readonly sentiment: string
+}) {
+  const inbox =
+    demo.sentiment === 'negative'
+      ? inboxNamed('Réclamations')
+      : demo.tags.some((t) => t.label === TAGS.claim.label)
+        ? inboxNamed('Sinistres')
+        : inboxNamed('Service client')
+  return { inboxId: inbox?.id ?? null, teamId: inbox?.defaultTeamId ?? null }
+}
 /** The person running the demonstration: `CHAT_DEV_AGENT`, basedb's administrator once linked. */
 const ME_ACCOUNT = config.devAgent ?? 'dev-marc'
 const MODEL = 'demo'
@@ -447,6 +466,7 @@ await db.transaction(async (tx) => {
         contactId: contact.id,
         siteId: SITE.id,
         siteName: SITE.name,
+        ...routeOf(demo),
         status: demo.status,
         assigneeId: demo.assignee ? idOf(demo.assignee) : null,
         priority: demo.priority,

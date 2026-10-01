@@ -44,6 +44,10 @@ export type ErrorCode =
   | 'TOOL_NOT_FOUND'
   /** basedb refused a change of settings: the person may not edit that table there. */
   | 'SETTINGS_WRITE_REFUSED'
+  /** No such inbox, or an inactive one. */
+  | 'INBOX_NOT_FOUND'
+  /** No such team — or not one of the target inbox's teams. */
+  | 'TEAM_NOT_FOUND'
 
 /** Opens the inbox's WebSocket, once, within thirty seconds. */
 export interface Ticket {

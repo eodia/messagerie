@@ -7,7 +7,7 @@ import type {
   Message,
   PastConversation,
 } from '@chat/contracts'
-import { and, asc, desc, eq, gt, inArray, ne } from 'drizzle-orm'
+import { type SQL, and, asc, desc, eq, gt, inArray, isNull, ne, or } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import type { Db } from '../db/client.js'
 import {
@@ -21,6 +21,7 @@ import {
   messages,
 } from '../db/schema.js'
 import { Refusal } from '../refusal.js'
+import { type Visible, canSee } from './access.js'
 
 /**
  * The inbox's reads: the list, and one conversation with its thread — in the shapes of
@@ -35,10 +36,22 @@ export function toAgent(row: AgentRow): Agent {
 
 const PREVIEW_AUTHOR = { contact: 'visitor', agent: 'agent', ai: 'ai', system: null } as const
 
-/** The rows of the list — all of them, or those of `ids`, the newest first. */
+/** Only the conversations of the inboxes one sees — and those of no inbox. */
+function inVisible(visible: Visible): SQL | undefined {
+  if (visible === null) return undefined
+  return visible.size === 0
+    ? isNull(conversations.inboxId)
+    : or(isNull(conversations.inboxId), inArray(conversations.inboxId, [...visible]))
+}
+
+/**
+ * The rows of the list — all of them, or those of `ids` — of the inboxes one sees, the
+ * newest first.
+ */
 export async function loadSummaries(
   db: Db,
   ids?: readonly string[],
+  visible: Visible = null,
 ): Promise<ConversationSummary[]> {
   if (ids !== undefined && ids.length === 0) return []
   const rows = await db
@@ -55,7 +68,7 @@ export async function loadSummaries(
     .from(conversations)
     .innerJoin(contacts, eq(contacts.id, conversations.contactId))
     .leftJoin(agents, eq(agents.id, conversations.assigneeId))
-    .where(ids ? inArray(conversations.id, [...ids]) : undefined)
+    .where(and(ids ? inArray(conversations.id, [...ids]) : undefined, inVisible(visible)))
     .orderBy(desc(conversations.lastMessageAt))
   if (rows.length === 0) return []
 
@@ -86,6 +99,8 @@ export async function loadSummaries(
       id: conversation.id,
       contact,
       site: conversation.siteName,
+      inboxId: conversation.inboxId,
+      teamId: conversation.teamId,
       status: conversation.status,
       assignee,
       assigneeId: conversation.assigneeId,
@@ -107,6 +122,7 @@ export async function loadConversation(
   db: Db,
   id: string,
   viewer: AgentRow,
+  visible: Visible = null,
 ): Promise<Conversation> {
   const [row] = await db
     .select({ conversation: conversations, contact: contacts, assignee: agents.name })
@@ -114,7 +130,10 @@ export async function loadConversation(
     .innerJoin(contacts, eq(contacts.id, conversations.contactId))
     .leftJoin(agents, eq(agents.id, conversations.assigneeId))
     .where(eq(conversations.id, id))
-  if (!row) throw new Refusal('CONVERSATION_NOT_FOUND', 404)
+  // Another inbox's conversation is, for this agent, one that does not exist.
+  if (!row || !canSee(visible, row.conversation.inboxId)) {
+    throw new Refusal('CONVERSATION_NOT_FOUND', 404)
+  }
   const { conversation, contact } = row
 
   const author = alias(agents, 'author')
@@ -145,6 +164,9 @@ export async function loadConversation(
     id: conversation.id,
     contact: toContact(contact),
     site: conversation.siteName,
+    inboxId: conversation.inboxId,
+    teamId: conversation.teamId,
+    data: conversation.data,
     status: conversation.status,
     assignee: row.assignee,
     assigneeId: conversation.assigneeId,
@@ -168,10 +190,12 @@ function toContact(row: typeof contacts.$inferSelect): Contact {
     id: row.id,
     name: row.name,
     email: row.email,
+    phone: row.phone,
     identified: row.identified,
     location: row.location,
     segment: row.segment,
     attributes: row.attributes,
+    data: row.data,
   }
 }
 

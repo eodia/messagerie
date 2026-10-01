@@ -26,6 +26,11 @@ export class InboxHub {
     this.send(event, () => true)
   }
 
+  /** To the sockets of the agents `to` accepts — those who see the conversation's inbox. */
+  sendWhere(event: InboxEvent, to: (agentId: string) => boolean): void {
+    this.send(event, to)
+  }
+
   /** To the sockets of one agent only — a notification is theirs. */
   sendTo(agentId: string, event: InboxEvent): void {
     this.send(event, (owner) => owner === agentId)

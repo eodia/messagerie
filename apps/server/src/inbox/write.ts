@@ -4,6 +4,7 @@ import type {
   ConversationEvent,
   Feedback,
   SendMessageBody,
+  TransferBody,
 } from '@chat/contracts'
 import { and, asc, eq, isNull } from 'drizzle-orm'
 import type { Db } from '../db/client.js'
@@ -17,6 +18,8 @@ import {
 } from '../db/schema.js'
 import { signalChange } from '../realtime/signals.js'
 import { Refusal } from '../refusal.js'
+import type { Settings } from '../settings/settings.js'
+import type { Access } from './access.js'
 import { notify } from './notifications.js'
 import { type AgentRow, loadConversation, toAgent } from './read.js'
 
@@ -264,6 +267,79 @@ export async function assign(
         ? await notify(tx, [assignee.id], id, 'assigned', agent.id)
         : []
     await signalChange(tx, id, told.length > 0 ? { alert: 'assigned', notify: told } : {})
+  })
+  return loadConversation(db, id, agent)
+}
+
+/**
+ * Moves the conversation to another inbox, another team, or both — back to the queue of
+ * whoever answers there: it leaves its assignee, and the AI. The inbox rings for them, and
+ * a note, when given, waits for them in the thread.
+ */
+export async function transfer(
+  db: Db,
+  settings: Settings,
+  access: Access,
+  agent: AgentRow,
+  id: string,
+  body: TransferBody,
+): Promise<Conversation> {
+  const [inboxes, teams] = await Promise.all([settings.inboxes(), settings.teams()])
+  await db.transaction(async (tx) => {
+    const row = await lock(tx, id)
+    const target =
+      body.inboxId === undefined
+        ? (inboxes.find((i) => i.id === row.inboxId) ?? null)
+        : (inboxes.find((i) => i.id === body.inboxId && i.active) ?? null)
+    if (body.inboxId !== undefined && !target) throw new Refusal('INBOX_NOT_FOUND', 404)
+
+    let teamId: string | null
+    if (body.teamId !== undefined) {
+      teamId = body.teamId
+      const serves = !target || target.teamIds.length === 0 || target.teamIds.includes(teamId ?? '')
+      if (teamId !== null && (!teams.some((t) => t.id === teamId) || !serves)) {
+        throw new Refusal('TEAM_NOT_FOUND', 404)
+      }
+    } else {
+      teamId = body.inboxId === undefined ? row.teamId : (target?.defaultTeamId ?? null)
+    }
+    const inboxId = target?.id ?? row.inboxId
+    if (inboxId === row.inboxId && teamId === row.teamId) return
+
+    const at = clock()
+    const team = teams.find((t) => t.id === teamId)
+    const event: ConversationEvent = {
+      type: 'transferred',
+      by: agent.name,
+      ...(inboxId !== row.inboxId && target ? { inbox: target.name } : {}),
+      ...(teamId !== row.teamId && team ? { team: team.name } : {}),
+    }
+    await tx.insert(messages).values(eventRow(id, event, at()))
+    const note = body.note?.trim()
+    if (note) {
+      await tx.insert(messages).values({
+        conversationId: id,
+        author: 'agent',
+        kind: 'note',
+        agentId: agent.id,
+        body: note,
+        createdAt: at(),
+      })
+    }
+    await tx
+      .update(conversations)
+      .set({
+        inboxId,
+        teamId,
+        assigneeId: null,
+        status: row.status === 'resolved' ? 'resolved' : 'open',
+        agentUnread: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(conversations.id, id))
+    const audience = (await access.audience(tx, inboxId, teamId)).filter((a) => a !== agent.id)
+    const told = await notify(tx, audience, id, 'transferred', agent.id)
+    await signalChange(tx, id, told.length > 0 ? { alert: 'transferred', notify: told } : {})
   })
   return loadConversation(db, id, agent)
 }

@@ -13,7 +13,14 @@ import { useInbox } from '@/lib/store/inbox'
 import { inboxTime } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import type { AlertKind, Notification } from '@chat/contracts'
-import { ArrowRightLeft, Bell, type LucideIcon, MessageCircle, UserRoundPlus } from 'lucide-react'
+import {
+  ArrowRightLeft,
+  Bell,
+  Forward,
+  type LucideIcon,
+  MessageCircle,
+  UserRoundPlus,
+} from 'lucide-react'
 
 const KINDS: Record<AlertKind, { readonly icon: LucideIcon; readonly tint: string }> = {
   visitor_message: {
@@ -28,6 +35,10 @@ const KINDS: Record<AlertKind, { readonly icon: LucideIcon; readonly tint: strin
     icon: UserRoundPlus,
     tint: 'bg-violet-500/15 text-violet-800 dark:text-violet-300',
   },
+  transferred: {
+    icon: Forward,
+    tint: 'bg-zinc-500/15 text-zinc-700 dark:text-zinc-300',
+  },
 }
 
 function sentence(notification: Notification): string {
@@ -39,6 +50,11 @@ function sentence(notification: Notification): string {
       return $t('L’IA a transféré la conversation de {name}', { name })
     case 'assigned':
       return $t('{by} vous a confié la conversation de {name}', {
+        by: notification.by ?? '—',
+        name,
+      })
+    case 'transferred':
+      return $t('{by} a transféré à votre équipe la conversation de {name}', {
         by: notification.by ?? '—',
         name,
       })

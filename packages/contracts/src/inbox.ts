@@ -19,16 +19,25 @@ export type Priority = 'low' | 'normal' | 'high' | 'urgent'
 /** What an agent said of an AI answer — the evaluation set is made of these. */
 export type Feedback = 'accepted' | 'edited' | 'rejected'
 
+/** A value attached by the page or an agent: text, a number, yes or no. */
+export type MetadataValue = string | number | boolean
+
+/** Free metadata — `{ "Commande": "A-1042", "Panier (€)": 89.9 }` — never checked. */
+export type Metadata = Readonly<Record<string, MetadataValue>>
+
 export interface Contact {
   readonly id: string
   readonly name: string
   readonly email: string | null
+  readonly phone: string | null
   /** True when the site signed who the visitor is (HMAC or JWT) — never on its word alone. */
   readonly identified: boolean
   readonly location: string | null
   readonly segment: string | null
   /** The attributes the site sent with the signed identity, in its order. */
   readonly attributes: readonly ContactAttribute[]
+  /** What the page or an agent said of the contact — declared, not checked. */
+  readonly data: Metadata
 }
 
 export interface ContactAttribute {
@@ -97,6 +106,16 @@ export type ConversationEvent =
   | { readonly type: 'assigned'; readonly agent: string | null; readonly by: string }
   /** The AI called one of basedb's « Outils IA »; `detail` is what it looked at. */
   | { readonly type: 'tool'; readonly tool: string; readonly detail: string }
+  /**
+   * Moved to another inbox, or another team, by `by` — the names as they were then. A
+   * field left out did not change.
+   */
+  | {
+      readonly type: 'transferred'
+      readonly inbox?: string
+      readonly team?: string
+      readonly by: string
+    }
 
 /** Something that happened, told in one line: a tool called, an agent taking over. */
 export interface EventMessage extends MessageBase {
@@ -132,6 +151,11 @@ export interface Conversation {
   readonly id: string
   readonly contact: Contact
   readonly site: string
+  /** « Boîtes de réception »: null for a conversation from before the inboxes. */
+  readonly inboxId: string | null
+  readonly teamId: string | null
+  /** What the page or an agent attached to the conversation. */
+  readonly data: Metadata
   readonly status: ConversationStatus
   readonly assignee: string | null
   readonly assigneeId: string | null
@@ -161,6 +185,8 @@ export interface ConversationSummary {
   readonly id: string
   readonly contact: Pick<Contact, 'id' | 'name' | 'email' | 'identified'>
   readonly site: string
+  readonly inboxId: string | null
+  readonly teamId: string | null
   readonly status: ConversationStatus
   readonly assignee: string | null
   /** Who has it, to tell « mine » from « someone else's » without comparing names. */
@@ -178,7 +204,7 @@ export interface ConversationSummary {
  * Why a conversation calls for an agent's attention: a visitor wrote, the AI handed it
  * over, or someone gave it to them. What rings, what shows in the bell.
  */
-export type AlertKind = 'visitor_message' | 'handoff' | 'assigned'
+export type AlertKind = 'visitor_message' | 'handoff' | 'assigned' | 'transferred'
 
 /** One entry of an agent's bell. Kept by the server, so that a reload loses none. */
 export interface Notification {
@@ -324,4 +350,42 @@ export interface WidgetEditor {
   readonly persistent: boolean
   /** A supervisor may save. */
   readonly canEdit: boolean
+}
+
+/** A team, as « Équipes » names it. */
+export interface TeamItem {
+  readonly id: string
+  readonly name: string
+}
+
+/** An inbox the agent sees, with the teams that answer there. */
+export interface InboxItem {
+  readonly id: string
+  readonly name: string
+  readonly description: string | null
+  /** `#RRGGBB`, or null. */
+  readonly color: string | null
+  readonly teams: readonly TeamItem[]
+  readonly defaultTeamId: string | null
+}
+
+export interface InboxDirectory {
+  /** The inboxes this agent sees — all of them for a supervisor. */
+  readonly inboxes: readonly InboxItem[]
+  /** Every team: a conversation may go to any team of its inbox. */
+  readonly teams: readonly TeamItem[]
+}
+
+/** Moves a conversation: to another inbox, another team, or both. */
+export interface TransferBody {
+  readonly inboxId?: string
+  /** A team of the target inbox; left out with `inboxId`, that inbox's default team. */
+  readonly teamId?: string | null
+  /** A note to whoever picks it up, kept in the thread among the notes. */
+  readonly note?: string
+}
+
+/** Changes metadata: a key with a value is set, a key with `null` removed. */
+export interface MetadataBody {
+  readonly data: Readonly<Record<string, MetadataValue | null>>
 }

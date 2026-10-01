@@ -13,6 +13,7 @@ import { appearanceOf, colorOf, suggestionsOf, taglineOf, titleOf } from './widg
 
 export const TABLES = {
   sites: 'Sites',
+  inboxes: 'Boîtes de réception',
   hours: "Horaires d'ouverture",
   closures: 'Fermetures exceptionnelles',
   teams: 'Équipes',
@@ -28,7 +29,14 @@ export const TABLES = {
 
 type TableLabel = (typeof TABLES)[keyof typeof TABLES]
 
-const LIVE: readonly TableLabel[] = [TABLES.agents, TABLES.sites, TABLES.articles, TABLES.promoted]
+const LIVE: readonly TableLabel[] = [
+  TABLES.agents,
+  TABLES.sites,
+  TABLES.inboxes,
+  TABLES.teams,
+  TABLES.articles,
+  TABLES.promoted,
+]
 const KEEP_MS = 60_000
 
 // ── The shapes ────────────────────────────────────────────────────────────────────────
@@ -38,6 +46,21 @@ export interface AgentEntry {
   readonly basedbUserId: string
   readonly name: string
   readonly role: 'agent' | 'supervisor'
+  readonly active: boolean
+  /** « Équipes » — which inboxes they see. */
+  readonly teamIds: readonly string[]
+}
+
+/** Where conversations arrive, and the teams that answer there. */
+export interface Inbox {
+  readonly id: string
+  readonly name: string
+  readonly description: string | null
+  /** `#RRGGBB`, or null. */
+  readonly color: string | null
+  readonly teamIds: readonly string[]
+  /** The team a new conversation is given to; null: the site's. */
+  readonly defaultTeamId: string | null
   readonly active: boolean
 }
 
@@ -62,6 +85,8 @@ export interface Site {
   readonly retentionDays: number | null
   readonly active: boolean
   readonly defaultTeamId: string | null
+  /** The inbox its conversations reach; null: the first active one. */
+  readonly inboxId: string | null
 }
 
 export interface OpeningSlot {
@@ -307,6 +332,7 @@ export class Settings {
         name: text(values.Nom) ?? '',
         role: values.Rôle === 'Superviseur' ? 'supervisor' : 'agent',
         active: bool(values.Actif),
+        teamIds: many(values.Équipes),
       }
     }
     return null
@@ -323,6 +349,7 @@ export class Settings {
               name: text(values.Nom) ?? '',
               role: values.Rôle === 'Superviseur' ? ('supervisor' as const) : ('agent' as const),
               active: bool(values.Actif),
+              teamIds: many(values.Équipes),
             },
           ]
         : []
@@ -359,7 +386,30 @@ export class Settings {
       retentionDays: num(values['Conservation (jours)']),
       active: bool(values.Actif),
       defaultTeamId: one(values['Équipe par défaut']),
+      inboxId: one(values['Boîte de réception']),
     }))
+  }
+
+  async inboxes(): Promise<Inbox[]> {
+    return (await this.table(TABLES.inboxes)).map(({ id, values }) => ({
+      id,
+      name: text(values.Nom) ?? id,
+      description: text(values.Description),
+      color: colorOf(values.Couleur),
+      teamIds: many(values.Équipes),
+      defaultTeamId: one(values['Équipe par défaut']),
+      active: bool(values.Actif),
+    }))
+  }
+
+  /**
+   * Where a new conversation of `site` goes: its inbox — or the first active one — and the
+   * team that inbox gives it to, or the site's.
+   */
+  async routeOf(site: Site): Promise<{ inboxId: string | null; teamId: string | null }> {
+    const inboxes = (await this.inboxes()).filter((i) => i.active)
+    const inbox = inboxes.find((i) => i.id === site.inboxId) ?? inboxes[0] ?? null
+    return { inboxId: inbox?.id ?? null, teamId: inbox?.defaultTeamId ?? site.defaultTeamId }
   }
 
   async site(id: string): Promise<Site | null> {

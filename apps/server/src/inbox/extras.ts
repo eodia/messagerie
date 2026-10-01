@@ -88,10 +88,12 @@ export async function contactDetail(db: Db, id: string): Promise<ContactDetail> 
       id: contact.id,
       name: contact.name,
       email: contact.email,
+      phone: contact.phone,
       identified: contact.identified,
       location: contact.location,
       segment: contact.segment,
       attributes: contact.attributes,
+      data: contact.data,
     },
     site: rows[0]?.siteName ?? null,
     conversations: rows.map((c) => ({

@@ -4,6 +4,8 @@
  * team, a tool called, a confidence score or an agent's full name.
  */
 
+import type { MetadataValue } from './inbox.js'
+
 /** A message as the visitor sees it. An answer of the AI always says it is one (framing). */
 export type WidgetMessage =
   | {
@@ -111,6 +113,24 @@ export interface WidgetSession {
 
 export interface WidgetMessageBody {
   readonly body: string
+  /** Metadata the page set for the conversation before it began: attached with it. */
+  readonly data?: Readonly<Record<string, MetadataValue | null>>
+}
+
+/**
+ * What the page says of its visitor (`MessagerieChat.setUser`, `setContactData`). A
+ * customer the site signed keeps the name and e-mail of the signature.
+ */
+export interface WidgetContactBody {
+  readonly name?: string
+  readonly email?: string
+  readonly phone?: string
+  readonly data?: Readonly<Record<string, MetadataValue | null>>
+}
+
+/** `MessagerieChat.setConversationData`: a key with `null` is removed. */
+export interface WidgetConversationBody {
+  readonly data: Readonly<Record<string, MetadataValue | null>>
 }
 
 /** The widget's WebSocket: the conversation changed (read it again), or someone is typing. */

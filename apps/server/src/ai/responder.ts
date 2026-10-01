@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm'
 import type { BasedbClient } from '../basedb/client.js'
 import type { Db } from '../db/client.js'
 import { conversations, messages } from '../db/schema.js'
+import { Access } from '../inbox/access.js'
 import { handOff } from '../inbox/incoming.js'
 import { signalChange, signalTyping } from '../realtime/signals.js'
 import type { Settings } from '../settings/settings.js'
@@ -252,19 +253,32 @@ export async function answerVisitor(deps: AiDeps, conversationId: string): Promi
     guardrail?.message ??
     (decision.action === 'handoff' && answer ? answer : handoffNotice(context))
   await db.insert(messages).values({ conversationId, author: 'ai', body: notice, aiRunId: runId })
+  // A guardrail's team, or the one the conversation's inbox gave it, or the site's.
   const teams = await settings.teams()
-  const team = teams.find((t) => t.id === (guardrail?.teamId ?? context.site.defaultTeamId))
-  await handOff(db, conversationId, {
-    reason: guardrail
-      ? `Garde-fou : ${guardrail.name}`
-      : decision.action === 'handoff'
-        ? (decision.reason ?? 'Transfert demandé')
-        : `Confiance insuffisante (${Math.round(decision.confidence * 100)} % < ${Math.round(threshold * 100)} %)`,
-    summary: context.redactor.unmask(decision.summary ?? context.question),
-    confidence: decision.confidence,
-    assigneeId: null,
-    team: team?.name ?? 'Support',
-    model: last?.model ?? llm.model,
-    runId,
-  })
+  const [current] = await db
+    .select({ teamId: conversations.teamId })
+    .from(conversations)
+    .where(eq(conversations.id, conversationId))
+  const team = teams.find(
+    (t) => t.id === (guardrail?.teamId ?? current?.teamId ?? context.site.defaultTeamId),
+  )
+  await handOff(
+    db,
+    conversationId,
+    {
+      reason: guardrail
+        ? `Garde-fou : ${guardrail.name}`
+        : decision.action === 'handoff'
+          ? (decision.reason ?? 'Transfert demandé')
+          : `Confiance insuffisante (${Math.round(decision.confidence * 100)} % < ${Math.round(threshold * 100)} %)`,
+      summary: context.redactor.unmask(decision.summary ?? context.question),
+      confidence: decision.confidence,
+      assigneeId: null,
+      team: team?.name ?? 'Support',
+      teamId: team?.id ?? null,
+      model: last?.model ?? llm.model,
+      runId,
+    },
+    new Access(settings),
+  )
 }

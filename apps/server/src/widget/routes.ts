@@ -5,12 +5,15 @@ import { type Context, Hono } from 'hono'
 import { cors } from 'hono/cors'
 import type { UpgradeWebSocket } from 'hono/ws'
 import type { TicketBook } from '../auth/tickets.js'
+import { readPatch, readProfile } from '../inbox/metadata.js'
 import { Refusal } from '../refusal.js'
 import { RateLimiter, type WidgetHub } from './hub.js'
 import {
   type WidgetDeps,
   openSession,
   postVisitorMessage,
+  updateVisitorContact,
+  updateVisitorConversation,
   visitorConversation,
   visitorFrom,
 } from './visitor.js'
@@ -56,13 +59,14 @@ export function widgetRoutes(
   // pass; a script does not.
   const sessions = new RateLimiter(30, 60_000)
   const posts = new RateLimiter(20, 60_000)
+  const edits = new RateLimiter(30, 60_000)
 
   widget.use('*', (c, next) =>
     c.req.header('upgrade')?.toLowerCase() === 'websocket'
       ? next()
       : cors({
           origin: (origin) => origin,
-          allowMethods: ['GET', 'POST'],
+          allowMethods: ['GET', 'POST', 'PATCH'],
           allowHeaders: ['content-type', 'authorization'],
           maxAge: 600,
         })(c, next),
@@ -90,9 +94,31 @@ export function widgetRoutes(
   widget.post('/messages', async (c) => {
     const visitor = await visitorFrom(deps, bearer(c), c.req.header('origin'))
     if (!posts.allow(visitor.contactId)) throw new Refusal('RATE_LIMITED', 429)
-    const { body } = (await jsonOf(c)) as Partial<WidgetMessageBody>
+    const { body, data } = (await jsonOf(c)) as Partial<WidgetMessageBody>
     if (typeof body !== 'string') throw new Refusal('INVALID_REQUEST', 400, { field: 'body' })
-    return c.json(await postVisitorMessage(deps, visitor, body))
+    return c.json(
+      await postVisitorMessage(deps, visitor, body, data === undefined ? null : readPatch(data)),
+    )
+  })
+
+  /** `MessagerieChat.setUser` and `setContactData`. */
+  widget.patch('/contact', async (c) => {
+    const visitor = await visitorFrom(deps, bearer(c), c.req.header('origin'))
+    if (!edits.allow(visitor.contactId)) throw new Refusal('RATE_LIMITED', 429)
+    const raw = await jsonOf(c)
+    await updateVisitorContact(deps, visitor, {
+      profile: readProfile(raw),
+      data: raw.data === undefined ? null : readPatch(raw.data),
+    })
+    return c.body(null, 204)
+  })
+
+  /** `MessagerieChat.setConversationData`, once the conversation has begun. */
+  widget.patch('/conversation', async (c) => {
+    const visitor = await visitorFrom(deps, bearer(c), c.req.header('origin'))
+    if (!edits.allow(visitor.contactId)) throw new Refusal('RATE_LIMITED', 429)
+    await updateVisitorConversation(deps, visitor, readPatch((await jsonOf(c)).data))
+    return c.body(null, 204)
   })
 
   widget.post('/ticket', async (c) => {

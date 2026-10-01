@@ -4,6 +4,7 @@ import { createApp, startPings } from './app.js'
 import { TicketBook } from './auth/tickets.js'
 import { boot } from './boot.js'
 import { conversations } from './db/schema.js'
+import { Access } from './inbox/access.js'
 import { loadSummaries } from './inbox/read.js'
 import { InboxHub } from './realtime/hub.js'
 import { listenForChanges } from './realtime/signals.js'
@@ -17,6 +18,7 @@ const { config, db, basedb, settings, settingsKind, ai, mcp, stop: stopBoot } = 
 
 const hub = new InboxHub()
 const widgetHub = new WidgetHub()
+const access = new Access(settings)
 
 /** The visitor whose conversation it is — told only if their widget is open. */
 async function contactOf(conversationId: string): Promise<string | null> {
@@ -47,8 +49,13 @@ const stopListening = listenForChanges(
     }
     // Typing changes nothing the inbox shows.
     if (typing || hub.size === 0) return
+    // Only to those who see its inbox.
     loadSummaries(db, [conversationId])
-      .then(([summary]) => summary && hub.broadcast({ type: 'conversation', summary, alert }))
+      .then(async ([summary]) => {
+        if (!summary) return
+        const audience = new Set(await access.audience(db, summary.inboxId))
+        hub.sendWhere({ type: 'conversation', summary, alert }, (agent) => audience.has(agent))
+      })
       .catch(failed)
   },
   (error) => console.error('chat : écoute des changements', error),

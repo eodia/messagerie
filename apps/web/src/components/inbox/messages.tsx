@@ -23,6 +23,7 @@ import {
   ChevronRight,
   CircleCheck,
   FileText,
+  Forward,
   Hand,
   MessagesSquare,
   Pencil,
@@ -109,6 +110,7 @@ const EVENT_ICONS = {
   resolved: CircleCheck,
   reopened: RotateCcw,
   assigned: UserRoundPlus,
+  transferred: Forward,
 } as const
 
 /** An event, said in the reader's language: the server stores what happened, not words. */
@@ -130,6 +132,24 @@ function eventText(event: ConversationEvent): string {
       return $t('L’IA a utilisé l’outil « {tool} » : {detail}.', {
         tool: event.tool,
         detail: event.detail,
+      })
+    case 'transferred':
+      if (event.inbox && event.team) {
+        return $t('{by} a transféré la conversation dans « {inbox} », à l’équipe {team}.', {
+          by: event.by,
+          inbox: event.inbox,
+          team: event.team,
+        })
+      }
+      if (event.inbox) {
+        return $t('{by} a transféré la conversation dans « {inbox} ».', {
+          by: event.by,
+          inbox: event.inbox,
+        })
+      }
+      return $t('{by} a confié la conversation à l’équipe {team}.', {
+        by: event.by,
+        team: event.team ?? '—',
       })
   }
 }

@@ -9,6 +9,7 @@ import type {
   Ticket,
 } from '@chat/contracts'
 import { createNodeWebSocket } from '@hono/node-ws'
+import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { type Rewording, rephrase } from './ai/copilot.js'
@@ -19,6 +20,8 @@ import type { TicketBook } from './auth/tickets.js'
 import type { BasedbClient } from './basedb/client.js'
 import type { Config } from './config.js'
 import type { Db } from './db/client.js'
+import { conversations } from './db/schema.js'
+import { Access, canSee, inboxDirectory } from './inbox/access.js'
 import {
   cannedReplies,
   contactDetail,
@@ -27,6 +30,7 @@ import {
   promote,
   stats,
 } from './inbox/extras.js'
+import { patchContact, patchConversationData, readPatch } from './inbox/metadata.js'
 import { listNotifications, readNotifications } from './inbox/notifications.js'
 import { loadConversation, loadSummaries, toAgent } from './inbox/read.js'
 import { runInConversation, testTool, toolsOverview } from './inbox/tools-screen.js'
@@ -39,6 +43,7 @@ import {
   sendMessage,
   setFeedback,
   takeOver,
+  transfer,
 } from './inbox/write.js'
 import type { InboxHub } from './realtime/hub.js'
 import { Refusal } from './refusal.js'
@@ -124,7 +129,7 @@ export function createApp({
   // not the middleware's to touch.
   const withCors = cors({
     origin: config.webOrigin,
-    allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     allowHeaders: ['content-type', 'authorization'],
     maxAge: 600,
   })
@@ -164,6 +169,23 @@ export function createApp({
 
   const inbox = new Hono<AgentEnv>()
   inbox.use(agentAuth(db, config, basedb, settings))
+  const access = new Access(settings)
+
+  // An agent reaches the conversations of the inboxes they see; another inbox's
+  // conversation is, for them, one that does not exist.
+  inbox.use('/conversations/:id/*', async (c, next) => {
+    const id = uuidParam(c.req.param('id'))
+    const [row] = await db
+      .select({ inboxId: conversations.inboxId })
+      .from(conversations)
+      .where(eq(conversations.id, id))
+    if (!row || !canSee(await access.visibleTo(c.get('agent')), row.inboxId)) {
+      throw new Refusal('CONVERSATION_NOT_FOUND', 404)
+    }
+    await next()
+  })
+
+  inbox.get('/inboxes', async (c) => c.json(await inboxDirectory(settings, access, c.get('agent'))))
 
   inbox.get('/me', (c) => c.json(toAgent(c.get('agent'))))
 
@@ -264,7 +286,46 @@ export function createApp({
     )
   })
 
-  inbox.get('/conversations', async (c) => c.json(await loadSummaries(db)))
+  inbox.get('/conversations', async (c) =>
+    c.json(await loadSummaries(db, undefined, await access.visibleTo(c.get('agent')))),
+  )
+
+  /** To another inbox, another team, or both. */
+  inbox.post('/conversations/:id/transfer', async (c) => {
+    if (!settings) throw new Refusal('INBOX_NOT_FOUND', 404)
+    const { inboxId, teamId, note } = await jsonBody(c.req.raw)
+    if (
+      (inboxId !== undefined && typeof inboxId !== 'string') ||
+      (teamId !== undefined && teamId !== null && typeof teamId !== 'string') ||
+      (note !== undefined && (typeof note !== 'string' || note.length > 4000)) ||
+      (inboxId === undefined && teamId === undefined)
+    ) {
+      throw new Refusal('INVALID_REQUEST', 400, { expected: '{ inboxId?, teamId?, note? }' })
+    }
+    const id = uuidParam(c.req.param('id'))
+    return c.json(
+      await transfer(db, settings, access, c.get('agent'), id, {
+        ...(inboxId !== undefined ? { inboxId } : {}),
+        ...(teamId !== undefined ? { teamId } : {}),
+        ...(note !== undefined ? { note } : {}),
+      }),
+    )
+  })
+
+  /** The conversation's metadata: a key with a value is set, with `null` removed. */
+  inbox.patch('/conversations/:id/data', async (c) => {
+    const { data } = await jsonBody(c.req.raw)
+    const id = uuidParam(c.req.param('id'))
+    return c.json({ data: await patchConversationData(db, id, readPatch(data)) })
+  })
+
+  inbox.patch('/contacts/:id/data', async (c) => {
+    const id = c.req.param('id')
+    if (!UUID.test(id)) throw new Refusal('CONTACT_NOT_FOUND', 404)
+    const { data } = await jsonBody(c.req.raw)
+    await patchContact(db, id, { data: readPatch(data) })
+    return c.body(null, 204)
+  })
 
   /** Into basedb's « Conversations promues », « À relire ». */
   inbox.post('/conversations/:id/promote', async (c) => {
@@ -279,7 +340,8 @@ export function createApp({
 
   inbox.get('/conversations/:id', async (c) => {
     const id = uuidParam(c.req.param('id'))
-    return c.json(await loadConversation(db, id, c.get('agent')))
+    const agent = c.get('agent')
+    return c.json(await loadConversation(db, id, agent, await access.visibleTo(agent)))
   })
 
   inbox.post('/conversations/:id/read', async (c) => {

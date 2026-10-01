@@ -10,6 +10,12 @@ import type { Config } from '../config.js'
 import type { Db } from '../db/client.js'
 import { agents, contacts, conversations, messages, siteSecrets } from '../db/schema.js'
 import { createConversation, receiveVisitorMessage } from '../inbox/incoming.js'
+import {
+  type MetadataPatch,
+  type Profile,
+  patchContact,
+  patchConversationData,
+} from '../inbox/metadata.js'
 import { Refusal } from '../refusal.js'
 import { availability } from '../settings/hours.js'
 import type { Settings, Site } from '../settings/settings.js'
@@ -227,11 +233,15 @@ export async function visitorConversation(
   }
 }
 
-/** The visitor writes: in their current conversation, or a new one. */
+/**
+ * The visitor writes: in their current conversation, or a new one — with the metadata the
+ * page set for it, attached before the message, so that the AI reads them with it.
+ */
 export async function postVisitorMessage(
   deps: WidgetDeps,
   visitor: VisitorClaims & { site: Site },
   body: string,
+  data: MetadataPatch | null = null,
 ): Promise<VisitorConversation> {
   const text = body.trim()
   if (text === '') throw new Refusal('EMPTY_MESSAGE', 400)
@@ -239,13 +249,39 @@ export async function postVisitorMessage(
   const current = await currentConversation(deps.db, visitor.contactId)
   const id =
     current?.id ??
-    (await createConversation(deps.db, visitor.contactId, {
-      ...visitor.site,
-      aiEnabled: visitor.site.aiEnabled && deps.aiAvailable,
-    }))
+    (await createConversation(
+      deps.db,
+      visitor.contactId,
+      { ...visitor.site, aiEnabled: visitor.site.aiEnabled && deps.aiAvailable },
+      await deps.settings.routeOf(visitor.site),
+    ))
+  if (data && Object.keys(data).length > 0) await patchConversationData(deps.db, id, data)
   await receiveVisitorMessage(deps.db, id, text)
   deps.onVisitorMessage?.(id)
   const conversation = await visitorConversation(deps.db, visitor.contactId)
   if (!conversation) throw new Refusal('INTERNAL_ERROR', 500)
   return conversation
+}
+
+/** What the page says of its visitor: their profile, their metadata. */
+export async function updateVisitorContact(
+  deps: WidgetDeps,
+  visitor: VisitorClaims,
+  change: { readonly profile: Profile; readonly data: MetadataPatch | null },
+): Promise<void> {
+  await patchContact(deps.db, visitor.contactId, {
+    profile: change.profile,
+    ...(change.data ? { data: change.data } : {}),
+  })
+}
+
+/** The metadata of the visitor's current conversation; none yet, nothing to attach to. */
+export async function updateVisitorConversation(
+  deps: WidgetDeps,
+  visitor: VisitorClaims,
+  data: MetadataPatch,
+): Promise<void> {
+  const current = await currentConversation(deps.db, visitor.contactId)
+  if (!current) throw new Refusal('CONVERSATION_NOT_FOUND', 404)
+  await patchConversationData(deps.db, current.id, data)
 }
