@@ -41,6 +41,7 @@ import {
   settingsRows,
   updateRow,
 } from './inbox/settings-screen.js'
+import { addTag, removeTag, tagOptions } from './inbox/tags.js'
 import { runInConversation, testTool, toolsOverview } from './inbox/tools-screen.js'
 import { saveWidget, widgetEditor } from './inbox/widget-editor.js'
 import {
@@ -226,6 +227,19 @@ export function createApp({
     const { table, id } = c.req.param()
     await deleteRow(configured(), c.get('agent'), c.get('basedbToken'), table, id)
     return c.body(null, 204)
+  })
+
+  inbox.get('/tags', async (c) => c.json(await tagOptions(settings)))
+
+  inbox.post('/conversations/:id/tags', async (c) => {
+    const { label } = await jsonBody(c.req.raw)
+    const id = uuidParam(c.req.param('id'))
+    return c.json(await addTag(db, settings, c.get('agent'), id, label))
+  })
+
+  inbox.delete('/conversations/:id/tags/:label', async (c) => {
+    const id = uuidParam(c.req.param('id'))
+    return c.json(await removeTag(db, c.get('agent'), id, c.req.param('label')))
   })
 
   inbox.get('/inboxes', async (c) => c.json(await inboxDirectory(settings, access, c.get('agent'))))

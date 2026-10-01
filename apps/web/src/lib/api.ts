@@ -18,6 +18,7 @@ import type {
   SendMessageBody,
   SettingsOverview,
   SettingsRow,
+  TagOption,
   Ticket,
   ToolTestBody,
   ToolTestResult,
@@ -135,6 +136,11 @@ export const api = {
   knowledge: () => request<KnowledgeItem[]>('GET', '/knowledge'),
   tools: () => request<ToolsOverview>('GET', '/tools'),
   inboxes: () => request<InboxDirectory>('GET', '/inboxes'),
+  tags: () => request<TagOption[]>('GET', '/tags'),
+  addTag: (id: string, label: string) =>
+    request<Conversation>('POST', `${conversation(id)}/tags`, { label }),
+  removeTag: (id: string, label: string) =>
+    request<Conversation>('DELETE', `${conversation(id)}/tags/${encodeURIComponent(label)}`),
   transfer: (id: string, body: TransferBody) =>
     request<Conversation>('POST', `${conversation(id)}/transfer`, body),
   conversationData: (id: string, data: Readonly<Record<string, MetadataValue | null>>) =>

@@ -440,3 +440,12 @@ export interface SettingsOverview {
   /** A supervisor may change the settings. */
   readonly canEdit: boolean
 }
+
+/** A tag « Étiquettes » offers, to put on a conversation. */
+export interface TagOption {
+  readonly name: string
+  /** `#RRGGBB` */
+  readonly color: string
+  /** When to apply it — what the AI reads, and the agent too. */
+  readonly when: string | null
+}

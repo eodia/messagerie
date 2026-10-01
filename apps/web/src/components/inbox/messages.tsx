@@ -1,6 +1,7 @@
 'use client'
 
 import { Chip } from '@/components/app/chip'
+import { CopyButton } from '@/components/app/copy-button'
 import { Button } from '@/components/ui/button'
 import { $t, $tp } from '@/lib/i18n'
 import { clockTime } from '@/lib/time'
@@ -186,7 +187,14 @@ export function HandoffCard({ message }: { readonly message: HandoffMessage }) {
           <dt className="text-muted-foreground">{$t('Motif')}</dt>
           <dd className="font-medium">{message.reason}</dd>
           <dt className="text-muted-foreground">{$t('Résumé de l’IA')}</dt>
-          <dd className="leading-relaxed">{message.summary}</dd>
+          <dd className="group flex items-start gap-1.5 leading-relaxed">
+            <span className="min-w-0 flex-1">{message.summary}</span>
+            <CopyButton
+              text={message.summary}
+              label={$t('Copier le résumé')}
+              className="-mt-0.5 opacity-60 group-hover:opacity-100"
+            />
+          </dd>
           <dt className="text-muted-foreground">{$t('Confiance')}</dt>
           <dd>
             <ConfidenceChip value={message.confidence} bare />

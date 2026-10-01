@@ -141,6 +141,8 @@ interface InboxState {
   resolve: (id: string) => Promise<void>
   assign: (id: string, assigneeId: string | null) => Promise<void>
   transfer: (id: string, body: TransferBody) => Promise<boolean>
+  addTag: (id: string, label: string) => Promise<void>
+  removeTag: (id: string, label: string) => Promise<void>
   /** Sets (a value) or removes (null) metadata of a conversation, or of its contact. */
   setData: (
     target:
@@ -386,6 +388,14 @@ export const useInbox = create<InboxState>((set, get) => {
 
     assign: async (id, assigneeId) => {
       await act(id, () => api.assign(id, assigneeId))
+    },
+
+    addTag: async (id, label) => {
+      await act(id, () => api.addTag(id, label))
+    },
+
+    removeTag: async (id, label) => {
+      await act(id, () => api.removeTag(id, label))
     },
 
     transfer: async (id, body) => {
