@@ -1,14 +1,15 @@
 import type { ComponentChildren } from 'preact'
 
 /**
- * The little Markdown an answer uses — paragraphs, lists, **bold**, *italic*, ***both***,
- * ~~struck~~, `code`, links — turned into elements, never into HTML: nothing a message says
- * can become markup in the host page. A link opens elsewhere, and only http(s) or mailto.
- * The inbox's composer writes it (`apps/web/src/lib/rich-text.ts`).
+ * The little Markdown an answer uses — paragraphs, lists, quotes, **bold**, *italic*,
+ * ***both***, ~~struck~~, `code`, links, and <u>underlined</u> or <span color="red">coloured</span>
+ * words in a few named colours — turned into elements, never into HTML: nothing a message
+ * says can become markup in the host page. A link opens elsewhere, and only http(s) or
+ * mailto. The inbox's composer writes it (`apps/web/src/lib/rich-text.ts`).
  */
 
 const INLINE =
-  /(\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|~~[^~]+~~|\*[^*\s][^*]*\*|`[^`]+`|\[[^\]]+\]\([^)\s]+\)|https?:\/\/[^\s<>()]+[^\s<>().,;:!?])/g
+  /(<u>[\s\S]+?<\/u>|<span color="(?:red|orange|green|blue|violet|grey)">[\s\S]+?<\/span>|\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|~~[^~]+~~|\*[^*\s][^*]*\*|`[^`]+`|\[[^\]]+\]\([^)\s]+\)|https?:\/\/[^\s<>()]+[^\s<>().,;:!?])/g
 
 function safeHref(href: string): string | null {
   return /^(https?:|mailto:)/i.test(href) ? href : null
@@ -21,7 +22,12 @@ function inline(text: string): ComponentChildren[] {
     const token = match[0]
     const at = match.index ?? 0
     if (at > last) parts.push(text.slice(last, at))
-    if (token.startsWith('***'))
+    if (token.startsWith('<u>')) parts.push(<u>{inline(token.slice(3, -4))}</u>)
+    else if (token.startsWith('<span')) {
+      const [, color = 'grey', inner = ''] =
+        /^<span color="(\w+)">([\s\S]*)<\/span>$/.exec(token) ?? []
+      parts.push(<span data-color={color}>{inline(inner)}</span>)
+    } else if (token.startsWith('***'))
       parts.push(
         <strong>
           <em>{inline(token.slice(3, -3))}</em>
@@ -60,6 +66,7 @@ export function Markdown({ text }: { readonly text: string }) {
   const lines = text.replace(/\r\n/g, '\n').split('\n')
   let list: { ordered: boolean; items: string[] } | null = null
   let paragraph: string[] = []
+  let quote: string[] = []
 
   // Built by pushing, never reordered: a message's blocks and lines need no keys.
   const flushParagraph = () => {
@@ -72,6 +79,16 @@ export function Markdown({ text }: { readonly text: string }) {
     blocks.push(<p>{children}</p>)
     paragraph = []
   }
+  const flushQuote = () => {
+    if (quote.length === 0) return
+    const children: ComponentChildren[] = []
+    for (const line of quote) {
+      if (children.length > 0) children.push(<br />)
+      children.push(...inline(line))
+    }
+    blocks.push(<blockquote>{children}</blockquote>)
+    quote = []
+  }
   const flushList = () => {
     if (!list) return
     const items: ComponentChildren[] = []
@@ -83,6 +100,14 @@ export function Markdown({ text }: { readonly text: string }) {
   for (const line of lines) {
     const bullet = /^\s*[-*•]\s+(.*)$/.exec(line)
     const numbered = /^\s*\d+[.)]\s+(.*)$/.exec(line)
+    const said = /^\s*>\s?(.*)$/.exec(line)
+    if (said) {
+      flushParagraph()
+      flushList()
+      quote.push(said[1] ?? '')
+      continue
+    }
+    flushQuote()
     if (bullet || numbered) {
       flushParagraph()
       const ordered = numbered !== null
@@ -100,6 +125,7 @@ export function Markdown({ text }: { readonly text: string }) {
     }
   }
   flushParagraph()
+  flushQuote()
   flushList()
   return <div class="md">{blocks}</div>
 }

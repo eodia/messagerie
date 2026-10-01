@@ -12,29 +12,70 @@ import { Input } from '@/components/ui/input'
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Hint } from '@/components/ui/tooltip'
 import { $t } from '@/lib/i18n'
-import { draftHtml, draftMarkdown, safeHref } from '@/lib/rich-text'
+import { TEXT_COLORS, type TextColor, draftHtml, draftMarkdown, safeHref } from '@/lib/rich-text'
 import { cn } from '@/lib/utils'
 import { Placeholder } from '@tiptap/extensions'
-import { type Editor, EditorContent, useEditor, useEditorState } from '@tiptap/react'
+import {
+  type Editor,
+  EditorContent,
+  Mark,
+  mergeAttributes,
+  useEditor,
+  useEditorState,
+} from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import {
   Bold,
   Check,
+  ChevronUp,
   Code,
   Italic,
   Link2,
   List,
   ListOrdered,
   type LucideIcon,
+  Quote,
   Strikethrough,
-  Type,
+  Underline,
 } from 'lucide-react'
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react'
 import { afterMenus } from './assign-picker'
 import { Proofreading, correctionsOf } from './proofreading'
 
+/** A colour on words, by its name — each reader draws it on its own background. */
+const TextColorMark = Mark.create({
+  name: 'textColor',
+  addAttributes() {
+    return {
+      color: {
+        default: null,
+        parseHTML: (element) => element.getAttribute('data-color'),
+        renderHTML: (attributes) =>
+          attributes.color ? { 'data-color': attributes.color as string } : {},
+      },
+    }
+  },
+  parseHTML() {
+    return [{ tag: 'span[data-color]' }]
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ['span', mergeAttributes(HTMLAttributes), 0]
+  },
+})
+
+/** The colours, as the picker names them. */
+const COLOR_NAMES: Readonly<Record<TextColor, string>> = {
+  red: 'Rouge',
+  orange: 'Orange',
+  green: 'Vert',
+  blue: 'Bleu',
+  violet: 'Violet',
+  grey: 'Gris',
+}
+
 /**
- * The agent's draft, in a rich field: bold, italic, struck, code, links, lists — written as
+ * The agent's draft, in a rich field: bold, italic, underlined, coloured, struck, code,
+ * links, quotes, lists — written as
  * the little Markdown the widget reads (`lib/rich-text.ts`). With `onSubmit`, Enter sends and
  * Shift+Enter goes to the line; in a list, Enter starts the next item. Without, Enter goes to
  * the line — a canned reply being written. A file pasted goes with the message.
@@ -68,10 +109,8 @@ export function useDraftEditor({
     extensions: [
       StarterKit.configure({
         heading: false,
-        blockquote: false,
         codeBlock: false,
         horizontalRule: false,
-        underline: false,
         trailingNode: false,
         link: {
           openOnClick: false,
@@ -82,6 +121,7 @@ export function useDraftEditor({
         },
       }),
       Placeholder.configure({ placeholder: () => latest.current.placeholder }),
+      TextColorMark,
       Proofreading,
     ],
     content: draftHtml(value),
@@ -180,8 +220,9 @@ export function MarkdownField({
 }
 
 /**
- * Bold, italic, struck, code, a link, the lists — as the field stands. `compact`: bold and
- * italic in view, the rest in a menu — the composer's toolbar has little room.
+ * The formats, as the field stands: bold, italic, underlined and the colour in view; the
+ * rest — struck, code, a link, a quote, the lists — in a menu when `compact`, the composer's
+ * toolbar having little room, as buttons otherwise.
  */
 export function FormatButtons({
   editor,
@@ -195,9 +236,12 @@ export function FormatButtons({
     selector: ({ editor: e }) => ({
       bold: e.isActive('bold'),
       italic: e.isActive('italic'),
+      underline: e.isActive('underline'),
+      color: (e.getAttributes('textColor').color as TextColor | undefined) ?? null,
       strike: e.isActive('strike'),
       code: e.isActive('code'),
       link: e.isActive('link'),
+      quote: e.isActive('blockquote'),
       bullets: e.isActive('bulletList'),
       numbers: e.isActive('orderedList'),
     }),
@@ -220,7 +264,14 @@ export function FormatButtons({
       run: () => chain().toggleCode().run(),
     },
   ]
-  const lists = [
+  const blocks = [
+    {
+      key: 'quote',
+      label: $t('Citation'),
+      icon: Quote,
+      active: state.quote,
+      run: () => chain().toggleBlockquote().run(),
+    },
     {
       key: 'bullets',
       label: $t('Liste à puces'),
@@ -236,7 +287,7 @@ export function FormatButtons({
       run: () => chain().toggleOrderedList().run(),
     },
   ]
-  const folded = state.link || [...marks, ...lists].some((m) => m.active)
+  const folded = state.link || [...marks, ...blocks].some((m) => m.active)
 
   return (
     <span className="flex items-center gap-0.5">
@@ -256,6 +307,15 @@ export function FormatButtons({
       >
         <Italic />
       </Tool>
+      <Tool
+        label={$t('Souligné')}
+        keys="Ctrl U"
+        active={state.underline}
+        onClick={() => chain().toggleUnderline().run()}
+      >
+        <Underline />
+      </Tool>
+      <ColorTool editor={editor} color={state.color} />
       {compact ? (
         // The link's form opens where the menu was, once the menu has gone.
         <Popover open={linking} onOpenChange={setLinking}>
@@ -273,7 +333,7 @@ export function FormatButtons({
                       folded && 'bg-accent text-foreground',
                     )}
                   >
-                    <Type />
+                    <ChevronUp />
                   </Button>
                 </PopoverAnchor>
               </DropdownMenuTrigger>
@@ -299,7 +359,7 @@ export function FormatButtons({
                 {state.link && <Check className="ml-auto" />}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              {lists.map((item) => (
+              {blocks.map((item) => (
                 <FormatItem
                   key={item.key}
                   label={item.label}
@@ -322,7 +382,7 @@ export function FormatButtons({
             </Tool>
           ))}
           <LinkTool editor={editor} active={state.link} />
-          {lists.map((item) => (
+          {blocks.map((item) => (
             <Tool key={item.key} label={item.label} active={item.active} onClick={item.run}>
               <item.icon />
             </Tool>
@@ -330,6 +390,83 @@ export function FormatButtons({
         </>
       )}
     </span>
+  )
+}
+
+/** The words' colour: « A » over a bar of the colour they have, a palette under it. */
+function ColorTool({
+  editor,
+  color,
+}: { readonly editor: Editor; readonly color: TextColor | null }) {
+  const [open, setOpen] = useState(false)
+  function choose(next: TextColor | null) {
+    const chain = editor.chain().focus()
+    if (next === null) chain.unsetMark('textColor').run()
+    else chain.setMark('textColor', { color: next }).run()
+    setOpen(false)
+  }
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <Hint label={$t('Couleur du texte')}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={$t('Couleur du texte')}
+            onMouseDown={(event) => event.preventDefault()}
+            className={cn('size-7 flex-col gap-0 text-muted-foreground', color && 'bg-accent')}
+          >
+            <span className="text-[13px] leading-none font-semibold">A</span>
+            <span
+              className={cn('mt-0.5 h-[3px] w-3.5 rounded-full', !color && 'bg-current')}
+              data-swatch={color ?? undefined}
+            />
+          </Button>
+        </PopoverTrigger>
+      </Hint>
+      <PopoverContent
+        side="top"
+        align="start"
+        className="w-auto p-1.5"
+        onOpenAutoFocus={(event) => event.preventDefault()}
+        onCloseAutoFocus={(event) => event.preventDefault()}
+      >
+        <div className="flex items-center gap-1">
+          <Hint label={$t('Couleur par défaut')}>
+            <button
+              type="button"
+              aria-label={$t('Couleur par défaut')}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => choose(null)}
+              className={cn(
+                'flex size-7 items-center justify-center rounded-md border text-xs font-semibold hover:bg-accent',
+                color === null && 'ring-2 ring-ring/40',
+              )}
+            >
+              A
+            </button>
+          </Hint>
+          <span className="mx-0.5 h-5 w-px bg-border" />
+          {TEXT_COLORS.map((name) => (
+            <Hint key={name} label={$t(COLOR_NAMES[name])}>
+              <button
+                type="button"
+                aria-label={$t(COLOR_NAMES[name])}
+                aria-pressed={color === name}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => choose(name)}
+                className={cn(
+                  'flex size-7 items-center justify-center rounded-md hover:bg-accent',
+                  color === name && 'bg-accent',
+                )}
+              >
+                <span className="size-4 rounded-full" data-swatch={name} />
+              </button>
+            </Hint>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 

@@ -17,15 +17,10 @@ export function RichText({
       {parseBlocks(text).map((block, index) =>
         block.kind === 'paragraph' ? (
           // biome-ignore lint/suspicious/noArrayIndexKey: the blocks of one message, in order
-          <p key={index}>
-            {block.lines.map((line, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: the lines of one paragraph, in order
-              <span key={i}>
-                {i > 0 && <br />}
-                {inline(line)}
-              </span>
-            ))}
-          </p>
+          <p key={index}>{lines(block.lines)}</p>
+        ) : block.kind === 'quote' ? (
+          // biome-ignore lint/suspicious/noArrayIndexKey: the blocks of one message, in order
+          <blockquote key={index}>{lines(block.lines)}</blockquote>
         ) : block.ordered ? (
           // biome-ignore lint/suspicious/noArrayIndexKey: the blocks of one message, in order
           <ol key={index}>{items(block.items)}</ol>
@@ -37,6 +32,15 @@ export function RichText({
     </div>
   )
 }
+
+const lines = (all: readonly (readonly Inline[])[]) =>
+  all.map((line, i) => (
+    // biome-ignore lint/suspicious/noArrayIndexKey: the lines of one paragraph, in order
+    <span key={i}>
+      {i > 0 && <br />}
+      {inline(line)}
+    </span>
+  ))
 
 const items = (list: readonly (readonly Inline[])[]) =>
   // biome-ignore lint/suspicious/noArrayIndexKey: the items of one list, in order
@@ -67,6 +71,16 @@ function inline(parts: readonly Inline[]): ReactNode[] {
       case 'strike':
         // biome-ignore lint/suspicious/noArrayIndexKey: the runs of one line, in order
         return <s key={i}>{inline(part.children)}</s>
+      case 'underline':
+        // biome-ignore lint/suspicious/noArrayIndexKey: the runs of one line, in order
+        return <u key={i}>{inline(part.children)}</u>
+      case 'color':
+        return (
+          // biome-ignore lint/suspicious/noArrayIndexKey: the runs of one line, in order
+          <span key={i} data-color={part.color}>
+            {inline(part.children)}
+          </span>
+        )
       case 'link':
         return (
           // biome-ignore lint/suspicious/noArrayIndexKey: the runs of one line, in order

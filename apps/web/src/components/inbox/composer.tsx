@@ -128,7 +128,6 @@ export function Composer({
   /** The field holds what the copilot wrote: it glows until it is sent. */
   const [fromCopilot, setFromCopilot] = useState(false)
   const [canned, setCanned] = useState<CannedReply[]>([])
-  const [browsing, setBrowsing] = useState(false)
   const [highlight, setHighlight] = useState(0)
   const [rewording, setRewording] = useState(false)
   const [asking, setAsking] = useState(false)
@@ -196,7 +195,7 @@ export function Composer({
 
   const typed = SLASH.exec(draft)
   const query = typed ? (typed[2] ?? '') : ''
-  const listing = mode === 'reply' && (browsing || typed !== null)
+  const listing = mode === 'reply' && typed !== null
   const matches = useMemo(() => {
     const needle = fold(query)
     return canned
@@ -205,7 +204,7 @@ export function Composer({
   }, [canned, query])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new search starts at the top
-  useEffect(() => setHighlight(0), [query, browsing])
+  useEffect(() => setHighlight(0), [query])
 
   /** Keys over the field while the canned replies are open: they choose one. */
   function cannedKey(event: KeyboardEvent): boolean {
@@ -222,7 +221,6 @@ export function Composer({
       }
     }
     if (listing && event.key === 'Escape') {
-      setBrowsing(false)
       if (typed)
         setDraft(
           conversation.id,
@@ -339,7 +337,6 @@ export function Composer({
         ? `${draft} ${text}`
         : text
     setDraft(conversation.id, next)
-    setBrowsing(false)
     focusSoon()
   }
 
@@ -543,7 +540,7 @@ export function Composer({
                 ))}
               </ul>
             )}
-            <EditorContent editor={editor} onBlur={() => setBrowsing(false)} />
+            <EditorContent editor={editor} />
             {(dictation.listening || dictation.error) && (
               <div className="mx-3 mb-1.5 flex items-center gap-2 text-xs text-muted-foreground">
                 {dictation.listening ? (
@@ -635,22 +632,6 @@ export function Composer({
                   <FormatButtons editor={editor} compact />
                   <span className="mx-1 h-4 w-px bg-border" />
                 </>
-              )}
-              {mode === 'reply' && (
-                <Hint label={$t('Réponses types — ou « / » dans le texte')}>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className={cn('size-7 text-muted-foreground', browsing && 'bg-accent')}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => {
-                      setBrowsing((open) => !open)
-                      editor?.commands.focus()
-                    }}
-                  >
-                    <BookText className="size-4" />
-                  </Button>
-                </Hint>
               )}
               <DropdownMenu>
                 <Hint label={$t('Reformuler avec l’IA')}>

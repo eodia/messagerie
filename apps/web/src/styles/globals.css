@@ -409,3 +409,68 @@
     animation: none;
   }
 }
+
+/* Quotes, in the draft and in a message. */
+.draft-field blockquote,
+.rich-text blockquote {
+  border-left: 3px solid color-mix(in oklab, currentColor 30%, transparent);
+  padding-left: 0.7em;
+  opacity: 0.9;
+}
+
+/*
+ * Words an agent coloured: a named colour, drawn for the background it is on — the page's,
+ * light or dark, or the agent's own green bubble, where it lightens.
+ */
+[data-color="red"],
+[data-swatch="red"] {
+  --tc: var(--color-red-600);
+}
+[data-color="orange"],
+[data-swatch="orange"] {
+  --tc: var(--color-orange-600);
+}
+[data-color="green"],
+[data-swatch="green"] {
+  --tc: var(--color-green-600);
+}
+[data-color="blue"],
+[data-swatch="blue"] {
+  --tc: var(--color-blue-600);
+}
+[data-color="violet"],
+[data-swatch="violet"] {
+  --tc: var(--color-violet-600);
+}
+[data-color="grey"],
+[data-swatch="grey"] {
+  --tc: var(--color-zinc-500);
+}
+.dark [data-color="red"] {
+  --tc: var(--color-red-400);
+}
+.dark [data-color="orange"] {
+  --tc: var(--color-orange-400);
+}
+.dark [data-color="green"] {
+  --tc: var(--color-green-400);
+}
+.dark [data-color="blue"] {
+  --tc: var(--color-blue-400);
+}
+.dark [data-color="violet"] {
+  --tc: var(--color-violet-400);
+}
+.dark [data-color="grey"] {
+  --tc: var(--color-zinc-400);
+}
+.draft-field [data-color],
+.rich-text [data-color] {
+  color: var(--tc);
+}
+.bg-primary [data-color] {
+  color: color-mix(in oklab, var(--tc) 35%, white);
+}
+[data-swatch] {
+  background: var(--tc);
+}
