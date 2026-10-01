@@ -47,6 +47,7 @@ export async function suggest(deps: AiDeps, conversationId: string): Promise<voi
             : '',
           `SOURCES :\n${numbered(context.sources)}`,
           `FICHE DU CLIENT :\n${customer(context)}`,
+          'Mise en forme : du Markdown léger quand il aide à lire — **gras** pour l’essentiel, *italique*, une liste « - » pour des étapes ; ni titres, ni tableaux. Un retour à la ligne s’écrit \\n.',
           'Réponds UNIQUEMENT en JSON : {"suggestions": [{"text": "…", "sources": [numéros]}]}',
         ]
           .filter(Boolean)

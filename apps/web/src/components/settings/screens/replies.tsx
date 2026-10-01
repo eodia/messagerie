@@ -1,14 +1,18 @@
 'use client'
 
 import { ColorBadge } from '@/components/app/chip'
+import { MarkdownField } from '@/components/inbox/draft-editor'
 import { ContactAvatar } from '@/components/inbox/labels'
+import { RichText } from '@/components/inbox/rich-text'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { $t } from '@/lib/i18n'
+import { plainOf } from '@/lib/rich-text'
 import { useAddressTab } from '@/lib/use-address-tab'
 import { cn } from '@/lib/utils'
+import type { Editor } from '@tiptap/react'
 import { MessageSquareText, Sparkles, Tag } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { Toggles } from '../field-input'
 import { ColorField, Field, FormSection, ToggleField } from '../kit/controls'
 import { type SettingsData, type Values, bool, list, text, useSettingsData } from '../kit/data'
@@ -45,7 +49,8 @@ export function RepliesScreen() {
   })
   const replies = useRowEditor(data, 'reponses_types')
   const tags = useRowEditor(data, 'etiquettes', { defaults: { Couleur: '#2563EB' } })
-  const content = useRef<HTMLTextAreaElement>(null)
+  /** The content's field, to put a variable where the caret is. */
+  const [content, setContent] = useState<Editor | null>(null)
 
   const tabs = (
     <StudioTabs
@@ -215,12 +220,11 @@ export function RepliesScreen() {
             >
               {(id) => (
                 <div className="space-y-2">
-                  <Textarea
-                    ref={content}
+                  <MarkdownField
                     id={id}
-                    rows={7}
                     value={text(values.Contenu)}
-                    onChange={(e) => replies.set('Contenu', e.target.value)}
+                    onChange={(markdown) => replies.set('Contenu', markdown)}
+                    onEditor={setContent}
                     placeholder={$t('Bonjour {prénom}, …')}
                   />
                   <div className="flex flex-wrap gap-1.5">
@@ -228,20 +232,10 @@ export function RepliesScreen() {
                       <button
                         key={variable}
                         type="button"
-                        onClick={() => {
-                          const area = content.current
-                          const current = text(values.Contenu)
-                          const at = area?.selectionStart ?? current.length
-                          const token = `{${variable}}`
-                          replies.set(
-                            'Contenu',
-                            current.slice(0, at) + token + current.slice(area?.selectionEnd ?? at),
-                          )
-                          requestAnimationFrame(() => {
-                            area?.focus()
-                            area?.setSelectionRange(at + token.length, at + token.length)
-                          })
-                        }}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() =>
+                          content?.chain().focus().insertContent(`{${variable}}`).run()
+                        }
                         className="inline-flex h-6 items-center rounded-md border border-dashed px-2 font-mono text-[11px] text-muted-foreground transition-colors hover:border-solid hover:bg-muted hover:text-foreground"
                       >
                         {`{${variable}}`}
@@ -307,7 +301,7 @@ function ReplyPreview({
                     {text(r.values.Titre) || $t('Nouvelle réponse')}
                   </span>
                   <span className="block truncate text-xs text-muted-foreground">
-                    {filled(text(r.values.Contenu)) || '…'}
+                    {plainOf(filled(text(r.values.Contenu))) || '…'}
                   </span>
                 </span>
                 {text(r.values.Raccourci) && (
@@ -332,11 +326,13 @@ function ReplyPreview({
         <div className="bg-muted/30 p-5">
           <div className="flex items-end gap-2">
             <ContactAvatar name="Camille Durand" className="size-7 text-[10px]" />
-            <p className="max-w-[85%] rounded-2xl rounded-bl-md border bg-background px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-line">
-              {body || (
+            <div className="max-w-[85%] rounded-2xl rounded-bl-md border bg-background px-3.5 py-2.5 text-sm leading-relaxed">
+              {body ? (
+                <RichText text={body} />
+              ) : (
                 <span className="text-muted-foreground">{$t('Le contenu de la réponse.')}</span>
               )}
-            </p>
+            </div>
           </div>
         </div>
       </PreviewCard>

@@ -15,6 +15,7 @@ import { Kbd } from '@/components/ui/kbd'
 import { Hint } from '@/components/ui/tooltip'
 import { ApiFailure, api } from '@/lib/api'
 import { $t, $tp, msg } from '@/lib/i18n'
+import { plainOf } from '@/lib/rich-text'
 import { canDictate, canSpeak, useDictation, useSpeech } from '@/lib/speech'
 import { useInbox } from '@/lib/store/inbox'
 import { cn } from '@/lib/utils'
@@ -50,6 +51,7 @@ import {
 import { iconOf, sizeLabel } from './attachments'
 import { FormatButtons, useDraftEditor } from './draft-editor'
 import { accept, correctionsOf, forget, propose, textOf } from './proofreading'
+import { RichText } from './rich-text'
 
 /** What the thread asks of the composer: the field, focused. */
 export interface ComposerHandle {
@@ -433,7 +435,7 @@ export function Composer({
                 onClick={() => take(suggestion)}
                 className="rounded-lg border bg-background p-2.5 text-left text-xs leading-snug text-muted-foreground transition-colors hover:border-primary/50 hover:bg-primary/5 hover:text-foreground"
               >
-                <span className="line-clamp-3">{suggestion}</span>
+                <RichText text={suggestion} className="line-clamp-3" />
               </button>
             ))}
           </div>
@@ -508,7 +510,7 @@ export function Composer({
                         )}
                       </span>
                       <span className="line-clamp-1 text-xs text-muted-foreground">
-                        {fill(reply.body, conversation.contact)}
+                        {plainOf(fill(reply.body, conversation.contact))}
                       </span>
                     </button>
                   </li>

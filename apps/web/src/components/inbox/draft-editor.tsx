@@ -8,7 +8,7 @@ import { $t } from '@/lib/i18n'
 import { draftHtml, draftMarkdown, safeHref } from '@/lib/rich-text'
 import { cn } from '@/lib/utils'
 import { Placeholder } from '@tiptap/extensions'
-import { type Editor, useEditor, useEditorState } from '@tiptap/react'
+import { type Editor, EditorContent, useEditor, useEditorState } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Bold, Code, Italic, Link2, List, ListOrdered, Strikethrough } from 'lucide-react'
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react'
@@ -16,8 +16,9 @@ import { Proofreading, correctionsOf } from './proofreading'
 
 /**
  * The agent's draft, in a rich field: bold, italic, struck, code, links, lists — written as
- * the little Markdown the widget reads (`lib/rich-text.ts`). Enter sends, Shift+Enter goes
- * to the line; in a list, Enter starts the next item. A file pasted goes with the message.
+ * the little Markdown the widget reads (`lib/rich-text.ts`). With `onSubmit`, Enter sends and
+ * Shift+Enter goes to the line; in a list, Enter starts the next item. Without, Enter goes to
+ * the line — a canned reply being written. A file pasted goes with the message.
  */
 export function useDraftEditor({
   value,
@@ -33,10 +34,10 @@ export function useDraftEditor({
   readonly placeholder: string
   readonly onChange: (markdown: string) => void
   /** Keys for what the composer opens over the field — its canned replies. `true`: taken. */
-  readonly onKey: (event: KeyboardEvent) => boolean
-  readonly onSubmit: () => void
-  readonly onFiles: (files: readonly File[]) => void
-  readonly onCorrections: (count: number) => void
+  readonly onKey?: (event: KeyboardEvent) => boolean
+  readonly onSubmit?: () => void
+  readonly onFiles?: (files: readonly File[]) => void
+  readonly onCorrections?: (count: number) => void
 }): Editor | null {
   // The editor keeps the callbacks it was created with: it reads the latest through these.
   const latest = useRef({ placeholder, onChange, onKey, onSubmit, onFiles, onCorrections })
@@ -74,11 +75,12 @@ export function useDraftEditor({
         'aria-multiline': 'true',
       },
       handleKeyDown: (view, event) => {
-        if (latest.current.onKey(event)) return true
-        if (event.key !== 'Enter' || event.isComposing) return false
+        const { onKey, onSubmit } = latest.current
+        if (onKey?.(event)) return true
+        if (!onSubmit || event.key !== 'Enter' || event.isComposing) return false
         // Ctrl+Enter sends from anywhere, a list included.
         if (event.ctrlKey || event.metaKey) {
-          latest.current.onSubmit()
+          onSubmit()
           return true
         }
         if (event.shiftKey) return false
@@ -86,13 +88,14 @@ export function useDraftEditor({
         for (let depth = $from.depth; depth > 0; depth--) {
           if ($from.node(depth).type.name === 'listItem') return false
         }
-        latest.current.onSubmit()
+        onSubmit()
         return true
       },
       handlePaste: (_view, event) => {
         const files = [...(event.clipboardData?.files ?? [])]
-        if (files.length === 0) return false
-        latest.current.onFiles(files)
+        const { onFiles } = latest.current
+        if (files.length === 0 || !onFiles) return false
+        onFiles(files)
         return true
       },
     },
@@ -102,7 +105,7 @@ export function useDraftEditor({
       latest.current.onChange(markdown)
     },
     onTransaction: ({ editor: current }) => {
-      latest.current.onCorrections(correctionsOf(current.state).length)
+      latest.current.onCorrections?.(correctionsOf(current.state).length)
     },
   })
 
@@ -121,6 +124,40 @@ export function useDraftEditor({
   }, [editor, placeholder])
 
   return editor
+}
+
+/**
+ * A text written in the little Markdown — a canned reply's —, in the same rich field, its
+ * format buttons below. `onEditor` gives the editor, to insert at the caret.
+ */
+export function MarkdownField({
+  id,
+  value,
+  onChange,
+  placeholder,
+  onEditor,
+}: {
+  readonly id?: string
+  readonly value: string
+  readonly onChange: (markdown: string) => void
+  readonly placeholder: string
+  readonly onEditor?: (editor: Editor | null) => void
+}) {
+  const editor = useDraftEditor({ value, placeholder, onChange })
+  useEffect(() => onEditor?.(editor), [editor, onEditor])
+  useEffect(() => {
+    if (editor && id) editor.view.dom.id = id
+  }, [editor, id])
+  return (
+    <div className="rounded-md border bg-background shadow-xs transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/25">
+      <EditorContent editor={editor} />
+      {editor && (
+        <div className="flex border-t px-1 py-0.5">
+          <FormatButtons editor={editor} />
+        </div>
+      )}
+    </div>
+  )
 }
 
 /** Bold, italic, struck, code, a link, the lists — as the field stands. */
