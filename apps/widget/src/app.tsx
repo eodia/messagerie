@@ -10,6 +10,7 @@ import { type Backend, WidgetFailure } from './api'
 import { clock, setLanguage, t, when } from './i18n'
 import { ChatIcon, ChevronDownIcon, CloseIcon, Orb, SendIcon } from './icons'
 import { Markdown } from './markdown'
+import type { Commands, Data, PageEvent } from './page-api'
 import type { Scene } from './preview'
 
 /** Black or white words on the site's colour, whichever reads. */
@@ -129,17 +130,13 @@ const nudgeOf = (site: WidgetSite): Preview => ({
   body: welcomeOf(site),
 })
 
-export interface Controls {
-  open: () => void
-  close: () => void
-}
-
 export function App({
   api,
   identity,
   poweredBy,
   pageFont,
   bind,
+  emit,
   watch,
 }: {
   readonly api: Backend
@@ -147,8 +144,10 @@ export function App({
   readonly poweredBy: string
   /** The page's own font, for a site that keeps it. */
   readonly pageFont: string | null
-  /** Hands the page `window.MessagerieChat.open()` and `.close()`. */
-  readonly bind: (controls: Controls) => void
+  /** Hands the page its commands (`window.MessagerieChat`), once the session is open. */
+  readonly bind: (commands: Commands) => void
+  /** Tells the page what happened: opened, closed, a message sent or received. */
+  readonly emit: (event: PageEvent, detail?: unknown) => void
   /** In the inbox's editor: the site as it is edited, and the scene to show. */
   readonly watch?: (onChange: (session: WidgetSession, scene: Scene) => void) => () => void
 }) {
@@ -163,6 +162,13 @@ export function App({
   const [unread, setUnread] = useState(0)
   const [preview, setPreview] = useState<Preview | null>(null)
   const [following, setFollowing] = useState(false)
+  /** `MessagerieChat.hide()`: nothing on the page until `show()`. */
+  const [hidden, setHidden] = useState(false)
+  /** Metadata the page set before the conversation began: sent with its first message. */
+  const pendingData = useRef<Record<string, Data[string]>>({})
+  const sendRef = useRef<(text: string) => Promise<void>>(async () => {})
+  const conversationRef = useRef<VisitorConversation | null>(null)
+  conversationRef.current = conversation
   const seen = useRef(new Set<string>())
   const thread = useRef<HTMLDivElement>(null)
   const field = useRef<HTMLTextAreaElement>(null)
@@ -195,6 +201,12 @@ export function App({
           author: message.from === 'agent' ? message.author : null,
           body: message.body,
         }
+        emit('message:received', {
+          from: message.from,
+          author: message.from === 'agent' ? message.author : null,
+          body: message.body,
+          at: message.at,
+        })
       }
     }
     if (count > 0) showTyping(null)
@@ -233,9 +245,33 @@ export function App({
     })
   }, [api, following])
 
+  // The page's commands, once the session is open: what it called earlier runs now.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the commands read refs, the session is the trigger
   useEffect(() => {
-    bind({ open: () => show(true), close: () => show(false) })
-  }, [bind])
+    if (!session || inEditor) return
+    const failed = (failure: unknown) =>
+      console.warn('Messagerie :', failure instanceof WidgetFailure ? failure.code : failure)
+    bind({
+      open: () => show(true),
+      close: () => show(false),
+      toggle: () => show(!openRef.current),
+      isOpen: () => openRef.current,
+      show: () => setHidden(false),
+      hide: () => {
+        setHidden(true)
+        show(false)
+      },
+      setMessage: (text) => setDraft(String(text ?? '')),
+      send: (text) => void sendRef.current(String(text ?? '')),
+      setUser: (profile) => void api.updateContact({ ...profile }).catch(failed),
+      setContactData: (data) => void api.updateContact({ data }).catch(failed),
+      setConversationData: (data) => {
+        if (conversationRef.current) void api.updateConversation(data).catch(failed)
+        else pendingData.current = { ...pendingData.current, ...data }
+      },
+    })
+    emit('ready')
+  }, [session === null])
 
   // The editor's site, as it changes; a new scene opens or closes the panel.
   // biome-ignore lint/correctness/useExhaustiveDependencies: setters and refs only
@@ -286,6 +322,7 @@ export function App({
   }, [conversation, typing, open])
 
   function show(next: boolean) {
+    if (next !== openRef.current) emit(next ? 'open' : 'close')
     setOpen(next)
     if (next) {
       setUnread(0)
@@ -302,7 +339,10 @@ export function App({
     setSending(true)
     setError(null)
     try {
-      const next = await api.send(body)
+      const data = pendingData.current
+      const next = await api.send(body, Object.keys(data).length > 0 ? data : undefined)
+      pendingData.current = {}
+      emit('message:sent', { body })
       setDraft('')
       if (field.current) field.current.style.height = 'auto'
       apply(next)
@@ -320,7 +360,10 @@ export function App({
     }
   }
 
-  if (!session) return null
+  // The page's `send` reaches the latest `send`, whatever render bound it.
+  sendRef.current = send
+
+  if (!session || hidden) return null
   const { site, availability, contact } = session
   const look = site.appearance
   const messages = conversation?.messages ?? []

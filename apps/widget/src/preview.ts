@@ -153,4 +153,9 @@ export class PreviewBackend implements Backend {
     this.listeners.add(onEvent)
     return () => this.listeners.delete(onEvent)
   }
+
+  /** The preview keeps no visitor: what the page would say of one goes nowhere. */
+  async updateContact(): Promise<void> {}
+
+  async updateConversation(): Promise<void> {}
 }

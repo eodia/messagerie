@@ -1,6 +1,7 @@
 import { render } from 'preact'
 import { WidgetApi } from './api'
-import { App, type Controls } from './app'
+import { App } from './app'
+import { type PageApi, createPageApi } from './page-api'
 import { PreviewBackend } from './preview'
 import { STYLES } from './styles'
 
@@ -13,7 +14,9 @@ import { STYLES } from './styles'
  * (a JWT, HS256, with the site's secret). The widget lives in a shadow root: the page's
  * styles do not reach it, and its own reach nothing of the page.
  *
- * The page may open and close it: `window.MessagerieChat.open()`, `.close()`.
+ * The page talks to it through `window.MessagerieChat` — open it, prefill or send a
+ * message, say who the visitor is, attach metadata, hear what happens (`page-api.ts`). Calls
+ * made before the script loaded wait in `window.MessagerieChat = []`, then run in order.
  *
  * `data-preview="<inbox origin>"`: the widget in the inbox's editor — fed by the editor
  * through `postMessage`, from that origin only, and never by the chat server.
@@ -21,7 +24,7 @@ import { STYLES } from './styles'
 
 declare global {
   interface Window {
-    MessagerieChat?: Partial<Controls> & { identity?: string }
+    MessagerieChat?: PageApi | unknown[]
   }
 }
 
@@ -29,6 +32,10 @@ const PRODUCT_NAME = 'Messagerie'
 
 // Known only while this script runs: kept before waiting for the page to be ready.
 const current = document.currentScript as HTMLScriptElement | null
+
+// The page's object at once — what it queued before now runs once the widget is ready.
+const page = createPageApi(window.MessagerieChat)
+window.MessagerieChat = page.api
 
 function start(): void {
   const script =
@@ -42,7 +49,7 @@ function start(): void {
 
   // The server that served the script is the one the widget talks to.
   const base = script.dataset.api ?? new URL(script.src, window.location.href).origin
-  const identity = script.dataset.identity ?? window.MessagerieChat?.identity ?? null
+  const identity = script.dataset.identity ?? page.api.identity ?? null
 
   const host = document.createElement('div')
   host.id = 'messagerie-chat'
@@ -54,9 +61,6 @@ function start(): void {
   const mount = document.createElement('div')
   shadow.appendChild(mount)
 
-  const bind = (controls: Controls) => {
-    window.MessagerieChat = { ...window.MessagerieChat, ...controls }
-  }
   const pageFont = window.getComputedStyle(document.body).fontFamily || null
   const editor = script.dataset.preview
   if (editor) {
@@ -67,7 +71,8 @@ function start(): void {
         identity={null}
         poweredBy={PRODUCT_NAME}
         pageFont={pageFont}
-        bind={bind}
+        bind={page.ready}
+        emit={page.emit}
         watch={(onChange) => preview.watch(onChange)}
       />,
       mount,
@@ -80,7 +85,8 @@ function start(): void {
       identity={identity}
       poweredBy={PRODUCT_NAME}
       pageFont={pageFont}
-      bind={bind}
+      bind={page.ready}
+      emit={page.emit}
     />,
     mount,
   )

@@ -71,6 +71,14 @@ export async function demoPage(db: Db, settings: Settings, signedIn: boolean): P
   .card h2 { font-size: 16px; margin: 0 0 6px; }
   .card p { font-size: 14px; color: #64748b; margin: 0; }
   .who { margin-top: 40px; font-size: 13px; color: #64748b; }
+  .api { margin-top: 32px; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px; max-width: 640px; }
+  .api h2 { font-size: 15px; margin: 0 0 4px; }
+  .api p { font-size: 13px; color: #64748b; margin: 0 0 14px; }
+  .api .buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+  .api button { font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; cursor: pointer; }
+  .api button:hover { background: #eef2f7; }
+  .api code { font-size: 12px; }
+  .api ol { margin: 14px 0 0; padding-left: 18px; font-size: 12.5px; color: #475569; max-height: 140px; overflow: auto; }
 </style>
 </head>
 <body>
@@ -94,7 +102,34 @@ export async function demoPage(db: Db, settings: Settings, signedIn: boolean): P
       ? 'Page de démonstration : le site a signé l’identité de Sophie Leroy (JWT HS256) avec le secret du site.'
       : 'Page de démonstration : visiteur anonyme — le widget se souvient de lui par un jeton qu’il garde.'
   }</p>
+  <section class="api">
+    <h2>L’API JavaScript du widget</h2>
+    <p>Ce que la page du site peut faire avec <code>window.MessagerieChat</code> — chaque bouton appelle une fonction, et ce que le widget raconte s’inscrit dessous.</p>
+    <div class="buttons">
+      <button type="button" onclick="MessagerieChat.open()">open()</button>
+      <button type="button" onclick="MessagerieChat.setMessage('Bonjour, je souhaite modifier mon contrat.'); MessagerieChat.open()">setMessage(…)</button>
+      <button type="button" onclick="MessagerieChat.setUser({ name: 'Léa Martin', email: 'lea.martin@exemple.fr', phone: '06 12 34 56 78' })">setUser(…)</button>
+      <button type="button" onclick="MessagerieChat.setContactData({ Abonnement: 'Formule Pro', 'Client depuis': 2019 })">setContactData(…)</button>
+      <button type="button" onclick="MessagerieChat.setConversationData({ Page: location.pathname, Devis: 'Habitation T3', 'Montant (€)': 189 })">setConversationData(…)</button>
+      <button type="button" onclick="MessagerieChat.send('Quel est le délai de remboursement ?')">send(…)</button>
+      <button type="button" onclick="MessagerieChat.hide()">hide()</button>
+      <button type="button" onclick="MessagerieChat.show()">show()</button>
+    </div>
+    <ol id="events"></ol>
+  </section>
 </main>
+<script>
+  // Queued before the widget loads, run once it is ready.
+  window.MessagerieChat = window.MessagerieChat || []
+  const told = (what) => (detail) => {
+    const line = document.createElement('li')
+    line.textContent = what + (detail && detail.body ? ' — ' + detail.body.slice(0, 80) : '')
+    document.getElementById('events').prepend(line)
+  }
+  for (const event of ['ready', 'open', 'close', 'message:sent', 'message:received']) {
+    MessagerieChat.push(['on', event, told(event)])
+  }
+</script>
 <script src="/widget.js" data-site="${htmlEscape(site)}"${identity ? ` data-identity="${htmlEscape(identity)}"` : ''} async></script>
 </body>
 </html>`

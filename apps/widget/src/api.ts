@@ -5,6 +5,7 @@ import type {
   WidgetEvent,
   WidgetSession,
 } from '@chat/contracts'
+import type { Data, Profile } from './page-api'
 
 /**
  * The widget's calls to the chat server — the one that served its script. The visitor's
@@ -15,8 +16,13 @@ import type {
 export interface Backend {
   session(identity: string | null): Promise<WidgetSession>
   conversation(): Promise<VisitorConversation | null>
-  send(body: string): Promise<VisitorConversation>
+  /** With the metadata the page set for the conversation before it began. */
+  send(body: string, data?: Data): Promise<VisitorConversation>
   follow(onEvent: (event: WidgetEvent) => void): () => void
+  /** `MessagerieChat.setUser`, `setContactData`. */
+  updateContact(change: Profile & { readonly data?: Data }): Promise<void>
+  /** `MessagerieChat.setConversationData`, once the conversation has begun. */
+  updateConversation(data: Data): Promise<void>
 }
 
 export class WidgetFailure extends Error {
@@ -98,8 +104,16 @@ export class WidgetApi implements Backend {
     return this.call('GET', '/conversation')
   }
 
-  send(body: string): Promise<VisitorConversation> {
-    return this.call('POST', '/messages', { body })
+  send(body: string, data?: Data): Promise<VisitorConversation> {
+    return this.call('POST', '/messages', data ? { body, data } : { body })
+  }
+
+  async updateContact(change: Profile & { readonly data?: Data }): Promise<void> {
+    await this.call('PATCH', '/contact', change)
+  }
+
+  async updateConversation(data: Data): Promise<void> {
+    await this.call('PATCH', '/conversation', { data })
   }
 
   /**

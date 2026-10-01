@@ -34,6 +34,24 @@ const SWATCHES = [
 
 const MAX_SUGGESTIONS = 6
 
+/** The page's API, as a site's developer copies it — code, so not translated. */
+const API_EXAMPLE = [
+  'MessagerieChat.open()            // .close() .toggle() .show() .hide()',
+  "MessagerieChat.setMessage('Bonjour, je souhaite…')   // prérempli, pas envoyé",
+  "MessagerieChat.send('Bonjour')",
+  "MessagerieChat.setUser({ name: 'Léa Martin', email: 'lea@exemple.fr', phone: '06…' })",
+  "MessagerieChat.setContactData({ Abonnement: 'Pro' })",
+  "MessagerieChat.setConversationData({ Commande: 'A-1042', 'Panier (€)': 89.9 })",
+  "MessagerieChat.on('message:received', (message) => { … })",
+  '// événements : ready, open, close, message:sent, message:received',
+].join('\n')
+
+const QUEUE_EXAMPLE = [
+  'window.MessagerieChat = window.MessagerieChat || []',
+  "MessagerieChat.push(['setConversationData', { Page: location.pathname }])",
+  "MessagerieChat.push(['on', 'open', () => analytics.track('chat_open')])",
+].join('\n')
+
 export function WidgetForm({
   site,
   draft,
@@ -515,9 +533,17 @@ export function WidgetForm({
         />
 
         <Snippet
-          title={$t('Ouvrir le widget depuis la page')}
-          hint={$t('Par exemple depuis un lien « Nous contacter ».')}
-          code={'window.MessagerieChat.open()\nwindow.MessagerieChat.close()'}
+          title={$t('Piloter le widget depuis la page')}
+          hint={$t(
+            'Ouvrir, préremplir ou envoyer un message, dire qui est le visiteur, joindre des données : elles arrivent dans le panneau du conseiller, marquées comme non vérifiées.',
+          )}
+          code={API_EXAMPLE}
+        />
+
+        <Snippet
+          title={$t('Avant le chargement du script')}
+          hint={$t('Les appels attendent dans une file, puis s’exécutent dans l’ordre.')}
+          code={QUEUE_EXAMPLE}
         />
       </TabsContent>
     </Tabs>

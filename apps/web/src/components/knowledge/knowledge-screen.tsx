@@ -8,7 +8,15 @@ import { $t, $tp } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
 import { dayLabel } from '@/lib/time'
 import type { KnowledgeItem } from '@chat/contracts'
-import { BookOpen, ExternalLink, FileText, LoaderCircle, MessagesSquare } from 'lucide-react'
+import {
+  BookOpen,
+  ExternalLink,
+  FileText,
+  LoaderCircle,
+  MessagesSquare,
+  Pencil,
+} from 'lucide-react'
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
 /**
@@ -36,12 +44,20 @@ export function KnowledgeScreen() {
     <>
       <ScreenHeader
         tools={
-          <Button variant="outline" size="sm" asChild className="h-8 gap-1.5 text-xs">
-            <a href={basedbUrl} target="_blank" rel="noreferrer">
-              <ExternalLink className="size-3.5" />
-              {$t('Rédiger dans basedb')}
-            </a>
-          </Button>
+          <>
+            <Button variant="outline" size="sm" asChild className="h-8 gap-1.5 text-xs">
+              <a href={basedbUrl} target="_blank" rel="noreferrer">
+                <ExternalLink className="size-3.5" />
+                {$t('Ouvrir dans basedb')}
+              </a>
+            </Button>
+            <Button size="sm" asChild className="h-8 gap-1.5 text-xs">
+              <Link href="/parametrage/connaissance">
+                <Pencil className="size-3.5" />
+                {$t('Modifier les articles')}
+              </Link>
+            </Button>
+          </>
         }
       >
         <span className="font-medium">{$t('Connaissance')}</span>

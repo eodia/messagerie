@@ -18,11 +18,13 @@ import {
   Globe,
   LoaderCircle,
   type LucideIcon,
+  Pencil,
   Play,
   Plug,
   RefreshCw,
   Wrench,
 } from 'lucide-react'
+import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 
 const TYPES: Record<
@@ -95,8 +97,14 @@ export function ToolsScreen() {
             <Button variant="outline" size="sm" asChild className="h-8 gap-1.5 text-xs">
               <a href={basedbUrl} target="_blank" rel="noreferrer">
                 <ExternalLink className="size-3.5" />
-                {$t('Paramétrer dans basedb')}
+                {$t('Ouvrir dans basedb')}
               </a>
+            </Button>
+            <Button size="sm" asChild className="h-8 gap-1.5 text-xs">
+              <Link href="/parametrage/outils">
+                <Pencil className="size-3.5" />
+                {$t('Modifier les outils')}
+              </Link>
             </Button>
           </>
         }
