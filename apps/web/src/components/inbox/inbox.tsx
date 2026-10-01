@@ -11,6 +11,7 @@ import { apiAddress } from '@/lib/api'
 import { $t } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
 import { useInbox } from '@/lib/store/inbox'
+import { usePanels } from '@/lib/store/panels'
 import {
   CircleCheck,
   ExternalLink,
@@ -22,7 +23,7 @@ import {
   Unplug,
   X,
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ConversationList } from './conversation-list'
 import { DetailsPanel } from './details-panel'
 import { Thread } from './thread'
@@ -41,6 +42,9 @@ export function Inbox() {
   const basedbUrl = useBasedbUrl()
   const searchRef = useRef<HTMLInputElement>(null)
   const mod = useModKey()
+
+  // The panes' widths, from storage, before the first paint: they open where they were left.
+  useLayoutEffect(() => usePanels.getState().initialize(), [])
 
   // Ctrl+K (⌘K) goes to the search, by the physical key so that it works on any layout.
   useEffect(() => {

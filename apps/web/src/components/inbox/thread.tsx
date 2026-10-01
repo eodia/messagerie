@@ -18,6 +18,7 @@ import { Hint } from '@/components/ui/tooltip'
 import { api } from '@/lib/api'
 import { $t } from '@/lib/i18n'
 import { useInbox } from '@/lib/store/inbox'
+import { THREAD_MIN } from '@/lib/store/panels'
 import { dayLabel } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import type { Conversation, Feedback, Message } from '@chat/contracts'
@@ -93,7 +94,12 @@ export function Thread({
   const aiWriting = status === 'ai' && last !== undefined && last.kind !== 'ai'
 
   return (
-    <section className="flex min-w-0 flex-1 flex-col bg-surface">
+    <section
+      className="flex flex-1 flex-col bg-surface"
+      // The room the panes beside it leave, however wide they were made; in a narrow window,
+      // a share of it rather than more than there is.
+      style={{ minWidth: `min(${THREAD_MIN}px, 40%)` }}
+    >
       <header className="flex min-h-14 shrink-0 items-center gap-3 border-b bg-background px-5 py-2">
         <ContactAvatar name={contact.name} online={status !== 'resolved'} />
         <div className="min-w-0">

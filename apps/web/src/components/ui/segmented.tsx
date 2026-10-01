@@ -15,6 +15,7 @@ export function Segmented<T extends string>({
   options,
   disabled = false,
   className,
+  itemClassName,
   'aria-label': ariaLabel,
 }: {
   readonly value: T
@@ -22,6 +23,8 @@ export function Segmented<T extends string>({
   readonly options: readonly { readonly value: T; readonly label: ReactNode }[]
   readonly disabled?: boolean
   readonly className?: string
+  /** Each option's, after its own — to size the options otherwise than in equal parts. */
+  readonly itemClassName?: string
   readonly 'aria-label': string
 }) {
   return (
@@ -44,6 +47,7 @@ export function Segmented<T extends string>({
             'hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
             'disabled:pointer-events-none disabled:opacity-50',
             'data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-xs',
+            itemClassName,
           )}
         >
           {option.label}

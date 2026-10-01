@@ -1,6 +1,7 @@
 'use client'
 
 import { Chip, ColorBadge } from '@/components/app/chip'
+import { ResizablePanel } from '@/components/app/resizable-panel'
 import { ToolDialog, type ToolTarget } from '@/components/app/tool-dialog'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -56,7 +57,12 @@ export function DetailsPanel({ conversation }: { readonly conversation: Conversa
   const me = useInbox((s) => s.me)
   const { contact } = conversation
   return (
-    <aside className="hidden w-80 shrink-0 flex-col border-l bg-background xl:flex">
+    <ResizablePanel
+      panel="details"
+      side="right"
+      label={$t('le panneau de détails')}
+      className="hidden bg-background xl:flex"
+    >
       <Tabs defaultValue="details" className="min-h-0 flex-1">
         <TabsList className="w-full shrink-0 justify-start px-5">
           <TabsTrigger value="details">{$t('Détails')}</TabsTrigger>
@@ -177,7 +183,7 @@ export function DetailsPanel({ conversation }: { readonly conversation: Conversa
           )}
         </TabsContent>
       </Tabs>
-    </aside>
+    </ResizablePanel>
   )
 }
 

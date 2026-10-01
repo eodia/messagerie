@@ -1,5 +1,6 @@
 'use client'
 
+import { ResizablePanel } from '@/components/app/resizable-panel'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -9,8 +10,9 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Segmented } from '@/components/ui/segmented'
 import { Hint } from '@/components/ui/tooltip'
-import { $t, msg } from '@/lib/i18n'
+import { $t, formatCount, msg } from '@/lib/i18n'
 import { type InboxFilter, matchesFilter, useInbox } from '@/lib/store/inbox'
 import { inboxTime } from '@/lib/time'
 import { cn } from '@/lib/utils'
@@ -19,11 +21,19 @@ import { Inbox, ListFilter, Search } from 'lucide-react'
 import { type RefObject, useMemo } from 'react'
 import { ContactAvatar, StateChip } from './labels'
 
-const TABS: readonly { readonly filter: InboxFilter; readonly label: string }[] = [
+/**
+ * The filters above the list. `short` is what the list shows where the label would not fit
+ * at the pane's narrowest; the filter menu, which has the room, keeps the label.
+ */
+const TABS: readonly {
+  readonly filter: InboxFilter
+  readonly label: string
+  readonly short?: string
+}[] = [
   { filter: 'all', label: msg('Toutes') },
   { filter: 'ai', label: msg('IA') },
   { filter: 'open', label: msg('Ouvertes') },
-  { filter: 'unassigned', label: msg('Non assignées') },
+  { filter: 'unassigned', label: msg('Non assignées'), short: msg('En file') },
 ]
 
 /** The last thing said, as the row previews it: who said it, then what. */
@@ -69,7 +79,7 @@ export function ConversationList({
   )
 
   return (
-    <section className="flex w-80 shrink-0 flex-col border-r">
+    <ResizablePanel panel="list" side="left" as="section" label={$t('la liste des conversations')}>
       <div className="flex h-11 shrink-0 items-center gap-1.5 border-b px-3">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -110,36 +120,29 @@ export function ConversationList({
         </DropdownMenu>
       </div>
 
-      <div className="flex h-10 shrink-0 items-center gap-3.5 border-b px-3" role="tablist">
-        {TABS.map((tab) => {
-          const active = filter === tab.filter
-          const count = summaries.filter((s) => matchesFilter(s, tab.filter)).length
-          return (
-            <button
-              key={tab.filter}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setFilter(tab.filter)}
-              className={cn(
-                'relative inline-flex h-10 items-center gap-1.5 whitespace-nowrap text-xs font-medium transition-colors',
-                active
-                  ? "text-foreground after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:bg-primary after:content-['']"
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {$t(tab.label)}
-              <span
-                className={cn(
-                  'rounded-full px-1.5 text-[10px] font-semibold tabular-nums',
-                  active ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground',
-                )}
-              >
-                {count}
-              </span>
-            </button>
-          )
-        })}
+      <div className="flex h-11 shrink-0 items-center border-b px-3">
+        <Segmented
+          aria-label={$t('Filtrer les conversations')}
+          value={filter}
+          onValueChange={setFilter}
+          className="w-full"
+          // Each option as wide as what it says, so the longest gives way first — truncated
+          // if the pane is narrower still, never overflowing.
+          itemClassName="min-w-0 flex-auto gap-1 px-1.5"
+          options={TABS.map((tab) => ({
+            value: tab.filter,
+            label: (
+              <>
+                <Hint label={tab.short && $t(tab.label)}>
+                  <span className="truncate">{$t(tab.short ?? tab.label)}</span>
+                </Hint>
+                <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
+                  {formatCount(summaries.filter((s) => matchesFilter(s, tab.filter)).length)}
+                </span>
+              </>
+            ),
+          }))}
+        />
       </div>
 
       <ul className="flex-1 overflow-y-auto scroll-discret">
@@ -161,7 +164,7 @@ export function ConversationList({
           </li>
         )}
       </ul>
-    </section>
+    </ResizablePanel>
   )
 }
 
