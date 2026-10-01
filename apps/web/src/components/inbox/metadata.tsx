@@ -1,16 +1,21 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
+import { Kbd } from '@/components/ui/kbd'
 import { Hint } from '@/components/ui/tooltip'
 import { $t, formatCount } from '@/lib/i18n'
+import { cn } from '@/lib/utils'
 import type { Metadata, MetadataValue } from '@chat/contracts'
-import { Check, Pencil, Plus, X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { type KeyboardEvent, useState } from 'react'
 
 /**
  * Metadata, as a list of keys and values an agent reads, corrects and completes: what the
  * page attached (`MessagerieChat.setConversationData`…) or a colleague noted. Never
  * checked — the inbox says so where it shows them.
+ *
+ * The panel is narrow: a value is edited where it is, on the whole width, and a new one is
+ * written in two stacked fields — never two cramped inputs side by side.
  */
 
 const shown = (value: MetadataValue): string =>
@@ -33,8 +38,8 @@ function parsed(text: string, before: MetadataValue | undefined): MetadataValue 
   return trimmed
 }
 
-const field =
-  'h-7 w-full min-w-0 rounded-md border bg-background px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/25'
+const input =
+  'w-full min-w-0 rounded-md border bg-background px-2.5 py-1.5 text-[13px] outline-none transition-[box-shadow,border-color] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/25'
 
 export function MetadataList({
   data,
@@ -51,103 +56,113 @@ export function MetadataList({
   const [adding, setAdding] = useState(false)
   const [key, setKey] = useState('')
   const [value, setValue] = useState('')
+  const [busy, setBusy] = useState(false)
   const entries = Object.entries(data)
 
   async function saveEdit(name: string) {
+    if (draft.trim() === '') return
+    setBusy(true)
     if (await onChange({ [name]: parsed(draft, data[name]) })) setEditing(null)
+    setBusy(false)
   }
 
   async function add() {
     const name = key.trim()
     if (!name || !value.trim()) return
-    if (await onChange({ [name]: parsed(value, undefined) })) {
+    setBusy(true)
+    if (await onChange({ [name]: parsed(value, data[name]) })) {
       setKey('')
       setValue('')
       setAdding(false)
     }
+    setBusy(false)
   }
 
+  /** Enter saves, Shift+Enter goes to the line, Escape gives up. */
   const onKeys = (save: () => void, cancel: () => void) => (event: KeyboardEvent) => {
-    if (event.key === 'Enter') {
+    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault()
       save()
-    } else if (event.key === 'Escape') cancel()
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      cancel()
+    }
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       {entries.length === 0 && !adding && <p className="text-xs text-muted-foreground">{empty}</p>}
+
       {entries.length > 0 && (
-        <dl className="grid grid-cols-[minmax(0,8.5rem)_1fr] items-center gap-x-3 gap-y-1.5 text-xs">
-          {entries.map(([name, current]) => (
-            <div key={name} className="group contents">
-              <dt className="truncate text-muted-foreground" title={name}>
-                {name}
-              </dt>
-              <dd className="flex min-w-0 items-center gap-1">
-                {editing === name ? (
-                  <>
-                    <input
-                      // biome-ignore lint/a11y/noAutofocus: the field the agent just asked to edit
-                      autoFocus
-                      aria-label={name}
-                      value={draft}
-                      onChange={(event) => setDraft(event.target.value)}
-                      onKeyDown={onKeys(
-                        () => void saveEdit(name),
-                        () => setEditing(null),
-                      )}
-                      className={field}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      className="size-7"
-                      aria-label={$t('Enregistrer')}
-                      onClick={() => void saveEdit(name)}
-                    >
-                      <Check className="size-3.5" />
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <span className="min-w-0 flex-1 break-words">{shown(current)}</span>
-                    <span className="flex shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
-                      <Hint label={$t('Modifier')}>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="size-6"
-                          onClick={() => {
-                            setEditing(name)
-                            setDraft(
-                              typeof current === 'boolean' ? shown(current) : String(current),
-                            )
-                          }}
-                        >
-                          <Pencil className="size-3 text-muted-foreground" />
-                        </Button>
-                      </Hint>
-                      <Hint label={$t('Retirer')}>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="size-6"
-                          onClick={() => void onChange({ [name]: null })}
-                        >
-                          <X className="size-3 text-muted-foreground" />
-                        </Button>
-                      </Hint>
-                    </span>
-                  </>
-                )}
-              </dd>
-            </div>
-          ))}
-        </dl>
+        <ul className="-mx-1.5 space-y-0.5">
+          {entries.map(([name, current]) =>
+            editing === name ? (
+              <li key={name} className="space-y-1.5 rounded-lg border bg-muted/30 p-2">
+                <div className="truncate px-0.5 text-[11px] font-medium text-muted-foreground">
+                  {name}
+                </div>
+                <textarea
+                  // biome-ignore lint/a11y/noAutofocus: the value the agent just asked to edit
+                  autoFocus
+                  rows={1}
+                  aria-label={name}
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  onKeyDown={onKeys(
+                    () => void saveEdit(name),
+                    () => setEditing(null),
+                  )}
+                  onFocus={(event) => event.currentTarget.select()}
+                  maxLength={500}
+                  className={cn(input, 'field-sizing-content max-h-40 resize-none')}
+                />
+                <Actions
+                  busy={busy}
+                  disabled={draft.trim() === ''}
+                  onSave={() => void saveEdit(name)}
+                  onCancel={() => setEditing(null)}
+                />
+              </li>
+            ) : (
+              <li
+                key={name}
+                className="group flex items-start gap-2 rounded-md px-1.5 py-1 hover:bg-muted/50"
+              >
+                <span className="w-2/5 shrink-0 truncate pt-px text-xs text-muted-foreground">
+                  <Hint label={name}>
+                    <span>{name}</span>
+                  </Hint>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdding(false)
+                    setEditing(name)
+                    setDraft(typeof current === 'boolean' ? shown(current) : String(current))
+                  }}
+                  aria-label={$t('Modifier {name}', { name })}
+                  className="min-w-0 flex-1 cursor-text rounded-sm text-left text-xs break-words hover:underline hover:decoration-muted-foreground/40 hover:underline-offset-4"
+                >
+                  {shown(current)}
+                </button>
+                <Hint label={$t('Retirer')}>
+                  <button
+                    type="button"
+                    aria-label={$t('Retirer {name}', { name })}
+                    onClick={() => void onChange({ [name]: null })}
+                    className="shrink-0 rounded-sm p-0.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </Hint>
+              </li>
+            ),
+          )}
+        </ul>
       )}
+
       {adding ? (
-        <div className="flex items-center gap-1.5">
+        <div className="space-y-1.5 rounded-lg border bg-muted/30 p-2">
           <input
             // biome-ignore lint/a11y/noAutofocus: the field the agent just asked to fill
             autoFocus
@@ -157,12 +172,13 @@ export function MetadataList({
               () => void add(),
               () => setAdding(false),
             )}
-            placeholder={$t('Donnée')}
+            placeholder={$t('Nom — « Numéro de contrat »')}
             aria-label={$t('Nom de la donnée')}
             maxLength={60}
-            className={`${field} w-28 flex-none`}
+            className={input}
           />
-          <input
+          <textarea
+            rows={1}
             value={value}
             onChange={(event) => setValue(event.target.value)}
             onKeyDown={onKeys(
@@ -172,28 +188,75 @@ export function MetadataList({
             placeholder={$t('Valeur')}
             aria-label={$t('Valeur')}
             maxLength={500}
-            className={field}
+            className={cn(input, 'field-sizing-content max-h-40 resize-none')}
           />
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="size-7"
-            aria-label={$t('Ajouter')}
-            onClick={() => void add()}
-          >
-            <Check className="size-3.5" />
-          </Button>
+          {key.trim() !== '' && data[key.trim()] !== undefined && (
+            <p className="px-0.5 text-[11px] text-amber-700 dark:text-amber-400">
+              {$t('Cette donnée existe : sa valeur sera remplacée.')}
+            </p>
+          )}
+          <Actions
+            busy={busy}
+            disabled={!key.trim() || !value.trim()}
+            label={$t('Ajouter')}
+            onSave={() => void add()}
+            onCancel={() => setAdding(false)}
+          />
         </div>
       ) : (
         <button
           type="button"
-          onClick={() => setAdding(true)}
-          className="inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+          onClick={() => {
+            setEditing(null)
+            setAdding(true)
+          }}
+          className="-mx-1.5 inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
         >
           <Plus className="size-3.5" />
           {$t('Ajouter une donnée')}
         </button>
       )}
+    </div>
+  )
+}
+
+function Actions({
+  busy,
+  disabled,
+  label = $t('Enregistrer'),
+  onSave,
+  onCancel,
+}: {
+  readonly busy: boolean
+  readonly disabled: boolean
+  readonly label?: string
+  readonly onSave: () => void
+  readonly onCancel: () => void
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="flex flex-1 items-center gap-1 truncate px-0.5 text-[10px] text-muted-foreground">
+        <Kbd>↵</Kbd>
+        {$t('valider')}
+      </span>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-7 px-2 text-xs"
+        onClick={onCancel}
+      >
+        {$t('Annuler')}
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        className="h-7 px-2.5 text-xs"
+        disabled={busy || disabled}
+        onClick={onSave}
+      >
+        {label}
+      </Button>
     </div>
   )
 }

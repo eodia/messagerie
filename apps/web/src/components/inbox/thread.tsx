@@ -32,7 +32,7 @@ import {
   UserRoundPlus,
 } from 'lucide-react'
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { AssignPicker } from './assign-picker'
+import { AssignPicker, afterMenus } from './assign-picker'
 import { Composer } from './composer'
 import { ContactAvatar, StateChip } from './labels'
 import {
@@ -187,7 +187,7 @@ export function Thread({
               </DropdownMenuTrigger>
             </Hint>
             <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuItem onSelect={() => setAssigning(true)}>
+              <DropdownMenuItem onSelect={() => afterMenus(() => setAssigning(true))}>
                 <UserRoundPlus />
                 {$t('Affecter à…')}
               </DropdownMenuItem>
