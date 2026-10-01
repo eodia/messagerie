@@ -79,6 +79,8 @@ export async function inboxDirectory(
         name: i.name,
         description: i.description,
         color: i.color,
+        icon: i.icon,
+        image: i.image,
         teams: i.teamIds.flatMap((id) => byId.get(id) ?? []),
         defaultTeamId: i.defaultTeamId,
       })),

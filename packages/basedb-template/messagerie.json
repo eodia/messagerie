@@ -374,6 +374,16 @@
           "description": "Code hexadécimal, par exemple #0EA5E9 : la pastille de la boîte dans le menu."
         },
         {
+          "label": "Pictogramme",
+          "kind": "short_text",
+          "description": "Le nom d'un pictogramme de la bibliothèque de l'interface (Lucide), par exemple inbox ou shield-alert : il remplace la pastille, dans la couleur de la boîte."
+        },
+        {
+          "label": "Image",
+          "kind": "long_text",
+          "description": "Une petite image à la place du pictogramme : une adresse https, ou une image intégrée (data:) de 64 pixels au plus."
+        },
+        {
           "label": "Actif",
           "kind": "boolean"
         }

@@ -95,9 +95,12 @@ change rien de ce qui marche.
 `pnpm template:check` fait passer le modèle au validateur de basedb, celui-là même que
 son serveur applique.
 
-Question ouverte : faire évoluer une base déjà créée quand le modèle change (un champ
-ajouté dans une version du chat). Il faudra une étape de migration du chat, qui passe
-par l'API d'administration de basedb.
+Quand le modèle gagne un champ dans une version du chat, `pnpm basedb:setup` l'ajoute à
+la base existante, par l'API d'administration de basedb : ajout seulement, jamais de
+suppression, de renommage ni de changement de genre, qui restent une décision prise dans
+basedb. Une relation, un calcul ou une table entière qui manquent sont signalés, pas
+créés. Le serveur relit la description de la base quand il écrit un champ qu'il ne lui
+connaissait pas.
 
 ## D4 — Les conseillers sont des comptes basedb
 
@@ -329,6 +332,11 @@ boîte, ou à défaut celle du site.
   reçoit, qui en est prévenue. Elle quitte la personne qui l'avait, et l'IA.
 - **Transfert par l'IA.** L'IA transfère à l'équipe d'un garde-fou, ou à celle de la
   conversation. Seuls les membres de cette équipe sont prévenus, avec les superviseurs.
+- **Apparence.** Une boîte a une couleur, et un pictogramme ou une petite image, comme une
+  base ou une table dans basedb. Le sélecteur est celui de basedb, repris tel quel
+  (`look-picker`), avec sa bibliothèque de pictogrammes Lucide : le même nom (`shield-alert`)
+  vaut des deux côtés. Une image est réduite à 64 pixels dans le navigateur ; le serveur ne
+  laisse passer qu'une adresse https ou une image matricielle intégrée, jamais un script.
 
 ## D13 — Les métadonnées, et ce que la page peut dire au widget
 

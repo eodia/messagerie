@@ -7,7 +7,8 @@ Messagerie client libre, sœur de basedb (`../basedb`). Les décisions qui font 
 
 - **Paramétrage et référentiel → basedb**, base « Messagerie », décrite par
   `packages/basedb-template/messagerie.json`. Après toute modification du modèle :
-  `pnpm template:check`, qui passe par le validateur de basedb.
+  `pnpm template:check`, qui passe par le validateur de basedb, puis `pnpm basedb:setup`,
+  qui ajoute les nouveaux champs à une base existante (D3).
 - **Flux → schéma `chat`** : contacts, conversations, messages, traces IA, vecteurs.
 - Le chat lit basedb par son SDK, jamais en SQL sur les tables `b_…` (D2).
 - **Aucun secret dans basedb** : clés de signature des sites, clés des fournisseurs
@@ -30,6 +31,8 @@ Messagerie client libre, sœur de basedb (`../basedb`). Les décisions qui font 
 
 - Les tokens de `apps/web/src/styles/globals.css` sont ceux de basedb, valeur pour valeur. Ne
   les changez qu'avec ceux de basedb.
+- L'apparence d'une chose (couleur, pictogramme ou image) se choisit avec le `LookButton`
+  de basedb (`components/app/look-picker.tsx`), et se dessine avec `components/app/look.tsx`.
 - Composants shadcn new-york sur Radix, dans `apps/web/src/components/ui`, repris de basedb :
   - onglets soulignés ;
   - infobulles inversées par `Hint`, jamais un `title` natif ;

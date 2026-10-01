@@ -391,6 +391,10 @@ export interface InboxItem {
   readonly description: string | null
   /** `#RRGGBB`, or null. */
   readonly color: string | null
+  /** A pictogram of the interface's library (basedb's set), by its name, or null. */
+  readonly icon: string | null
+  /** A small picture in place of the pictogram — https or data URL — or null. */
+  readonly image: string | null
   readonly teams: readonly TeamItem[]
   readonly defaultTeamId: string | null
 }

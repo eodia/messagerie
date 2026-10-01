@@ -1,6 +1,7 @@
 'use client'
 
 import { Chip } from '@/components/app/chip'
+import { InboxGlyph } from '@/components/app/look'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -135,10 +136,7 @@ export function Thread({
             {(inbox || team) && (
               <Hint label={$t('Boîte de réception et équipe')}>
                 <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap">
-                  <span
-                    className="size-2 rounded-full bg-muted-foreground/40"
-                    style={inbox?.color ? { background: inbox.color } : undefined}
-                  />
+                  {inbox && <InboxGlyph look={inbox} className="size-3" />}
                   {inbox?.name}
                   {inbox && team && <ChevronRight className="size-3" />}
                   {team?.name}

@@ -7,6 +7,7 @@ import {
   accessToken,
   createBase,
   elevate,
+  evolveBase,
   groupEditing,
   issueToken,
   listBases,
@@ -20,7 +21,8 @@ import {
  *   corepack pnpm db:up && corepack pnpm basedb:setup
  *
  * Waits for basedb; signs in as the administrator `.env` names; creates the « Messagerie »
- * base with the rows of Acme Assurances, unless it exists; issues the chat's integration
+ * base with the rows of Acme Assurances, unless it exists — then adds the fields a newer
+ * template declares; issues the chat's integration
  * token (REST, write) unless the chat already holds a good one; gives the group of the
  * supervisors the right to edit the base; and writes what the server
  * and the inbox need into `apps/server/.env` and `apps/web/.env.local`. Run again, it
@@ -97,6 +99,15 @@ try {
   )
   if (base) {
     console.log(`basedb : la base « ${LABEL} » existe déjà (${base.name}).`)
+    // A newer template may declare fields the base lacks: they are added, nothing else.
+    const { added, missing } = await evolveBase(
+      session,
+      token,
+      base.name,
+      read('messagerie.json') as unknown as Parameters<typeof evolveBase>[3],
+    )
+    for (const field of added) console.log(`  + ${field}`)
+    for (const thing of missing) console.log(`  ! ${thing} : à ajouter dans basedb`)
   } else {
     console.log(`basedb : création de la base « ${LABEL} », avec Acme Assurances…`)
     const template = { ...read('messagerie.json'), rows: read('demo-rows.json') }

@@ -1,6 +1,7 @@
 'use client'
 
 import { Chip } from '@/components/app/chip'
+import { InboxGlyph } from '@/components/app/look'
 import { ContactAvatar } from '@/components/inbox/labels'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -39,6 +40,7 @@ import {
 import { type Extras, NEW, useRowEditor } from '../kit/editor'
 import { PreviewCard, Studio, StudioTabs } from '../kit/studio'
 import { AccountDialog } from './account-dialog'
+import { lookOfRow } from './inboxes'
 
 /**
  * Teams and agents: who answers, grouped as they are assigned and transferred to. An agent
@@ -394,10 +396,7 @@ function TeamPreview({
                   key={b.id}
                   className="inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs"
                 >
-                  <span
-                    className="size-2 rounded-full"
-                    style={{ background: text(b.values.Couleur) || '#94a3b8' }}
-                  />
+                  <InboxGlyph look={lookOfRow(b.values)} className="size-3" />
                   {text(b.values.Nom)}
                 </span>
               ))}
@@ -681,10 +680,7 @@ function AgentPreview({ data, values }: { readonly data: SettingsData; readonly 
         <div className="bg-sidebar p-2">
           {inboxes.map((b) => (
             <div key={b.id} className="flex h-8 items-center gap-2.5 rounded-lg px-2 text-[13px]">
-              <span
-                className="size-2 rounded-full"
-                style={{ background: text(b.values.Couleur) || '#94a3b8' }}
-              />
+              <InboxGlyph look={lookOfRow(b.values)} />
               <span className="flex-1 truncate">{text(b.values.Nom)}</span>
               <Inbox className="size-3.5 text-muted-foreground" />
             </div>

@@ -108,6 +108,107 @@ export async function listBases(
   return data.map(({ id, name, label }) => ({ id, name, label }))
 }
 
+interface TemplateTable {
+  readonly label: string
+  readonly fields: readonly {
+    readonly label: string
+    readonly kind: string
+    readonly description?: string
+    readonly options?: readonly { readonly label: string; readonly color?: string }[]
+  }[]
+}
+
+/** The kinds a field can be added with alone — not computed, not a relation. */
+const ADDABLE = new Set([
+  'short_text',
+  'long_text',
+  'url',
+  'number',
+  'boolean',
+  'date',
+  'select',
+  'multi_select',
+  'user',
+])
+
+const slug = (text: string) =>
+  text
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '')
+
+/**
+ * Brings an existing base up to the template: the fields a newer template declares and
+ * the base lacks are added — never one removed, renamed or changed, which is a person's
+ * decision in basedb. Returns what was added, as « Table › Champ ». A relation, a count
+ * or a table missing altogether is reported, not made: `missing`.
+ */
+export async function evolveBase(
+  session: AdminSession,
+  token: string,
+  base: string,
+  template: { readonly tables: readonly TemplateTable[] },
+): Promise<{ added: string[]; missing: string[] }> {
+  const headers = { authorization: `Bearer ${token}`, 'content-type': 'application/json' }
+  const described = await fetch(api(session, `/meta/bases/${encodeURIComponent(base)}`), {
+    headers,
+  })
+  if (!described.ok) throw new AdminFailure(`description refusée (${described.status})`)
+  const { data } = (await described.json()) as {
+    data: { tables: { name: string; label: string; fields: { label: string }[] }[] }
+  }
+  const added: string[] = []
+  const missing: string[] = []
+  for (const wanted of template.tables) {
+    const table = data.tables.find((t) => t.label === wanted.label)
+    if (!table) {
+      missing.push(wanted.label)
+      continue
+    }
+    for (const field of wanted.fields) {
+      if (table.fields.some((f) => f.label === field.label)) continue
+      const where = `${wanted.label} › ${field.label}`
+      if (!ADDABLE.has(field.kind)) {
+        missing.push(where)
+        continue
+      }
+      const response = await fetch(
+        api(
+          session,
+          `/admin/bases/${encodeURIComponent(base)}/tables/${encodeURIComponent(table.name)}/fields`,
+        ),
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            label: field.label,
+            kind: field.kind,
+            description: field.description ?? null,
+            ...(field.options
+              ? {
+                  options: field.options.map((o) => ({
+                    value: slug(o.label),
+                    label: o.label,
+                    color: o.color ?? null,
+                  })),
+                }
+              : {}),
+          }),
+        },
+      )
+      if (!response.ok) {
+        throw new AdminFailure(
+          `champ ${where} refusé (${response.status}) ${await response.text()}`,
+        )
+      }
+      added.push(where)
+    }
+  }
+  return { added, missing }
+}
+
 /**
  * A group that may edit a base — created if it has no namesake, given `edit` on the base
  * otherwise kept as it is. The session must be elevated. Returns the group's id.

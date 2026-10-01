@@ -2,6 +2,7 @@
 
 import { Chip, ColorBadge } from '@/components/app/chip'
 import { CopyButton } from '@/components/app/copy-button'
+import { InboxGlyph } from '@/components/app/look'
 import { ResizablePanel } from '@/components/app/resizable-panel'
 import { ToolDialog, type ToolTarget } from '@/components/app/tool-dialog'
 import { Button } from '@/components/ui/button'
@@ -191,10 +192,7 @@ export function DetailsPanel({ conversation }: { readonly conversation: Conversa
           <Row icon={Inbox} label={$t('Boîte')}>
             {inbox ? (
               <>
-                <span
-                  className="size-2 shrink-0 rounded-full bg-muted-foreground/40"
-                  style={inbox.color ? { background: inbox.color } : undefined}
-                />
+                <InboxGlyph look={inbox} />
                 <span className="truncate">{inbox.name}</span>
               </>
             ) : (

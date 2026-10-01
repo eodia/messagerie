@@ -1,5 +1,6 @@
 'use client'
 
+import { InboxGlyph } from '@/components/app/look'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -97,10 +98,9 @@ export function TransferDialog({
                     chosen ? 'border-primary/50 bg-primary/5' : 'hover:bg-muted/50',
                   )}
                 >
-                  <span
-                    className="mt-1.5 size-2 shrink-0 rounded-full bg-muted-foreground/40"
-                    style={option.color ? { background: option.color } : undefined}
-                  />
+                  <span className="flex h-5 shrink-0 items-center">
+                    <InboxGlyph look={option} />
+                  </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2 text-sm font-medium">
                       {option.name}

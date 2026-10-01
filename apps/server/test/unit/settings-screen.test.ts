@@ -90,3 +90,31 @@ describe('a row', () => {
     expect(row?.values).toMatchObject({ Description: null, 'Équipe par défaut': null, Équipes: [] })
   })
 })
+
+describe('an inbox’s look', () => {
+  it('is its colour, its pictogram and its picture — a script never', async () => {
+    const settings = fresh()
+    const look = async () => (await settings.inboxes()).find((i) => i.id === 'sinistres')
+    expect(await look()).toMatchObject({ color: '#EA580C', icon: 'droplet', image: null })
+
+    const picture = 'data:image/webp;base64,UklGRhYAAABXRUJQVlA4'
+    await updateRow(settings, supervisor, null, 'boites', 'sinistres', {
+      Pictogramme: null,
+      Image: picture,
+    })
+    expect(await look()).toMatchObject({ icon: null, image: picture })
+
+    for (const bad of [
+      'javascript:alert(1)',
+      'data:image/svg+xml;base64,PHN2Zz4=',
+      'http://x.fr/a.png',
+    ]) {
+      await updateRow(settings, supervisor, null, 'boites', 'sinistres', { Image: bad })
+      expect((await look())?.image).toBeNull()
+    }
+    await updateRow(settings, supervisor, null, 'boites', 'sinistres', {
+      Pictogramme: 'Shield Alert',
+    })
+    expect((await look())?.icon).toBeNull()
+  })
+})

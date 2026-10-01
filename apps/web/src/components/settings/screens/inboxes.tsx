@@ -1,16 +1,26 @@
 'use client'
 
+import { InboxGlyph, hasLook } from '@/components/app/look'
+import { LookButton, type LookValue } from '@/components/app/look-picker'
 import { ContactAvatar } from '@/components/inbox/labels'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { $t, $tp } from '@/lib/i18n'
+import { normalizeHex } from '@/lib/look'
 import { cn } from '@/lib/utils'
 import { Globe, Inbox, MessagesSquare, UsersRound } from 'lucide-react'
 import { ChoiceMenu, Toggles } from '../field-input'
-import { ColorField, Field, FormSection } from '../kit/controls'
+import { Field, FormSection } from '../kit/controls'
 import { type Values, bool, list, nameOf, one, text, useSettingsData } from '../kit/data'
 import { useRowEditor } from '../kit/editor'
 import { PreviewCard, Studio } from '../kit/studio'
+
+/** An inbox's look, from its row: its colour, its pictogram, its picture. */
+export const lookOfRow = (values: Values): LookValue => ({
+  color: normalizeHex(text(values.Couleur)),
+  icon: text(values.Pictogramme) || null,
+  image: text(values.Image) || null,
+})
 
 /**
  * The inboxes: where conversations arrive, and the teams that answer there — the same team
@@ -36,13 +46,20 @@ export function InboxesScreen() {
           'Une boîte reçoit les conversations d’un ou plusieurs sites, et les équipes qui y répondent.',
         ),
       }}
-      used={['Nom', 'Description', 'Couleur', 'Équipes', 'Équipe par défaut']}
+      used={[
+        'Nom',
+        'Description',
+        'Couleur',
+        'Pictogramme',
+        'Image',
+        'Équipes',
+        'Équipe par défaut',
+      ]}
       item={(_row, values) => (
         <>
-          <span
-            className="size-2.5 shrink-0 rounded-full bg-muted-foreground/40"
-            style={text(values.Couleur) ? { background: text(values.Couleur) } : undefined}
-          />
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted">
+            <InboxGlyph look={lookOfRow(values)} className="size-4" dot="size-2.5" />
+          </span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[13px] font-medium">
               {text(values.Nom) || $t('Nouvelle boîte')}
@@ -59,16 +76,32 @@ export function InboxesScreen() {
             <Field
               label={$t('Nom')}
               required
-              hint={$t('Comme le menu de la messagerie l’affiche.')}
+              hint={$t(
+                'Comme le menu l’affiche. Le bouton à gauche choisit sa couleur, et un pictogramme ou une image.',
+              )}
             >
               {(id) => (
-                <Input
-                  id={id}
-                  value={text(values.Nom)}
-                  onChange={(event) => editor.set('Nom', event.target.value)}
-                  placeholder={$t('Service client')}
-                  maxLength={60}
-                />
+                <div className="flex items-center gap-2">
+                  {/* The look sits before the name, where the menu draws it — as in basedb. */}
+                  <LookButton
+                    look={lookOfRow(values)}
+                    label={$t('Apparence de la boîte {name}', { name: text(values.Nom) }).trim()}
+                    onChange={(patch) => {
+                      if ('color' in patch) editor.set('Couleur', patch.color ?? null)
+                      if ('icon' in patch) editor.set('Pictogramme', patch.icon ?? null)
+                      if ('image' in patch) editor.set('Image', patch.image ?? null)
+                    }}
+                    disabled={!data.canEdit}
+                    className="size-9"
+                  />
+                  <Input
+                    id={id}
+                    value={text(values.Nom)}
+                    onChange={(event) => editor.set('Nom', event.target.value)}
+                    placeholder={$t('Service client')}
+                    maxLength={60}
+                  />
+                </div>
               )}
             </Field>
             <Field label={$t('Description')}>
@@ -79,18 +112,6 @@ export function InboxesScreen() {
                   value={text(values.Description)}
                   onChange={(event) => editor.set('Description', event.target.value)}
                   placeholder={$t('Les demandes générales des clients.')}
-                />
-              )}
-            </Field>
-            <Field
-              label={$t('Couleur')}
-              hint={$t('La pastille de la boîte, dans le menu et les listes.')}
-            >
-              {(id) => (
-                <ColorField
-                  id={id}
-                  value={text(values.Couleur)}
-                  onChange={(color) => editor.set('Couleur', color)}
                 />
               )}
             </Field>
@@ -165,7 +186,8 @@ function InboxPreview({
   readonly agents: readonly Values[]
   readonly sites: readonly Values[]
 }) {
-  const color = text(values.Couleur) || '#94a3b8'
+  const look = lookOfRow(values)
+  const color = look.color ?? '#94a3b8'
   const name = text(values.Nom) || $t('Nouvelle boîte')
   const chosen = list(values.Équipes)
   const fallback = one(values['Équipe par défaut'])
@@ -197,10 +219,7 @@ function InboxPreview({
                 current && !bool(values.Actif) && 'opacity-50',
               )}
             >
-              <span
-                className="size-2 shrink-0 rounded-full"
-                style={{ background: text(inbox.Couleur) || '#94a3b8' }}
-              />
+              <InboxGlyph look={lookOfRow(inbox)} />
               <span className="min-w-0 flex-1 truncate">{current ? name : text(inbox.Nom)}</span>
               {current && (
                 <span className="rounded-full bg-primary/15 px-1.5 text-[10px] font-semibold tabular-nums">
@@ -234,9 +253,16 @@ function InboxPreview({
               </span>
             )}
           </Step>
-          <Step icon={Inbox} title={$t('Entre dans la boîte')} accent={color}>
+          <Step
+            icon={Inbox}
+            title={$t('Entre dans la boîte')}
+            accent={color}
+            mark={
+              hasLook(look) && (look.icon || look.image) ? <InboxGlyph look={look} /> : undefined
+            }
+          >
             <span className="inline-flex items-center gap-2 rounded-lg border px-2.5 py-1 text-sm font-medium">
-              <span className="size-2.5 rounded-full" style={{ background: color }} />
+              <InboxGlyph look={look} dot="size-2.5" />
               {name}
             </span>
           </Step>
@@ -303,12 +329,15 @@ function Step({
   icon: Icon,
   title,
   accent,
+  mark,
   last = false,
   children,
 }: {
   readonly icon: typeof Globe
   readonly title: string
   readonly accent?: string
+  /** In place of the step's icon: the inbox's own pictogram or picture. */
+  readonly mark?: React.ReactNode
   readonly last?: boolean
   readonly children: React.ReactNode
 }) {
@@ -319,7 +348,7 @@ function Step({
         className="relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border bg-background"
         style={accent ? { borderColor: accent, color: accent } : undefined}
       >
-        <Icon className="size-3.5" />
+        {mark ?? <Icon className="size-3.5" />}
       </span>
       <div className="min-w-0 flex-1 space-y-1.5 pt-1">
         <div className="text-xs font-medium text-muted-foreground">{title}</div>

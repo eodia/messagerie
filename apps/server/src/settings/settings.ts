@@ -58,6 +58,10 @@ export interface Inbox {
   readonly description: string | null
   /** `#RRGGBB`, or null. */
   readonly color: string | null
+  /** A pictogram of the interface's library, by its name (`shield-alert`), or null. */
+  readonly icon: string | null
+  /** A small picture — https or data URL — in place of the pictogram, or null. */
+  readonly image: string | null
   readonly teamIds: readonly string[]
   /** The team a new conversation is given to; null: the site's. */
   readonly defaultTeamId: string | null
@@ -203,6 +207,25 @@ const many = (value: unknown): string[] =>
     : typeof value === 'string'
       ? [value]
       : []
+
+/** A pictogram's name, as the interface's library writes them: `shield-alert`. */
+const iconOf = (value: unknown): string | null => {
+  const name = text(value)
+  return name !== null && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(name) ? name : null
+}
+
+/**
+ * A picture the inbox may draw: an https address, or a raster data URL — never a script,
+ * whatever the row says. The size is basedb's ceiling for a look.
+ */
+const imageOf = (value: unknown): string | null => {
+  const url = text(value)
+  if (url === null || url.length > 16_384) return null
+  return /^https:\/\/\S+$/i.test(url) ||
+    /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(url)
+    ? url
+    : null
+}
 
 const WEEKDAYS: Readonly<Record<string, number>> = {
   Lundi: 1,
@@ -401,6 +424,8 @@ export class Settings {
       name: text(values.Nom) ?? id,
       description: text(values.Description),
       color: colorOf(values.Couleur),
+      icon: iconOf(values.Pictogramme),
+      image: imageOf(values.Image),
       teamIds: many(values.Équipes),
       defaultTeamId: one(values['Équipe par défaut']),
       active: bool(values.Actif),

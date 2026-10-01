@@ -1,5 +1,6 @@
 'use client'
 
+import { InboxGlyph } from '@/components/app/look'
 import { Separator } from '@/components/ui/separator'
 import { Hint } from '@/components/ui/tooltip'
 import { $t, msg } from '@/lib/i18n'
@@ -124,10 +125,7 @@ export function Sidebar({ basedbUrl }: { readonly basedbUrl: string }) {
                     : 'text-muted-foreground hover:text-foreground',
                 )}
               >
-                <span
-                  className="size-2 shrink-0 rounded-full bg-muted-foreground/40"
-                  style={inbox.color ? { background: inbox.color } : undefined}
-                />
+                <InboxGlyph look={inbox} />
                 <span className="min-w-0 flex-1 truncate">{inbox.name}</span>
                 <Count value={byInbox.get(inbox.id) ?? 0} />
               </button>

@@ -59,6 +59,7 @@
       "Nom": "Service client",
       "Description": "Les questions des clients et des visiteurs du site.",
       "Couleur": "#2563EB",
+      "Pictogramme": "message-square",
       "Actif": true,
       "Équipes": ["@support"],
       "Équipe par défaut": "@support"
@@ -68,6 +69,7 @@
       "Nom": "Sinistres",
       "Description": "Les déclarations et le suivi des sinistres, auto et habitation.",
       "Couleur": "#EA580C",
+      "Pictogramme": "droplet",
       "Actif": true,
       "Équipes": ["@auto", "@habitation"],
       "Équipe par défaut": "@auto"
@@ -77,6 +79,7 @@
       "Nom": "Réclamations",
       "Description": "Les mécontentements, traités par le support avec l'équipe habitation.",
       "Couleur": "#DB2777",
+      "Pictogramme": "megaphone",
       "Actif": true,
       "Équipes": ["@support", "@habitation"],
       "Équipe par défaut": "@support"

@@ -109,7 +109,13 @@ export class BasedbSource implements SettingsSource {
     label: string,
     values: Readonly<Record<string, unknown>>,
   ): Promise<{ table: string; values: Record<string, unknown> }> {
-    const table = await this.table(label)
+    let table = await this.table(label)
+    // A field the description lacks may have been added since — `basedb:setup` brings a
+    // base up to the template: the base is described again, once.
+    if (Object.keys(values).some((name) => !table.fields.some((f) => f.label === name))) {
+      this.tables = null
+      table = await this.table(label)
+    }
     const physical: Record<string, unknown> = {}
     for (const [name, value] of Object.entries(values)) {
       const field = table.fields.find((f) => f.label === name)
