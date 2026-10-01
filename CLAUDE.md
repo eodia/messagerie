@@ -75,6 +75,10 @@ Messagerie client libre, sœur de basedb (`../basedb`). Les décisions qui font 
   le type se décide sur les octets (`files/attachments.ts`) ; un fichier se lit par un lien
   signé. L'IA ne lit un fichier qu'à la demande d'un conseiller.
 - `@chat/ai` se consomme compilé : après une modification, `pnpm --filter @chat/ai build`.
+- **API et MCP** (D16) : `src/api`. Un service ouvert aux programmes s'écrit une fois dans
+  `api/service.ts` (droits du jeton, boîtes atteintes), puis s'expose en route dans
+  `api/rest.ts` et en outil dans `api/mcp.ts`. Un jeton ne supprime jamais rien, et
+  n'atteint jamais `/api/inbox`.
 
 ## Widget (`apps/widget`)
 

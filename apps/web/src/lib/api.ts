@@ -1,12 +1,15 @@
 import type {
   Agent,
   ApiError,
+  ApiToken,
   Attachment,
   CannedReply,
   ContactDetail,
   ContactListItem,
   Conversation,
   ConversationSummary,
+  CreateTokenBody,
+  CreatedToken,
   ErrorCode,
   FeedbackBody,
   GifHit,
@@ -209,6 +212,9 @@ export const api = {
     request<GifHit[]>('GET', `/gifs?q=${encodeURIComponent(query)}&offset=${offset}`),
   gifFile: (id: string) =>
     request<Blob>('GET', `/gifs/${encodeURIComponent(id)}/file`, undefined, false, true),
+  tokens: () => request<ApiToken[]>('GET', '/tokens'),
+  createToken: (body: CreateTokenBody) => request<CreatedToken>('POST', '/tokens', body),
+  revokeToken: (id: string) => request<void>('DELETE', `/tokens/${encodeURIComponent(id)}`),
   search: (query: string) => request<MessageHit[]>('GET', `/search?q=${encodeURIComponent(query)}`),
   analyzeAttachment: (id: string) =>
     request<Attachment>('POST', `/attachments/${encodeURIComponent(id)}/analysis`),

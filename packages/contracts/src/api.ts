@@ -62,6 +62,12 @@ export type ErrorCode =
   /** The AI cannot read this kind of file with the configured model. */
   | 'ATTACHMENT_NOT_ANALYZABLE'
   | 'GIFS_UNAVAILABLE'
+  /** The public API and the MCP server: basedb's codes, for the chat's tokens (D16). */
+  | 'TOKEN_INVALID'
+  | 'TOKEN_EXPIRED'
+  | 'TOKEN_REVOKED'
+  | 'TOKEN_READ_ONLY'
+  | 'TOKEN_NOT_FOUND'
   /** An event or a handoff: part of the conversation's story, not a message to delete. */
   | 'MESSAGE_NOT_DELETABLE'
   | 'SPEECH_UNAVAILABLE'

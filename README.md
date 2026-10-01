@@ -31,6 +31,7 @@ Les décisions qui expliquent le reste sont dans
 | IA (`packages/ai`) | Mistral par défaut (tout serveur compatible OpenAI) ; réponses sourcées, seuil de confiance, garde-fous, transfert avec résumé, données personnelles masquées |
 | Outils de l'IA | Lecture dans basedb, appels HTTP (en-têtes et jetons lus dans l'environnement), rappels, serveurs MCP |
 | Alertes | Son, notifications du bureau, pastilles de l'onglet, cloche par conseiller, réglables |
+| API et MCP | API REST `/api/v1` et serveur MCP `/mcp` pour les programmes et les agents, avec des jetons à la basedb (`msg_…`, lecture ou écriture, par boîte), gérés dans « Paramétrage › API et MCP » (D16) |
 | basedb (0.5.0 et plus) | Un basedb dédié dans `docker compose` ; base créée et reliée par `pnpm basedb:setup` ; conseillers reconnus par introspection de leur jeton ; tables suivies en direct |
 
 ## Développer
@@ -129,6 +130,22 @@ variable d'environnement qui le porte (`${METEO_TOKEN}` dans un en-tête, par ex
 | [`packages/contracts`](packages/contracts) | les types échangés entre le serveur, l'inbox et le widget |
 | [`packages/basedb-template`](packages/basedb-template) | le modèle de la base « Messagerie » |
 | [`docs/architecture`](docs/architecture) | les décisions d'architecture |
+
+### L'API et le serveur MCP (D16)
+
+Un superviseur crée un jeton dans « Paramétrage › API et MCP » : à quoi il sert, où il se
+prend (API REST, MCP), ses droits (lecture, ou lecture et écriture), ses boîtes, sa
+durée. Le jeton ne s'affiche qu'une fois ; gardez-le dans `MESSAGERIE_TOKEN`.
+
+```bash
+curl -H "Authorization: Bearer $MESSAGERIE_TOKEN" http://localhost:8810/api/v1/conversations
+claude mcp add --transport http messagerie http://localhost:8810/mcp \
+  --header "Authorization: Bearer $MESSAGERIE_TOKEN"
+```
+
+Les routes sont décrites en tête de `apps/server/src/api/rest.ts` ; les outils MCP
+(`list_conversations`, `get_conversation`, `send_reply`, `add_note`…) dans
+`apps/server/src/api/mcp.ts`.
 
 Le code (identifiants, types, commentaires) est en anglais. Le français est réservé à
 ce que lit l'utilisateur et aux documents d'architecture.

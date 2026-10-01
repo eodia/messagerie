@@ -50,6 +50,9 @@ importers:
       pg-boss:
         specifier: ^12.35.1
         version: 12.35.1
+      zod:
+        specifier: ^4.1.0
+        version: 4.6.5
     devDependencies:
       '@chat/contracts':
         specifier: workspace:*

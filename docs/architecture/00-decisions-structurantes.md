@@ -425,6 +425,39 @@ L'historique est celui de basedb (`useAddressBar`) :
 Le titre de l'onglet suit de même, le plus précis d'abord : « (3) Léa Martin — Service
 client · Messagerie ».
 
+## D16 — Une API et un serveur MCP, avec des jetons à la basedb
+
+Les services de la Messagerie s'ouvrent aux programmes et aux agents, comme basedb ouvre ses
+bases : une API REST, `/api/v1`, et un serveur MCP, `/mcp`, dans le serveur du chat. Les
+deux passent par le même service (`apps/server/src/api/service.ts`), qui appelle les mêmes
+fonctions que l'inbox : un seul chemin vers les données.
+
+**Les jetons** sont ceux de basedb, pour le chat :
+
+- `msg_<préfixe>_<secret>` : huit caractères gardés en clair pour les distinguer, un secret
+  de 32 octets aléatoires en base 62 dont seul le SHA-256 est gardé ;
+- lecture, ou lecture et écriture — répondre, noter, affecter, résoudre, étiqueter —,
+  jamais de suppression ;
+- sur l'API REST, le serveur MCP ou les deux ;
+- sur certaines boîtes ou toutes, dans la limite de ce que voit leur créateur ;
+- sans expiration ou de 30 jours à un an ; révoqués à l'instant.
+
+Ils se créent dans l'inbox, par un superviseur, et ne s'affichent qu'une fois. Ils restent
+dans le schéma `chat`, jamais dans basedb (D5). Un jeton n'atteint pas `/api/inbox` : il ne
+gère jamais les jetons. Codes de refus : `TOKEN_INVALID`, `TOKEN_EXPIRED`, `TOKEN_REVOKED`,
+`TOKEN_READ_ONLY`.
+
+**Qui écrit.** Un jeton agit par une ligne de conseiller à lui, jamais active : elle ne
+figure dans aucune liste, ne reçoit aucune alerte, et signe ce qu'elle écrit — « Zapier »
+dans le fil. Une réponse envoyée par un jeton fait quitter la conversation à l'IA, mais ne
+la lui affecte pas : elle reste dans la file.
+
+**Le serveur MCP** suit le transport HTTP « Streamable », en réponses JSON, sans session :
+chaque requête vérifie le jeton et ses droits. Ses outils ont des noms anglais et des
+descriptions en français, comme ceux de basedb ; un jeton en lecture ne se voit pas
+proposer les outils d'écriture. Une requête venue d'une page (en-tête `Origin`) est
+refusée. Un refus d'outil est un résultat d'erreur qui porte le code et son sens.
+
 ---
 
 ## Ce que le chat attend de basedb

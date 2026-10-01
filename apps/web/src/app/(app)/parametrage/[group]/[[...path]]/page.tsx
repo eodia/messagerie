@@ -5,6 +5,7 @@ import { InboxesScreen } from '@/components/settings/screens/inboxes'
 import { RepliesScreen } from '@/components/settings/screens/replies'
 import { SitesScreen } from '@/components/settings/screens/sites'
 import { TeamsScreen } from '@/components/settings/screens/teams'
+import { TokensScreen } from '@/components/settings/screens/tokens'
 import { ToolsStudio } from '@/components/settings/screens/tools'
 import { SettingsScreen } from '@/components/settings/settings-screen'
 import { redirect } from 'next/navigation'
@@ -18,6 +19,7 @@ const SCREENS: Readonly<Record<string, ComponentType>> = {
   reponses: RepliesScreen,
   'garde-fous': GuardrailsScreen,
   outils: ToolsStudio,
+  api: TokensScreen,
 }
 
 export default function SettingsPage({ params }: { params: Promise<{ group: string }> }) {

@@ -41,6 +41,14 @@ export function messageFor(code: string): string {
       return $t('Aucune voix d’IA sur ce serveur : celle du navigateur lit les messages.')
     case 'MESSAGE_NOT_DELETABLE':
       return $t('Ce message ne se supprime pas.')
+    case 'TOKEN_INVALID':
+      return $t('Ce jeton n’est pas valable.')
+    case 'TOKEN_EXPIRED':
+      return $t('Ce jeton a expiré.')
+    case 'TOKEN_REVOKED':
+      return $t('Ce jeton a été révoqué.')
+    case 'TOKEN_READ_ONLY':
+      return $t('Ce jeton ne permet que la lecture.')
     case 'GIFS_UNAVAILABLE':
       return $t('Les GIF demandent une clé GIPHY sur le serveur (GIPHY_API_KEY).')
     case 'GIFS_UNREACHABLE':

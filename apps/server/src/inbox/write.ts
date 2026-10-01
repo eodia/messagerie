@@ -7,6 +7,7 @@ import type {
   TransferBody,
 } from '@chat/contracts'
 import { and, asc, eq, isNull } from 'drizzle-orm'
+import { isIntegration } from '../api/tokens.js'
 import type { Db } from '../db/client.js'
 import {
   accessLog,
@@ -145,8 +146,9 @@ export async function sendMessage(
           .insert(messages)
           .values(eventRow(id, { type: 'resolved', agent: agent.name }, tick()))
       }
-      // An agent who writes to the visitor while the AI has the conversation takes it.
-      const taking = row.status === 'ai' || row.assigneeId === null
+      // An agent who writes to the visitor while the AI has the conversation takes it — a
+      // program writing through a token does not: the conversation stays in the queue.
+      const taking = (row.status === 'ai' || row.assigneeId === null) && !isIntegration(agent)
       await tx
         .update(conversations)
         .set({

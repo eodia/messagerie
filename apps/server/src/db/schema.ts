@@ -208,6 +208,37 @@ export const messages = chat.table(
   (t) => [index('message_conversation_idx').on(t.conversationId, t.createdAt)],
 )
 
+/**
+ * A token of the public API and the MCP server (D16) — basedb's integration tokens, for
+ * the chat: `msg_<prefix>_<secret>`, of which only the SHA-256 of the secret is kept, and
+ * the prefix in clear, to tell tokens apart. It acts as its own agent row (`agentId`),
+ * never active: listed nowhere, told nothing, naming what it writes.
+ */
+export const apiTokens = chat.table('api_token', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  label: text('label').notNull(),
+  tokenPrefix: text('token_prefix').notNull(),
+  /** SHA-256 of the secret, in hexadecimal. */
+  tokenHash: text('token_hash').notNull().unique(),
+  /** `read`, or `write`: read, reply, note, assign, resolve, tag — never delete. */
+  access: text('access', { enum: ['read', 'write'] }).notNull(),
+  /** `rest`, `mcp`: where the token is taken. */
+  surfaces: text('surfaces').array().notNull(),
+  /** The inboxes it reaches — every one the creator sees when null. */
+  inboxIds: text('inbox_ids').array(),
+  agentId: uuid('agent_id')
+    .notNull()
+    .references(() => agents.id),
+  createdBy: uuid('created_by')
+    .notNull()
+    .references(() => agents.id),
+  createdAt: createdAt(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  revokedBy: uuid('revoked_by').references(() => agents.id, { onDelete: 'set null' }),
+})
+
 /** A message an agent took out of their own view of the thread — « Supprimer pour moi ». */
 export const hiddenMessages = chat.table(
   'hidden_message',

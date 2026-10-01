@@ -17,6 +17,9 @@ import { type Rewording, rephrase } from './ai/copilot.js'
 import type { AiJobs } from './ai/jobs.js'
 import type { McpConnections } from './ai/mcp.js'
 import { speakMessage } from './ai/speech.js'
+import { mcpRoutes } from './api/mcp.js'
+import { restRoutes } from './api/rest.js'
+import { createToken, listTokens, readCreateBody, revokeToken } from './api/tokens.js'
 import { type AgentEnv, agentAuth } from './auth/agent.js'
 import type { TicketBook } from './auth/tickets.js'
 import type { BasedbClient } from './basedb/client.js'
@@ -630,7 +633,24 @@ export function createApp({
     )
   })
 
+  // The tokens of the API and the MCP server (D16): supervisors make and revoke them, from
+  // the inbox; a token never can — it does not reach `/api/inbox`.
+  inbox.get('/tokens', async (c) => c.json(await listTokens(db, c.get('agent'))))
+  inbox.post('/tokens', async (c) =>
+    c.json(await createToken(db, c.get('agent'), readCreateBody(await jsonBody(c.req.raw))), 201),
+  )
+  inbox.delete('/tokens/:id', async (c) => {
+    const id = c.req.param('id')
+    if (!UUID.test(id)) throw new Refusal('TOKEN_NOT_FOUND', 404)
+    await revokeToken(db, c.get('agent'), id)
+    return c.body(null, 204)
+  })
+
   app.route('/api/inbox', inbox)
+
+  // The public API and the MCP server: programs and agents, with a token of the chat (D16).
+  app.route('/api/v1', restRoutes({ db, settings, access }))
+  app.route('/mcp', mcpRoutes({ db, settings, access }))
 
   // The widget: its API, when there are settings to know the sites by, and its script.
   if (settings !== null) {

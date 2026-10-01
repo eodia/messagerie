@@ -531,3 +531,40 @@ export interface TagOption {
   /** When to apply it — what the AI reads, and the agent too. */
   readonly when: string | null
 }
+
+// ── The public API and the MCP server's tokens (D16) ───────────────────────────────────
+
+export type TokenAccess = 'read' | 'write'
+export type TokenSurface = 'rest' | 'mcp'
+
+/** A token as the « API et MCP » screen lists it — never its secret. */
+export interface ApiToken {
+  readonly id: string
+  readonly label: string
+  /** Its first characters, in clear: `msg_ab12cd34`. */
+  readonly prefix: string
+  readonly access: TokenAccess
+  readonly surfaces: readonly TokenSurface[]
+  /** The inboxes it reaches; null: every one its creator sees. */
+  readonly inboxIds: readonly string[] | null
+  readonly createdBy: string
+  readonly createdAt: string
+  readonly expiresAt: string | null
+  readonly lastUsedAt: string | null
+  readonly revokedAt: string | null
+}
+
+export interface CreateTokenBody {
+  readonly label: string
+  readonly access: TokenAccess
+  readonly surfaces: readonly TokenSurface[]
+  readonly inboxIds: readonly string[] | null
+  /** 1 to 365; null: no expiry. */
+  readonly expiresInDays: number | null
+}
+
+/** A token just created: its secret is in this answer, and nowhere else, ever. */
+export interface CreatedToken {
+  readonly token: ApiToken
+  readonly secret: string
+}

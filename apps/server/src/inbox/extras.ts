@@ -6,7 +6,7 @@ import type {
   InboxStats,
   KnowledgeItem,
 } from '@chat/contracts'
-import { and, asc, desc, eq, ilike, max, or, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, ilike, inArray, max, or, sql } from 'drizzle-orm'
 import type { BasedbClient } from '../basedb/client.js'
 import type { Db } from '../db/client.js'
 import { contacts, conversations, kbChunks, messages } from '../db/schema.js'
@@ -44,7 +44,15 @@ export async function contactByTail(db: Db, tail: string): Promise<string | null
   return rows.length === 1 ? (rows[0]?.id ?? null) : null
 }
 
-export async function listContacts(db: Db, query: string): Promise<ContactListItem[]> {
+/**
+ * The contacts — with `visible`, those who wrote in one of these inboxes only: a token
+ * limited to some inboxes reaches no one else (D16).
+ */
+export async function listContacts(
+  db: Db,
+  query: string,
+  visible: ReadonlySet<string> | null = null,
+): Promise<ContactListItem[]> {
   const needle = query.trim()
   const rows = await db
     .select({
@@ -56,13 +64,16 @@ export async function listContacts(db: Db, query: string): Promise<ContactListIt
     .from(contacts)
     .leftJoin(conversations, eq(conversations.contactId, contacts.id))
     .where(
-      needle
-        ? or(
-            ilike(contacts.name, `%${needle}%`),
-            ilike(contacts.email, `%${needle}%`),
-            ilike(contacts.externalId, `%${needle}%`),
-          )
-        : undefined,
+      and(
+        needle
+          ? or(
+              ilike(contacts.name, `%${needle}%`),
+              ilike(contacts.email, `%${needle}%`),
+              ilike(contacts.externalId, `%${needle}%`),
+            )
+          : undefined,
+        visible === null ? undefined : wroteIn(visible),
+      ),
     )
     .groupBy(contacts.id)
     .orderBy(desc(max(conversations.lastMessageAt)))
@@ -78,13 +89,31 @@ export async function listContacts(db: Db, query: string): Promise<ContactListIt
   }))
 }
 
-export async function contactDetail(db: Db, id: string): Promise<ContactDetail> {
-  const [contact] = await db.select().from(contacts).where(eq(contacts.id, id))
+/** The contacts who have a conversation in one of these inboxes. */
+const wroteIn = (visible: ReadonlySet<string>) =>
+  visible.size === 0
+    ? sql`false`
+    : sql`exists (select 1 from ${conversations} where ${conversations.contactId} = ${contacts.id} and ${inArray(conversations.inboxId, [...visible])})`
+
+export async function contactDetail(
+  db: Db,
+  id: string,
+  visible: ReadonlySet<string> | null = null,
+): Promise<ContactDetail> {
+  const [contact] = await db
+    .select()
+    .from(contacts)
+    .where(and(eq(contacts.id, id), visible === null ? undefined : wroteIn(visible)))
   if (!contact) throw new Refusal('CONTACT_NOT_FOUND', 404)
   const rows = await db
     .select()
     .from(conversations)
-    .where(eq(conversations.contactId, id))
+    .where(
+      and(
+        eq(conversations.contactId, id),
+        visible === null ? undefined : inArray(conversations.inboxId, [...visible]),
+      ),
+    )
     .orderBy(desc(conversations.lastMessageAt))
   const firsts = await db
     .selectDistinctOn([messages.conversationId], {

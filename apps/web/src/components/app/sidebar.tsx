@@ -16,6 +16,7 @@ import {
   Globe,
   Headset,
   Inbox,
+  KeyRound,
   type LucideIcon,
   MessageSquareText,
   MessagesSquare,
@@ -55,6 +56,7 @@ const SETTINGS: readonly Screen[] = [
   { href: '/parametrage/garde-fous', label: msg('Garde-fous'), icon: ShieldAlert },
   { href: '/outils', label: msg('Outils IA'), icon: Wrench },
   { href: '/widget', label: msg('Widget'), icon: Palette },
+  { href: '/parametrage/api', label: msg('API et MCP'), icon: KeyRound },
 ]
 
 export function Sidebar({ basedbUrl }: { readonly basedbUrl: string }) {
