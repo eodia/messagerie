@@ -11,6 +11,7 @@ import type { Db } from '../db/client.js'
 import { agents, contacts, conversations, messages, siteSecrets } from '../db/schema.js'
 import { type Upload, attachmentsOf, forVisitor, keeping } from '../files/attachments.js'
 import type { FileStore } from '../files/store.js'
+import { generatedName } from '../inbox/contact-name.js'
 import { createConversation, receiveVisitorMessage } from '../inbox/incoming.js'
 import {
   type MetadataPatch,
@@ -154,7 +155,7 @@ export async function openSession(
     const code = Math.random().toString(16).slice(2, 6).toUpperCase()
     ;[contact] = await db
       .insert(contacts)
-      .values({ siteId: site.id, name: `Visiteur ${code}`, identified: false })
+      .values({ siteId: site.id, name: generatedName(code), identified: false })
       .returning()
   }
   if (!contact) throw new Refusal('INTERNAL_ERROR', 500)

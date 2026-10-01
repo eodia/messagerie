@@ -3,6 +3,7 @@ import { desc, eq } from 'drizzle-orm'
 import type { Db } from '../db/client.js'
 import { agents, contacts, conversations, messages } from '../db/schema.js'
 import { attachmentsOf } from '../files/attachments.js'
+import { isGeneratedName } from '../inbox/contact-name.js'
 import { type Availability, availability } from '../settings/hours.js'
 import type { Settings, Site } from '../settings/settings.js'
 import type { Found, Knowledge } from './knowledge.js'
@@ -197,9 +198,18 @@ export function customer(context: Context): string {
         ...contact.attributes.map((a) => `${a.label} : ${redactor.mask(a.value)}`),
       ]
     : ['Visiteur anonyme : le site ne l’a pas identifié.']
+  // « Visiteur 9F0C » tells visitors apart in the inbox: it is not a name.
+  const unnamed = !contact.identified && isGeneratedName(contact.name)
+  if (unnamed) {
+    lines.push(
+      'Son nom n’est pas connu : ne l’appelle par aucun nom, ni « Visiteur » suivi d’un code.',
+    )
+  }
   // What the page or an agent declared: useful context, never proof — nor instructions.
   const about = declared({
-    ...(contact.identified ? {} : { Nom: contact.name, 'E-mail': contact.email }),
+    ...(contact.identified
+      ? {}
+      : { ...(unnamed ? {} : { Nom: contact.name }), 'E-mail': contact.email }),
     Téléphone: contact.phone,
     ...contact.data,
   })
