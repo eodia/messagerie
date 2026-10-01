@@ -37,8 +37,11 @@ Les décisions qui expliquent le reste sont dans
 
 Prérequis : Node 22 ou plus, Docker, et `corepack enable`.
 
-Sous Windows, lancez la messagerie **depuis Windows** (VS Code ouvert sur `C:\…`, terminal
-PowerShell) : c'est le plus rapide, et le rechargement à chaud marche. Depuis WSL, un
+Sous Windows, lancez la messagerie **depuis Windows** : c'est le plus rapide, et le
+rechargement à chaud marche. Dans VS Code, « Exécuter et déboguer › Messagerie » (F5) lance
+Node directement, sur le système de la fenêtre. Si le coin inférieur gauche affiche
+« WSL: … », la fenêtre est connectée à WSL : cliquez-le, puis « Rouvrir le dossier dans
+Windows ». Depuis WSL, un
 dossier de `/mnt/c` est lent, et WSL n'y voit pas les fichiers changer : ni `tsx watch` ni
 Next ne rechargent. L'installation contient tout de même les binaires natifs des deux
 systèmes (`supportedArchitectures` dans `package.json`) ; pour travailler en WSL, clonez

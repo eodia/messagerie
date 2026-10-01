@@ -2,6 +2,12 @@
   // Les tâches de la messagerie (Terminal › Exécuter la tâche). « Docker : PostgreSQL et
   // basedb » précède le lancement « Messagerie » de launch.json.
   "version": "2.0.0",
+  // Sous Windows, toujours PowerShell, quel que soit le terminal par défaut de VS Code.
+  "windows": {
+    "options": {
+      "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] }
+    }
+  },
   "tasks": [
     {
       "label": "Docker : PostgreSQL et basedb",

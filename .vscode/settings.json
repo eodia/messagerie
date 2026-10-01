@@ -1,0 +1,10 @@
+{
+  // La messagerie se lance depuis Windows quand le dépôt est sur C: (README) : le terminal
+  // et les tâches de ce dossier s'ouvrent dans PowerShell, même si le terminal par défaut
+  // de VS Code est WSL.
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.automationProfile.windows": {
+    "path": "powershell.exe",
+    "args": ["-NoProfile"]
+  }
+}

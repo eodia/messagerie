@@ -3,8 +3,13 @@
   //
   // « Messagerie » lance tout : PostgreSQL et basedb dans Docker (tâche préalable), le
   // serveur, l'inbox, la reconstruction du widget et le serveur MCP de démonstration — et
-  // ouvre l'inbox. Chaque partie se lance aussi seule. Les points d'arrêt marchent dans le
-  // serveur et dans l'inbox.
+  // ouvre l'inbox. Chaque partie se lance aussi seule ; les points d'arrêt marchent dans le
+  // serveur et dans l'inbox. Les sorties sont dans la Console de débogage, une par partie.
+  //
+  // Node est lancé directement, sans shell : la messagerie tourne sur le système de la
+  // fenêtre VS Code, Windows pour une fenêtre Windows, quel que soit le terminal par défaut.
+  // (Une fenêtre « WSL » en bas à gauche lance tout dans WSL : rouvrez le dossier sous
+  // Windows — voir le README.)
   //
   // Première fois : tâches « Installer les dépendances », puis « basedb : créer la base et
   // relier la messagerie » et « Données de démonstration » (Terminal › Exécuter la tâche).
@@ -12,17 +17,25 @@
   "configurations": [
     {
       "name": "Serveur",
-      "type": "node-terminal",
+      "type": "node",
       "request": "launch",
-      "command": "corepack pnpm --filter @chat/server dev",
-      "cwd": "${workspaceFolder}"
+      "cwd": "${workspaceFolder}/apps/server",
+      "runtimeArgs": ["--env-file-if-exists=.env", "--watch", "--import", "tsx"],
+      "program": "${workspaceFolder}/apps/server/src/main.ts",
+      "console": "internalConsole",
+      "outputCapture": "std",
+      "skipFiles": ["<node_internals>/**"]
     },
     {
       "name": "Inbox",
-      "type": "node-terminal",
+      "type": "node",
       "request": "launch",
-      "command": "corepack pnpm --filter @chat/web dev",
-      "cwd": "${workspaceFolder}",
+      "cwd": "${workspaceFolder}/apps/web",
+      "program": "${workspaceFolder}/apps/web/node_modules/next/dist/bin/next",
+      "args": ["dev", "--port", "3210"],
+      "console": "internalConsole",
+      "outputCapture": "std",
+      "skipFiles": ["<node_internals>/**"],
       "serverReadyAction": {
         "pattern": "- Local:\\s+(https?://\\S+)",
         "uriFormat": "%s",
@@ -31,17 +44,23 @@
     },
     {
       "name": "Widget (reconstruction)",
-      "type": "node-terminal",
+      "type": "node",
       "request": "launch",
-      "command": "corepack pnpm --filter @chat/widget dev",
-      "cwd": "${workspaceFolder}"
+      "cwd": "${workspaceFolder}/apps/widget",
+      "program": "${workspaceFolder}/apps/widget/build.mjs",
+      "args": ["--watch"],
+      "console": "internalConsole",
+      "outputCapture": "std"
     },
     {
       "name": "Serveur MCP de démo",
-      "type": "node-terminal",
+      "type": "node",
       "request": "launch",
-      "command": "corepack pnpm --filter @chat/server mcp-demo",
-      "cwd": "${workspaceFolder}"
+      "cwd": "${workspaceFolder}/apps/server",
+      "runtimeArgs": ["--import", "tsx"],
+      "program": "${workspaceFolder}/apps/server/src/dev/agencies-mcp.ts",
+      "console": "internalConsole",
+      "outputCapture": "std"
     }
   ],
   "compounds": [
