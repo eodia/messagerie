@@ -23,7 +23,8 @@ interface SessionState {
   readonly needsCurrent: boolean
   /** Asks basedb's session for a token: there is one, or there is none. */
   check: () => Promise<void>
-  signIn: (email: string, password: string) => Promise<void>
+  /** `beforeEntering`: what the screen shows of the success before the inbox replaces it. */
+  signIn: (email: string, password: string, beforeEntering?: () => Promise<void>) => Promise<void>
   /** Replaces the temporary password — typed at sign-in, or given again as `current`. */
   choosePassword: (next: string, current?: string) => Promise<void>
   signOut: () => Promise<void>
@@ -55,13 +56,14 @@ export const useSession = create<SessionState>((set, get) => ({
     }
   },
 
-  signIn: async (email, password) => {
+  signIn: async (email, password, beforeEntering) => {
     await signIn(email, password)
     if (await mustChangePassword()) {
       temporary = password
       set({ status: 'must-change', needsCurrent: false })
       return
     }
+    await beforeEntering?.()
     await get().check()
   },
 

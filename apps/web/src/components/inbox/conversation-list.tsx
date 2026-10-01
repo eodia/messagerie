@@ -167,7 +167,7 @@ export function ConversationList({
   )
 }
 
-function ConversationRow({
+export function ConversationRow({
   summary,
   me,
   selected,

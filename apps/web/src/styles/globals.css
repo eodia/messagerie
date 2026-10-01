@@ -2,6 +2,8 @@
 @plugin 'tailwindcss-animate';
 
 @custom-variant dark (&:is(.dark *));
+/* A short screen — a laptop at 720 px — where a tall composition has to tighten (basedb's). */
+@custom-variant short (@media (max-height: 50rem));
 
 /**
  * Design tokens — shadcn/ui shape, basedb's palette, value for value.
@@ -190,5 +192,30 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-ai-turn {
     animation: none;
+  }
+}
+
+/* A refusal shakes its message once — a no, said by motion as well as by words (basedb's). */
+@theme {
+  --animate-shake: shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+
+  @keyframes shake {
+    10%,
+    90% {
+      translate: -1px 0;
+    }
+    20%,
+    80% {
+      translate: 2px 0;
+    }
+    30%,
+    50%,
+    70% {
+      translate: -3px 0;
+    }
+    40%,
+    60% {
+      translate: 3px 0;
+    }
   }
 }
