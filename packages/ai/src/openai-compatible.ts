@@ -24,6 +24,10 @@ export interface ProviderConfig {
   readonly visionModel?: string
   /** The provider's OCR model for documents (Mistral's `/ocr`); none when unset. */
   readonly ocrModel?: string
+  /** The provider's text-to-speech model (`/audio/speech`); none when unset. */
+  readonly speechModel?: string
+  /** The voice it speaks with — one of the provider's (`fr_marie_neutral` at Mistral). */
+  readonly speechVoice?: string
 }
 
 /** Mistral's API unless told otherwise. */
@@ -81,6 +85,7 @@ export class OpenAiCompatible implements Llm {
   readonly model: string
   readonly embeddingModel: string
   readonly visionModel: string
+  readonly speechModel?: string
   readonly external: boolean
 
   constructor(
@@ -93,6 +98,11 @@ export class OpenAiCompatible implements Llm {
     if (config.ocrModel) {
       const ocrModel = config.ocrModel
       this.ocr = (document) => this.readDocument(ocrModel, document)
+    }
+    if (config.speechModel) {
+      const model = config.speechModel
+      this.speechModel = model
+      this.speak = (text) => this.voice(model, config.speechVoice, text)
     }
     const host = new URL(config.baseUrl).hostname
     this.external = !['localhost', '127.0.0.1', '::1'].includes(host) && !host.endsWith('.internal')
@@ -184,6 +194,19 @@ export class OpenAiCompatible implements Llm {
   }
 
   ocr?: (document: FilePart) => Promise<string>
+  speak?: (text: string) => Promise<FilePart>
+
+  /** `/audio/speech`, as Mistral takes it: the text and a voice; an MP3 back. */
+  private async voice(model: string, voice: string | undefined, text: string): Promise<FilePart> {
+    const answer = (await this.post('/audio/speech', {
+      model,
+      input: text,
+      response_format: 'mp3',
+      ...(voice ? { voice } : {}),
+    })) as { audio_data?: string }
+    if (!answer.audio_data) throw new LlmFailure(502, 'no audio')
+    return { mime: 'audio/mpeg', data: new Uint8Array(Buffer.from(answer.audio_data, 'base64')) }
+  }
 
   /** Mistral's `/ocr`: a PDF or an image, read page by page into Markdown. */
   private async readDocument(model: string, document: FilePart): Promise<string> {

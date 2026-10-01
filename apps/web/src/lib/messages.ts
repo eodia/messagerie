@@ -37,6 +37,8 @@ export function messageFor(code: string): string {
       return $t(
         'L’IA ne sait pas lire ce fichier avec le modèle configuré (images, PDF et textes seulement).',
       )
+    case 'SPEECH_UNAVAILABLE':
+      return $t('Aucune voix d’IA sur ce serveur : celle du navigateur lit les messages.')
     case 'GIFS_UNAVAILABLE':
       return $t('Les GIF demandent une clé GIPHY sur le serveur (GIPHY_API_KEY).')
     case 'GIFS_UNREACHABLE':

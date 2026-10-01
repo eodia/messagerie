@@ -10,7 +10,14 @@ export async function recordRun(
   db: Db,
   run: {
     readonly conversationId: string
-    readonly kind: 'answer' | 'suggestion' | 'tag' | 'summary' | 'rephrase' | 'attachment'
+    readonly kind:
+      | 'answer'
+      | 'suggestion'
+      | 'tag'
+      | 'summary'
+      | 'rephrase'
+      | 'attachment'
+      | 'speech'
     readonly completion: Pick<Completion, 'model' | 'usage' | 'latencyMs'>
     readonly input: unknown
     readonly output: Record<string, unknown>

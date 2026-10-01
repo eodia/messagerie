@@ -80,6 +80,10 @@ export interface Llm {
   embed(texts: readonly string[]): Promise<number[][]>
   /** A document's text, read by the provider's OCR — when it has one (Mistral). */
   ocr?(document: FilePart): Promise<string>
+  /** The model that reads a text aloud — when the provider has one. */
+  readonly speechModel?: string
+  /** A text, spoken: an MP3 (Mistral's Voxtral TTS). */
+  speak?(text: string): Promise<FilePart>
 }
 
 /** The provider refused, failed, or took too long. */

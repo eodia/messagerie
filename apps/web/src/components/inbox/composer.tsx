@@ -16,7 +16,7 @@ import { Hint } from '@/components/ui/tooltip'
 import { ApiFailure, api } from '@/lib/api'
 import { $t, $tp, msg } from '@/lib/i18n'
 import { plainOf } from '@/lib/rich-text'
-import { canDictate, canSpeak, useDictation, useSpeech } from '@/lib/speech'
+import { canDictate, useDictation, useSpeech } from '@/lib/speech'
 import { useInbox } from '@/lib/store/inbox'
 import { cn } from '@/lib/utils'
 import type { CannedReply, Contact, Conversation, Rewording } from '@chat/contracts'
@@ -25,7 +25,6 @@ import {
   BookText,
   ChevronDown,
   CircleCheck,
-  Headphones,
   LoaderCircle,
   MessageSquare,
   Mic,
@@ -250,9 +249,9 @@ export function Composer({
 
   useImperativeHandle(inputRef, () => ({ focus: () => editor?.commands.focus('end') }), [editor])
 
-  // The voice: a reply dictated, and the audio mode that reads the visitor aloud.
-  const [voiced, setVoiced] = useState({ dictate: false, speak: false })
-  useEffect(() => setVoiced({ dictate: canDictate(), speak: canSpeak() }), [])
+  // In audio mode — chosen in the profile menu —, a reply dictated by the browser.
+  const [dictable, setDictable] = useState(false)
+  useEffect(() => setDictable(canDictate()), [])
   const audioMode = useSpeech((s) => s.audioMode)
   const dictation = useDictation((text) => {
     if (!editor || text === '') return
@@ -670,7 +669,7 @@ export function Composer({
                   </DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              {voiced.dictate && (
+              {audioMode && dictable && (
                 <Hint
                   label={
                     dictation.listening
@@ -693,32 +692,6 @@ export function Composer({
                     )}
                   >
                     <Mic className={cn('size-4', dictation.listening && 'animate-pulse')} />
-                  </Button>
-                </Hint>
-              )}
-              {voiced.speak && (
-                <Hint
-                  label={
-                    audioMode
-                      ? $t(
-                          'Mode audio actif : les nouveaux messages du visiteur sont lus à voix haute',
-                        )
-                      : $t('Mode audio : lire à voix haute les nouveaux messages du visiteur')
-                  }
-                >
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={$t('Mode audio')}
-                    aria-pressed={audioMode}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => useSpeech.getState().setAudioMode(!audioMode)}
-                    className={cn(
-                      'size-7 text-muted-foreground',
-                      audioMode && 'bg-accent text-foreground',
-                    )}
-                  >
-                    <Headphones className="size-4" />
                   </Button>
                 </Hint>
               )}

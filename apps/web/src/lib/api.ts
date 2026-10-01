@@ -130,6 +130,15 @@ export const api = {
   conversation: (id: string) => request<Conversation>('GET', conversation(id)),
   markRead: (id: string) => request<void>('POST', `${conversation(id)}/read`),
   typing: (id: string) => request<void>('POST', `${conversation(id)}/typing`),
+  /** A message read aloud by the server's AI voice, as an MP3. */
+  speech: (messageId: string) =>
+    request<Blob>(
+      'GET',
+      `/messages/${encodeURIComponent(messageId)}/speech`,
+      undefined,
+      false,
+      true,
+    ),
   send: (id: string, body: SendMessageBody) =>
     request<Conversation>('POST', `${conversation(id)}/messages`, body),
   takeOver: (id: string) => request<Conversation>('POST', `${conversation(id)}/takeover`),

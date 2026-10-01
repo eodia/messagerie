@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { usesBasedb } from '@/lib/basedb-session'
 import { $t } from '@/lib/i18n'
+import { useSpeech } from '@/lib/speech'
 import { useAlertSettings } from '@/lib/store/alert-settings'
 import { useInbox } from '@/lib/store/inbox'
 import { useSession } from '@/lib/store/session'
@@ -26,6 +27,7 @@ import {
   BellRing,
   ChevronsUpDown,
   Database,
+  Headphones,
   LogOut,
   Monitor,
   Moon,
@@ -49,6 +51,8 @@ export function UserMenu({
 }) {
   const me = useInbox((s) => s.me)
   const { sound, desktop, permission, setSound, setDesktop } = useAlertSettings()
+  const audioMode = useSpeech((s) => s.audioMode)
+  const setAudioMode = useSpeech((s) => s.setAudioMode)
   const preference = useTheme((s) => s.preference)
   const setPreference = useTheme((s) => s.setPreference)
   const [presence, setPresence] = useState<Presence>('available')
@@ -121,6 +125,20 @@ export function UserMenu({
           {permission === 'denied'
             ? $t('Notifications bloquées par le navigateur')
             : $t('Notifications du bureau')}
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
+          checked={audioMode}
+          onCheckedChange={(on) => setAudioMode(on === true)}
+          onSelect={(event) => event.preventDefault()}
+          className="items-start"
+        >
+          <Headphones className="mt-0.5" />
+          <span>
+            {$t('Mode audio')}
+            <span className="block text-xs text-muted-foreground">
+              {$t('Messages du visiteur lus à voix haute, réponses dictées')}
+            </span>
+          </span>
         </DropdownMenuCheckboxItem>
         <DropdownMenuSeparator />
         <DropdownMenuSub>

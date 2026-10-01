@@ -1,0 +1,1 @@
+ALTER TYPE "chat"."ai_run_kind" ADD VALUE 'speech';

@@ -4,7 +4,7 @@ import { Chip } from '@/components/app/chip'
 import { CopyButton } from '@/components/app/copy-button'
 import { Button } from '@/components/ui/button'
 import { $t, $tp } from '@/lib/i18n'
-import { canSpeak, useSpeech } from '@/lib/speech'
+import { useSpeech } from '@/lib/speech'
 import { clockTime } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import type {
@@ -58,12 +58,11 @@ function Meta({
   )
 }
 
-/** Reads a message aloud — again, it stops. */
+/** In audio mode, reads a message aloud — again, it stops. */
 export function SpeakButton({ id, text }: { readonly id: string; readonly text: string }) {
   const speaking = useSpeech((s) => s.speaking === id)
-  const [able, setAble] = useState(false)
-  useEffect(() => setAble(canSpeak()), [])
-  if (!able || text.trim() === '') return null
+  const audioMode = useSpeech((s) => s.audioMode)
+  if (!audioMode || text.trim() === '') return null
   const { speak, stop } = useSpeech.getState()
   return (
     <button

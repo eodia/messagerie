@@ -46,6 +46,7 @@ export const aiRunKind = chat.enum('ai_run_kind', [
   'summary',
   'rephrase',
   'attachment',
+  'speech',
 ])
 export const feedbackAction = chat.enum('feedback_action', ['accepted', 'edited', 'rejected'])
 export const tagOrigin = chat.enum('tag_origin', ['agent', 'ai'])

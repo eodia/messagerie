@@ -12,6 +12,9 @@ import { type Llm, OpenAiCompatible, PROVIDERS } from '@chat/ai'
  *                      by default — mistral-small-latest does
  *   CHAT_AI_OCR_MODEL  reads PDF attachments: mistral-ocr-latest with Mistral, none
  *                      elsewhere (`off` to do without)
+ *   CHAT_AI_SPEECH_MODEL   reads messages aloud in audio mode: voxtral-mini-tts-latest with
+ *                      Mistral, none elsewhere — the browser's voice then (`off`)
+ *   CHAT_AI_SPEECH_VOICE   its voice: fr_marie_neutral by default
  *   CHAT_AI_REDACT     0 to send personal data as it is; masked by default when the model
  *                      is hosted elsewhere (framing)
  *
@@ -40,6 +43,13 @@ export function readAi(env: NodeJS.ProcessEnv = process.env): AiSetup | null {
       env.CHAT_AI_OCR_MODEL === 'off'
         ? undefined
         : env.CHAT_AI_OCR_MODEL || (provider === 'mistral' ? 'mistral-ocr-latest' : undefined),
+    speechModel:
+      env.CHAT_AI_SPEECH_MODEL === 'off'
+        ? undefined
+        : env.CHAT_AI_SPEECH_MODEL ||
+          (provider === 'mistral' ? 'voxtral-mini-tts-latest' : undefined),
+    speechVoice:
+      env.CHAT_AI_SPEECH_VOICE || (provider === 'mistral' ? 'fr_marie_neutral' : undefined),
     timeoutMs: 45_000,
   })
   return { llm, redact: env.CHAT_AI_REDACT === '0' ? false : llm.external }

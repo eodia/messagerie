@@ -2,16 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { create } from 'zustand'
+import { ApiFailure, api } from './api'
 import { intlLocale } from './i18n'
 import { plainOf } from './rich-text'
 
 /**
- * The inbox's voice — the browser's, nothing to install, nothing sent by the chat:
+ * The inbox's voice, in audio mode:
  *
- * - a message read aloud, on demand (`speechSynthesis`) — or, in audio mode, each new
+ * - a message read aloud — by the server's AI voice (Mistral's Voxtral TTS), or by the
+ *   browser's (`speechSynthesis`) where the server has none —, on demand, and each new
  *   message of the visitor in the conversation open, as it arrives;
- * - a reply dictated (`SpeechRecognition`), where the browser has it — Chrome and Edge
- *   recognise the voice on their maker's servers, which the button says.
+ * - a reply dictated by the browser (`SpeechRecognition`), where it has it — Chrome and
+ *   Edge recognise the voice on their maker's servers, which the button says.
  */
 
 const AUDIO_KEY = 'chat.audio'
@@ -19,9 +21,10 @@ const AUDIO_KEY = 'chat.audio'
 interface SpeechState {
   /** What is being read, by its key — a message's id. */
   readonly speaking: string | null
-  /** New visitor messages are read aloud as they arrive. */
+  /** The audio mode: messages read aloud, replies dictated. */
   readonly audioMode: boolean
   setAudioMode: (on: boolean) => void
+  /** Reads a message aloud — `key` is its id, which the server's voice reads it by. */
   speak: (key: string, markdown: string) => void
   stop: () => void
 }
@@ -52,45 +55,104 @@ function storedAudio(): boolean {
   }
 }
 
-export const useSpeech = create<SpeechState>((set, get) => ({
-  speaking: null,
-  audioMode: typeof window === 'undefined' ? false : storedAudio(),
+/** The server has no voice: the browser's reads, for the rest of the page. */
+let browserOnly = false
+/** The sound being played, and the ones heard already — read again without asking. */
+let playing: HTMLAudioElement | null = null
+const heard = new Map<string, string>()
 
-  setAudioMode: (audioMode) => {
-    set({ audioMode })
-    try {
-      window.localStorage.setItem(AUDIO_KEY, audioMode ? 'on' : 'off')
-    } catch {
-      // For this page only.
+function remember(key: string, url: string): void {
+  heard.set(key, url)
+  if (heard.size <= 30) return
+  const [oldest, address] = heard.entries().next().value as [string, string]
+  URL.revokeObjectURL(address)
+  heard.delete(oldest)
+}
+
+export const useSpeech = create<SpeechState>((set, get) => {
+  const done = (key: string) => () => {
+    if (get().speaking === key) set({ speaking: null })
+  }
+
+  function browserSays(key: string, markdown: string): void {
+    if (!canSpeak()) {
+      set({ speaking: null })
+      return
     }
-    if (!audioMode) get().stop()
-  },
-
-  speak: (key, markdown) => {
-    if (!canSpeak()) return
-    const synth = window.speechSynthesis
-    synth.cancel()
     const text = plainOf(markdown).trim()
-    if (text === '') return
+    if (text === '') {
+      set({ speaking: null })
+      return
+    }
     const lang = intlLocale()
     const utterance = new SpeechSynthesisUtterance(text)
     utterance.lang = lang
     const voice = voiceFor(lang)
     if (voice) utterance.voice = voice
-    const done = () => {
-      if (get().speaking === key) set({ speaking: null })
-    }
-    utterance.onend = done
-    utterance.onerror = done
-    set({ speaking: key })
-    synth.speak(utterance)
-  },
+    utterance.onend = done(key)
+    utterance.onerror = done(key)
+    window.speechSynthesis.speak(utterance)
+  }
 
-  stop: () => {
-    if (canSpeak()) window.speechSynthesis.cancel()
-    set({ speaking: null })
-  },
-}))
+  return {
+    speaking: null,
+    audioMode: typeof window === 'undefined' ? false : storedAudio(),
+
+    setAudioMode: (audioMode) => {
+      set({ audioMode })
+      try {
+        window.localStorage.setItem(AUDIO_KEY, audioMode ? 'on' : 'off')
+      } catch {
+        // For this page only.
+      }
+      if (!audioMode) get().stop()
+    },
+
+    speak: (key, markdown) => {
+      get().stop()
+      set({ speaking: key })
+      if (browserOnly) {
+        browserSays(key, markdown)
+        return
+      }
+      const known = heard.get(key)
+      const sound = known
+        ? Promise.resolve(known)
+        : api.speech(key).then((blob) => {
+            const url = URL.createObjectURL(blob)
+            remember(key, url)
+            return url
+          })
+      sound
+        .then((url) => {
+          // Another message asked meanwhile, or stopped.
+          if (get().speaking !== key) return
+          const audio = new Audio(url)
+          playing = audio
+          audio.onended = done(key)
+          audio.onerror = done(key)
+          return audio.play()
+        })
+        .catch((failure: unknown) => {
+          if (get().speaking !== key) return
+          if (
+            failure instanceof ApiFailure &&
+            (failure.code === 'SPEECH_UNAVAILABLE' || failure.code === 'AI_UNAVAILABLE')
+          ) {
+            browserOnly = failure.code === 'SPEECH_UNAVAILABLE'
+          }
+          browserSays(key, markdown)
+        })
+    },
+
+    stop: () => {
+      playing?.pause()
+      playing = null
+      if (canSpeak()) window.speechSynthesis.cancel()
+      set({ speaking: null })
+    },
+  }
+})
 
 // ── Dictation ─────────────────────────────────────────────────────────────────────────
 

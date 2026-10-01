@@ -16,6 +16,7 @@ import { analyzeAttachment } from './ai/attachments.js'
 import { type Rewording, rephrase } from './ai/copilot.js'
 import type { AiJobs } from './ai/jobs.js'
 import type { McpConnections } from './ai/mcp.js'
+import { speakMessage } from './ai/speech.js'
 import { type AgentEnv, agentAuth } from './auth/agent.js'
 import type { TicketBook } from './auth/tickets.js'
 import type { BasedbClient } from './basedb/client.js'
@@ -529,6 +530,24 @@ export function createApp({
       how as Rewording,
     )
     return c.json({ text: reworded })
+  })
+
+  // A message read aloud by the AI's voice — audio mode. Its sound is not kept.
+  const voices = new RateLimiter(40, 60_000)
+  inbox.get('/messages/:id/speech', async (c) => {
+    if (!ai) throw new Refusal('SPEECH_UNAVAILABLE', 503)
+    const agent = c.get('agent')
+    if (!voices.allow(agent.id)) throw new Refusal('RATE_LIMITED', 429)
+    const audio = await speakMessage(
+      { db, llm: ai.llm },
+      agent,
+      await access.visibleTo(agent),
+      uuidParam(c.req.param('id')),
+    )
+    return c.body(audio.slice().buffer, 200, {
+      'content-type': 'audio/mpeg',
+      'cache-control': 'private, max-age=3600',
+    })
   })
 
   // What the AI makes of a file — at the agent's request, kept for the team.
