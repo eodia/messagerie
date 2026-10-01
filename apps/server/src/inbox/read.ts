@@ -10,7 +10,7 @@ import type {
   PastConversation,
   Tag,
 } from '@chat/contracts'
-import { type SQL, and, asc, desc, eq, gt, ilike, inArray, isNull, ne, or } from 'drizzle-orm'
+import { type SQL, and, asc, desc, eq, gt, inArray, isNull, like, ne, or, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import type { Db } from '../db/client.js'
 import {
@@ -138,9 +138,20 @@ export async function loadSummaries(
   })
 }
 
+/** The accented letters of French and its neighbours, and what they read as once folded. */
+const ACCENTED = 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿ'
+const PLAIN = 'aaaaaaceeeeiiiinooooouuuuyy'
+
+/** A text as the search compares it: lower case, without accents. */
+const foldText = (text: string) =>
+  text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+
 /**
- * The messages that say `query` — accents and case aside as far as PostgreSQL's `ILIKE`
- * goes —, in the conversations the reader sees, newest first: what the palette offers
+ * The messages that say every word of `query` — in any order, accents and case aside —,
+ * in the conversations the reader sees, newest first: what the palette and the list offer
  * under « Dans les messages ».
  */
 export async function searchMessages(
@@ -151,7 +162,12 @@ export async function searchMessages(
   const text = query.trim()
   if (text.length < 3) return []
   // `%`, `_` and `\` typed are looked for as such, not as LIKE's wildcards.
-  const pattern = `%${text.replace(/[\\%_]/g, (c) => `\\${c}`)}%`
+  const words = foldText(text)
+    .split(/\s+/u)
+    .filter((word) => word !== '')
+    .slice(0, 8)
+    .map((word) => `%${word.replace(/[\\%_]/g, (c) => `\\${c}`)}%`)
+  const folded = sql`translate(lower(${messages.body}), ${ACCENTED}, ${PLAIN})`
   const rows = await db
     .select({
       conversationId: messages.conversationId,
@@ -168,7 +184,7 @@ export async function searchMessages(
     .where(
       and(
         or(eq(messages.kind, 'text'), eq(messages.kind, 'note')),
-        ilike(messages.body, pattern),
+        ...words.map((pattern) => like(folded, pattern)),
         inVisible(visible),
       ),
     )

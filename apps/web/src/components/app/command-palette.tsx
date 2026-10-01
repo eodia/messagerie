@@ -1,6 +1,7 @@
 'use client'
 
 import { ColorBadge } from '@/components/app/chip'
+import { Lit } from '@/components/app/lit'
 import { InboxGlyph } from '@/components/app/look'
 import { afterMenus } from '@/components/inbox/assign-picker'
 import { ContactAvatar, StateChip } from '@/components/inbox/labels'
@@ -13,10 +14,8 @@ import {
   type Prepared,
   excerpt,
   frecency,
-  highlights,
   prepare,
   remember,
-  runsOf,
   scoreOf,
   tokensOf,
   visits,
@@ -843,26 +842,6 @@ function IconBox({ icon: Icon }: { readonly icon: LucideIcon }) {
   )
 }
 
-/** A title with what was typed lit — basedb's highlighting. */
-function Lit({ text, tokens }: { readonly text: string; readonly tokens: readonly string[] }) {
-  if (tokens.length === 0) return <>{text}</>
-  return (
-    <>
-      {runsOf(text, highlights(text, tokens)).map((run, i) =>
-        run.lit ? (
-          // biome-ignore lint/suspicious/noArrayIndexKey: the runs of one title, in order
-          <mark key={i} className="rounded-sm bg-primary/20 text-foreground">
-            {run.text}
-          </mark>
-        ) : (
-          // biome-ignore lint/suspicious/noArrayIndexKey: the runs of one title, in order
-          <span key={i}>{run.text}</span>
-        ),
-      )}
-    </>
-  )
-}
-
 function Row({
   entry,
   index,
@@ -906,17 +885,7 @@ function Row({
         </span>
         {said ? (
           <span className="block truncate text-xs text-muted-foreground">
-            {runsOf(said.text, said.lit).map((run, i) =>
-              run.lit ? (
-                // biome-ignore lint/suspicious/noArrayIndexKey: the runs of one excerpt, in order
-                <mark key={i} className="rounded-sm bg-primary/20 text-foreground">
-                  {run.text}
-                </mark>
-              ) : (
-                // biome-ignore lint/suspicious/noArrayIndexKey: the runs of one excerpt, in order
-                <span key={i}>{run.text}</span>
-              ),
-            )}
+            <Lit text={said.text} lit={said.lit} />
           </span>
         ) : (
           entry.subtitle && (
@@ -1025,17 +994,7 @@ function PreviewPane({
           <span className="ml-auto tabular-nums">{inboxTime(hit.at, now)}</span>
         </div>
         <p className="rounded-lg border bg-background p-3 text-xs leading-relaxed whitespace-pre-line">
-          {runsOf(said.text, said.lit).map((run, i) =>
-            run.lit ? (
-              // biome-ignore lint/suspicious/noArrayIndexKey: the runs of one excerpt, in order
-              <mark key={i} className="rounded-sm bg-primary/20 text-foreground">
-                {run.text}
-              </mark>
-            ) : (
-              // biome-ignore lint/suspicious/noArrayIndexKey: the runs of one excerpt, in order
-              <span key={i}>{run.text}</span>
-            ),
-          )}
+          <Lit text={said.text} lit={said.lit} />
         </p>
         <div className="flex items-center gap-2 text-xs">
           <ContactAvatar name={hit.contactName} className="size-6 text-[9px]" />

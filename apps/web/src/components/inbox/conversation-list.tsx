@@ -1,16 +1,28 @@
 'use client'
 
 import { Chip, ColorBadge } from '@/components/app/chip'
+import { Lit } from '@/components/app/lit'
 import { InboxGlyph } from '@/components/app/look'
 import { ResizablePanel } from '@/components/app/resizable-panel'
+import { Kbd } from '@/components/ui/kbd'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Hint } from '@/components/ui/tooltip'
+import { api } from '@/lib/api'
+import {
+  type ListQuery,
+  holds,
+  parseListQuery,
+  saysAll,
+  searchConversations,
+  wordsLit,
+} from '@/lib/conversation-search'
 import { $t, $tp, formatCount, msg } from '@/lib/i18n'
+import { excerpt } from '@/lib/search'
 import { type InboxFilter, inInbox, matchesFilter, useInbox } from '@/lib/store/inbox'
 import { type Sort, matchesFilters, sorted, useListFilters } from '@/lib/store/list-filters'
 import { inboxTime } from '@/lib/time'
 import { cn } from '@/lib/utils'
-import type { Agent, ConversationSummary, InboxItem } from '@chat/contracts'
+import type { Agent, ConversationSummary, InboxItem, MessageHit } from '@chat/contracts'
 import {
   ArrowUp,
   BadgeCheck,
@@ -18,11 +30,23 @@ import {
   Clock,
   Frown,
   Inbox,
+  LoaderCircle,
   Paperclip,
   Search,
   Sparkles,
+  StickyNote,
+  X,
 } from 'lucide-react'
-import { type RefObject, useLayoutEffect, useMemo } from 'react'
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { ContactAvatar, StateChip } from './labels'
 import { ActiveFilters, FiltersButton } from './list-filters'
 import { TypingDots } from './messages'
@@ -41,21 +65,6 @@ const TABS: readonly {
   { filter: 'open', label: msg('Ouvertes') },
   { filter: 'unassigned', label: msg('Non assignées'), short: msg('En file') },
 ]
-
-const fold = (text: string) =>
-  text
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase()
-
-/** Accents and case aside — « emma », « Émma » and « EMMA » find the same row. */
-function matchesQuery(summary: ConversationSummary, query: string): boolean {
-  if (query === '') return true
-  const needle = fold(query)
-  return [summary.contact.name, summary.contact.email ?? '', summary.preview].some((text) =>
-    fold(text).includes(needle),
-  )
-}
 
 export function ConversationList({
   searchRef,
@@ -86,11 +95,92 @@ export function ConversationList({
   const shown = useMemo(
     () =>
       sorted(
-        narrowed.filter((s) => matchesFilter(s, filter) && matchesQuery(s, query.trim())),
+        narrowed.filter((s) => matchesFilter(s, filter)),
         filters.sort,
         now,
       ),
-    [narrowed, filter, query, filters.sort, now],
+    [narrowed, filter, filters.sort, now],
+  )
+
+  // Searching: the palette's way, across the tabs — a resolved conversation is found too.
+  // The inbox and the filters chosen still hold.
+  const searching = query.trim() !== ''
+  const asked = useMemo(() => parseListQuery(query), [query])
+  const results = useMemo(
+    () => (searching ? searchConversations(narrowed, asked, me, inboxes) : []),
+    [searching, narrowed, asked, me, inboxes],
+  )
+  const { hits, loading } = useMessageHits(searching ? asked.text : '')
+  const deeper = useMemo(
+    () => inMessages(hits, results, narrowed, asked, me),
+    [hits, results, narrowed, asked, me],
+  )
+  const found = useMemo(() => [...results, ...deeper.map((d) => d.summary)], [results, deeper])
+  /** The newest message found in each conversation. */
+  const hitOf = useMemo(() => {
+    const first = new Map<string, MessageHit>()
+    for (const hit of hits) if (!first.has(hit.conversationId)) first.set(hit.conversationId, hit)
+    return first
+  }, [hits])
+  const [active, setActive] = useState(0)
+  const [focused, setFocused] = useState(false)
+  const scroller = useRef<HTMLDivElement>(null)
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new search starts at the top
+  useEffect(() => setActive(0), [query])
+  useEffect(() => {
+    if (!searching) return
+    scroller.current
+      ?.querySelector<HTMLElement>(`[data-index="${active}"]`)
+      ?.scrollIntoView({ block: 'nearest' })
+  }, [active, searching])
+
+  // « / » anywhere but in a field: to the search, as in a mail client.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey) return
+      const target = event.target as HTMLElement | null
+      if (target?.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]'))
+        return
+      event.preventDefault()
+      searchRef.current?.focus()
+      searchRef.current?.select()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [searchRef])
+
+  function onSearchKey(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Escape') {
+      if (query === '') event.currentTarget.blur()
+      else setQuery('')
+      event.preventDefault()
+      return
+    }
+    if (!searching || found.length === 0) return
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      const step = event.key === 'ArrowDown' ? 1 : -1
+      setActive((i) => Math.min(Math.max(i + step, 0), found.length - 1))
+    } else if (event.key === 'Enter') {
+      event.preventDefault()
+      const chosen = found[Math.min(active, found.length - 1)]
+      if (chosen) select(chosen.id)
+    }
+  }
+
+  const row = (summary: ConversationSummary, search: RowSearch = {}) => (
+    <ConversationRow
+      summary={summary}
+      me={me}
+      inbox={inboxes.find((i) => i.id === summary.inboxId) ?? null}
+      selected={summary.id === selectedId}
+      typing={typing[summary.id] === true}
+      time={inboxTime(search.hit?.at ?? summary.lastMessageAt, now)}
+      now={now}
+      onSelect={() => select(summary.id)}
+      {...search}
+    />
   )
 
   return (
@@ -102,12 +192,47 @@ export function ConversationList({
             ref={searchRef}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={onSearchKey}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             placeholder={$t('Rechercher une conversation…')}
-            className="h-8 w-full rounded-lg border bg-muted/40 pr-2 pl-8 text-xs shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/25"
+            className="h-8 w-full rounded-lg border bg-muted/40 pr-7 pl-8 text-xs shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/25"
           />
+          {query ? (
+            <Hint label={$t('Effacer la recherche')}>
+              <button
+                type="button"
+                onClick={() => {
+                  setQuery('')
+                  searchRef.current?.focus()
+                }}
+                className="absolute top-1/2 right-1.5 flex size-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            </Hint>
+          ) : (
+            !focused && (
+              <Kbd className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2">/</Kbd>
+            )
+          )}
         </div>
         <FiltersButton rows={inThisInbox} />
       </div>
+
+      {focused && !searching && (
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b px-3 py-2 text-[11px] text-muted-foreground">
+          {$t('Un nom, un email, des mots d’un message.')}
+          <span className="inline-flex items-center gap-1">
+            <Kbd>#</Kbd>
+            {$t('étiquette')}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Kbd>@</Kbd>
+            {$t('conseiller')}
+          </span>
+        </p>
+      )}
 
       {/* Underlined, as the inbox's other tabs: short labels and quiet counts, so that the
           row fits the pane at its narrowest. « Résolues » is in the filter menu. */}
@@ -131,44 +256,84 @@ export function ConversationList({
       </Tabs>
       <ActiveFilters />
 
-      <div className="flex-1 overflow-y-auto scroll-discret">
-        {(filters.sort === 'recent' ? groupsOf(shown, now) : orderedBy(shown, filters.sort)).map(
-          (group) => (
-            <section key={group.key} aria-label={$t(group.label)}>
-              <h3 className="sticky top-0 z-10 flex items-center gap-2 bg-background/85 px-4 pt-3 pb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase backdrop-blur-sm">
-                {$t(group.label)}
-                <span className="font-normal tabular-nums">{group.items.length}</span>
-              </h3>
-              <ul className="space-y-0.5 px-1.5 pb-1">
-                {group.items.map((summary) => (
+      <div ref={scroller} className="flex-1 overflow-y-auto scroll-discret">
+        {searching ? (
+          <>
+            {results.length > 0 && (
+              <Group label={$t('Conversations')} count={results.length}>
+                {results.map((summary, index) => {
+                  // Found by an older message: that message, rather than the last one.
+                  const hit = hitOf.get(summary.id)
+                  const told = hit && !saysAll(summary.preview, asked.tokens) ? hit : undefined
+                  return (
+                    <li key={summary.id}>
+                      {row(summary, {
+                        lit: asked.tokens,
+                        tagged: asked.tags,
+                        hit: told,
+                        active: index === active,
+                        index,
+                      })}
+                    </li>
+                  )
+                })}
+              </Group>
+            )}
+            {deeper.length > 0 && (
+              <Group label={$t('Dans les messages')} count={deeper.length}>
+                {deeper.map(({ summary, hit }, i) => (
                   <li key={summary.id}>
-                    <ConversationRow
-                      summary={summary}
-                      me={me}
-                      inbox={inboxes.find((i) => i.id === summary.inboxId) ?? null}
-                      selected={summary.id === selectedId}
-                      typing={typing[summary.id] === true}
-                      time={inboxTime(summary.lastMessageAt, now)}
-                      now={now}
-                      onSelect={() => select(summary.id)}
-                    />
+                    {row(summary, {
+                      lit: asked.tokens,
+                      tagged: asked.tags,
+                      hit,
+                      active: results.length + i === active,
+                      index: results.length + i,
+                    })}
                   </li>
                 ))}
-              </ul>
-            </section>
-          ),
+              </Group>
+            )}
+            {loading && (
+              <p className="flex items-center gap-2 px-4 py-3 text-xs text-muted-foreground">
+                <LoaderCircle className="size-3.5 animate-spin" />
+                {$t('Recherche dans les messages…')}
+              </p>
+            )}
+            {found.length === 0 && !loading && (
+              <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
+                <span className="flex size-11 items-center justify-center rounded-2xl bg-muted">
+                  <Search className="size-5 text-muted-foreground" />
+                </span>
+                <p className="max-w-60 text-sm text-muted-foreground">
+                  {$t('Aucune conversation ne correspond.')}
+                </p>
+                <p className="max-w-60 text-xs text-muted-foreground">
+                  {$t('La recherche tient compte de la boîte et des filtres choisis.')}
+                </p>
+              </div>
+            )}
+          </>
+        ) : (
+          (filters.sort === 'recent' ? groupsOf(shown, now) : orderedBy(shown, filters.sort)).map(
+            (group) => (
+              <Group key={group.key} label={$t(group.label)} count={group.items.length}>
+                {group.items.map((summary) => (
+                  <li key={summary.id}>{row(summary)}</li>
+                ))}
+              </Group>
+            ),
+          )
         )}
-        {shown.length === 0 && (
+        {!searching && shown.length === 0 && (
           <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
             <span className="flex size-11 items-center justify-center rounded-2xl bg-muted">
               <Inbox className="size-5 text-muted-foreground" />
             </span>
             <p className="max-w-56 text-sm text-muted-foreground">
-              {query
-                ? $t('Aucune conversation ne correspond.')
-                : filter === 'unassigned'
-                  ? $t('La file est vide : chaque conversation a son conseiller.')
-                  : $t('Aucune conversation ici.')}
+              {filter === 'unassigned'
+                ? $t('La file est vide : chaque conversation a son conseiller.')
+                : $t('Aucune conversation ici.')}
             </p>
           </div>
         )}
@@ -186,7 +351,12 @@ export function ConversationRow({
   time,
   now = new Date(),
   onSelect,
-}: {
+  lit = [],
+  tagged = [],
+  hit,
+  active = false,
+  index,
+}: RowSearch & {
   readonly summary: ConversationSummary
   readonly me: Agent | null
   /** Its inbox — its mark goes on the avatar. */
@@ -199,16 +369,26 @@ export function ConversationRow({
   readonly onSelect: () => void
 }) {
   const { contact, unread, assignee } = summary
+  // Searching: the tags that answer it first, lit.
+  const words = [...lit, ...tagged]
+  const tags =
+    words.length === 0
+      ? summary.tags
+      : [...summary.tags].sort(
+          (a, b) => wordsLit(b.label, words).size - wordsLit(a.label, words).size,
+        )
   const waiting = waitingOf(summary, now)
   const mine = summary.assigneeId !== null && summary.assigneeId === me?.id
   return (
     <button
       type="button"
       onClick={onSelect}
+      data-index={index}
       aria-current={selected ? 'true' : undefined}
       className={cn(
         'group relative flex w-full gap-3 rounded-xl px-2.5 py-2.5 text-left transition-colors',
         selected ? 'bg-accent' : 'hover:bg-muted/60',
+        active && !selected && 'bg-muted/70',
       )}
     >
       {selected && (
@@ -234,7 +414,7 @@ export function ConversationRow({
               unread ? 'font-semibold text-foreground' : 'font-medium',
             )}
           >
-            {contact.name}
+            <Lit text={contact.name} tokens={lit} />
           </span>
           {contact.identified && (
             <Hint label={$t('Client identifié par le site')}>
@@ -263,8 +443,10 @@ export function ConversationRow({
                 <TypingDots className="text-muted-foreground" />
                 <span className="truncate">{$t('En train d’écrire…')}</span>
               </span>
+            ) : hit ? (
+              <Found hit={hit} tokens={lit} />
             ) : (
-              <Said summary={summary} me={me} />
+              <Said summary={summary} me={me} tokens={lit} />
             )}
           </span>
           {unread && (
@@ -307,24 +489,26 @@ export function ConversationRow({
             </Hint>
           )}
           <span className="flex min-w-0 items-center gap-1 overflow-hidden">
-            {summary.tags.slice(0, 1).map((tag) => (
+            {tags.slice(0, 1).map((tag) => (
               <ColorBadge
                 key={tag.label}
                 color={tag.color}
                 className="min-w-0 max-w-28 shrink text-[11px]"
               >
-                <span className="truncate">{tag.label}</span>
+                <span className="truncate">
+                  <Lit text={tag.label} lit={wordsLit(tag.label, words)} />
+                </span>
               </ColorBadge>
             ))}
-            {summary.tags.length > 1 && (
+            {tags.length > 1 && (
               <Hint
-                label={summary.tags
+                label={tags
                   .slice(1)
                   .map((t) => t.label)
                   .join(', ')}
               >
                 <span className="shrink-0 text-[11px] text-muted-foreground">
-                  +{summary.tags.length - 1}
+                  +{tags.length - 1}
                 </span>
               </Hint>
             )}
@@ -349,7 +533,12 @@ export function ConversationRow({
 function Said({
   summary,
   me,
-}: { readonly summary: ConversationSummary; readonly me: Agent | null }) {
+  tokens = [],
+}: {
+  readonly summary: ConversationSummary
+  readonly me: Agent | null
+  readonly tokens?: readonly string[]
+}) {
   const files = summary.previewFiles
   const who =
     summary.previewAuthor === 'ai' ? (
@@ -366,13 +555,124 @@ function Said({
       {who}
       {files > 0 && <Paperclip className="size-3 shrink-0" />}
       <span className="truncate">
-        {summary.preview ||
-          (files > 0
-            ? $tp(files, '{count} fichier', '{count} fichiers')
-            : $t('Pas encore de message'))}
+        {summary.preview ? (
+          <Excerpt text={summary.preview} tokens={tokens} />
+        ) : files > 0 ? (
+          $tp(files, '{count} fichier', '{count} fichiers')
+        ) : (
+          $t('Pas encore de message')
+        )}
       </span>
     </>
   )
+}
+
+/** A message found deeper in the conversation: who said it, and its words around the match. */
+function Found({ hit, tokens }: { readonly hit: MessageHit; readonly tokens: readonly string[] }) {
+  return (
+    <>
+      {hit.author === 'ai' ? (
+        <Sparkles className="size-3 shrink-0 text-violet-600 dark:text-violet-300" />
+      ) : hit.author === 'note' ? (
+        <StickyNote className="size-3 shrink-0" />
+      ) : null}
+      <span className="truncate">
+        <Excerpt text={hit.body} tokens={tokens} />
+      </span>
+    </>
+  )
+}
+
+/** A text cut around what was found in it, the match lit. */
+function Excerpt({ text, tokens }: { readonly text: string; readonly tokens: readonly string[] }) {
+  if (tokens.length === 0) return <>{text}</>
+  const cut = excerpt(text, tokens, 72).text
+  return <Lit text={cut} lit={wordsLit(cut, tokens)} />
+}
+
+/** What a row shows of a search: the words lit, the message found, the row under the keys. */
+interface RowSearch {
+  readonly lit?: readonly string[]
+  /** The tags asked with `#`: lit, and shown first. */
+  readonly tagged?: readonly string[]
+  /** Found in this message, deeper than the last one. */
+  readonly hit?: MessageHit
+  readonly active?: boolean
+  readonly index?: number
+}
+
+function Group({
+  label,
+  count,
+  children,
+}: { readonly label: string; readonly count: number; readonly children: ReactNode }) {
+  return (
+    <section aria-label={label}>
+      <h3 className="sticky top-0 z-10 flex items-center gap-2 bg-background/85 px-4 pt-3 pb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase backdrop-blur-sm">
+        {label}
+        <span className="font-normal tabular-nums">{count}</span>
+      </h3>
+      <ul className="space-y-0.5 px-1.5 pb-1">{children}</ul>
+    </section>
+  )
+}
+
+/** The server's part, once the typing pauses: the messages that say the words. */
+function useMessageHits(text: string): {
+  readonly hits: readonly MessageHit[]
+  readonly loading: boolean
+} {
+  const [hits, setHits] = useState<readonly MessageHit[]>([])
+  const [loading, setLoading] = useState(false)
+  useEffect(() => {
+    const typed = text.trim()
+    if (typed.length < 3) {
+      setHits([])
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    let stale = false
+    const timer = setTimeout(() => {
+      api
+        .search(typed)
+        .catch(() => [] as MessageHit[])
+        .then((found) => {
+          if (stale) return
+          setHits(found)
+          setLoading(false)
+        })
+    }, 250)
+    return () => {
+      stale = true
+      clearTimeout(timer)
+    }
+  }, [text])
+  return { hits, loading }
+}
+
+/**
+ * The conversations found by their messages and not already by the rest — the first
+ * message found for each, the newest. The inbox, the filters, `#` and `@` hold for them too.
+ */
+function inMessages(
+  hits: readonly MessageHit[],
+  listed: readonly ConversationSummary[],
+  rows: readonly ConversationSummary[],
+  query: ListQuery,
+  me: Agent | null,
+): { readonly summary: ConversationSummary; readonly hit: MessageHit }[] {
+  if (query.text.trim().length < 3) return []
+  const seen = new Set(listed.map((s) => s.id))
+  const byId = new Map(rows.map((s) => [s.id, s]))
+  const out: { summary: ConversationSummary; hit: MessageHit }[] = []
+  for (const hit of hits) {
+    const summary = byId.get(hit.conversationId)
+    if (!summary || seen.has(summary.id) || !holds(summary, query, me)) continue
+    seen.add(summary.id)
+    out.push({ summary, hit })
+  }
+  return out
 }
 
 /**

@@ -13,7 +13,12 @@ import {
 } from '../../src/db/schema.js'
 import { handOff, receiveVisitorMessage } from '../../src/inbox/incoming.js'
 import { listNotifications } from '../../src/inbox/notifications.js'
-import { type AgentRow, loadConversation, loadSummaries } from '../../src/inbox/read.js'
+import {
+  type AgentRow,
+  loadConversation,
+  loadSummaries,
+  searchMessages,
+} from '../../src/inbox/read.js'
 import {
   assign,
   markRead,
@@ -149,6 +154,26 @@ describe('feedback', () => {
     const refused = await setFeedback(db, agent, id, questionId, 'accepted').catch((e) => e)
     expect(refused).toBeInstanceOf(Refusal)
     expect(refused.code).toBe('NOT_AN_AI_ANSWER')
+  })
+})
+
+describe('message search', () => {
+  it('finds every word, in any order, accents and case aside', async () => {
+    const { id } = await aiConversation()
+    await db.insert(messages).values({
+      conversationId: id,
+      author: 'contact',
+      body: 'Quel est le DÉLAI de remboursement après un dégât des eaux ?',
+    })
+
+    const found = async (query: string) =>
+      (await searchMessages(db, query)).filter((hit) => hit.conversationId === id)
+
+    expect(await found('remboursement delai')).toHaveLength(1)
+    expect(await found('Dégat EAUX')).toHaveLength(1)
+    expect(await found('remboursement sinistre')).toHaveLength(0)
+    // LIKE's wildcards typed are looked for as such.
+    expect(await found('d_lai')).toHaveLength(0)
   })
 })
 
