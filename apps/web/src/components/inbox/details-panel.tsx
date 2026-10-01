@@ -51,6 +51,7 @@ import {
   Wrench,
 } from 'lucide-react'
 import { Fragment, type ReactNode, useEffect, useLayoutEffect, useState } from 'react'
+import { AssignPicker } from './assign-picker'
 import { ContactAvatar, PriorityChip, SentimentChip, StatusChip, conversationState } from './labels'
 import { MetadataList } from './metadata'
 import { Tags } from './tag-picker'
@@ -180,6 +181,7 @@ export function DetailsPanel({ conversation }: { readonly conversation: Conversa
   const declared = Object.keys(contact.data).length
   const attached = Object.keys(conversation.data).length
   const { order, hidden, arranging } = useDetailsLayout()
+  const [assigning, setAssigning] = useState(false)
   // The arrangement, from storage, before the first paint.
   useLayoutEffect(() => useDetailsLayout.getState().initialize(), [])
 
@@ -203,21 +205,35 @@ export function DetailsPanel({ conversation }: { readonly conversation: Conversa
             {team ? <span className="truncate">{team.name}</span> : quiet}
           </Row>
           <Row icon={UserRound} label={$t('Affectée à')}>
-            {conversation.assignee !== null ? (
-              <>
-                <ContactAvatar name={conversation.assignee} className="size-5 text-[9px]" />
-                <span className="truncate">
-                  {conversation.assignee === me?.name ? $t('Vous') : conversation.assignee}
-                </span>
-              </>
-            ) : conversation.status === 'ai' ? (
-              <Chip tint="violet">
-                <Sparkles />
-                {$t('L’IA')}
-              </Chip>
-            ) : (
-              <span className="text-muted-foreground">{$t('Personne, en file')}</span>
-            )}
+            <AssignPicker
+              conversation={conversation}
+              open={assigning}
+              onOpenChange={setAssigning}
+              align="start"
+            >
+              <button
+                type="button"
+                aria-label={$t('Changer le conseiller')}
+                className="-mx-1.5 flex min-w-0 items-center gap-2 rounded-md px-1.5 py-0.5 text-left transition-colors hover:bg-accent"
+              >
+                {conversation.assignee !== null ? (
+                  <>
+                    <ContactAvatar name={conversation.assignee} className="size-5 text-[9px]" />
+                    <span className="truncate">
+                      {conversation.assignee === me?.name ? $t('Vous') : conversation.assignee}
+                    </span>
+                  </>
+                ) : conversation.status === 'ai' ? (
+                  <Chip tint="violet">
+                    <Sparkles />
+                    {$t('L’IA')}
+                  </Chip>
+                ) : (
+                  <span className="text-muted-foreground">{$t('Personne, en file')}</span>
+                )}
+                <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
+              </button>
+            </AssignPicker>
           </Row>
           <Row icon={Globe} label={$t('Site')}>
             <span className="truncate">{conversation.site}</span>

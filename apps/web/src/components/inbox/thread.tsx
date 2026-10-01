@@ -7,12 +7,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Hint } from '@/components/ui/tooltip'
@@ -37,6 +32,7 @@ import {
   UserRoundPlus,
 } from 'lucide-react'
 import { Fragment, useEffect, useRef, useState } from 'react'
+import { AssignPicker } from './assign-picker'
 import { Composer } from './composer'
 import { ContactAvatar, StateChip } from './labels'
 import {
@@ -74,10 +70,9 @@ export function Thread({
   readonly onToggleDetails: () => void
 }) {
   const now = useInbox((s) => s.now)
-  const me = useInbox((s) => s.me)
-  const agents = useInbox((s) => s.agents)
   const directory = useInbox((s) => s.directory)
   const [transferring, setTransferring] = useState(false)
+  const [assigning, setAssigning] = useState(false)
   const { takeOver, resolve, assign, giveFeedback, setDraft } = useInbox.getState()
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const { scroller, content } = useStickToBottom(conversation.id)
@@ -166,6 +161,16 @@ export function Thread({
               {$t('Résoudre')}
             </Button>
           ) : null}
+          <AssignPicker
+            conversation={conversation}
+            open={assigning}
+            onOpenChange={setAssigning}
+            hint={$t('Affecter à un conseiller')}
+          >
+            <Button variant="outline" size="icon-sm" aria-label={$t('Affecter à un conseiller')}>
+              <UserRoundPlus className="text-muted-foreground" />
+            </Button>
+          </AssignPicker>
           {directory.inboxes.length > 0 && (
             <Hint label={$t('Transférer à une autre boîte ou une autre équipe')}>
               <Button variant="outline" size="icon-sm" onClick={() => setTransferring(true)}>
@@ -182,34 +187,17 @@ export function Thread({
               </DropdownMenuTrigger>
             </Hint>
             <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <UserRoundPlus />
-                  {$t('Affecter à')}
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="w-56">
-                  <DropdownMenuRadioGroup
-                    value={conversation.assigneeId ?? ''}
-                    onValueChange={(id) => void assign(conversation.id, id)}
-                  >
-                    {agents.map((agent) => (
-                      <DropdownMenuRadioItem key={agent.id} value={agent.id}>
-                        {agent.id === me?.id
-                          ? $t('{name} (vous)', { name: agent.name })
-                          : agent.name}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    disabled={conversation.assigneeId === null}
-                    onSelect={() => void assign(conversation.id, null)}
-                  >
-                    <Undo2 />
-                    {$t('Remettre dans la file')}
-                  </DropdownMenuItem>
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
+              <DropdownMenuItem onSelect={() => setAssigning(true)}>
+                <UserRoundPlus />
+                {$t('Affecter à…')}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={conversation.assigneeId === null}
+                onSelect={() => void assign(conversation.id, null)}
+              >
+                <Undo2 />
+                {$t('Remettre dans la file')}
+              </DropdownMenuItem>
               {directory.inboxes.length > 0 && (
                 <DropdownMenuItem onSelect={() => setTransferring(true)}>
                   <Forward />

@@ -204,6 +204,8 @@ export interface Agent {
   readonly name: string
   readonly email: string | null
   readonly role: 'agent' | 'supervisor'
+  /** Their teams — given in the list of agents, to suggest a conversation's own team. */
+  readonly teamIds?: readonly string[]
 }
 
 /** A conversation as the list shows it: enough to draw its row, not its thread. */
@@ -223,7 +225,12 @@ export interface ConversationSummary {
   readonly preview: string
   readonly previewAuthor: 'visitor' | 'agent' | 'ai' | null
   readonly previewAgent: string | null
+  /** The files sent with the last message — its words may be none. */
+  readonly previewFiles: number
   readonly lastMessageAt: string
+  readonly priority: Priority
+  readonly sentiment: Sentiment | null
+  readonly tags: readonly Tag[]
 }
 
 /**

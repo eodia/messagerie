@@ -234,13 +234,16 @@ export async function setFeedback(
 }
 
 /** The agents a conversation can be given to. */
-export async function listAgents(db: Db): Promise<Agent[]> {
+export async function listAgents(db: Db, settings: Settings | null = null): Promise<Agent[]> {
   const rows = await db
     .select()
     .from(agents)
     .where(eq(agents.active, true))
     .orderBy(asc(agents.name))
-  return rows.map(toAgent)
+  // Their teams, from « Conseillers »: whom to suggest for a conversation of a team.
+  const entries = settings ? await settings.agents().catch(() => []) : []
+  const teams = new Map(entries.map((e) => [e.basedbUserId, e.teamIds]))
+  return rows.map((row) => ({ ...toAgent(row), teamIds: teams.get(row.basedbUserId) ?? [] }))
 }
 
 /**

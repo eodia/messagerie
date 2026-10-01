@@ -7,6 +7,7 @@ import type {
   Feedback,
   Message,
   PastConversation,
+  Tag,
 } from '@chat/contracts'
 import { type SQL, and, asc, desc, eq, gt, inArray, isNull, ne, or } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
@@ -78,6 +79,7 @@ export async function loadSummaries(
   // The last thing said in each — what the row previews.
   const last = await db
     .selectDistinctOn([messages.conversationId], {
+      id: messages.id,
       conversationId: messages.conversationId,
       author: messages.author,
       body: messages.body,
@@ -94,6 +96,21 @@ export async function loadSummaries(
 
   const lastOf = new Map(last.map((m) => [m.conversationId, m]))
   const handed = new Set(handedOff.map((m) => m.conversationId))
+  const files = await attachmentsOf(
+    db,
+    last.map((m) => m.id),
+  )
+  const tagRows = await db
+    .select()
+    .from(conversationTags)
+    .where(inArray(conversationTags.conversationId, listed))
+    .orderBy(asc(conversationTags.createdAt))
+  const tagsOf = new Map<string, Tag[]>()
+  for (const t of tagRows) {
+    const list = tagsOf.get(t.conversationId) ?? []
+    list.push({ label: t.label, color: t.color, byAi: t.origin === 'ai' })
+    tagsOf.set(t.conversationId, list)
+  }
 
   return rows.map(({ conversation, contact, assignee }) => {
     const said = lastOf.get(conversation.id)
@@ -111,7 +128,11 @@ export async function loadSummaries(
       preview: said?.body ?? '',
       previewAuthor: said ? PREVIEW_AUTHOR[said.author] : null,
       previewAgent: said?.author === 'agent' ? said.agent : null,
+      previewFiles: said ? (files.get(said.id)?.length ?? 0) : 0,
       lastMessageAt: conversation.lastMessageAt.toISOString(),
+      priority: conversation.priority,
+      sentiment: conversation.sentiment,
+      tags: tagsOf.get(conversation.id) ?? [],
     }
   })
 }

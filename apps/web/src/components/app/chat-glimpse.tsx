@@ -216,7 +216,11 @@ export function ChatGlimpse() {
     preview: '',
     previewAuthor: 'visitor',
     previewAgent: null,
+    previewFiles: 0,
     lastMessageAt: at(index * 7),
+    priority: 'normal',
+    sentiment: null,
+    tags: [],
     ...rest,
   })
   const handedOver = scene === 'handoff' && step >= 3

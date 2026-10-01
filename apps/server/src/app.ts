@@ -293,7 +293,7 @@ export function createApp({
     c.json({ ticket: tickets.issue(c.get('agent').id) } satisfies Ticket),
   )
 
-  inbox.get('/agents', async (c) => c.json(await listAgents(db)))
+  inbox.get('/agents', async (c) => c.json(await listAgents(db, settings)))
 
   inbox.get('/notifications', async (c) => c.json(await listNotifications(db, c.get('agent'))))
 
