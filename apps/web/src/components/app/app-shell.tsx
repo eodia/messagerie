@@ -98,7 +98,11 @@ export function AppShell({
 
   useEffect(() => {
     useInbox.getState().setNavigator((path) => {
-      if (!window.location.pathname.startsWith(path)) router.push(path)
+      // On its screen already: the screen writes its address as it changes.
+      const section = `/${path.split('/')[1] ?? ''}`
+      const here = window.location.pathname
+      if (here === section || here.startsWith(`${section}/`)) return
+      router.push(path)
     })
   }, [router])
 

@@ -7,14 +7,16 @@ import { ScreenHeader, Slash } from '@/components/app/screen-header'
 import { Button } from '@/components/ui/button'
 import { Kbd, useModKey } from '@/components/ui/kbd'
 import { Hint } from '@/components/ui/tooltip'
+import { conversationsPlace } from '@/lib/address'
 import { apiAddress } from '@/lib/api'
 import { usesBasedb } from '@/lib/basedb-session'
 import { $t } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
-import { useInbox } from '@/lib/store/inbox'
+import { inboxAddress, useInbox } from '@/lib/store/inbox'
 import { usePalette } from '@/lib/store/palette'
 import { usePanels } from '@/lib/store/panels'
 import { useSession } from '@/lib/store/session'
+import { useAddressBar } from '@/lib/use-address-bar'
 import {
   CircleCheck,
   ExternalLink,
@@ -32,6 +34,12 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ConversationList } from './conversation-list'
 import { DetailsPanel } from './details-panel'
 import { Thread } from './thread'
+
+/** Goes where the browser's address says: an inbox, a tab, a conversation. */
+function followAddress(): void {
+  const place = conversationsPlace(window.location.pathname, window.location.search)
+  if (place) useInbox.getState().arrive(place)
+}
 
 /** The agents' inbox: the conversations, the one open, and what is known of it. */
 export function Inbox() {
@@ -51,6 +59,11 @@ export function Inbox() {
 
   // The panes' widths, from storage, before the first paint: they open where they were left.
   useLayoutEffect(() => usePanels.getState().initialize(), [])
+
+  // The address says where the screen is — and the screen goes where an address says.
+  useLayoutEffect(() => followAddress(), [])
+  const address = useInbox((s) => (s.loading || s.arriving ? null : inboxAddress(s)))
+  useAddressBar(address, async () => followAddress())
 
   const header = (
     <ScreenHeader

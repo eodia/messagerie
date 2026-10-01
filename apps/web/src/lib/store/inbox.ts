@@ -13,6 +13,13 @@ import type {
   TransferBody,
 } from '@chat/contracts'
 import { create } from 'zustand'
+import {
+  type ConversationsPlace,
+  type ListFilter,
+  conversationOfWord,
+  conversationsAddress,
+  inboxOfWord,
+} from '../address'
 import { chime, inView, notifyDesktop } from '../alerts'
 import { ApiFailure, api, eventsUrl } from '../api'
 import { $t } from '../i18n'
@@ -29,9 +36,36 @@ import { $t } from '../i18n'
  * then rings, notifies the desktop, and counts it on the tab.
  */
 
-export type InboxFilter = 'all' | 'ai' | 'open' | 'unassigned' | 'resolved'
+export type InboxFilter = ListFilter
 
 const INBOX_KEY = 'chat.inbox'
+
+function storeInbox(inbox: string | null): void {
+  try {
+    if (inbox) window.localStorage.setItem(INBOX_KEY, inbox)
+    else window.localStorage.removeItem(INBOX_KEY)
+  } catch {
+    // The choice is forgotten at the next visit, nothing more.
+  }
+}
+
+/** Where the conversations' screen is, as its address says it. */
+export function inboxAddress(
+  state: Pick<InboxState, 'inbox' | 'filter' | 'selectedId' | 'summaries' | 'detail' | 'directory'>,
+): string {
+  const { selectedId, summaries, detail } = state
+  const name =
+    selectedId === null
+      ? null
+      : (summaries.find((s) => s.id === selectedId)?.contact.name ??
+        (detail?.id === selectedId ? detail.contact.name : null))
+  return conversationsAddress(
+    state.inbox,
+    state.filter,
+    selectedId !== null && name !== null ? { id: selectedId, name } : null,
+    state.directory.inboxes,
+  )
+}
 
 /** The inbox last chosen — a convenience of this browser, nothing more. */
 function storedInbox(): string | null {
@@ -117,6 +151,8 @@ interface InboxState {
   readonly error: string | null
   /** A sentence saying an action went through — promoted, run — until dismissed. */
   readonly notice: string | null
+  /** An address being followed, until the list it names is read: nothing to write yet. */
+  readonly arriving: boolean
   /** A dialog of the open conversation asked from elsewhere — the palette. */
   readonly asked: 'assign' | 'transfer' | null
   /** The clock the list reads its times against, moved every half minute. */
@@ -131,6 +167,8 @@ interface InboxState {
   select: (id: string) => void
   /** Goes to the inbox and opens a conversation — from the bell or the desktop. */
   open: (id: string) => void
+  /** Goes where an address says: its inbox, its tab, its conversation. */
+  arrive: (place: ConversationsPlace) => void
   /** Shows one inbox — or all with null — on the conversations screen. */
   showInbox: (inbox: string | null) => void
   setFilter: (filter: InboxFilter) => void
@@ -175,6 +213,9 @@ const codeOf = (error: unknown): string =>
 
 const NO_NOTIFICATIONS: NotificationList = { unread: 0, items: [] }
 
+/** No such inbox, or not the reader's — its conversations are then all shown. */
+const INBOX_UNKNOWN = 'INBOX_NOT_FOUND'
+
 /** The widget says « still typing » every two seconds or so: silent longer, they stopped. */
 const TYPING_MS = 6000
 
@@ -198,6 +239,33 @@ export const useInbox = create<InboxState>((set, get) => {
   }
 
   const typingTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  /** The address followed before the list was read. */
+  let pending: ConversationsPlace | null = null
+
+  /** Follows the address waiting, once the inboxes and the conversations are known. */
+  function settle(): void {
+    const place = pending
+    if (place === null) return
+    pending = null
+    const { directory, summaries, selectedId } = get()
+    let error: string | null = null
+    if (place.inbox !== undefined) {
+      const inbox = place.inbox === null ? null : inboxOfWord(place.inbox, directory.inboxes)
+      if (place.inbox !== null && inbox === null) error = INBOX_UNKNOWN
+      set({ inbox: inbox?.id ?? null })
+      storeInbox(inbox?.id ?? null)
+    }
+    set({ filter: place.filter })
+    if (place.conversation !== null) {
+      const id = conversationOfWord(
+        place.conversation,
+        summaries.map((s) => s.id),
+      )
+      if (id === null) error = 'CONVERSATION_NOT_FOUND'
+      else if (id !== selectedId) get().select(id)
+    }
+    set({ arriving: false, ...(error ? { error, notice: null } : {}) })
+  }
 
   /** The visitor is typing, or stopped (`false`) — by their message, or by their silence. */
   function setTyping(id: string, typing: boolean): void {
@@ -280,6 +348,7 @@ export const useInbox = create<InboxState>((set, get) => {
     error: null,
     notice: null,
     asked: null,
+    arriving: false,
     now: new Date(),
     navigate: () => {},
 
@@ -363,8 +432,12 @@ export const useInbox = create<InboxState>((set, get) => {
           loading: false,
           loadError: null,
         })
+        // An address reached before the list was read: it is followed now.
+        settle()
         const { selectedId } = get()
-        const first = summaries.find((s) => matchesFilter(s, get().filter) && inInbox(s, inbox))
+        const first = summaries.find(
+          (s) => matchesFilter(s, get().filter) && inInbox(s, get().inbox),
+        )
         if (selectedId === null && first) get().select(first.id)
         else if (selectedId !== null) void refreshDetail(selectedId)
       } catch (error) {
@@ -383,19 +456,20 @@ export const useInbox = create<InboxState>((set, get) => {
     },
 
     open: (id) => {
-      get().navigate('/conversations')
       get().select(id)
+      get().navigate(inboxAddress(get()))
+    },
+
+    arrive: (place) => {
+      pending = place
+      if (get().loading) set({ arriving: true })
+      else settle()
     },
 
     showInbox: (inbox) => {
       set({ inbox })
-      try {
-        if (inbox) window.localStorage.setItem(INBOX_KEY, inbox)
-        else window.localStorage.removeItem(INBOX_KEY)
-      } catch {
-        // The choice is forgotten at the next visit, nothing more.
-      }
-      get().navigate('/conversations')
+      storeInbox(inbox)
+      get().navigate(inboxAddress(get()))
     },
 
     setFilter: (filter) => set({ filter }),
