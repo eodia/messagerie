@@ -111,7 +111,12 @@ export function AppShell({
     )
   }
   if (status === 'signed-out' || status === 'must-change') {
-    return <SignInScreen basedbUrl={basedbUrl} />
+    // The sign-in screen's glimpse of the inbox draws its rows, hints included.
+    return (
+      <TooltipProvider delayDuration={300}>
+        <SignInScreen basedbUrl={basedbUrl} />
+      </TooltipProvider>
+    )
   }
   return (
     <BasedbUrl.Provider value={basedbUrl}>
