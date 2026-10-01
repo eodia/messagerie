@@ -208,6 +208,17 @@ export interface Agent {
   readonly teamIds?: readonly string[]
 }
 
+/** A message found by the palette's search: where it is, who said it, and around what. */
+export interface MessageHit {
+  readonly conversationId: string
+  readonly messageId: string
+  readonly contactName: string
+  readonly author: 'visitor' | 'agent' | 'ai' | 'note'
+  readonly at: string
+  /** The message's words, the match within them. */
+  readonly body: string
+}
+
 /** A conversation as the list shows it: enough to draw its row, not its thread. */
 export interface ConversationSummary {
   readonly id: string

@@ -6,12 +6,14 @@ import { configureApi } from '@/lib/api'
 import { configureBasedbSession } from '@/lib/basedb-session'
 import { useAlertSettings } from '@/lib/store/alert-settings'
 import { useInbox, waitingCount } from '@/lib/store/inbox'
+import { isPaletteKey, usePalette } from '@/lib/store/palette'
 import { useSession } from '@/lib/store/session'
 import { useSidebar } from '@/lib/store/sidebar'
 import { useTheme } from '@/lib/theme'
 import { LoaderCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { type ReactNode, createContext, useContext, useEffect, useSyncExternalStore } from 'react'
+import { CommandPalette } from './command-palette'
 import { Sidebar } from './sidebar'
 import { SignInScreen } from './sign-in'
 
@@ -80,6 +82,20 @@ export function AppShell({
     }
   }, [status])
 
+  // Ctrl+K (⌘K) opens the palette, on every screen — and closes it when open.
+  useEffect(() => {
+    if (status !== 'signed-in') return
+    function onKey(event: KeyboardEvent) {
+      if (!isPaletteKey(event)) return
+      event.preventDefault()
+      const palette = usePalette.getState()
+      if (palette.open) palette.hide()
+      else palette.show()
+    }
+    window.addEventListener('keydown', onKey, { capture: true })
+    return () => window.removeEventListener('keydown', onKey, { capture: true })
+  }, [status])
+
   useEffect(() => {
     useInbox.getState().setNavigator((path) => {
       if (!window.location.pathname.startsWith(path)) router.push(path)
@@ -104,6 +120,7 @@ export function AppShell({
           <Sidebar basedbUrl={basedbUrl} />
           <main className="flex min-w-0 flex-1 flex-col">{children}</main>
         </div>
+        <CommandPalette />
       </TooltipProvider>
     </BasedbUrl.Provider>
   )

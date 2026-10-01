@@ -10,7 +10,7 @@ import { messageFor } from '@/lib/messages'
 import { cn } from '@/lib/utils'
 import type { SettingsRow } from '@chat/contracts'
 import { Check, LoaderCircle, Plus, Search, Trash2 } from 'lucide-react'
-import { type ReactNode, useEffect, useId, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { type Choices, FieldInput } from '../field-input'
 import { ElevateDialog } from '../screens/account-dialog'
 import { FormSection } from './controls'
@@ -72,6 +72,17 @@ export function Studio({
   const [query, setQuery] = useState('')
   const [confirming, setConfirming] = useState(false)
   const activeId = useId()
+
+  // Reached from the palette with ?nouveau: a new row, once the table is read.
+  const startedNew = useRef(false)
+  useEffect(() => {
+    if (startedNew.current || !table || !canEdit) return
+    startedNew.current = true
+    const params = new URLSearchParams(window.location.search)
+    if (!params.has('nouveau')) return
+    editor.create()
+    window.history.replaceState(null, '', window.location.pathname)
+  }, [table, canEdit, editor])
 
   // Ctrl+S saves, as in a document.
   useEffect(() => {

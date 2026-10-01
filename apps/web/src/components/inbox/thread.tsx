@@ -73,6 +73,14 @@ export function Thread({
   const directory = useInbox((s) => s.directory)
   const [transferring, setTransferring] = useState(false)
   const [assigning, setAssigning] = useState(false)
+  // A dialog asked from the palette: opened here, once whatever asked has closed.
+  const asked = useInbox((s) => s.asked)
+  useEffect(() => {
+    if (asked === null) return
+    useInbox.getState().ask(null)
+    const open = asked === 'assign' ? () => setAssigning(true) : () => setTransferring(true)
+    setTimeout(open, 60)
+  }, [asked])
   const { takeOver, resolve, assign, giveFeedback, setDraft } = useInbox.getState()
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const { scroller, content } = useStickToBottom(conversation.id)

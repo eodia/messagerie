@@ -12,6 +12,7 @@ import { usesBasedb } from '@/lib/basedb-session'
 import { $t } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
 import { useInbox } from '@/lib/store/inbox'
+import { usePalette } from '@/lib/store/palette'
 import { usePanels } from '@/lib/store/panels'
 import { useSession } from '@/lib/store/session'
 import {
@@ -51,19 +52,6 @@ export function Inbox() {
   // The panes' widths, from storage, before the first paint: they open where they were left.
   useLayoutEffect(() => usePanels.getState().initialize(), [])
 
-  // Ctrl+K (⌘K) goes to the search, by the physical key so that it works on any layout.
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if ((event.ctrlKey || event.metaKey) && (event.code === 'KeyK' || event.key === 'k')) {
-        event.preventDefault()
-        searchRef.current?.focus()
-        searchRef.current?.select()
-      }
-    }
-    window.addEventListener('keydown', onKey, { capture: true })
-    return () => window.removeEventListener('keydown', onKey, { capture: true })
-  }, [])
-
   const header = (
     <ScreenHeader
       tools={
@@ -80,7 +68,7 @@ export function Inbox() {
           )}
           <button
             type="button"
-            onClick={() => searchRef.current?.focus()}
+            onClick={() => usePalette.getState().show()}
             className="hidden h-8 w-64 items-center gap-2 rounded-lg border bg-muted/40 px-2.5 text-xs text-muted-foreground shadow-xs transition-colors hover:bg-muted md:flex"
           >
             <Search className="size-3.5" />

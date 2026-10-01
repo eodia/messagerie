@@ -156,6 +156,18 @@ export function KnowledgeScreen() {
     void load()
   }, [load])
 
+  // Reached from the palette: an article to open, or one to start.
+  const asked = useRef(false)
+  useEffect(() => {
+    if (asked.current || articles === null || overview === null) return
+    asked.current = true
+    const params = new URLSearchParams(window.location.search)
+    const article = params.get('article')
+    if (article && articles.some((a) => a.id === article)) setSelectedId(article)
+    else if (params.has('nouveau') && overview.canEdit) void create()
+    if (article || params.has('nouveau')) window.history.replaceState(null, '', '/connaissance')
+  }, [articles, overview])
+
   // ── Saving as one types: after a pause, the changed fields go to basedb ─────────────
   const pending = useRef<{ id: string; values: Record<string, unknown> } | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)

@@ -115,6 +115,8 @@ interface InboxState {
   readonly error: string | null
   /** A sentence saying an action went through — promoted, run — until dismissed. */
   readonly notice: string | null
+  /** A dialog of the open conversation asked from elsewhere — the palette. */
+  readonly asked: 'assign' | 'transfer' | null
   /** The clock the list reads its times against, moved every half minute. */
   readonly now: Date
   /** How the app goes to a screen — set by the shell, which holds the router. */
@@ -136,6 +138,8 @@ interface InboxState {
   /** A failure's code, shown like the refusal of an action. */
   fail: (error: unknown) => void
   say: (notice: string) => void
+  /** Asks the open conversation for one of its dialogs; `null` once it opened. */
+  ask: (dialog: 'assign' | 'transfer' | null) => void
   /** With files, words are optional. */
   send: (
     id: string,
@@ -246,6 +250,7 @@ export const useInbox = create<InboxState>((set, get) => {
     sending: false,
     error: null,
     notice: null,
+    asked: null,
     now: new Date(),
     navigate: () => {},
 
@@ -368,6 +373,8 @@ export const useInbox = create<InboxState>((set, get) => {
     setDraft: (id, text) => set((state) => ({ drafts: { ...state.drafts, [id]: text } })),
     dismissError: () => set({ error: null, notice: null }),
     fail: (error) => set({ error: codeOf(error), notice: null }),
+    ask: (asked) => set({ asked }),
+
     say: (notice) => {
       set({ notice, error: null })
       setTimeout(() => {

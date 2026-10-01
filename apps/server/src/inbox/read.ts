@@ -6,10 +6,11 @@ import type {
   ConversationSummary,
   Feedback,
   Message,
+  MessageHit,
   PastConversation,
   Tag,
 } from '@chat/contracts'
-import { type SQL, and, asc, desc, eq, gt, inArray, isNull, ne, or } from 'drizzle-orm'
+import { type SQL, and, asc, desc, eq, gt, ilike, inArray, isNull, ne, or } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import type { Db } from '../db/client.js'
 import {
@@ -135,6 +136,59 @@ export async function loadSummaries(
       tags: tagsOf.get(conversation.id) ?? [],
     }
   })
+}
+
+/**
+ * The messages that say `query` — accents and case aside as far as PostgreSQL's `ILIKE`
+ * goes —, in the conversations the reader sees, newest first: what the palette offers
+ * under « Dans les messages ».
+ */
+export async function searchMessages(
+  db: Db,
+  query: string,
+  visible: Visible = null,
+): Promise<MessageHit[]> {
+  const text = query.trim()
+  if (text.length < 3) return []
+  // `%`, `_` and `\` typed are looked for as such, not as LIKE's wildcards.
+  const pattern = `%${text.replace(/[\\%_]/g, (c) => `\\${c}`)}%`
+  const rows = await db
+    .select({
+      conversationId: messages.conversationId,
+      messageId: messages.id,
+      author: messages.author,
+      kind: messages.kind,
+      body: messages.body,
+      at: messages.createdAt,
+      contactName: contacts.name,
+    })
+    .from(messages)
+    .innerJoin(conversations, eq(conversations.id, messages.conversationId))
+    .innerJoin(contacts, eq(contacts.id, conversations.contactId))
+    .where(
+      and(
+        or(eq(messages.kind, 'text'), eq(messages.kind, 'note')),
+        ilike(messages.body, pattern),
+        inVisible(visible),
+      ),
+    )
+    .orderBy(desc(messages.createdAt))
+    .limit(20)
+  return rows.map((row) => ({
+    conversationId: row.conversationId,
+    messageId: row.messageId,
+    contactName: row.contactName,
+    author:
+      row.kind === 'note'
+        ? 'note'
+        : row.author === 'contact'
+          ? 'visitor'
+          : row.author === 'ai'
+            ? 'ai'
+            : 'agent',
+    at: row.at.toISOString(),
+    body: row.body,
+  }))
 }
 
 /**

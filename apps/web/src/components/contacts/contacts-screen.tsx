@@ -22,7 +22,12 @@ export function ContactsScreen() {
   const now = useInbox((s) => s.now)
   const [query, setQuery] = useState('')
   const [contacts, setContacts] = useState<ContactListItem[] | null>(null)
-  const [selected, setSelected] = useState<string | null>(null)
+  // Reached from the palette with ?contact=<id>: that contact, open.
+  const [selected, setSelected] = useState<string | null>(() =>
+    typeof window === 'undefined'
+      ? null
+      : new URLSearchParams(window.location.search).get('contact'),
+  )
   const [detail, setDetail] = useState<ContactDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
 

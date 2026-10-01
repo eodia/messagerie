@@ -22,7 +22,7 @@ import {
   UserPlus,
   UserRound,
 } from 'lucide-react'
-import { type ReactNode, useCallback, useMemo, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import { ChoiceMenu, Toggles } from '../field-input'
 import { CardChoice, Field, FormSection, RangeField, ToggleField } from '../kit/controls'
 import {
@@ -100,6 +100,14 @@ export function TeamsScreen() {
   const teams = useRowEditor(data, 'equipes', { extras })
   const people = useRowEditor(data, 'conseillers', { defaults: { Rôle: 'Conseiller' } })
   const [inviting, setInviting] = useState(false)
+
+  // Reached from the palette: « Inviter un conseiller ».
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has('inviter')) return
+    setTab('agents')
+    setInviting(true)
+    window.history.replaceState(null, '', window.location.pathname)
+  }, [])
 
   const tabs = (
     <StudioTabs

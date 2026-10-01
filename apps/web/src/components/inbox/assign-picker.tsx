@@ -11,16 +11,18 @@ import { type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useStat
 import { ContactAvatar } from './labels'
 
 /**
- * Runs `then` once every dropdown menu has left the page — its closing animation done.
- * A popover opened from a menu item before that would lose its focus to the menu's button,
- * and its Escape to the menu's layer, still on top.
+ * Runs `then` once every dropdown menu and dialog has left the page — its closing
+ * animation done. A popover opened from a menu item, or from the palette, before that would
+ * lose its focus to what closes, and its Escape to that layer, still on top.
  */
 export function afterMenus(then: () => void): void {
   const started = Date.now()
   const wait = () => {
     // A timer, not an animation frame: a window that draws nothing runs no frames. Half a
     // second at most: a menu that never leaves does not keep the picker shut.
-    const menu = document.querySelector('[data-slot="dropdown-menu-content"]')
+    const menu = document.querySelector(
+      '[data-slot="dropdown-menu-content"], [data-slot="dialog-content"]',
+    )
     if (menu && Date.now() - started < 500) setTimeout(wait, 25)
     else then()
   }

@@ -14,6 +14,7 @@ import type {
   InviteBody,
   Invited,
   KnowledgeItem,
+  MessageHit,
   Metadata,
   MetadataValue,
   NotificationList,
@@ -181,6 +182,7 @@ export const api = {
     if (message.resolve) form.append('resolve', 'true')
     return request<Conversation>('POST', `${conversation(id)}/attachments`, form)
   },
+  search: (query: string) => request<MessageHit[]>('GET', `/search?q=${encodeURIComponent(query)}`),
   analyzeAttachment: (id: string) =>
     request<Attachment>('POST', `/attachments/${encodeURIComponent(id)}/analysis`),
   resetAgentPassword: (rowId: string) =>

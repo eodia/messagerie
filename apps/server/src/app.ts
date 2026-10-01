@@ -38,7 +38,7 @@ import {
 } from './inbox/extras.js'
 import { patchContact, patchConversationData, readPatch } from './inbox/metadata.js'
 import { listNotifications, readNotifications } from './inbox/notifications.js'
-import { loadConversation, loadSummaries, toAgent } from './inbox/read.js'
+import { loadConversation, loadSummaries, searchMessages, toAgent } from './inbox/read.js'
 import {
   createRow,
   deleteRow,
@@ -294,6 +294,12 @@ export function createApp({
   )
 
   inbox.get('/agents', async (c) => c.json(await listAgents(db, settings)))
+  // The palette's search inside the messages, in the inboxes the agent sees.
+  inbox.get('/search', async (c) =>
+    c.json(
+      await searchMessages(db, c.req.query('q') ?? '', await access.visibleTo(c.get('agent'))),
+    ),
+  )
 
   inbox.get('/notifications', async (c) => c.json(await listNotifications(db, c.get('agent'))))
 
