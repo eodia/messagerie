@@ -1,8 +1,15 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Hint } from '@/components/ui/tooltip'
 import { $t } from '@/lib/i18n'
 import { draftHtml, draftMarkdown, safeHref } from '@/lib/rich-text'
@@ -10,8 +17,20 @@ import { cn } from '@/lib/utils'
 import { Placeholder } from '@tiptap/extensions'
 import { type Editor, EditorContent, useEditor, useEditorState } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import { Bold, Code, Italic, Link2, List, ListOrdered, Strikethrough } from 'lucide-react'
+import {
+  Bold,
+  Check,
+  Code,
+  Italic,
+  Link2,
+  List,
+  ListOrdered,
+  type LucideIcon,
+  Strikethrough,
+  Type,
+} from 'lucide-react'
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react'
+import { afterMenus } from './assign-picker'
 import { Proofreading, correctionsOf } from './proofreading'
 
 /**
@@ -160,8 +179,17 @@ export function MarkdownField({
   )
 }
 
-/** Bold, italic, struck, code, a link, the lists — as the field stands. */
-export function FormatButtons({ editor }: { readonly editor: Editor }) {
+/**
+ * Bold, italic, struck, code, a link, the lists — as the field stands. `compact`: bold and
+ * italic in view, the rest in a menu — the composer's toolbar has little room.
+ */
+export function FormatButtons({
+  editor,
+  compact = false,
+}: {
+  readonly editor: Editor
+  readonly compact?: boolean
+}) {
   const state = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
@@ -174,7 +202,42 @@ export function FormatButtons({ editor }: { readonly editor: Editor }) {
       numbers: e.isActive('orderedList'),
     }),
   })
+  const [linking, setLinking] = useState(false)
   const chain = () => editor.chain().focus()
+  const marks = [
+    {
+      key: 'strike',
+      label: $t('Barré'),
+      icon: Strikethrough,
+      active: state.strike,
+      run: () => chain().toggleStrike().run(),
+    },
+    {
+      key: 'code',
+      label: $t('Code'),
+      icon: Code,
+      active: state.code,
+      run: () => chain().toggleCode().run(),
+    },
+  ]
+  const lists = [
+    {
+      key: 'bullets',
+      label: $t('Liste à puces'),
+      icon: List,
+      active: state.bullets,
+      run: () => chain().toggleBulletList().run(),
+    },
+    {
+      key: 'numbers',
+      label: $t('Liste numérotée'),
+      icon: ListOrdered,
+      active: state.numbers,
+      run: () => chain().toggleOrderedList().run(),
+    },
+  ]
+  const folded = state.link || [...marks, ...lists].some((m) => m.active)
+
   return (
     <span className="flex items-center gap-0.5">
       <Tool
@@ -193,28 +256,101 @@ export function FormatButtons({ editor }: { readonly editor: Editor }) {
       >
         <Italic />
       </Tool>
-      <Tool label={$t('Barré')} active={state.strike} onClick={() => chain().toggleStrike().run()}>
-        <Strikethrough />
-      </Tool>
-      <Tool label={$t('Code')} active={state.code} onClick={() => chain().toggleCode().run()}>
-        <Code />
-      </Tool>
-      <LinkTool editor={editor} active={state.link} />
-      <Tool
-        label={$t('Liste à puces')}
-        active={state.bullets}
-        onClick={() => chain().toggleBulletList().run()}
-      >
-        <List />
-      </Tool>
-      <Tool
-        label={$t('Liste numérotée')}
-        active={state.numbers}
-        onClick={() => chain().toggleOrderedList().run()}
-      >
-        <ListOrdered />
-      </Tool>
+      {compact ? (
+        // The link's form opens where the menu was, once the menu has gone.
+        <Popover open={linking} onOpenChange={setLinking}>
+          <DropdownMenu>
+            <Hint label={$t('Plus de mise en forme')}>
+              <DropdownMenuTrigger asChild>
+                <PopoverAnchor asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={$t('Plus de mise en forme')}
+                    onMouseDown={(event) => event.preventDefault()}
+                    className={cn(
+                      'size-7 text-muted-foreground [&_svg]:size-3.5',
+                      folded && 'bg-accent text-foreground',
+                    )}
+                  >
+                    <Type />
+                  </Button>
+                </PopoverAnchor>
+              </DropdownMenuTrigger>
+            </Hint>
+            <DropdownMenuContent
+              side="top"
+              align="start"
+              className="min-w-48"
+              onCloseAutoFocus={(event) => event.preventDefault()}
+            >
+              {marks.map((item) => (
+                <FormatItem
+                  key={item.key}
+                  label={item.label}
+                  icon={item.icon}
+                  active={item.active}
+                  run={item.run}
+                />
+              ))}
+              <DropdownMenuItem onSelect={() => afterMenus(() => setLinking(true))}>
+                <Link2 />
+                {state.link ? $t('Modifier le lien…') : $t('Lien…')}
+                {state.link && <Check className="ml-auto" />}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {lists.map((item) => (
+                <FormatItem
+                  key={item.key}
+                  label={item.label}
+                  icon={item.icon}
+                  active={item.active}
+                  run={item.run}
+                />
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <PopoverContent side="top" align="start" className="w-80 p-2">
+            <LinkForm editor={editor} active={state.link} onDone={() => setLinking(false)} />
+          </PopoverContent>
+        </Popover>
+      ) : (
+        <>
+          {marks.map((item) => (
+            <Tool key={item.key} label={item.label} active={item.active} onClick={item.run}>
+              <item.icon />
+            </Tool>
+          ))}
+          <LinkTool editor={editor} active={state.link} />
+          {lists.map((item) => (
+            <Tool key={item.key} label={item.label} active={item.active} onClick={item.run}>
+              <item.icon />
+            </Tool>
+          ))}
+        </>
+      )}
     </span>
+  )
+}
+
+/** A format in the menu: its icon, its name, a check when the selection has it. */
+function FormatItem({
+  label,
+  icon: Icon,
+  active,
+  run,
+}: {
+  readonly label: string
+  readonly icon: LucideIcon
+  readonly active: boolean
+  readonly run: () => void
+}) {
+  return (
+    <DropdownMenuItem onSelect={run}>
+      <Icon />
+      {label}
+      {active && <Check className="ml-auto" />}
+    </DropdownMenuItem>
   )
 }
 
@@ -252,38 +388,11 @@ function Tool({
   )
 }
 
-/** A link on the words chosen — or the address itself, when none are. */
+/** The link button: its form in a popover above it. */
 function LinkTool({ editor, active }: { readonly editor: Editor; readonly active: boolean }) {
   const [open, setOpen] = useState(false)
-  const [href, setHref] = useState('')
-
-  function opened(next: boolean) {
-    if (next) setHref((editor.getAttributes('link').href as string | undefined) ?? '')
-    setOpen(next)
-  }
-
-  function apply(event: FormEvent) {
-    event.preventDefault()
-    const typed = href.trim()
-    const address = typed === '' || /^[a-z]+:/i.test(typed) ? typed : `https://${typed}`
-    const chain = editor.chain().focus().extendMarkRange('link')
-    if (address === '') chain.unsetLink().run()
-    else if (safeHref(address)) {
-      if (editor.state.selection.empty && !active) {
-        chain
-          .insertContent({
-            type: 'text',
-            text: address,
-            marks: [{ type: 'link', attrs: { href: address } }],
-          })
-          .run()
-      } else chain.setLink({ href: address }).run()
-    }
-    setOpen(false)
-  }
-
   return (
-    <Popover open={open} onOpenChange={opened}>
+    <Popover open={open} onOpenChange={setOpen}>
       <Hint label={$t('Lien')}>
         <PopoverTrigger asChild>
           <Button
@@ -302,20 +411,60 @@ function LinkTool({ editor, active }: { readonly editor: Editor; readonly active
         </PopoverTrigger>
       </Hint>
       <PopoverContent side="top" align="start" className="w-80 p-2">
-        <form onSubmit={apply} className="flex items-center gap-1.5">
-          <Input
-            autoFocus
-            value={href}
-            onChange={(event) => setHref(event.target.value)}
-            placeholder="https://…"
-            aria-label={$t('Adresse du lien')}
-            className="h-8 text-xs"
-          />
-          <Button type="submit" size="sm" className="h-8">
-            {active && href.trim() === '' ? $t('Retirer') : $t('Lier')}
-          </Button>
-        </form>
+        <LinkForm editor={editor} active={active} onDone={() => setOpen(false)} />
       </PopoverContent>
     </Popover>
+  )
+}
+
+/** A link on the words chosen — or the address itself, when none are; emptied, removed. */
+function LinkForm({
+  editor,
+  active,
+  onDone,
+}: {
+  readonly editor: Editor
+  readonly active: boolean
+  readonly onDone: () => void
+}) {
+  // Read when the form opens: the link the caret is in.
+  const [href, setHref] = useState(
+    () => (editor.getAttributes('link').href as string | undefined) ?? '',
+  )
+
+  function apply(event: FormEvent) {
+    event.preventDefault()
+    const typed = href.trim()
+    const address = typed === '' || /^[a-z]+:/i.test(typed) ? typed : `https://${typed}`
+    const chain = editor.chain().focus().extendMarkRange('link')
+    if (address === '') chain.unsetLink().run()
+    else if (safeHref(address)) {
+      if (editor.state.selection.empty && !active) {
+        chain
+          .insertContent({
+            type: 'text',
+            text: address,
+            marks: [{ type: 'link', attrs: { href: address } }],
+          })
+          .run()
+      } else chain.setLink({ href: address }).run()
+    }
+    onDone()
+  }
+
+  return (
+    <form onSubmit={apply} className="flex items-center gap-1.5">
+      <Input
+        autoFocus
+        value={href}
+        onChange={(event) => setHref(event.target.value)}
+        placeholder="https://…"
+        aria-label={$t('Adresse du lien')}
+        className="h-8 text-xs"
+      />
+      <Button type="submit" size="sm" className="h-8">
+        {active && href.trim() === '' ? $t('Retirer') : $t('Lier')}
+      </Button>
+    </form>
   )
 }

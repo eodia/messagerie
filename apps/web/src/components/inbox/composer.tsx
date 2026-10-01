@@ -632,7 +632,7 @@ export function Composer({
               {editor && (
                 <>
                   <span className="mx-1 h-4 w-px bg-border" />
-                  <FormatButtons editor={editor} />
+                  <FormatButtons editor={editor} compact />
                   <span className="mx-1 h-4 w-px bg-border" />
                 </>
               )}
