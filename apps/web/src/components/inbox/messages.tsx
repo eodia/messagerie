@@ -14,12 +14,14 @@ import type {
   EventMessage,
   Feedback,
   HandoffMessage,
+  Message,
   NoteMessage,
   Source,
   VisitorMessage,
 } from '@chat/contracts'
 import {
   ArrowRightLeft,
+  Ban,
   Bot,
   Check,
   ChevronRight,
@@ -54,6 +56,33 @@ function Meta({
       )}
     >
       {children}
+    </div>
+  )
+}
+
+/** A message deleted for everyone: said so where it was, with who deleted it and when. */
+export function DeletedBubble({
+  message,
+  side,
+}: {
+  readonly message: Message
+  readonly side: 'left' | 'right'
+}) {
+  const { deleted } = message
+  if (!deleted) return null
+  return (
+    <div className={cn('flex', side === 'right' ? 'justify-end' : 'pl-[38px]')}>
+      <div className={cn('flex max-w-[75%] flex-col', side === 'right' && 'items-end')}>
+        <div className="inline-flex items-center gap-1.5 rounded-2xl border border-dashed px-3.5 py-2 text-sm text-muted-foreground italic">
+          <Ban className="size-3.5" />
+          {$t('Ce message a été supprimé')}
+        </div>
+        <Meta align={side}>
+          {deleted.by
+            ? $t('Supprimé par {name} · {time}', { name: deleted.by, time: clockTime(deleted.at) })
+            : $t('Supprimé · {time}', { time: clockTime(deleted.at) })}
+        </Meta>
+      </div>
     </div>
   )
 }

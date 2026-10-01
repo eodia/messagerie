@@ -11,6 +11,7 @@ import {
   messages,
   notifications,
 } from '../../src/db/schema.js'
+import { MemoryStore } from '../../src/files/store.js'
 import { contactByTail } from '../../src/inbox/extras.js'
 import { handOff, receiveVisitorMessage } from '../../src/inbox/incoming.js'
 import { listNotifications } from '../../src/inbox/notifications.js'
@@ -22,6 +23,8 @@ import {
 } from '../../src/inbox/read.js'
 import {
   assign,
+  deleteMessage,
+  hideMessage,
   markRead,
   resolve,
   sendMessage,
@@ -35,7 +38,7 @@ import {
   signalTyping,
 } from '../../src/realtime/signals.js'
 import { Refusal } from '../../src/refusal.js'
-import { visitorTyping } from '../../src/widget/visitor.js'
+import { visitorConversation, visitorTyping } from '../../src/widget/visitor.js'
 
 /**
  * The inbox against a real PostgreSQL 16 with pgvector — the image the product runs on.
@@ -169,6 +172,73 @@ describe('contact addresses', () => {
     expect(await contactByTail(db, tail)).toBe(id)
     expect(await contactByTail(db, tail.toUpperCase())).toBe(id)
     expect(await contactByTail(db, '000000000000')).toBeNull()
+  })
+})
+
+describe('deleting a message', () => {
+  async function anotherAgent(role: 'agent' | 'supervisor'): Promise<AgentRow> {
+    const [row] = await db
+      .insert(agents)
+      .values({ basedbUserId: `test-${role}-${Math.random()}`, name: `Autre ${role}`, role })
+      .returning()
+    if (!row) throw new Error('agent not inserted')
+    return row
+  }
+
+  it('for oneself, takes it out of one’s own thread only', async () => {
+    const { id, questionId } = await aiConversation()
+    const colleague = await anotherAgent('agent')
+    const mine = await hideMessage(db, agent, id, questionId)
+    expect(mine.messages.some((m) => m.id === questionId)).toBe(false)
+    const theirs = await loadConversation(db, id, colleague)
+    expect(theirs.messages.some((m) => m.id === questionId)).toBe(true)
+  })
+
+  it('for everyone, empties it for the team and the visitor — by its author or a supervisor', async () => {
+    const { id, questionId } = await aiConversation()
+    const sent = await sendMessage(db, agent, id, { body: 'Une **réponse**', kind: 'reply' })
+    const reply = sent.messages.filter((m) => m.kind === 'agent').pop()
+    if (!reply) throw new Error('reply not sent')
+    const store = new MemoryStore()
+
+    // A colleague may not delete another's reply, nor what the visitor said.
+    const colleague = await anotherAgent('agent')
+    await expect(deleteMessage(db, colleague, id, reply.id, store)).rejects.toMatchObject({
+      code: 'NOT_ALLOWED',
+    })
+    await expect(deleteMessage(db, agent, id, questionId, store)).rejects.toMatchObject({
+      code: 'NOT_ALLOWED',
+    })
+
+    const after = await deleteMessage(db, agent, id, reply.id, store)
+    const deleted = after.messages.find((m) => m.id === reply.id)
+    expect(deleted).toMatchObject({ kind: 'agent', body: '', deleted: { by: agent.name } })
+
+    // A supervisor may delete the visitor's words.
+    const supervisor = await anotherAgent('supervisor')
+    await deleteMessage(db, supervisor, id, questionId, store)
+
+    const [conversation] = await db
+      .select({ contactId: conversations.contactId })
+      .from(conversations)
+      .where(eq(conversations.id, id))
+    const seen = await visitorConversation(db, conversation?.contactId ?? '')
+    const shown = seen?.messages.filter((m) => m.id === reply.id || m.id === questionId)
+    expect(shown).toHaveLength(2)
+    for (const message of shown ?? []) {
+      expect(message).toMatchObject({ deleted: true })
+      expect('body' in message ? message.body : '').toBe('')
+    }
+  })
+
+  it('leaves the conversation’s events alone', async () => {
+    const { id } = await aiConversation()
+    const taken = await takeOver(db, agent, id)
+    const event = taken.messages.find((m) => m.kind === 'event')
+    if (!event) throw new Error('no event')
+    await expect(hideMessage(db, agent, id, event.id)).rejects.toMatchObject({
+      code: 'MESSAGE_NOT_DELETABLE',
+    })
   })
 })
 

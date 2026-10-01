@@ -495,6 +495,7 @@ export function ChatGlimpse() {
                           id: 'r',
                           at: at(0),
                           kind: 'agent',
+                          authorId: null,
                           author: 'Marc',
                           body: $t(
                             'Bonjour Thomas, je reprends votre dossier : regardons ensemble le montant proposé.',
@@ -520,6 +521,7 @@ export function ChatGlimpse() {
                           id: 'r',
                           at: at(0),
                           kind: 'agent',
+                          authorId: null,
                           author: 'Marc',
                           body: SENT,
                           attachments: [],

@@ -202,6 +202,10 @@ interface InboxState {
     data: Readonly<Record<string, MetadataValue | null>>,
   ) => Promise<boolean>
   giveFeedback: (id: string, messageId: string, feedback: Feedback | null) => Promise<void>
+  /** « Supprimer pour moi »: gone from the reader's thread only. */
+  hideMessage: (id: string, messageId: string) => Promise<void>
+  /** « Supprimer pour tout le monde »: its words and files gone, for all. */
+  deleteMessage: (id: string, messageId: string) => Promise<void>
   readAllNotifications: () => Promise<void>
 }
 
@@ -522,6 +526,14 @@ export const useInbox = create<InboxState>((set, get) => {
 
     removeTag: async (id, label) => {
       await act(id, () => api.removeTag(id, label))
+    },
+
+    hideMessage: async (id, messageId) => {
+      await act(id, () => api.hideMessage(id, messageId))
+    },
+
+    deleteMessage: async (id, messageId) => {
+      await act(id, () => api.deleteMessage(id, messageId))
     },
 
     transfer: async (id, body) => {

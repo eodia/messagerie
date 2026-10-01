@@ -222,7 +222,12 @@ export async function visitorConversation(
   )
   const shown: WidgetMessage[] = []
   for (const { message, agent } of rows) {
-    const base = { id: message.id, at: message.createdAt.toISOString() }
+    const base = {
+      id: message.id,
+      at: message.createdAt.toISOString(),
+      // Deleted for everyone: the visitor sees that it was, and nothing of it.
+      ...(message.deletedAt ? { deleted: true as const } : {}),
+    }
     const attached = (files.get(message.id) ?? []).map(forVisitor)
     const withFiles = attached.length > 0 ? { attachments: attached } : {}
     if (message.kind === 'text') {

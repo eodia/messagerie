@@ -62,6 +62,8 @@ export type ErrorCode =
   /** The AI cannot read this kind of file with the configured model. */
   | 'ATTACHMENT_NOT_ANALYZABLE'
   | 'GIFS_UNAVAILABLE'
+  /** An event or a handoff: part of the conversation's story, not a message to delete. */
+  | 'MESSAGE_NOT_DELETABLE'
   | 'SPEECH_UNAVAILABLE'
   | 'GIFS_UNREACHABLE'
   | 'GIF_NOT_FOUND'

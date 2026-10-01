@@ -23,6 +23,8 @@ export type WidgetMessage =
       readonly from: 'visitor' | 'ai'
       readonly body: string
       readonly attachments?: readonly WidgetAttachment[]
+      /** Deleted for everyone: « Ce message a été supprimé » in its place. */
+      readonly deleted?: true
     }
   | {
       readonly id: string
@@ -32,6 +34,7 @@ export type WidgetMessage =
       /** The agent's first name — no more. */
       readonly author: string
       readonly attachments?: readonly WidgetAttachment[]
+      readonly deleted?: true
     }
   | {
       readonly id: string

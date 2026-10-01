@@ -214,6 +214,7 @@ img.person-avatar { object-fit: cover; background: #fff; }
 .md strong { font-weight: 650; }
 .md a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .md code { font-size: .92em; padding: 1px 5px; border-radius: 6px; background: var(--canvas); }
+.bubble.deleted { font-style: italic; color: var(--muted); background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
 .md blockquote { margin: 4px 0 0; padding-left: 10px; border-left: 3px solid var(--line); color: var(--ink-2); }
 .md p + blockquote, .md blockquote + p { margin-top: 8px; }
 .md [data-color="red"] { color: color-mix(in oklab, #dc2626 80%, var(--ink)); }

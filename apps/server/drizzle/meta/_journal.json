@@ -50,6 +50,13 @@
       "when": 1790896966837,
       "tag": "0006_speech",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790897276697,
+      "tag": "0007_message_deletion",
+      "breakpoints": true
     }
   ]
 }

@@ -21,6 +21,7 @@ import {
   contacts,
   conversationTags,
   conversations,
+  hiddenMessages,
   messages,
 } from '../db/schema.js'
 import { attachmentsOf, forInbox } from '../files/attachments.js'
@@ -88,7 +89,13 @@ export async function loadSummaries(
     })
     .from(messages)
     .leftJoin(agents, eq(agents.id, messages.agentId))
-    .where(and(inArray(messages.conversationId, listed), eq(messages.kind, 'text')))
+    .where(
+      and(
+        inArray(messages.conversationId, listed),
+        eq(messages.kind, 'text'),
+        isNull(messages.deletedAt),
+      ),
+    )
     .orderBy(messages.conversationId, desc(messages.createdAt))
   const handedOff = await db
     .selectDistinct({ conversationId: messages.conversationId })
@@ -230,21 +237,29 @@ export async function loadConversation(
   const { conversation, contact } = row
 
   const author = alias(agents, 'author')
+  const deleter = alias(agents, 'deleter')
   const thread = await db
     .select({
       message: messages,
       author: author.name,
+      deleter: deleter.name,
       confidence: aiRuns.confidence,
       feedback: aiFeedback.action,
     })
     .from(messages)
     .leftJoin(author, eq(author.id, messages.agentId))
+    .leftJoin(deleter, eq(deleter.id, messages.deletedBy))
     .leftJoin(aiRuns, eq(aiRuns.id, messages.aiRunId))
     .leftJoin(
       aiFeedback,
       and(eq(aiFeedback.aiRunId, messages.aiRunId), eq(aiFeedback.agentId, viewer.id)),
     )
-    .where(eq(messages.conversationId, id))
+    // What this agent deleted for themselves is not in their thread.
+    .leftJoin(
+      hiddenMessages,
+      and(eq(hiddenMessages.messageId, messages.id), eq(hiddenMessages.agentId, viewer.id)),
+    )
+    .where(and(eq(messages.conversationId, id), isNull(hiddenMessages.messageId)))
     .orderBy(asc(messages.createdAt))
 
   const tags = await db
@@ -275,9 +290,9 @@ export async function loadConversation(
     suggestions: await currentSuggestions(db, id),
     summary: conversation.summary,
     history: await pastConversations(db, contact.id, id),
-    messages: thread.flatMap(({ message, author, confidence, feedback }) => {
+    messages: thread.flatMap(({ message, author, deleter, confidence, feedback }) => {
       const attached = (files.get(message.id) ?? []).map(forInbox)
-      const shown = toMessage(message, author, confidence, feedback, attached)
+      const shown = toMessage(message, author, confidence, feedback, attached, deleter)
       return shown ? [shown] : []
     }),
   }
@@ -303,8 +318,13 @@ function toMessage(
   confidence: number | null,
   feedback: Feedback | null,
   attachments: readonly Attachment[] = [],
+  deleter: string | null = null,
 ): Message | null {
-  const base = { id: row.id, at: row.createdAt.toISOString() }
+  const base = {
+    id: row.id,
+    at: row.createdAt.toISOString(),
+    ...(row.deletedAt ? { deleted: { by: deleter, at: row.deletedAt.toISOString() } } : {}),
+  }
   const meta: MessageMeta = row.meta
   const agent = author ?? '—'
   switch (row.kind) {
@@ -313,7 +333,14 @@ function toMessage(
         return { ...base, kind: 'visitor', body: row.body, attachments }
       }
       if (row.author === 'agent') {
-        return { ...base, kind: 'agent', author: agent, body: row.body, attachments }
+        return {
+          ...base,
+          kind: 'agent',
+          author: agent,
+          authorId: row.agentId,
+          body: row.body,
+          attachments,
+        }
       }
       if (row.author === 'ai') {
         return {
@@ -327,7 +354,14 @@ function toMessage(
       }
       return null
     case 'note':
-      return { ...base, kind: 'note', author: agent, body: row.body, attachments }
+      return {
+        ...base,
+        kind: 'note',
+        author: agent,
+        authorId: row.agentId,
+        body: row.body,
+        attachments,
+      }
     case 'event':
       return meta.event ? { ...base, kind: 'event', event: meta.event } : null
     case 'handoff':

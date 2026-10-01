@@ -85,6 +85,8 @@ interface Line {
   readonly body: string
   readonly at: string | null
   readonly attachments?: readonly WidgetAttachment[]
+  /** Deleted for everyone: said so, in its place. */
+  readonly deleted?: true
 }
 
 /** What the widget sends: what the server keeps — images, PDF, text and office files. */
@@ -138,6 +140,7 @@ function itemsOf(welcome: Line & { from: Speaker }, messages: readonly WidgetMes
       body: message.body,
       at: message.at,
       ...(message.attachments ? { attachments: message.attachments } : {}),
+      ...(message.deleted ? { deleted: true as const } : {}),
     }
     const last = items[items.length - 1]
     if (last?.kind === 'group' && last.from === message.from && last.author === author)
@@ -878,6 +881,11 @@ function Group({
         )}
         {lines.map((line, index) => (
           <Fragment key={line.id}>
+            {line.deleted && (
+              <div class={index === lines.length - 1 ? 'bubble tail deleted' : 'bubble deleted'}>
+                {t('Ce message a été supprimé')}
+              </div>
+            )}
             {line.body && (
               <div class={index === lines.length - 1 ? 'bubble tail' : 'bubble'}>
                 {mine ? line.body : <Markdown text={line.body} />}

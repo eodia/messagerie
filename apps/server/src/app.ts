@@ -54,6 +54,8 @@ import { runInConversation, testTool, toolsOverview } from './inbox/tools-screen
 import { saveWidget, widgetEditor } from './inbox/widget-editor.js'
 import {
   assign,
+  deleteMessage,
+  hideMessage,
   listAgents,
   markRead,
   resolve,
@@ -577,6 +579,29 @@ export function createApp({
     ai?.jobs.resolved(id)
     return c.json(resolved)
   })
+
+  // « Supprimer pour moi », « Supprimer pour tout le monde ».
+  inbox.post('/conversations/:id/messages/:messageId/hide', async (c) =>
+    c.json(
+      await hideMessage(
+        db,
+        c.get('agent'),
+        uuidParam(c.req.param('id')),
+        uuidParam(c.req.param('messageId')),
+      ),
+    ),
+  )
+  inbox.delete('/conversations/:id/messages/:messageId', async (c) =>
+    c.json(
+      await deleteMessage(
+        db,
+        c.get('agent'),
+        uuidParam(c.req.param('id')),
+        uuidParam(c.req.param('messageId')),
+        store,
+      ),
+    ),
+  )
 
   inbox.put('/conversations/:id/messages/:messageId/feedback', async (c) => {
     const { action } = feedbackBody(await jsonBody(c.req.raw))

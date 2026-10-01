@@ -30,6 +30,7 @@ const EN: Readonly<Record<string, string>> = {
   'Un conseiller a rejoint la conversation': 'An advisor joined the conversation',
   'Un conseiller va reprendre votre demande': 'An advisor will take over your request',
   'Conversation terminée': 'Conversation closed',
+  'Ce message a été supprimé': 'This message was deleted',
   'Propulsé par {name}': 'Powered by {name}',
   'Le message n’est pas parti. Réessayez.': 'The message was not sent. Please try again.',
   'Trop de messages d’un coup : patientez un instant.':

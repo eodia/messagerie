@@ -21,7 +21,7 @@ export function afterMenus(then: () => void): void {
     // A timer, not an animation frame: a window that draws nothing runs no frames. Half a
     // second at most: a menu that never leaves does not keep the picker shut.
     const menu = document.querySelector(
-      '[data-slot="dropdown-menu-content"], [data-slot="dialog-content"]',
+      '[data-slot="dropdown-menu-content"], [data-slot="context-menu-content"], [data-slot="dialog-content"]',
     )
     if (menu && Date.now() - started < 500) setTimeout(wait, 25)
     else then()

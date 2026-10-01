@@ -198,8 +198,29 @@ export const messages = chat.table(
     /** The run that wrote it, for an AI answer or a handoff. */
     aiRunId: uuid('ai_run_id').references(() => aiRuns.id, { onDelete: 'set null' }),
     createdAt: createdAt(),
+    /**
+     * Deleted for everyone: its words and files gone, « Ce message a été supprimé » in
+     * their place — for the visitor, the team and the AI.
+     */
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    deletedBy: uuid('deleted_by').references(() => agents.id, { onDelete: 'set null' }),
   },
   (t) => [index('message_conversation_idx').on(t.conversationId, t.createdAt)],
+)
+
+/** A message an agent took out of their own view of the thread — « Supprimer pour moi ». */
+export const hiddenMessages = chat.table(
+  'hidden_message',
+  {
+    messageId: uuid('message_id')
+      .notNull()
+      .references(() => messages.id, { onDelete: 'cascade' }),
+    agentId: uuid('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.messageId, t.agentId] })],
 )
 
 /** An agent's verdict on an AI output: one per agent and run, the latest standing. */

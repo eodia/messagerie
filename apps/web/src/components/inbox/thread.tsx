@@ -36,10 +36,12 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { AssignPicker, afterMenus } from './assign-picker'
 import { Composer, type ComposerHandle } from './composer'
 import { ContactAvatar, StateChip } from './labels'
+import { MessageMenu, hasMenu } from './message-menu'
 import {
   AgentBubble,
   AiAnswer,
   AiTyping,
+  DeletedBubble,
   EventLine,
   HandoffCard,
   NoteCard,
@@ -278,11 +280,21 @@ export function Thread({
                     <span className="h-px flex-1 bg-border" />
                   </div>
                 )}
-                <MessageView
-                  message={message}
-                  contactName={contact.name}
-                  onFeedback={(value) => feedback(message, value)}
-                />
+                {hasMenu(message) ? (
+                  <MessageMenu conversationId={conversation.id} message={message}>
+                    <MessageView
+                      message={message}
+                      contactName={contact.name}
+                      onFeedback={(value) => feedback(message, value)}
+                    />
+                  </MessageMenu>
+                ) : (
+                  <MessageView
+                    message={message}
+                    contactName={contact.name}
+                    onFeedback={(value) => feedback(message, value)}
+                  />
+                )}
               </Fragment>
             )
           })}
@@ -347,6 +359,9 @@ function MessageView({
   readonly contactName: string
   readonly onFeedback: (feedback: Feedback) => void
 }) {
+  if (message.deleted) {
+    return <DeletedBubble message={message} side={message.kind === 'visitor' ? 'left' : 'right'} />
+  }
   switch (message.kind) {
     case 'visitor':
       return <VisitorBubble message={message} name={contactName} />

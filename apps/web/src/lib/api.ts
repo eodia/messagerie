@@ -162,6 +162,16 @@ export const api = {
   tags: () => request<TagOption[]>('GET', '/tags'),
   addTag: (id: string, label: string) =>
     request<Conversation>('POST', `${conversation(id)}/tags`, { label }),
+  hideMessage: (id: string, messageId: string) =>
+    request<Conversation>(
+      'POST',
+      `${conversation(id)}/messages/${encodeURIComponent(messageId)}/hide`,
+    ),
+  deleteMessage: (id: string, messageId: string) =>
+    request<Conversation>(
+      'DELETE',
+      `${conversation(id)}/messages/${encodeURIComponent(messageId)}`,
+    ),
   removeTag: (id: string, label: string) =>
     request<Conversation>('DELETE', `${conversation(id)}/tags/${encodeURIComponent(label)}`),
   transfer: (id: string, body: TransferBody) =>

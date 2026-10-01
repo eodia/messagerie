@@ -65,6 +65,8 @@ export interface Tag {
 interface MessageBase {
   readonly id: string
   readonly at: string
+  /** Deleted for everyone — its words and files gone: by whom, and when. */
+  readonly deleted?: { readonly by: string | null; readonly at: string }
 }
 
 /** What the AI made of a file, when an agent asked. */
@@ -99,6 +101,8 @@ export interface VisitorMessage extends MessageBase {
 export interface AgentMessage extends MessageBase {
   readonly kind: 'agent'
   readonly author: string
+  /** Who wrote it — they may delete it for everyone. */
+  readonly authorId: string | null
   readonly body: string
   readonly attachments: readonly Attachment[]
 }
@@ -115,6 +119,7 @@ export interface AiMessage extends MessageBase {
 export interface NoteMessage extends MessageBase {
   readonly kind: 'note'
   readonly author: string
+  readonly authorId: string | null
   readonly body: string
   readonly attachments: readonly Attachment[]
 }

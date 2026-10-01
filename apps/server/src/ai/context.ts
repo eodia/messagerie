@@ -57,7 +57,10 @@ export async function loadContext(
     .where(eq(messages.conversationId, conversationId))
     .orderBy(desc(messages.createdAt))
     .limit(HISTORY * 2)
-  const thread = recent.reverse().filter(({ message }) => message.kind === 'text')
+  // What was deleted for everyone is not said to the AI either.
+  const thread = recent
+    .reverse()
+    .filter(({ message }) => message.kind === 'text' && message.deletedAt === null)
   // A file is named to the model, with what the AI made of it when an agent asked.
   const files = await attachmentsOf(
     db,

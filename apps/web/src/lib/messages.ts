@@ -39,6 +39,8 @@ export function messageFor(code: string): string {
       )
     case 'SPEECH_UNAVAILABLE':
       return $t('Aucune voix d’IA sur ce serveur : celle du navigateur lit les messages.')
+    case 'MESSAGE_NOT_DELETABLE':
+      return $t('Ce message ne se supprime pas.')
     case 'GIFS_UNAVAILABLE':
       return $t('Les GIF demandent une clé GIPHY sur le serveur (GIPHY_API_KEY).')
     case 'GIFS_UNREACHABLE':

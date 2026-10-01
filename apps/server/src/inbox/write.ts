@@ -14,10 +14,12 @@ import {
   aiFeedback,
   attachments,
   conversations,
+  hiddenMessages,
   messages,
   notifications,
 } from '../db/schema.js'
 import type { AttachRows } from '../files/attachments.js'
+import type { FileStore } from '../files/store.js'
 import { signalChange } from '../realtime/signals.js'
 import { Refusal } from '../refusal.js'
 import type { Settings } from '../settings/settings.js'
@@ -230,6 +232,82 @@ export async function setFeedback(
         set: { action, createdAt: new Date() },
       })
   }
+  return loadConversation(db, conversationId, agent)
+}
+
+/** A message of the thread, the way its deletion reads it — `null` if not in this one. */
+async function messageOf(tx: Db, conversationId: string, messageId: string) {
+  const [row] = await tx
+    .select({
+      kind: messages.kind,
+      author: messages.author,
+      agentId: messages.agentId,
+      deletedAt: messages.deletedAt,
+    })
+    .from(messages)
+    .where(and(eq(messages.id, messageId), eq(messages.conversationId, conversationId)))
+  if (!row) throw new Refusal('MESSAGE_NOT_FOUND', 404)
+  // An event or a handoff is the conversation's story, not something said.
+  if (row.kind !== 'text' && row.kind !== 'note') throw new Refusal('MESSAGE_NOT_DELETABLE', 400)
+  return row
+}
+
+/**
+ * Whether an agent may delete a message for everyone: their own reply or note; a
+ * supervisor, any message — a card number a visitor typed, an answer of the AI.
+ */
+export function mayDeleteForAll(
+  agent: Pick<AgentRow, 'id' | 'role'>,
+  message: { readonly author: string; readonly agentId: string | null },
+): boolean {
+  return agent.role === 'supervisor' || (message.author === 'agent' && message.agentId === agent.id)
+}
+
+/**
+ * « Supprimer pour moi »: the message leaves this agent's view of the thread, and nobody
+ * else's. Theirs alone: no signal.
+ */
+export async function hideMessage(
+  db: Db,
+  agent: AgentRow,
+  conversationId: string,
+  messageId: string,
+): Promise<Conversation> {
+  await messageOf(db, conversationId, messageId)
+  await db.insert(hiddenMessages).values({ messageId, agentId: agent.id }).onConflictDoNothing()
+  return loadConversation(db, conversationId, agent)
+}
+
+/**
+ * « Supprimer pour tout le monde »: the message's words and files are gone — for the
+ * visitor, the team and the AI —, « Ce message a été supprimé » in their place, with who
+ * deleted it and when. The AI's trace of an answer stays: it is the evaluation's (D9).
+ */
+export async function deleteMessage(
+  db: Db,
+  agent: AgentRow,
+  conversationId: string,
+  messageId: string,
+  store: FileStore,
+): Promise<Conversation> {
+  const keys = await db.transaction(async (tx) => {
+    await lock(tx, conversationId)
+    const message = await messageOf(tx, conversationId, messageId)
+    if (message.deletedAt) return []
+    if (!mayDeleteForAll(agent, message)) throw new Refusal('NOT_ALLOWED', 403)
+    const files = await tx
+      .delete(attachments)
+      .where(eq(attachments.messageId, messageId))
+      .returning({ key: attachments.storageKey })
+    await tx
+      .update(messages)
+      .set({ body: '', meta: {}, deletedAt: new Date(), deletedBy: agent.id })
+      .where(eq(messages.id, messageId))
+    await signalChange(tx, conversationId)
+    return files.map((f) => f.key)
+  })
+  // The bytes, once the rows are gone: a file left behind is a purge's, a row is not.
+  await Promise.all(keys.map((key) => store.remove(key).catch(() => undefined)))
   return loadConversation(db, conversationId, agent)
 }
 
