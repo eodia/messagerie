@@ -20,6 +20,15 @@ const hub = new InboxHub()
 const widgetHub = new WidgetHub()
 const access = new Access(settings)
 
+/** The inbox of a conversation — `undefined` when there is no such conversation. */
+async function inboxOf(conversationId: string): Promise<string | null | undefined> {
+  const [row] = await db
+    .select({ inboxId: conversations.inboxId })
+    .from(conversations)
+    .where(eq(conversations.id, conversationId))
+  return row ? row.inboxId : undefined
+}
+
 /** The visitor whose conversation it is — told only if their widget is open. */
 async function contactOf(conversationId: string): Promise<string | null> {
   const [row] = await db
@@ -31,18 +40,34 @@ async function contactOf(conversationId: string): Promise<string | null> {
 
 const stopListening = listenForChanges(
   config.databaseUrl,
-  ({ conversationId, alert, notify, typing }) => {
+  ({ conversationId, alert, notify, typing, by }) => {
     for (const agentId of notify ?? []) hub.sendTo(agentId, { type: 'notifications' })
     if (conversationId === undefined) return
     const failed = (error: unknown) =>
       console.error('chat : mise à jour en direct impossible', error)
+    // The visitor writing: to the agents who see the conversation's inbox, and no one else.
+    if (typing === 'visitor') {
+      if (hub.size === 0) return
+      inboxOf(conversationId)
+        .then(async (inboxId) => {
+          if (inboxId === undefined) return
+          const audience = new Set(await access.audience(db, inboxId))
+          hub.sendWhere({ type: 'typing', conversationId, who: 'visitor' }, (agent) =>
+            audience.has(agent),
+          )
+        })
+        .catch(failed)
+      return
+    }
     if (widgetHub.size > 0) {
       contactOf(conversationId)
         .then((contactId) => {
           if (contactId === null) return
           widgetHub.send(
             contactId,
-            typing ? { type: 'typing', who: typing } : { type: 'conversation' },
+            typing
+              ? { type: 'typing', who: typing, ...(by ? { name: by } : {}) }
+              : { type: 'conversation' },
           )
         })
         .catch(failed)

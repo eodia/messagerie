@@ -18,6 +18,7 @@ import {
   updateVisitorConversation,
   visitorConversation,
   visitorFrom,
+  visitorTyping,
 } from './visitor.js'
 
 /**
@@ -62,6 +63,8 @@ export function widgetRoutes(
   const sessions = new RateLimiter(30, 60_000)
   const posts = new RateLimiter(20, 60_000)
   const edits = new RateLimiter(30, 60_000)
+  // A visitor typing says so every few seconds; once every two is all the inbox needs.
+  const typing = new RateLimiter(1, 2_000)
 
   widget.use('*', (c, next) =>
     c.req.header('upgrade')?.toLowerCase() === 'websocket'
@@ -139,7 +142,10 @@ export function widgetRoutes(
     return c.json({ ticket: tickets.issue(`visitor:${visitor.contactId}`) } satisfies Ticket)
   })
 
-  /** The visitor's live signals: their conversation changed, someone is typing. */
+  /**
+   * The visitor's live signals: their conversation changed, someone is typing. The visitor
+   * says only one thing back: « I am typing ».
+   */
   widget.get(
     '/events',
     upgradeWebSocket((c) => {
@@ -149,6 +155,21 @@ export function widgetRoutes(
         onOpen: (_event, socket) => {
           if (contactId === null) socket.close(4401, 'TICKET_INVALID')
           else hub.add(contactId, socket)
+        },
+        onMessage: (event) => {
+          if (contactId === null || typeof event.data !== 'string' || event.data.length > 100)
+            return
+          let said: unknown
+          try {
+            said = JSON.parse(event.data)
+          } catch {
+            return
+          }
+          if ((said as { type?: unknown } | null)?.type !== 'typing') return
+          if (!typing.allow(contactId)) return
+          visitorTyping(deps.db, contactId).catch((error) =>
+            console.error('chat : frappe du visiteur', error),
+          )
         },
         onClose: (_event, socket) => contactId && hub.remove(contactId, socket),
         onError: (_event, socket) => contactId && hub.remove(contactId, socket),

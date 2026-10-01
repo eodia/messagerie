@@ -336,6 +336,21 @@ function SourceRow({ source }: { readonly source: Source }) {
   )
 }
 
+/** Three dots bouncing in turn — someone is writing. */
+export function TypingDots({ className }: { readonly className?: string }) {
+  return (
+    <span className={cn('flex shrink-0 gap-0.5', className)} aria-hidden>
+      {[0, 150, 300].map((delay) => (
+        <span
+          key={delay}
+          className="size-1 animate-bounce rounded-full bg-current"
+          style={{ animationDelay: `${delay}ms` }}
+        />
+      ))}
+    </span>
+  )
+}
+
 /** The AI is writing: three dots, as a person typing would show. */
 export function AiTyping() {
   return (
@@ -343,16 +358,23 @@ export function AiTyping() {
       <div className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs text-muted-foreground shadow-xs">
         <Bot className="size-3.5 text-violet-600 dark:text-violet-300" />
         {$t('L’IA rédige une réponse')}
-        <span className="flex gap-0.5">
-          {[0, 150, 300].map((delay) => (
-            <span
-              key={delay}
-              className="size-1 animate-bounce rounded-full bg-current"
-              style={{ animationDelay: `${delay}ms` }}
-            />
-          ))}
-        </span>
+        <TypingDots />
       </div>
     </div>
+  )
+}
+
+/** The visitor is writing: their next bubble, still empty, where it will appear. */
+export function VisitorTyping({ name }: { readonly name: string }) {
+  return (
+    <output className="flex items-center gap-2.5">
+      <ContactAvatar name={name} className="size-7 text-[10px]" />
+      <div className="flex h-8 items-center rounded-2xl rounded-bl-md border bg-background px-3.5 text-muted-foreground shadow-xs">
+        <TypingDots className="gap-1 [&>span]:size-1.5" />
+      </div>
+      <span className="min-w-0 truncate text-xs text-muted-foreground">
+        {$t('{name} est en train d’écrire…', { name })}
+      </span>
+    </output>
   )
 }

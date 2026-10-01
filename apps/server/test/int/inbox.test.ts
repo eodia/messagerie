@@ -22,8 +22,14 @@ import {
   setFeedback,
   takeOver,
 } from '../../src/inbox/write.js'
-import { listenForChanges, signalChange } from '../../src/realtime/signals.js'
+import {
+  type Signal,
+  listenForChanges,
+  signalChange,
+  signalTyping,
+} from '../../src/realtime/signals.js'
 import { Refusal } from '../../src/refusal.js'
+import { visitorTyping } from '../../src/widget/visitor.js'
 
 /**
  * The inbox against a real PostgreSQL 16 with pgvector — the image the product runs on.
@@ -169,6 +175,35 @@ describe('change signals', () => {
     // Time for a stray signal to arrive, had one been sent.
     await new Promise((done) => setTimeout(done, 300))
     expect(heard).not.toContain(rolledBack.id)
+    await stop()
+  })
+
+  it('say who is typing, and nothing for a visitor with no conversation', async () => {
+    const heard: Signal[] = []
+    const stop = listenForChanges(container.getConnectionUri(), (signal) => {
+      if (signal.typing) heard.push(signal)
+    })
+    await expect.poll(() => listenerReady(), { timeout: 10_000 }).toBe(true)
+
+    const { id } = await aiConversation()
+    const [row] = await db
+      .select({ contactId: conversations.contactId })
+      .from(conversations)
+      .where(eq(conversations.id, id))
+    const [stranger] = await db
+      .insert(contacts)
+      .values({ siteId: 'site', name: 'Sans conversation' })
+      .returning()
+    await visitorTyping(db, stranger?.id ?? '')
+    await visitorTyping(db, row?.contactId ?? '')
+    await signalTyping(db, id, 'agent', 'Agent')
+
+    await expect.poll(() => heard.length, { timeout: 5_000 }).toBe(2)
+    await new Promise((done) => setTimeout(done, 300))
+    expect(heard).toEqual([
+      { conversationId: id, typing: 'visitor' },
+      { conversationId: id, typing: 'agent', by: 'Agent' },
+    ])
     await stop()
   })
 })

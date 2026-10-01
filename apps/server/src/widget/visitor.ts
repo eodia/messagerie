@@ -18,6 +18,7 @@ import {
   patchContact,
   patchConversationData,
 } from '../inbox/metadata.js'
+import { signalTyping } from '../realtime/signals.js'
 import { Refusal } from '../refusal.js'
 import { availability } from '../settings/hours.js'
 import type { Settings, Site } from '../settings/settings.js'
@@ -194,6 +195,12 @@ async function currentConversation(db: Db, contactId: string) {
 }
 
 const firstName = (name: string | null) => (name ?? '').split(/\s+/)[0] || null
+
+/** The visitor is writing: the agents of their current conversation see it — none, nothing. */
+export async function visitorTyping(db: Db, contactId: string): Promise<void> {
+  const conversation = await currentConversation(db, contactId)
+  if (conversation) await signalTyping(db, conversation.id, 'visitor')
+}
 
 export async function visitorConversation(
   db: Db,

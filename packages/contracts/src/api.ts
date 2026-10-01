@@ -104,6 +104,8 @@ export type InboxEvent =
     }
   /** The reader's notifications changed: read them again. Sent to that agent only. */
   | { readonly type: 'notifications' }
+  /** The visitor is writing in a conversation — again every few seconds while they do. */
+  | { readonly type: 'typing'; readonly conversationId: string; readonly who: 'visitor' }
   | { readonly type: 'ping' }
 
 /** How the copilot rewords a draft. */

@@ -126,6 +126,7 @@ export const api = {
   conversations: () => request<ConversationSummary[]>('GET', '/conversations'),
   conversation: (id: string) => request<Conversation>('GET', conversation(id)),
   markRead: (id: string) => request<void>('POST', `${conversation(id)}/read`),
+  typing: (id: string) => request<void>('POST', `${conversation(id)}/typing`),
   send: (id: string, body: SendMessageBody) =>
     request<Conversation>('POST', `${conversation(id)}/messages`, body),
   takeOver: (id: string) => request<Conversation>('POST', `${conversation(id)}/takeover`),

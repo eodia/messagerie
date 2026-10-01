@@ -108,6 +108,8 @@ interface InboxState {
   readonly inbox: string | null
   readonly filter: InboxFilter
   readonly query: string
+  /** The conversations whose visitor is writing, now — a few seconds after their last key. */
+  readonly typing: Readonly<Record<string, true>>
   /** What an agent is writing, by conversation: switching away keeps it. */
   readonly drafts: Readonly<Record<string, string>>
   readonly sending: boolean
@@ -173,6 +175,9 @@ const codeOf = (error: unknown): string =>
 
 const NO_NOTIFICATIONS: NotificationList = { unread: 0, items: [] }
 
+/** The widget says « still typing » every two seconds or so: silent longer, they stopped. */
+const TYPING_MS = 6000
+
 export const useInbox = create<InboxState>((set, get) => {
   /** Reads the open thread again — unless another conversation got selected meanwhile. */
   async function refreshDetail(id: string): Promise<void> {
@@ -192,7 +197,30 @@ export const useInbox = create<InboxState>((set, get) => {
     }
   }
 
+  const typingTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+  /** The visitor is typing, or stopped (`false`) — by their message, or by their silence. */
+  function setTyping(id: string, typing: boolean): void {
+    clearTimeout(typingTimers.get(id))
+    typingTimers.delete(id)
+    if (typing)
+      typingTimers.set(
+        id,
+        setTimeout(() => setTyping(id, false), TYPING_MS),
+      )
+    if (typing === (get().typing[id] === true)) return
+    set((state) => {
+      const { [id]: _, ...others } = state.typing
+      return { typing: typing ? { ...others, [id]: true } : others }
+    })
+  }
+
   function applySummary(summary: ConversationSummary, alert: AlertKind | undefined): void {
+    const before = get().summaries.find((s) => s.id === summary.id)
+    // Their message arrived: they are no longer typing it.
+    if (summary.previewAuthor === 'visitor' && summary.lastMessageAt !== before?.lastMessageAt) {
+      setTyping(summary.id, false)
+    }
     const others = get().summaries.filter((s) => s.id !== summary.id)
     set({ summaries: [...others, summary].sort(newestFirst) })
     if (summary.id === get().selectedId) void refreshDetail(summary.id)
@@ -246,6 +274,7 @@ export const useInbox = create<InboxState>((set, get) => {
     inbox: storedInbox(),
     filter: 'all',
     query: '',
+    typing: {},
     drafts: {},
     sending: false,
     error: null,
@@ -295,6 +324,7 @@ export const useInbox = create<InboxState>((set, get) => {
           const event = JSON.parse(String(message.data)) as InboxEvent
           if (event.type === 'conversation') applySummary(event.summary, event.alert)
           else if (event.type === 'notifications') void refreshNotifications()
+          else if (event.type === 'typing') setTyping(event.conversationId, true)
         }
         next.onclose = () => {
           if (socket === next) again()

@@ -180,6 +180,13 @@ dans la transaction de l'écriture, donc seulement si elle est validée ; un tes
 d'intégration le vérifie. Un WebSocket échappe au CORS : le serveur refuse toute
 ouverture venue d'une autre origine que l'inbox.
 
+« Quelqu'un écrit » est le seul signal qui n'accompagne aucune écriture : rien n'est
+stocké, le signal part hors transaction. Le widget le dit par son WebSocket, l'inbox par
+`POST …/typing`, au plus toutes les deux secondes chacun. Les conseillers qui voient la
+boîte de la conversation l'apprennent, et seulement eux ; le visiteur voit les trois points
+avec le prénom du conseiller. Sans nouvelle frappe, l'indication s'éteint en quelques
+secondes. Le texte en cours de frappe, lui, ne quitte jamais le navigateur.
+
 ## D7 — Tout en TypeScript ; l'IA est un paquet derrière une interface unique
 
 Le cadrage prévoyait un service FastAPI. Le produit reste en TypeScript de bout en

@@ -183,4 +183,6 @@ export class PreviewBackend implements Backend {
   async updateContact(): Promise<void> {}
 
   async updateConversation(): Promise<void> {}
+
+  typing(): void {}
 }

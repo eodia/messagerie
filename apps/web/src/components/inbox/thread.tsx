@@ -43,6 +43,7 @@ import {
   HandoffCard,
   NoteCard,
   VisitorBubble,
+  VisitorTyping,
 } from './messages'
 import { TransferDialog } from './transfer-dialog'
 
@@ -101,6 +102,7 @@ export function Thread({
   const handedOff = messages.some((m) => m.kind === 'handoff')
   const last = messages[messages.length - 1]
   const aiWriting = status === 'ai' && last !== undefined && last.kind !== 'ai'
+  const visitorWriting = useInbox((s) => s.typing[conversation.id] === true)
   const inbox = directory.inboxes.find((i) => i.id === conversation.inboxId)
   const team = directory.teams.find((t) => t.id === conversation.teamId)
 
@@ -271,6 +273,7 @@ export function Thread({
             )
           })}
           {aiWriting && <AiTyping />}
+          {visitorWriting && <VisitorTyping name={contact.name} />}
         </div>
       </div>
 

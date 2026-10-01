@@ -147,5 +147,10 @@ export interface WidgetConversationBody {
 /** The widget's WebSocket: the conversation changed (read it again), or someone is typing. */
 export type WidgetEvent =
   | { readonly type: 'conversation' }
-  | { readonly type: 'typing'; readonly who: 'ai' | 'agent' }
+  | {
+      readonly type: 'typing'
+      readonly who: 'ai' | 'agent'
+      /** The agent's first name — their avatar beside the dots. */
+      readonly name?: string
+    }
   | { readonly type: 'ping' }

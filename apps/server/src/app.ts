@@ -60,10 +60,11 @@ import {
   transfer,
 } from './inbox/write.js'
 import type { InboxHub } from './realtime/hub.js'
+import { signalTyping } from './realtime/signals.js'
 import { Refusal } from './refusal.js'
 import type { Settings } from './settings/settings.js'
 import { demoPage } from './widget/demo.js'
-import type { WidgetHub } from './widget/hub.js'
+import { RateLimiter, type WidgetHub } from './widget/hub.js'
 import { previewPage } from './widget/preview-page.js'
 import { widgetRoutes, widgetScript } from './widget/routes.js'
 
@@ -448,6 +449,17 @@ export function createApp({
     const id = uuidParam(c.req.param('id'))
     const agent = c.get('agent')
     return c.json(await loadConversation(db, id, agent, await access.visibleTo(agent)))
+  })
+
+  // The agent is writing a reply: the visitor sees three dots — once every two seconds.
+  const typing = new RateLimiter(1, 2_000)
+  inbox.post('/conversations/:id/typing', async (c) => {
+    const id = uuidParam(c.req.param('id'))
+    const agent = c.get('agent')
+    if (typing.allow(`${agent.id}:${id}`)) {
+      await signalTyping(db, id, 'agent', agent.name.split(/\s+/)[0] || undefined)
+    }
+    return c.body(null, 204)
   })
 
   inbox.post('/conversations/:id/read', async (c) => {

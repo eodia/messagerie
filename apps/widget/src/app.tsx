@@ -212,6 +212,8 @@ export function App({
   const field = useRef<HTMLTextAreaElement>(null)
   const launcher = useRef<HTMLButtonElement>(null)
   const typingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  /** The first name of the agent typing, when the server said it. */
+  const typingName = useRef<string | null>(null)
   const focusOnOpen = useRef(false)
   const scene = useRef<Scene | null>(null)
   const openRef = useRef(open)
@@ -279,7 +281,11 @@ export function App({
           .conversation()
           .then(apply)
           .catch(() => {})
-      else if (event.type === 'typing') showTyping(event.who)
+      // An agent says it every few seconds while they write: their silence is soon read.
+      else if (event.type === 'typing') {
+        typingName.current = event.name ?? null
+        showTyping(event.who, event.who === 'agent' ? 6000 : 12_000)
+      }
     })
   }, [api, following])
 
@@ -596,7 +602,11 @@ export function App({
                 <span class="avatar-slot">
                   {typing === 'ai'
                     ? avatarOf('ai', null, true)
-                    : avatarOf('agent', lastAgent?.from === 'agent' ? lastAgent.author : null)}
+                    : avatarOf(
+                        'agent',
+                        typingName.current ??
+                          (lastAgent?.from === 'agent' ? lastAgent.author : null),
+                      )}
                 </span>
                 <div class="stack">
                   <output class="bubble tail typing" aria-label={t('En train d’écrire…')}>
@@ -679,6 +689,7 @@ export function App({
                 onInput={(event) => {
                   const element = event.currentTarget
                   setDraft(element.value)
+                  if (conversation && element.value.trim() !== '') api.typing()
                   element.style.height = 'auto'
                   element.style.height = `${Math.min(element.scrollHeight, 128)}px`
                 }}

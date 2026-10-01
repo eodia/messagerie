@@ -23,6 +23,8 @@ export interface Backend {
   /** A file's address, from the path the server signed. */
   fileUrl(path: string): string
   follow(onEvent: (event: WidgetEvent) => void): () => void
+  /** The visitor is typing — the team sees it. Said at most every two seconds. */
+  typing(): void
   /** `MessagerieChat.setUser`, `setContactData`. */
   updateContact(change: Profile & { readonly data?: Data }): Promise<void>
   /** `MessagerieChat.setConversationData`, once the conversation has begun. */
@@ -40,6 +42,9 @@ export class WidgetFailure extends Error {
 
 export class WidgetApi implements Backend {
   private token: string | null
+  /** The socket `follow` holds open — the way back for « I am typing ». */
+  private socket: WebSocket | null = null
+  private typedAt = 0
 
   constructor(
     private readonly base: string,
@@ -161,6 +166,7 @@ export class WidgetApi implements Backend {
       const url = `${this.base.replace(/^http/, 'ws')}/api/widget/events?ticket=${encodeURIComponent(ticket)}`
       const next = new WebSocket(url)
       socket = next
+      this.socket = next
       next.onopen = () => {
         delay = 1000
         // Whatever was said while the socket was down came with no signal.
@@ -177,6 +183,14 @@ export class WidgetApi implements Backend {
       stopped = true
       clearTimeout(timer)
       socket?.close()
+      if (this.socket === socket) this.socket = null
     }
+  }
+
+  typing(): void {
+    const now = Date.now()
+    if (now - this.typedAt < 2000 || this.socket?.readyState !== WebSocket.OPEN) return
+    this.typedAt = now
+    this.socket.send(JSON.stringify({ type: 'typing' }))
   }
 }

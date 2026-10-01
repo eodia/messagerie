@@ -103,6 +103,7 @@ export function Composer({
   const [refused, setRefused] = useState<string | null>(null)
   const [dropping, setDropping] = useState(false)
   const picker = useRef<HTMLInputElement>(null)
+  const typedAt = useRef(0)
 
   const suggestions = conversation.suggestions
   const canSend = (draft.trim() !== '' || files.length > 0) && !sending
@@ -128,6 +129,15 @@ export function Composer({
           : null,
     )
     inputRef.current?.focus()
+  }
+
+  /** The visitor sees three dots while a reply is written — said every few seconds. */
+  function typing(text: string) {
+    if (mode !== 'reply' || text.trim() === '' || conversation.status === 'resolved') return
+    const now = Date.now()
+    if (now - typedAt.current < 2500) return
+    typedAt.current = now
+    api.typing(conversation.id).catch(() => {})
   }
 
   function addEmoji(emoji: string) {
@@ -220,7 +230,7 @@ export function Composer({
 
   return (
     <div className="shrink-0 border-t bg-background">
-      <div className="flex h-10 items-center gap-5 px-4" role="tablist">
+      <div className="flex h-10 items-center gap-5 border-b px-4" role="tablist">
         <ModeTab active={mode === 'reply'} onClick={() => setMode('reply')} icon={MessageSquare}>
           {$t('Répondre')}
         </ModeTab>
@@ -249,7 +259,7 @@ export function Composer({
       </div>
 
       {mode === 'reply' && suggestions.length > 0 && suggestionsOpen && (
-        <div className="px-4 pb-1">
+        <div className="px-4 pt-3 pb-1">
           <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
             <Sparkles className="size-3 text-violet-600 dark:text-violet-300" />
             {$t('Suggestions du copilote')}
@@ -291,7 +301,7 @@ export function Composer({
       )}
 
       <div
-        className="relative p-3 pt-2"
+        className="relative p-3"
         onDragOver={(event) => {
           if (!event.dataTransfer.types.includes('Files')) return
           event.preventDefault()
@@ -389,7 +399,10 @@ export function Composer({
             <textarea
               ref={inputRef}
               value={draft}
-              onChange={(event) => setDraft(conversation.id, event.target.value)}
+              onChange={(event) => {
+                setDraft(conversation.id, event.target.value)
+                typing(event.target.value)
+              }}
               onPaste={(event) => {
                 const pasted = [...event.clipboardData.files]
                 if (pasted.length === 0) return

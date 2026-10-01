@@ -25,6 +25,7 @@ import {
 import { type RefObject, useLayoutEffect, useMemo } from 'react'
 import { ContactAvatar, StateChip } from './labels'
 import { ActiveFilters, FiltersButton } from './list-filters'
+import { TypingDots } from './messages'
 
 /**
  * The filters above the list. `short` is what the list shows where the label would not fit
@@ -69,6 +70,7 @@ export function ConversationList({
   const now = useInbox((s) => s.now)
   const inbox = useInbox((s) => s.inbox)
   const inboxes = useInbox((s) => s.directory.inboxes)
+  const typing = useInbox((s) => s.typing)
   const { select, setFilter, setQuery } = useInbox.getState()
   const filters = useListFilters()
 
@@ -145,6 +147,7 @@ export function ConversationList({
                       me={me}
                       inbox={inboxes.find((i) => i.id === summary.inboxId) ?? null}
                       selected={summary.id === selectedId}
+                      typing={typing[summary.id] === true}
                       time={inboxTime(summary.lastMessageAt, now)}
                       now={now}
                       onSelect={() => select(summary.id)}
@@ -179,6 +182,7 @@ export function ConversationRow({
   me,
   inbox = null,
   selected,
+  typing = false,
   time,
   now = new Date(),
   onSelect,
@@ -188,6 +192,8 @@ export function ConversationRow({
   /** Its inbox — its mark goes on the avatar. */
   readonly inbox?: InboxItem | null
   readonly selected: boolean
+  /** The visitor is writing: that, rather than the last thing said. */
+  readonly typing?: boolean
   readonly time: string
   readonly now?: Date
   readonly onSelect: () => void
@@ -252,7 +258,14 @@ export function ConversationRow({
               unread ? 'text-foreground' : 'text-muted-foreground',
             )}
           >
-            <Said summary={summary} me={me} />
+            {typing ? (
+              <span className="flex min-w-0 items-center gap-1.5 font-medium text-foreground">
+                <TypingDots className="text-muted-foreground" />
+                <span className="truncate">{$t('En train d’écrire…')}</span>
+              </span>
+            ) : (
+              <Said summary={summary} me={me} />
+            )}
           </span>
           {unread && (
             <span className="size-2 shrink-0 rounded-full bg-primary ring-4 ring-primary/15" />

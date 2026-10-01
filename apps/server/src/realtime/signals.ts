@@ -17,8 +17,11 @@ export interface Signal {
   readonly alert?: AlertKind
   /** The agents whose notifications changed: their sockets are told to read them again. */
   readonly notify?: readonly string[]
-  /** Nothing changed yet: the AI is writing. */
-  readonly typing?: 'ai'
+  /** Nothing changed yet: someone is writing — the AI or an agent (for the visitor), the
+   * visitor (for the inbox). */
+  readonly typing?: 'ai' | 'agent' | 'visitor'
+  /** Who is typing, when it is an agent: their first name, as the visitor knows them. */
+  readonly by?: string
 }
 
 /** Call inside the transaction that made the change. */
@@ -30,9 +33,17 @@ export async function signalChange(
   await send(db, { conversationId, ...extra })
 }
 
-/** The AI is writing in a conversation — for the visitor's three dots. */
-export async function signalTyping(db: Db, conversationId: string): Promise<void> {
-  await send(db, { conversationId, typing: 'ai' })
+/**
+ * Someone is writing in a conversation: the AI or an agent — the visitor's three dots —, or
+ * the visitor — the inbox's « est en train d'écrire ». Nothing is written: no transaction.
+ */
+export async function signalTyping(
+  db: Db,
+  conversationId: string,
+  who: 'ai' | 'agent' | 'visitor' = 'ai',
+  by?: string,
+): Promise<void> {
+  await send(db, { conversationId, typing: who, ...(by ? { by } : {}) })
 }
 
 /** Tells agents that their notifications changed, and nothing else did. */
