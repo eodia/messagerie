@@ -38,6 +38,7 @@ export function Inbox() {
   const summary = useInbox((s) => s.summaries.find((c) => c.id === s.selectedId))
   const error = useInbox((s) => s.error)
   const notice = useInbox((s) => s.notice)
+  const inboxName = useInbox((s) => s.directory.inboxes.find((i) => i.id === s.inbox)?.name ?? null)
   const [detailsOpen, setDetailsOpen] = useState(true)
   const basedbUrl = useBasedbUrl()
   const searchRef = useRef<HTMLInputElement>(null)
@@ -87,6 +88,12 @@ export function Inbox() {
       }
     >
       <span className="font-medium">{$t('Conversations')}</span>
+      {inboxName && (
+        <>
+          <Slash />
+          <span className="truncate">{inboxName}</span>
+        </>
+      )}
       {summary && (
         <>
           <Slash />

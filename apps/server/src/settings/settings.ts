@@ -301,6 +301,11 @@ export class Settings {
     return rows
   }
 
+  /** A table's rows by its label, as the source gives them — for the settings screens. */
+  rowsOf(label: string): Promise<LabeledRow[]> {
+    return this.table(label as TableLabel)
+  }
+
   /** Forgets a table — or all of them — and tells whoever listens. */
   invalidate(table?: string): void {
     if (table === undefined) this.cache.clear()

@@ -13,7 +13,7 @@ import {
 import { Segmented } from '@/components/ui/segmented'
 import { Hint } from '@/components/ui/tooltip'
 import { $t, formatCount, msg } from '@/lib/i18n'
-import { type InboxFilter, matchesFilter, useInbox } from '@/lib/store/inbox'
+import { type InboxFilter, inInbox, matchesFilter, useInbox } from '@/lib/store/inbox'
 import { inboxTime } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import type { Agent, ConversationSummary } from '@chat/contracts'
@@ -71,11 +71,14 @@ export function ConversationList({
   const filter = useInbox((s) => s.filter)
   const query = useInbox((s) => s.query)
   const now = useInbox((s) => s.now)
+  const inbox = useInbox((s) => s.inbox)
   const { select, setFilter, setQuery } = useInbox.getState()
 
+  // The chosen inbox's conversations — the filters count within it.
+  const inThisInbox = useMemo(() => summaries.filter((s) => inInbox(s, inbox)), [summaries, inbox])
   const shown = useMemo(
-    () => summaries.filter((s) => matchesFilter(s, filter) && matchesQuery(s, query.trim())),
-    [summaries, filter, query],
+    () => inThisInbox.filter((s) => matchesFilter(s, filter) && matchesQuery(s, query.trim())),
+    [inThisInbox, filter, query],
   )
 
   return (
@@ -137,7 +140,7 @@ export function ConversationList({
                   <span className="truncate">{$t(tab.short ?? tab.label)}</span>
                 </Hint>
                 <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
-                  {formatCount(summaries.filter((s) => matchesFilter(s, tab.filter)).length)}
+                  {formatCount(inThisInbox.filter((s) => matchesFilter(s, tab.filter)).length)}
                 </span>
               </>
             ),

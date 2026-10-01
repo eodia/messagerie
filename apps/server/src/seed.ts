@@ -595,6 +595,7 @@ await db.transaction(async (tx) => {
             contactId: contact.id,
             siteId: SITE.id,
             siteName: SITE.name,
+            ...routeOf({ tags: [TAGS.claim], sentiment: 'neutral' }),
             status: 'resolved',
             intent: past.intent,
             agentUnread: false,

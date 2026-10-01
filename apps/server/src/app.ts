@@ -33,6 +33,13 @@ import {
 import { patchContact, patchConversationData, readPatch } from './inbox/metadata.js'
 import { listNotifications, readNotifications } from './inbox/notifications.js'
 import { loadConversation, loadSummaries, toAgent } from './inbox/read.js'
+import {
+  createRow,
+  deleteRow,
+  settingsOverview,
+  settingsRows,
+  updateRow,
+} from './inbox/settings-screen.js'
 import { runInConversation, testTool, toolsOverview } from './inbox/tools-screen.js'
 import { saveWidget, widgetEditor } from './inbox/widget-editor.js'
 import {
@@ -183,6 +190,38 @@ export function createApp({
       throw new Refusal('CONVERSATION_NOT_FOUND', 404)
     }
     await next()
+  })
+
+  // The settings screens: the « Messagerie » base's tables, read by all, written by a
+  // supervisor — with their own basedb token.
+  const configured = () => {
+    if (!settings) throw new Refusal('BASEDB_UNREACHABLE', 503)
+    return settings
+  }
+  inbox.get('/settings', async (c) =>
+    c.json(await settingsOverview(configured(), basedb, c.get('agent'))),
+  )
+  inbox.get('/settings/:table', async (c) =>
+    c.json(await settingsRows(configured(), c.req.param('table'))),
+  )
+  inbox.post('/settings/:table', async (c) => {
+    const { values } = await jsonBody(c.req.raw)
+    const agent = c.get('agent')
+    return c.json(
+      await createRow(configured(), agent, c.get('basedbToken'), c.req.param('table'), values),
+      201,
+    )
+  })
+  inbox.patch('/settings/:table/:id', async (c) => {
+    const { values } = await jsonBody(c.req.raw)
+    const { table, id } = c.req.param()
+    await updateRow(configured(), c.get('agent'), c.get('basedbToken'), table, id, values)
+    return c.body(null, 204)
+  })
+  inbox.delete('/settings/:table/:id', async (c) => {
+    const { table, id } = c.req.param()
+    await deleteRow(configured(), c.get('agent'), c.get('basedbToken'), table, id)
+    return c.body(null, 204)
   })
 
   inbox.get('/inboxes', async (c) => c.json(await inboxDirectory(settings, access, c.get('agent'))))

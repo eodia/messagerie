@@ -389,3 +389,54 @@ export interface TransferBody {
 export interface MetadataBody {
   readonly data: Readonly<Record<string, MetadataValue | null>>
 }
+
+/** A field of a settings table, as the « Messagerie » template declares it. */
+export interface SettingsField {
+  readonly label: string
+  readonly kind:
+    | 'short_text'
+    | 'long_text'
+    | 'url'
+    | 'number'
+    | 'boolean'
+    | 'date'
+    | 'select'
+    | 'multi_select'
+    | 'link'
+    | 'multi_link'
+    | 'user'
+  readonly description: string | null
+  readonly required: boolean
+  /** A choice's options, in order. */
+  readonly options: readonly string[]
+  /** The key of the table a relation points at. */
+  readonly target: string | null
+}
+
+export interface SettingsTable {
+  /** The template's key: `boites`, `equipes`… */
+  readonly key: string
+  readonly label: string
+  readonly description: string | null
+  readonly fields: readonly SettingsField[]
+}
+
+/** A row by field label: a relation as the id(s) of its row(s), a person as an account id. */
+export interface SettingsRow {
+  readonly id: string
+  readonly values: Readonly<Record<string, unknown>>
+}
+
+export interface SettingsOverview {
+  readonly tables: readonly SettingsTable[]
+  /** The basedb accounts a « Personne » field may name. */
+  readonly users: readonly {
+    readonly id: string
+    readonly name: string
+    readonly email: string | null
+  }[]
+  /** False: the template's rows, changed in memory only. */
+  readonly persistent: boolean
+  /** A supervisor may change the settings. */
+  readonly canEdit: boolean
+}

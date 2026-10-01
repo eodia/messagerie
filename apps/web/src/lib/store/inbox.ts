@@ -6,8 +6,11 @@ import type {
   Conversation,
   ConversationSummary,
   Feedback,
+  InboxDirectory,
   InboxEvent,
+  MetadataValue,
   NotificationList,
+  TransferBody,
 } from '@chat/contracts'
 import { create } from 'zustand'
 import { chime, inView, notifyDesktop } from '../alerts'
@@ -27,6 +30,21 @@ import { $t } from '../i18n'
  */
 
 export type InboxFilter = 'all' | 'ai' | 'open' | 'unassigned' | 'resolved'
+
+const INBOX_KEY = 'chat.inbox'
+
+/** The inbox last chosen — a convenience of this browser, nothing more. */
+function storedInbox(): string | null {
+  try {
+    return window.localStorage.getItem(INBOX_KEY)
+  } catch {
+    return null
+  }
+}
+
+/** The conversations of the chosen inbox — all of them when none is. */
+export const inInbox = (summary: Pick<ConversationSummary, 'inboxId'>, inbox: string | null) =>
+  inbox === null || summary.inboxId === inbox
 
 type Status = Pick<ConversationSummary, 'status' | 'assignee'>
 
@@ -59,6 +77,19 @@ export function concernsMe(summary: ConversationSummary, me: Agent | null): bool
 export const waitingCount = (state: Pick<InboxState, 'summaries' | 'me'>): number =>
   state.summaries.filter((s) => s.unread && concernsMe(s, state.me)).length
 
+/** The same count, inbox by inbox — the sidebar's. */
+export function waitingByInbox(
+  state: Pick<InboxState, 'summaries' | 'me'>,
+): ReadonlyMap<string, number> {
+  const counts = new Map<string, number>()
+  for (const s of state.summaries) {
+    if (s.inboxId !== null && s.unread && concernsMe(s, state.me)) {
+      counts.set(s.inboxId, (counts.get(s.inboxId) ?? 0) + 1)
+    }
+  }
+  return counts
+}
+
 interface InboxState {
   readonly me: Agent | null
   readonly agents: readonly Agent[]
@@ -71,6 +102,10 @@ interface InboxState {
   /** The thread of the selected conversation, once read. */
   readonly detail: Conversation | null
   readonly notifications: NotificationList
+  /** The inboxes the reader sees, and every team. */
+  readonly directory: InboxDirectory
+  /** The inbox the list shows; null: all of them. */
+  readonly inbox: string | null
   readonly filter: InboxFilter
   readonly query: string
   /** What an agent is writing, by conversation: switching away keeps it. */
@@ -92,6 +127,8 @@ interface InboxState {
   select: (id: string) => void
   /** Goes to the inbox and opens a conversation — from the bell or the desktop. */
   open: (id: string) => void
+  /** Shows one inbox — or all with null — on the conversations screen. */
+  showInbox: (inbox: string | null) => void
   setFilter: (filter: InboxFilter) => void
   setQuery: (query: string) => void
   setDraft: (id: string, text: string) => void
@@ -103,6 +140,14 @@ interface InboxState {
   takeOver: (id: string) => Promise<void>
   resolve: (id: string) => Promise<void>
   assign: (id: string, assigneeId: string | null) => Promise<void>
+  transfer: (id: string, body: TransferBody) => Promise<boolean>
+  /** Sets (a value) or removes (null) metadata of a conversation, or of its contact. */
+  setData: (
+    target:
+      | { readonly conversation: string }
+      | { readonly contact: string; readonly conversation: string },
+    data: Readonly<Record<string, MetadataValue | null>>,
+  ) => Promise<boolean>
   giveFeedback: (id: string, messageId: string, feedback: Feedback | null) => Promise<void>
   readAllNotifications: () => Promise<void>
 }
@@ -184,6 +229,8 @@ export const useInbox = create<InboxState>((set, get) => {
     selectedId: null,
     detail: null,
     notifications: NO_NOTIFICATIONS,
+    directory: { inboxes: [], teams: [] },
+    inbox: storedInbox(),
     filter: 'all',
     query: '',
     drafts: {},
@@ -250,22 +297,27 @@ export const useInbox = create<InboxState>((set, get) => {
 
     reload: async () => {
       try {
-        const [me, summaries, notifications, agents] = await Promise.all([
+        const [me, summaries, notifications, agents, directory] = await Promise.all([
           api.me(),
           api.conversations(),
           api.notifications(),
           api.agents(),
+          api.inboxes(),
         ])
+        // An inbox kept from another session, no longer seen: all of them.
+        const inbox = directory.inboxes.some((i) => i.id === get().inbox) ? get().inbox : null
         set({
           me,
           agents,
+          directory,
+          inbox,
           notifications,
           summaries: [...summaries].sort(newestFirst),
           loading: false,
           loadError: null,
         })
         const { selectedId } = get()
-        const first = summaries.find((s) => matchesFilter(s, get().filter))
+        const first = summaries.find((s) => matchesFilter(s, get().filter) && inInbox(s, inbox))
         if (selectedId === null && first) get().select(first.id)
         else if (selectedId !== null) void refreshDetail(selectedId)
       } catch (error) {
@@ -286,6 +338,17 @@ export const useInbox = create<InboxState>((set, get) => {
     open: (id) => {
       get().navigate('/conversations')
       get().select(id)
+    },
+
+    showInbox: (inbox) => {
+      set({ inbox })
+      try {
+        if (inbox) window.localStorage.setItem(INBOX_KEY, inbox)
+        else window.localStorage.removeItem(INBOX_KEY)
+      } catch {
+        // The choice is forgotten at the next visit, nothing more.
+      }
+      get().navigate('/conversations')
     },
 
     setFilter: (filter) => set({ filter }),
@@ -320,6 +383,20 @@ export const useInbox = create<InboxState>((set, get) => {
 
     assign: async (id, assigneeId) => {
       await act(id, () => api.assign(id, assigneeId))
+    },
+
+    transfer: async (id, body) => act(id, () => api.transfer(id, body)),
+
+    setData: async (target, data) => {
+      try {
+        if ('contact' in target) await api.contactData(target.contact, data)
+        else await api.conversationData(target.conversation, data)
+        await refreshDetail(target.conversation)
+        return true
+      } catch (error) {
+        set({ error: codeOf(error) })
+        return false
+      }
     },
 
     giveFeedback: async (id, messageId, feedback) => {

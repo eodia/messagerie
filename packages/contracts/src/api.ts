@@ -48,6 +48,8 @@ export type ErrorCode =
   | 'INBOX_NOT_FOUND'
   /** No such team — or not one of the target inbox's teams. */
   | 'TEAM_NOT_FOUND'
+  /** A settings row that no longer exists. */
+  | 'ROW_NOT_FOUND'
 
 /** Opens the inbox's WebSocket, once, within thirty seconds. */
 export interface Ticket {

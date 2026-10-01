@@ -115,17 +115,45 @@ export class BasedbClient {
     return rows
   }
 
-  /** Creates a row — values by physical name. Needs a token issued with write access. */
-  async create(table: string, values: Readonly<Record<string, unknown>>): Promise<Row> {
+  /**
+   * Creates a row — values by physical name — as `token`'s owner when given, else as the
+   * chat, whose token must then have write access.
+   */
+  async create(
+    table: string,
+    values: Readonly<Record<string, unknown>>,
+    token?: string,
+  ): Promise<Row> {
     const { data } = await this.call<{ data: Row }>(
       this.data(`/data/{base}/${encodeURIComponent(table)}`),
       {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ values }),
       },
     )
     return data
+  }
+
+  /** Deletes a row, as `token`'s owner when given. */
+  async remove(table: string, id: string, token?: string): Promise<void> {
+    await this.call<unknown>(
+      this.data(`/data/{base}/${encodeURIComponent(table)}/${encodeURIComponent(id)}`),
+      { method: 'DELETE', headers: token ? { authorization: `Bearer ${token}` } : {} },
+    )
+  }
+
+  /** The tenant's accounts — whom a « Personne » field may name. */
+  async users(): Promise<{ id: string; name: string; email: string | null }[]> {
+    const { data } = await this.call<{
+      data: { id: string; display_name: string | null; email: string | null; disabled: boolean }[]
+    }>(`/api/v1/${encodeURIComponent(this.config.tenant)}/meta/users`)
+    return data
+      .filter((u) => !u.disabled)
+      .map((u) => ({ id: u.id, name: u.display_name || u.email || u.id, email: u.email }))
   }
 
   /**

@@ -38,6 +38,13 @@ export interface SettingsSource {
     values: Readonly<Record<string, unknown>>,
     token: string | null,
   ): Promise<void>
+  /** Creates a row, by field label; returns its id. */
+  create(
+    table: string,
+    values: Readonly<Record<string, unknown>>,
+    token: string | null,
+  ): Promise<string>
+  remove(table: string, id: string, token: string | null): Promise<void>
 }
 
 // ── basedb ────────────────────────────────────────────────────────────────────────────
@@ -97,12 +104,11 @@ export class BasedbSource implements SettingsSource {
     })
   }
 
-  async update(
+  /** Values by label, as basedb takes them: by physical name, a choice by its value. */
+  private async physical(
     label: string,
-    id: string,
     values: Readonly<Record<string, unknown>>,
-    token: string | null,
-  ): Promise<void> {
+  ): Promise<{ table: string; values: Record<string, unknown> }> {
     const table = await this.table(label)
     const physical: Record<string, unknown> = {}
     for (const [name, value] of Object.entries(values)) {
@@ -116,7 +122,30 @@ export class BasedbSource implements SettingsSource {
             ? value.map(option)
             : value
     }
-    await this.client.update(table.name, id, physical, token ?? undefined)
+    return { table: table.name, values: physical }
+  }
+
+  async update(
+    label: string,
+    id: string,
+    values: Readonly<Record<string, unknown>>,
+    token: string | null,
+  ): Promise<void> {
+    const write = await this.physical(label, values)
+    await this.client.update(write.table, id, write.values, token ?? undefined)
+  }
+
+  async create(
+    label: string,
+    values: Readonly<Record<string, unknown>>,
+    token: string | null,
+  ): Promise<string> {
+    const write = await this.physical(label, values)
+    return (await this.client.create(write.table, write.values, token ?? undefined))._id
+  }
+
+  async remove(label: string, id: string, token: string | null): Promise<void> {
+    await this.client.remove((await this.table(label)).name, id, token ?? undefined)
   }
 
   follow(label: string, onChange: () => void, onError: (error: unknown) => void): () => void {
@@ -155,6 +184,9 @@ export class TemplateSource implements SettingsSource {
   private readonly template: Template
   /** What was changed since start, by table and row: kept in memory, never written. */
   private readonly edits = new Map<string, Map<string, Record<string, unknown>>>()
+  /** The rows created and deleted since start, by table. */
+  private readonly added = new Map<string, LabeledRow[]>()
+  private readonly removed = new Set<string>()
 
   constructor(
     private readonly me: string | null,
@@ -183,15 +215,21 @@ export class TemplateSource implements SettingsSource {
   async rows(label: string): Promise<LabeledRow[]> {
     const table = this.template.tables.find((t) => t.label === label)
     if (!table) throw new BasedbFailure(0, `TEMPLATE_MISMATCH: ${label}`)
-    return (this.template.rows[table.key] ?? []).map((row, index) => {
+    const own = (this.template.rows[table.key] ?? []).map((row, index) => {
       const values: Record<string, unknown> = {}
       for (const [field, value] of Object.entries(row)) {
         if (field !== '$key') values[field] = this.value(value)
       }
       const key = row.$key
       const id = typeof key === 'string' ? key : `${table.key}-${index + 1}`
-      return { id, values: { ...values, ...this.edits.get(label)?.get(id) } }
+      return { id, values }
     })
+    return [...own, ...(this.added.get(label) ?? [])]
+      .filter((row) => !this.removed.has(row.id))
+      .map((row) => ({
+        id: row.id,
+        values: { ...row.values, ...this.edits.get(label)?.get(row.id) },
+      }))
   }
 
   async update(label: string, id: string, values: Readonly<Record<string, unknown>>) {
@@ -200,6 +238,20 @@ export class TemplateSource implements SettingsSource {
     const table = this.edits.get(label) ?? new Map<string, Record<string, unknown>>()
     table.set(id, { ...table.get(id), ...values })
     this.edits.set(label, table)
+  }
+
+  async create(label: string, values: Readonly<Record<string, unknown>>): Promise<string> {
+    await this.rows(label)
+    const id = `${label}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+    this.added.set(label, [...(this.added.get(label) ?? []), { id, values: { ...values } }])
+    return id
+  }
+
+  async remove(label: string, id: string): Promise<void> {
+    if (!(await this.rows(label)).some((row) => row.id === id)) {
+      throw new BasedbFailure(404, 'RECORD_NOT_FOUND')
+    }
+    this.removed.add(id)
   }
 
   follow(): null {

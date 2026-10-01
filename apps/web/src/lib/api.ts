@@ -8,15 +8,21 @@ import type {
   ConversationSummary,
   ErrorCode,
   FeedbackBody,
+  InboxDirectory,
   InboxStats,
   KnowledgeItem,
+  Metadata,
+  MetadataValue,
   NotificationList,
   Rewording,
   SendMessageBody,
+  SettingsOverview,
+  SettingsRow,
   Ticket,
   ToolTestBody,
   ToolTestResult,
   ToolsOverview,
+  TransferBody,
   WidgetEditor,
   WidgetEditorSite,
   WidgetSettings,
@@ -123,6 +129,24 @@ export const api = {
   stats: () => request<InboxStats>('GET', '/stats'),
   knowledge: () => request<KnowledgeItem[]>('GET', '/knowledge'),
   tools: () => request<ToolsOverview>('GET', '/tools'),
+  inboxes: () => request<InboxDirectory>('GET', '/inboxes'),
+  transfer: (id: string, body: TransferBody) =>
+    request<Conversation>('POST', `${conversation(id)}/transfer`, body),
+  conversationData: (id: string, data: Readonly<Record<string, MetadataValue | null>>) =>
+    request<{ data: Metadata }>('PATCH', `${conversation(id)}/data`, { data }),
+  contactData: (id: string, data: Readonly<Record<string, MetadataValue | null>>) =>
+    request<void>('PATCH', `/contacts/${encodeURIComponent(id)}/data`, { data }),
+  settings: () => request<SettingsOverview>('GET', '/settings'),
+  settingsRows: (table: string) =>
+    request<SettingsRow[]>('GET', `/settings/${encodeURIComponent(table)}`),
+  createRow: (table: string, values: Readonly<Record<string, unknown>>) =>
+    request<SettingsRow>('POST', `/settings/${encodeURIComponent(table)}`, { values }),
+  updateRow: (table: string, id: string, values: Readonly<Record<string, unknown>>) =>
+    request<void>('PATCH', `/settings/${encodeURIComponent(table)}/${encodeURIComponent(id)}`, {
+      values,
+    }),
+  deleteRow: (table: string, id: string) =>
+    request<void>('DELETE', `/settings/${encodeURIComponent(table)}/${encodeURIComponent(id)}`),
   widget: () => request<WidgetEditor>('GET', '/widget'),
   saveWidget: (site: string, settings: WidgetSettings) =>
     request<WidgetEditorSite>('PUT', `/widget/${encodeURIComponent(site)}`, settings),

@@ -97,6 +97,8 @@ const source: SettingsSource = {
   rows: async (table) => ROWS[table] ?? [],
   follow: () => null,
   update: async () => {},
+  create: async () => 'new',
+  remove: async () => {},
 }
 const settings = new Settings(source)
 const access = new Access(settings)
