@@ -135,6 +135,7 @@ beforeAll(async () => {
     basedb: null,
     secret: 'a-secret-for-the-tests-of-the-chat-server',
     trustProxy: false,
+    giphyKey: null,
   }
   ;({ app } = createApp({
     db,

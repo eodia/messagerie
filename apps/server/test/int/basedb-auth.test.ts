@@ -113,6 +113,7 @@ beforeAll(async () => {
     basedb: { url, tenant: TENANT, base: BASE, token: CHAT_TOKEN, supervisorsGroup: null },
     secret: 'a-secret-for-the-tests-of-the-chat-server',
     trustProxy: false,
+    giphyKey: null,
   }
   const basedbClient = new BasedbClient(config.basedb as NonNullable<Config['basedb']>)
   const settings = new Settings(new BasedbSource(basedbClient))

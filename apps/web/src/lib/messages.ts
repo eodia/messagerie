@@ -37,6 +37,12 @@ export function messageFor(code: string): string {
       return $t(
         'L’IA ne sait pas lire ce fichier avec le modèle configuré (images, PDF et textes seulement).',
       )
+    case 'GIFS_UNAVAILABLE':
+      return $t('Les GIF demandent une clé GIPHY sur le serveur (GIPHY_API_KEY).')
+    case 'GIFS_UNREACHABLE':
+      return $t('GIPHY ne répond pas pour l’instant.')
+    case 'GIF_NOT_FOUND':
+      return $t('Ce GIF n’est plus disponible.')
     case 'AI_UNAVAILABLE':
       return $t('Aucun modèle d’IA n’est configuré sur le serveur (CHAT_AI_API_KEY).')
     case 'PROMOTION_UNAVAILABLE':

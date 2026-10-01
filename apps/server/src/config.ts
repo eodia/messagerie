@@ -25,6 +25,8 @@ export interface Config {
    * Without one, that header is anyone's to write, and only the socket's address counts.
    */
   readonly trustProxy: boolean
+  /** GIPHY's key, for the agents' GIFs — none, no GIF. Never in basedb (D5). */
+  readonly giphyKey: string | null
 }
 
 /** The configuration cannot run: said once, at start, rather than at the first request. */
@@ -71,6 +73,7 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
   return {
     secret,
     trustProxy: env.CHAT_TRUST_PROXY === '1',
+    giphyKey: env.GIPHY_API_KEY || null,
     port: Number(env.CHAT_PORT || 8810),
     databaseUrl: env.DATABASE_URL || 'postgres://chat:chat@127.0.0.1:55440/chat',
     webOrigin: env.CHAT_WEB_ORIGIN || 'http://localhost:3210',

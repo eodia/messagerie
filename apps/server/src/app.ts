@@ -25,6 +25,7 @@ import { conversations } from './db/schema.js'
 import { filesOf, keeping, readUploads, signLinksWith } from './files/attachments.js'
 import { serveFile, uploadLimit } from './files/routes.js'
 import { DiskStore, type FileStore } from './files/store.js'
+import { gifFile, searchGifs } from './gifs.js'
 import { homePage } from './home-page.js'
 import { Access, canSee, inboxDirectory } from './inbox/access.js'
 import { followRole, inviteAgent, resetAgentPassword } from './inbox/accounts.js'
@@ -320,6 +321,22 @@ export function createApp({
   inbox.get('/canned', async (c) => c.json(await cannedReplies(settings)))
 
   inbox.get('/contacts', async (c) => c.json(await listContacts(db, c.req.query('q') ?? '')))
+
+  // GIPHY, for the picker — its key stays here (D5). A GIF chosen comes back as bytes, and
+  // goes with the message as any file.
+  inbox.get('/gifs', async (c) => {
+    if (!config.giphyKey) throw new Refusal('GIFS_UNAVAILABLE', 503)
+    const offset = Number(c.req.query('offset') ?? 0) || 0
+    return c.json(await searchGifs(config.giphyKey, c.req.query('q') ?? '', offset, 'fr'))
+  })
+  inbox.get('/gifs/:id/file', async (c) => {
+    if (!config.giphyKey) throw new Refusal('GIFS_UNAVAILABLE', 503)
+    const { bytes } = await gifFile(config.giphyKey, c.req.param('id'))
+    return c.body(bytes, 200, {
+      'content-type': 'image/gif',
+      'cache-control': 'private, max-age=600',
+    })
+  })
 
   // By its id, or by the word the inbox's address names it with: its name, then the end
   // of its id.

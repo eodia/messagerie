@@ -209,6 +209,16 @@ export interface Agent {
 }
 
 /** A message found by the palette's search: where it is, who said it, and around what. */
+/** A GIF GIPHY found, for the agents' picker. */
+export interface GifHit {
+  readonly id: string
+  readonly title: string
+  /** A small rendition, read from GIPHY by the agent's browser. */
+  readonly preview: string
+  readonly width: number
+  readonly height: number
+}
+
 export interface MessageHit {
   readonly conversationId: string
   readonly messageId: string

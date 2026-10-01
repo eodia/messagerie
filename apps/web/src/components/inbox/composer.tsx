@@ -583,7 +583,7 @@ export function Composer({
                   <Paperclip className="size-4" />
                 </Button>
               </Hint>
-              <EmojiPicker onPick={addEmoji}>
+              <EmojiPicker onPick={addEmoji} onGif={(file) => addFiles([file])}>
                 <Button
                   variant="ghost"
                   size="icon-sm"

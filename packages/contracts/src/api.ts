@@ -61,6 +61,9 @@ export type ErrorCode =
   | 'ATTACHMENT_NOT_FOUND'
   /** The AI cannot read this kind of file with the configured model. */
   | 'ATTACHMENT_NOT_ANALYZABLE'
+  | 'GIFS_UNAVAILABLE'
+  | 'GIFS_UNREACHABLE'
+  | 'GIF_NOT_FOUND'
 
 /** Opens the inbox's WebSocket, once, within thirty seconds. */
 export interface Ticket {

@@ -9,6 +9,7 @@ import type {
   ConversationSummary,
   ErrorCode,
   FeedbackBody,
+  GifHit,
   InboxDirectory,
   InboxStats,
   InviteBody,
@@ -75,6 +76,7 @@ async function request<T>(
   path: string,
   body?: unknown,
   retried = false,
+  bytes = false,
 ): Promise<T> {
   let token: string | null
   try {
@@ -104,13 +106,14 @@ async function request<T>(
     throw new ApiFailure('UNREACHABLE', 0)
   }
   if (response.status === 204) return undefined as T
+  if (bytes && response.ok) return (await response.blob()) as T
   const data: unknown = await response.json().catch(() => null)
   if (!response.ok) {
     const code = (data as ApiError | null)?.code ?? 'INTERNAL_ERROR'
     // A token basedb no longer vouches for — signed out elsewhere, expired: one new one.
     if (code === 'SESSION_INVALID' && token !== null && !retried) {
       forgetToken()
-      return request<T>(method, path, body, true)
+      return request<T>(method, path, body, true, bytes)
     }
     throw new ApiFailure(code, response.status)
   }
@@ -183,6 +186,10 @@ export const api = {
     if (message.resolve) form.append('resolve', 'true')
     return request<Conversation>('POST', `${conversation(id)}/attachments`, form)
   },
+  gifs: (query: string, offset = 0) =>
+    request<GifHit[]>('GET', `/gifs?q=${encodeURIComponent(query)}&offset=${offset}`),
+  gifFile: (id: string) =>
+    request<Blob>('GET', `/gifs/${encodeURIComponent(id)}/file`, undefined, false, true),
   search: (query: string) => request<MessageHit[]>('GET', `/search?q=${encodeURIComponent(query)}`),
   analyzeAttachment: (id: string) =>
     request<Attachment>('POST', `/attachments/${encodeURIComponent(id)}/analysis`),
