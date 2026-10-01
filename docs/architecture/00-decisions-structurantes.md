@@ -80,8 +80,18 @@ lesquels il se connecte comme le fait l'interface. Les lignes du modèle sont é
 défaut : ce sont les réglages de départ (un site, une équipe, les garde-fous), et elles
 font de celui qui lance la commande le premier superviseur. `--no-rows` les omet.
 
-Reste à faire à la main, dans basedb : créer un jeton d'intégration de la base, pour la
-surface REST et en lecture, puis le donner au serveur (`BASEDB_BASE`, `BASEDB_TOKEN`).
+Reste à créer, dans basedb, un jeton d'intégration de la base pour la surface REST, **en
+écriture**, puis à le donner au serveur (`BASEDB_BASE`, `BASEDB_TOKEN`). L'écriture sert à
+promouvoir une conversation ; le paramétrage, lui, écrit avec le jeton du superviseur
+(D10).
+
+En développement, `docker compose` fait tourner un basedb dédié au chat (basedb 0.5.0,
+http://localhost:8890), dans une base de données à lui du même PostgreSQL.
+`pnpm db:up` écrit d'abord `.env` : la clé de chiffrement et l'administrateur, générés, ne
+sont jamais dans le fichier compose. `pnpm basedb:setup` se connecte en administrateur,
+crée la base avec les lignes d'Acme Assurances si elle n'existe pas, émet le jeton du chat
+s'il n'en a pas de bon, et écrit la configuration du serveur et de l'inbox. Relancé, il ne
+change rien de ce qui marche.
 `pnpm template:check` fait passer le modèle au validateur de basedb, celui-là même que
 son serveur applique.
 
@@ -115,7 +125,8 @@ CSRF de basedb n'est lisible que par les scripts de son hôte. C'est voulu : auc
 origine ne doit pouvoir obtenir un jeton. L'inbox vit donc sous un autre chemin du même
 hôte, derrière la même passerelle (`https://support.exemple.fr/` pour l'inbox,
 `/basedb/` pour basedb). En développement, `localhost` suffit, car les cookies ignorent
-les ports. Pour lever cette contrainte, il faudrait un transfert de jeton explicite fourni
+les ports : le basedb de `docker compose` (http://localhost:8890) et l'inbox
+(http://localhost:3210) partagent la session. Pour lever cette contrainte, il faudrait un transfert de jeton explicite fourni
 par basedb, par exemple un lien « Ouvrir la messagerie » qui le remet à l'inbox.
 
 **Le WebSocket s'ouvre par ticket.** Un navigateur ne peut pas y mettre d'en-tête
@@ -237,19 +248,33 @@ Le widget fait exception : il est écrit en Preact dans un Shadow DOM, pour pese
 quelques dizaines de Ko sur le site du client. Il reprend la palette, pas les
 composants.
 
-### L'éditeur du widget : le seul réglage fait hors de basedb
+### Le paramétrage se fait dans l'inbox ; ses données restent dans basedb
 
-L'apparence du widget se règle mieux en le voyant. L'inbox a donc un écran « Widget » :
-couleur, thème, coins, police, logo, côté et marges, bouton rond ou avec libellé, titre et
-sous-titre d'accueil, message d'accueil, questions suggérées, bulle d'accueil, masquages,
-mention du logiciel — et, à côté, le vrai widget en mode aperçu, dans une page que le
+Un superviseur règle la messagerie sans quitter l'inbox. La section « Paramétrage » du
+menu ouvre les écrans des boîtes de réception, des équipes et des conseillers, des sites et
+de leurs horaires, des réponses types et des étiquettes, des garde-fous, des outils de l'IA
+et des serveurs MCP, des articles, et du widget.
+
+Ces écrans ne copient rien : ils lisent et écrivent les tables de la base « Messagerie »
+par l'API de basedb (D2). Les champs, leurs genres, leurs choix et leurs relations sont
+ceux que déclare `messagerie.json` : un champ ajouté au modèle apparaît dans le formulaire.
+Le serveur vérifie chaque valeur contre le modèle, puis écrit dans basedb **avec le jeton
+du superviseur** : basedb applique ses droits, et l'historique de la ligne porte son nom.
+basedb réserve la suppression d'une ligne à ses administrateurs. Sans basedb, en
+démonstration, les lignes du modèle changent en mémoire jusqu'au redémarrage.
+
+basedb reste ouvert à qui veut ses grilles, ses vues, ses formulaires ou ses droits fins :
+chaque écran a son lien « Ouvrir dans basedb ».
+
+### L'éditeur du widget
+
+L'apparence du widget se règle mieux en le voyant. L'écran « Widget » règle couleur,
+thème, coins, police, logo, côté et marges, bouton rond ou avec libellé, titre et
+sous-titre d'accueil, message d'accueil, questions suggérées, bulle d'accueil, masquages
+et mention du logiciel. À côté, le vrai widget tourne en mode aperçu, dans une page que le
 serveur sert (`/widget/preview`, encadrable par l'inbox seule). L'éditeur lui envoie le
-brouillon par `postMessage`, et le widget n'appelle alors jamais le serveur.
-
-Les réglages restent dans basedb : ce sont des colonnes de la table « Sites ». L'éditeur
-les lit par le serveur et les enregistre dans la ligne du site, **avec le jeton du
-superviseur** : basedb applique ses droits, et l'historique de la ligne porte son nom.
-Sans basedb (démonstration), l'enregistrement reste en mémoire.
+brouillon par `postMessage`, et le widget n'appelle alors jamais le serveur. Ces réglages
+sont des colonnes de la table « Sites ».
 
 Le widget ne charge aucune police sur le site d'un client : « Police du site » reprend
 celle de la page, « Personnalisée » nomme une police que la page charge déjà. Un nom de
@@ -260,6 +285,51 @@ viennent de l'éditeur ou d'une saisie directe dans basedb.
 
 Comme basedb. Qui modifie le produit et le propose à des utilisateurs à travers un
 réseau leur doit le code source de sa version.
+
+## D12 — Les boîtes de réception, distinctes des équipes
+
+Une **boîte de réception** dit où arrivent les conversations ; une **équipe**, qui y
+répond. Une même équipe peut servir plusieurs boîtes.
+
+Dans la base « Messagerie », la table « Boîtes de réception » nomme les équipes qui
+répondent dans chaque boîte et son équipe par défaut. Un site nomme la boîte où arrivent
+ses conversations ; sans cela, elles vont dans la première boîte active.
+
+Une nouvelle conversation reçoit la boîte de son site et l'équipe par défaut de cette
+boîte, ou à défaut celle du site.
+
+- **Visibilité.** Un superviseur voit toutes les boîtes. Un conseiller voit les boîtes
+  qu'une de ses équipes sert (« Conseillers » › Équipes). La règle vaut pour la liste, le
+  fil, les signaux temps réel et les cloches. Une conversation d'avant les boîtes est à
+  tous.
+- **Transfert.** Une conversation passe à une autre boîte, à une autre équipe de sa boîte,
+  ou les deux, avec une note facultative. Elle revient dans la file de l'équipe qui la
+  reçoit, qui en est prévenue. Elle quitte la personne qui l'avait, et l'IA.
+- **Transfert par l'IA.** L'IA transfère à l'équipe d'un garde-fou, ou à celle de la
+  conversation. Seuls les membres de cette équipe sont prévenus, avec les superviseurs.
+
+## D13 — Les métadonnées, et ce que la page peut dire au widget
+
+Une page peut joindre des métadonnées au contact ou à la conversation : un numéro de
+commande, un panier, la page lue. Un conseiller peut aussi en ajouter. Ce sont des clés
+libres aux valeurs courtes (texte, nombre, oui ou non), rangées dans le schéma `chat`
+(`contact.data`, `conversation.data`).
+
+Rien n'en est vérifié. L'inbox le dit là où elle les montre, et l'IA les reçoit comme des
+données déclarées, jamais comme une preuve ni comme une consigne. Un client que le site a
+signé (D5) garde le nom et l'e-mail de sa signature : un script de la page ne peut pas le
+renommer.
+
+La page parle au widget par `window.MessagerieChat` :
+- ouvrir, fermer, montrer ou cacher le widget ;
+- préremplir ou envoyer un message ;
+- dire qui est un visiteur anonyme ;
+- joindre des métadonnées ;
+- écouter les événements.
+
+Les appels faits avant le chargement du script attendent dans une file. Les métadonnées
+de conversation fixées avant le premier message partent avec lui, et l'IA les lit dès sa
+première réponse.
 
 ---
 

@@ -13,10 +13,15 @@ Messagerie client libre, sœur de basedb (`../basedb`). Les décisions qui font 
 - **Aucun secret dans basedb** : clés de signature des sites, clés des fournisseurs
   d'IA (D5).
   Un outil ou un serveur MCP y nomme la variable d'environnement (`${NOM}`), jamais la valeur.
-- **Une seule exception d'écran** : l'éditeur du widget, dans l'inbox, pour l'aperçu en
-  direct. Il écrit dans la ligne du site, dans basedb, avec le jeton du superviseur (D10).
-  Un réglage du widget ajouté au modèle passe aussi par `settings/widget.ts` (lecture,
-  vérification, écriture) et par l'éditeur.
+- **Le paramétrage se fait dans l'inbox, ses données restent dans basedb** (D10) : les
+  écrans « Paramétrage » lisent et écrivent la base par l'API, avec le jeton du
+  superviseur. Ils suivent le modèle (`inbox/settings-screen.ts`) : un champ ajouté à
+  `messagerie.json` apparaît dans son formulaire ; `components/settings/views.ts` dit
+  seulement quelles colonnes la liste montre et ce qui s'édite ailleurs.
+- Un réglage du widget ajouté au modèle passe aussi par `settings/widget.ts` (lecture,
+  vérification, écriture) et par l'éditeur du widget.
+- **Le basedb de développement** tourne dans `docker compose` (http://localhost:8890) :
+  `pnpm db:up`, puis `pnpm basedb:setup`. Ne touchez jamais au dépôt `../basedb`.
 
 ## L'interface est celle de basedb
 
@@ -68,3 +73,5 @@ Messagerie client libre, sœur de basedb (`../basedb`). Les décisions qui font 
 - Ce que le site règle arrive en propriétés CSS et en classes sur `.root` (`styles.ts`).
 - `data-preview` : le mode aperçu de l'éditeur, nourri par `postMessage` depuis l'origine de
   l'inbox seule (`preview.ts`).
+- `window.MessagerieChat` : l'API de la page (`page-api.ts`). Une commande ajoutée l'est
+  aussi au panneau de `/demo` et à l'onglet « Installation » de l'éditeur.
