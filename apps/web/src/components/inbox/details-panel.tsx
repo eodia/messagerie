@@ -19,6 +19,7 @@ import type {
 } from '@chat/contracts'
 import {
   CalendarClock,
+  CircleAlert,
   Copy,
   FileText,
   Globe,
@@ -30,6 +31,7 @@ import {
 } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
 import { ContactAvatar, PriorityChip, SentimentChip, StatusChip } from './labels'
+import { MetadataList } from './metadata'
 
 function Section({
   title,
@@ -55,7 +57,11 @@ function Section({
 
 export function DetailsPanel({ conversation }: { readonly conversation: Conversation }) {
   const me = useInbox((s) => s.me)
+  const directory = useInbox((s) => s.directory)
+  const setData = useInbox((s) => s.setData)
   const { contact } = conversation
+  const inbox = directory.inboxes.find((i) => i.id === conversation.inboxId)
+  const team = directory.teams.find((t) => t.id === conversation.teamId)
   return (
     <ResizablePanel
       panel="details"
@@ -102,6 +108,25 @@ export function DetailsPanel({ conversation }: { readonly conversation: Conversa
                   : $t('Visiteur anonyme : le site n’a transmis aucune identité signée.')}
               </p>
             )}
+          </Section>
+
+          <Section
+            title={$t('Déclaré sur le contact')}
+            aside={
+              <Hint
+                label={$t('Dit par la page du site ou par un conseiller : rien n’en est vérifié.')}
+              >
+                <CircleAlert className="size-3.5 text-muted-foreground" />
+              </Hint>
+            }
+          >
+            <MetadataList
+              data={contact.data}
+              empty={$t('Rien pour l’instant.')}
+              onChange={(patch) =>
+                setData({ contact: contact.id, conversation: conversation.id }, patch)
+              }
+            />
           </Section>
 
           <CopilotTools conversationId={conversation.id} />
@@ -157,9 +182,29 @@ export function DetailsPanel({ conversation }: { readonly conversation: Conversa
                     ? $t('Vous')
                     : conversation.assignee}
               </dd>
+              <dt className="text-muted-foreground">{$t('Boîte')}</dt>
+              <dd className="flex items-center gap-1.5">
+                {inbox && (
+                  <span
+                    className="size-2 rounded-full bg-muted-foreground/40"
+                    style={inbox.color ? { background: inbox.color } : undefined}
+                  />
+                )}
+                {inbox?.name ?? '—'}
+              </dd>
+              <dt className="text-muted-foreground">{$t('Équipe')}</dt>
+              <dd>{team?.name ?? '—'}</dd>
               <dt className="text-muted-foreground">{$t('Site')}</dt>
               <dd>{conversation.site}</dd>
             </dl>
+          </Section>
+
+          <Section title={$t('Données de la conversation')}>
+            <MetadataList
+              data={conversation.data}
+              empty={$t('Ni la page ni un conseiller n’y a joint de donnée.')}
+              onChange={(patch) => setData({ conversation: conversation.id }, patch)}
+            />
           </Section>
 
           {conversation.summary && (
@@ -195,6 +240,9 @@ function ContactBlock({ contact }: { readonly contact: Contact }) {
         <div className="truncate text-sm font-semibold">{contact.name}</div>
         {contact.email && (
           <div className="truncate text-xs text-muted-foreground">{contact.email}</div>
+        )}
+        {contact.phone && (
+          <div className="truncate text-xs text-muted-foreground tabular-nums">{contact.phone}</div>
         )}
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {contact.identified ? (

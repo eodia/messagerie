@@ -385,7 +385,12 @@ export const useInbox = create<InboxState>((set, get) => {
       await act(id, () => api.assign(id, assigneeId))
     },
 
-    transfer: async (id, body) => act(id, () => api.transfer(id, body)),
+    transfer: async (id, body) => {
+      const done = await act(id, () => api.transfer(id, body))
+      // Moved to an inbox the reader may no longer see: the list is read again.
+      if (done) void get().reload()
+      return done
+    },
 
     setData: async (target, data) => {
       try {

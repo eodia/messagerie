@@ -24,8 +24,10 @@ import { cn } from '@/lib/utils'
 import type { Conversation, Feedback, Message } from '@chat/contracts'
 import {
   BookmarkPlus,
+  ChevronRight,
   CircleCheck,
   Ellipsis,
+  Forward,
   Hand,
   MapPin,
   PanelRight,
@@ -33,7 +35,7 @@ import {
   Undo2,
   UserRoundPlus,
 } from 'lucide-react'
-import { Fragment, useEffect, useRef } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { Composer } from './composer'
 import { ContactAvatar, StateChip } from './labels'
 import {
@@ -45,6 +47,7 @@ import {
   NoteCard,
   VisitorBubble,
 } from './messages'
+import { TransferDialog } from './transfer-dialog'
 
 function dayOf(iso: string): string {
   const date = new Date(iso)
@@ -72,6 +75,8 @@ export function Thread({
   const now = useInbox((s) => s.now)
   const me = useInbox((s) => s.me)
   const agents = useInbox((s) => s.agents)
+  const directory = useInbox((s) => s.directory)
+  const [transferring, setTransferring] = useState(false)
   const { takeOver, resolve, assign, giveFeedback, setDraft } = useInbox.getState()
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const { scroller, content } = useStickToBottom(conversation.id)
@@ -92,6 +97,8 @@ export function Thread({
   const handedOff = messages.some((m) => m.kind === 'handoff')
   const last = messages[messages.length - 1]
   const aiWriting = status === 'ai' && last !== undefined && last.kind !== 'ai'
+  const inbox = directory.inboxes.find((i) => i.id === conversation.inboxId)
+  const team = directory.teams.find((t) => t.id === conversation.teamId)
 
   return (
     <section
@@ -102,23 +109,42 @@ export function Thread({
     >
       <header className="flex min-h-14 shrink-0 items-center gap-3 border-b bg-background px-5 py-2">
         <ContactAvatar name={contact.name} online={status !== 'resolved'} />
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h2 className="truncate text-sm font-semibold">{contact.name}</h2>
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+            <h2 className="min-w-[5rem] truncate text-sm font-semibold">{contact.name}</h2>
             {contact.identified ? (
               <Hint label={$t('Identité signée par le site : ce visiteur est bien connecté.')}>
-                <span>
+                <span className="shrink-0">
                   <Chip tint="emerald">
                     <ShieldCheck />
-                    {$t('Identifié')}
+                    <span className="hidden 2xl:inline">{$t('Identifié')}</span>
                   </Chip>
                 </span>
               </Hint>
             ) : (
-              <Chip tint="zinc">{$t('Anonyme')}</Chip>
+              <span className="shrink-0">
+                <Chip tint="zinc">{$t('Anonyme')}</Chip>
+              </span>
             )}
+            {/* The list says it too: in a narrow thread, the name keeps the room. */}
+            <span className="hidden shrink-0 2xl:inline-flex">
+              <StateChip conversation={{ ...conversation, handedOff }} />
+            </span>
           </div>
           <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
+            {(inbox || team) && (
+              <Hint label={$t('Boîte de réception et équipe')}>
+                <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap">
+                  <span
+                    className="size-2 rounded-full bg-muted-foreground/40"
+                    style={inbox?.color ? { background: inbox.color } : undefined}
+                  />
+                  {inbox?.name}
+                  {inbox && team && <ChevronRight className="size-3" />}
+                  {team?.name}
+                </span>
+              </Hint>
+            )}
             {contact.email && <span className="truncate">{contact.email}</span>}
             {code && <span className="font-mono">{code.value}</span>}
             {contact.location && (
@@ -131,7 +157,6 @@ export function Thread({
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          <StateChip conversation={{ ...conversation, handedOff }} />
           {status === 'ai' ? (
             <Button size="sm" onClick={() => void takeOver(conversation.id)}>
               <Hand />
@@ -143,6 +168,13 @@ export function Thread({
               {$t('Résoudre')}
             </Button>
           ) : null}
+          {directory.inboxes.length > 0 && (
+            <Hint label={$t('Transférer à une autre boîte ou une autre équipe')}>
+              <Button variant="outline" size="icon-sm" onClick={() => setTransferring(true)}>
+                <Forward className="text-muted-foreground" />
+              </Button>
+            </Hint>
+          )}
           <DropdownMenu>
             <Hint label={$t('Plus d’actions')}>
               <DropdownMenuTrigger asChild>
@@ -180,6 +212,12 @@ export function Thread({
                   </DropdownMenuItem>
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
+              {directory.inboxes.length > 0 && (
+                <DropdownMenuItem onSelect={() => setTransferring(true)}>
+                  <Forward />
+                  {$t('Transférer…')}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 disabled={status !== 'resolved'}
@@ -243,6 +281,11 @@ export function Thread({
       </div>
 
       <Composer key={conversation.id} conversation={conversation} inputRef={inputRef} />
+      <TransferDialog
+        conversation={conversation}
+        open={transferring}
+        onClose={() => setTransferring(false)}
+      />
     </section>
   )
 }
