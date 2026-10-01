@@ -6,11 +6,14 @@ import { configureApi } from '@/lib/api'
 import { configureBasedbSession } from '@/lib/basedb-session'
 import { useAlertSettings } from '@/lib/store/alert-settings'
 import { useInbox, waitingCount } from '@/lib/store/inbox'
+import { useSession } from '@/lib/store/session'
 import { useSidebar } from '@/lib/store/sidebar'
 import { useTheme } from '@/lib/theme'
+import { LoaderCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { type ReactNode, createContext, useContext, useEffect, useSyncExternalStore } from 'react'
 import { Sidebar } from './sidebar'
+import { SignInScreen } from './sign-in'
 
 const never = () => () => undefined
 
@@ -27,7 +30,7 @@ export const useBasedbUrl = (): string => useContext(BasedbUrl)
  * knows — anything it drew would have to be redrawn.
  *
  * It runs what every screen shares: the live stream of the inbox, the alerts, and the
- * count on the tab.
+ * count on the tab — once someone is signed in; until then, the sign-in (basedb's).
  */
 export function AppShell({
   apiUrl,
@@ -51,21 +54,31 @@ export function AppShell({
     () => false,
   )
 
+  const status = useSession((s) => s.status)
+
   useEffect(() => {
     useSidebar.getState().initialize()
     useAlertSettings.getState().initialize()
     const stopTheme = useTheme.getState().initialize()
     const stopUnlock = unlockSound()
-    // The live stream runs on every screen: the sidebar counts what waits, the bell rings.
-    const stopInbox = useInbox.getState().start()
-    const stopBadge = useInbox.subscribe((state) => showWaiting(waitingCount(state)))
+    void useSession.getState().check()
     return () => {
       stopTheme()
       stopUnlock()
+    }
+  }, [])
+
+  // The live stream runs on every screen, once signed in: the sidebar counts what waits,
+  // the bell rings.
+  useEffect(() => {
+    if (status !== 'signed-in') return
+    const stopInbox = useInbox.getState().start()
+    const stopBadge = useInbox.subscribe((state) => showWaiting(waitingCount(state)))
+    return () => {
       stopInbox()
       stopBadge()
     }
-  }, [])
+  }, [status])
 
   useEffect(() => {
     useInbox.getState().setNavigator((path) => {
@@ -74,6 +87,16 @@ export function AppShell({
   }, [router])
 
   if (!inBrowser) return null
+  if (status === 'checking') {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <LoaderCircle className="size-5 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+  if (status === 'signed-out' || status === 'must-change') {
+    return <SignInScreen basedbUrl={basedbUrl} />
+  }
   return (
     <BasedbUrl.Provider value={basedbUrl}>
       <TooltipProvider delayDuration={300}>

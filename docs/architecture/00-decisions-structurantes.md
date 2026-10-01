@@ -101,8 +101,15 @@ par l'API d'administration de basedb.
 
 ## D4 — Les conseillers sont des comptes basedb
 
-Un conseiller se connecte à basedb, pas au chat. L'inbox demande à la session basedb du
-navigateur un jeton d'accès (`POST /auth/session/access`, avec le cookie de session et,
+Un conseiller se connecte avec son compte basedb. La mire de l'inbox ne fait que relayer
+la connexion de basedb (`POST /auth/password/login`) : basedb dépose ses cookies de session
+pour l'hôte, et l'inbox et basedb partagent dès lors une seule session. La déconnexion de
+l'une vaut pour l'autre. Un compte que basedb a créé avec un mot de passe temporaire choisit
+le sien dans la mire, comme l'interface de basedb le demande (`/auth/password/change`). Les
+boutons de SSO de basedb n'y paraissent que si l'inbox est servie à l'adresse de basedb :
+basedb ne renvoie une connexion SSO que vers ses propres chemins.
+
+Ensuite, l'inbox demande à la session basedb du navigateur un jeton d'accès (`POST /auth/session/access`, avec le cookie de session et,
 dans `X-Basedb-Csrf`, la valeur du cookie CSRF). Elle l'envoie au serveur du chat, qui
 demande à basedb ce qu'il vaut (introspection RFC 7662, B2). Le SSO vient donc de la
 configuration OIDC de basedb, sans réglage propre au chat.

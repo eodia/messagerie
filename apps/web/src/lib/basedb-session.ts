@@ -30,6 +30,112 @@ export function configureBasedbSession(url: string | null): void {
 /** Whether the inbox authenticates through basedb — or runs without it, in development. */
 export const usesBasedb = (): boolean => basedbApi !== null
 
+/**
+ * basedb refused a sign-in or a password: its code (`CREDENTIALS_INVALID`…) or
+ * `UNREACHABLE`, and for a password the policy's reason (`trop_court`…).
+ */
+export class SignInFailure extends Error {
+  constructor(
+    readonly code: string,
+    readonly reason: string | null = null,
+  ) {
+    super(code)
+  }
+}
+
+async function failureOf(response: Response): Promise<SignInFailure> {
+  const body = (await response.json().catch(() => null)) as {
+    code?: string
+    details?: { reason?: string }
+  } | null
+  return new SignInFailure(body?.code ?? 'CREDENTIALS_INVALID', body?.details?.reason ?? null)
+}
+
+/**
+ * Signs in to basedb from the inbox's own form — basedb's sign-in, not a copy of it: its
+ * session cookies are set for the host, so the inbox and basedb share one session, and the
+ * agent's token comes from it as before.
+ */
+export async function signIn(email: string, password: string): Promise<void> {
+  if (basedbApi === null) return
+  let response: Response
+  try {
+    response = await fetch(`${basedbApi}/auth/password/login`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+  } catch {
+    throw new SignInFailure('UNREACHABLE')
+  }
+  if (!response.ok) throw await failureOf(response)
+  held = null
+}
+
+/**
+ * Whether basedb asks for a new password — an account created with a temporary one. Its
+ * interface asks for it at the first sign-in; the inbox does too.
+ */
+export async function mustChangePassword(): Promise<boolean> {
+  if (basedbApi === null) return false
+  const response = await fetch(`${basedbApi}/auth/me`, { credentials: 'include' }).catch(() => null)
+  if (!response?.ok) return false
+  const { data } = (await response.json()) as { data: { must_change_password?: boolean } }
+  return data.must_change_password === true
+}
+
+/** Chooses one's password; basedb keeps this session and closes the others. */
+export async function changePassword(current: string, next: string): Promise<void> {
+  if (basedbApi === null) return
+  let response: Response
+  try {
+    response = await fetch(`${basedbApi}/auth/password/change`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ current, next }),
+    })
+  } catch {
+    throw new SignInFailure('UNREACHABLE')
+  }
+  if (!response.ok) throw await failureOf(response)
+  held = null
+}
+
+/** Ends the basedb session — the inbox's and basedb's, which are one. */
+export async function signOut(): Promise<void> {
+  held = null
+  if (basedbApi === null) return
+  await fetch(`${basedbApi}/auth/session`, { method: 'DELETE', credentials: 'include' }).catch(
+    () => {},
+  )
+}
+
+export interface SsoProvider {
+  readonly slug: string
+  readonly label: string
+  /** Where the button goes: basedb's sign-in with the provider, back to this page. */
+  readonly href: string
+}
+
+/**
+ * The single sign-on basedb offers. basedb only sends a sign-in back to an address of its
+ * own: the buttons show where the inbox shares basedb's address (D4), not elsewhere.
+ */
+export async function ssoProviders(): Promise<SsoProvider[]> {
+  if (basedbApi === null || new URL(basedbApi).origin !== window.location.origin) return []
+  const response = await fetch(`${basedbApi}/auth/oidc/providers`).catch(() => null)
+  if (!response?.ok) return []
+  const { data } = (await response.json()) as { data: { slug: string; label: string }[] }
+  const back = encodeURIComponent(window.location.pathname)
+  return data.map(({ slug, label }) => ({
+    slug,
+    label,
+    href: `${basedbApi}/auth/oidc/${encodeURIComponent(slug)}/start?return_to=${back}`,
+  }))
+}
+
 function readCookie(name: string): string | null {
   const found = document.cookie
     .split(';')

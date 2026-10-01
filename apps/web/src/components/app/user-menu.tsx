@@ -12,9 +12,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { usesBasedb } from '@/lib/basedb-session'
 import { $t } from '@/lib/i18n'
 import { useAlertSettings } from '@/lib/store/alert-settings'
 import { useInbox } from '@/lib/store/inbox'
+import { useSession } from '@/lib/store/session'
 import { type ThemePreference, useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 import { BellRing, ChevronsUpDown, Database, LogOut, Volume2 } from 'lucide-react'
@@ -125,10 +127,12 @@ export function UserMenu({
             {$t('Ouvrir basedb')}
           </a>
         </DropdownMenuItem>
-        <DropdownMenuItem>
-          <LogOut />
-          {$t('Se déconnecter')}
-        </DropdownMenuItem>
+        {usesBasedb() && (
+          <DropdownMenuItem onSelect={() => void useSession.getState().signOut()}>
+            <LogOut />
+            {$t('Se déconnecter')}
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )

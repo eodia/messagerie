@@ -59,9 +59,9 @@ corepack pnpm --filter @chat/web dev         # l'inbox sur http://localhost:3210
 ```
 
 `db:up` écrit `.env` à la racine au premier lancement : la clé de chiffrement de basedb et
-son administrateur (`BASEDB_ADMIN_EMAIL`, `BASEDB_ADMIN_PASSWORD`), générés. Connectez-vous
-à basedb sur http://localhost:8890 avec ce compte, puis ouvrez l'inbox : elle prend la
-session de basedb (D4). Pour l'IA, ajoutez `CHAT_AI_API_KEY` dans `apps/server/.env`.
+son administrateur (`BASEDB_ADMIN_EMAIL`, `BASEDB_ADMIN_PASSWORD`), générés. Ouvrez l'inbox
+et connectez-vous avec ce compte : la mire est celle de basedb, et la session vaut pour les
+deux (D4). Pour l'IA, ajoutez `CHAT_AI_API_KEY` dans `apps/server/.env`.
 
 - http://localhost:8810/demo : une page d'Acme Assurances avec le widget, en visiteur
   anonyme ou en cliente connectée (`?client=sophie`), et un panneau qui essaie l'API

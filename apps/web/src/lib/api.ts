@@ -28,6 +28,7 @@ import type {
   WidgetSettings,
 } from '@chat/contracts'
 import { SignedOut, accessToken, forgetToken } from './basedb-session'
+import { useSession } from './store/session'
 
 /**
  * The one module that talks to the chat server. The address is handed over at run time
@@ -70,7 +71,11 @@ async function request<T>(
   try {
     token = await accessToken()
   } catch (error) {
-    if (error instanceof SignedOut) throw new ApiFailure('SIGNED_OUT', 401)
+    if (error instanceof SignedOut) {
+      // No basedb session (any more): the sign-in screen takes over.
+      useSession.getState().signedOut()
+      throw new ApiFailure('SIGNED_OUT', 401)
+    }
     throw error
   }
   const headers: Record<string, string> = {}

@@ -260,8 +260,11 @@ export const useInbox = create<InboxState>((set, get) => {
         let ticket: string
         try {
           ;({ ticket } = await api.ticket())
-        } catch {
-          again()
+        } catch (error) {
+          // Not an agent, or signed out: no stream to wait for — the screen says why.
+          const code = codeOf(error)
+          if (code === 'NOT_AN_AGENT' || code === 'SIGNED_OUT') set({ live: 'closed' })
+          else again()
           return
         }
         if (stopped) return

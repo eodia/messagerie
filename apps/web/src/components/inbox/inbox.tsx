@@ -8,19 +8,23 @@ import { Button } from '@/components/ui/button'
 import { Kbd, useModKey } from '@/components/ui/kbd'
 import { Hint } from '@/components/ui/tooltip'
 import { apiAddress } from '@/lib/api'
+import { usesBasedb } from '@/lib/basedb-session'
 import { $t } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
 import { useInbox } from '@/lib/store/inbox'
 import { usePanels } from '@/lib/store/panels'
+import { useSession } from '@/lib/store/session'
 import {
   CircleCheck,
   ExternalLink,
   LoaderCircle,
   LogIn,
+  LogOut,
   MessagesSquare,
   RefreshCw,
   Search,
   Unplug,
+  UserX,
   X,
 } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -124,6 +128,27 @@ export function Inbox() {
                     {$t('Ouvrir basedb')}
                   </a>
                 </Button>
+                <Button variant="outline" onClick={() => void useInbox.getState().reload()}>
+                  <RefreshCw />
+                  {$t('Réessayer')}
+                </Button>
+              </>
+            }
+          >
+            {messageFor(loadError)}
+          </EmptyState>
+        ) : loadError === 'NOT_AN_AGENT' ? (
+          <EmptyState
+            icon={UserX}
+            title={$t('Ce compte n’est pas conseiller')}
+            actions={
+              <>
+                {usesBasedb() && (
+                  <Button onClick={() => void useSession.getState().signOut()}>
+                    <LogOut />
+                    {$t('Changer de compte')}
+                  </Button>
+                )}
                 <Button variant="outline" onClick={() => void useInbox.getState().reload()}>
                   <RefreshCw />
                   {$t('Réessayer')}
