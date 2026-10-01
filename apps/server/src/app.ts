@@ -21,6 +21,7 @@ import type { BasedbClient } from './basedb/client.js'
 import type { Config } from './config.js'
 import type { Db } from './db/client.js'
 import { conversations } from './db/schema.js'
+import { homePage } from './home-page.js'
 import { Access, canSee, inboxDirectory } from './inbox/access.js'
 import {
   cannedReplies,
@@ -145,6 +146,9 @@ export function createApp({
   )
 
   app.get('/health', (c) => c.json({ ok: true }))
+
+  // Opened in a browser, the server's address says where the inbox is.
+  app.get('/', (c) => c.html(homePage(config.webOrigin, config.production)))
 
   /**
    * The live signals. A WebSocket escapes CORS, so the origin is checked here: any page

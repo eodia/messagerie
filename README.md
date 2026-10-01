@@ -35,9 +35,14 @@ Les décisions qui expliquent le reste sont dans
 
 ## Développer
 
-Prérequis : Node 22 ou plus, Docker, et `corepack enable`. Sous Windows, le même dossier
-sert depuis Windows et depuis WSL : l'installation y met les binaires natifs des deux
-(esbuild, Next, Tailwind, Biome — `supportedArchitectures` dans `package.json`). Une copie de basedb à côté de ce
+Prérequis : Node 22 ou plus, Docker, et `corepack enable`.
+
+Sous Windows, lancez la messagerie **depuis Windows** (VS Code ouvert sur `C:\…`, terminal
+PowerShell) : c'est le plus rapide, et le rechargement à chaud marche. Depuis WSL, un
+dossier de `/mnt/c` est lent, et WSL n'y voit pas les fichiers changer : ni `tsx watch` ni
+Next ne rechargent. L'installation contient tout de même les binaires natifs des deux
+systèmes (`supportedArchitectures` dans `package.json`) ; pour travailler en WSL, clonez
+plutôt le dépôt dans le système de fichiers Linux (`~/…`). Une copie de basedb à côté de ce
 dépôt (`../basedb`, ou `BASEDB_DIR`) pour vérifier le modèle.
 
 ```bash
