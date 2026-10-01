@@ -353,6 +353,34 @@ Les appels faits avant le chargement du script attendent dans une file. Les mét
 de conversation fixées avant le premier message partent avec lui, et l'IA les lit dès sa
 première réponse.
 
+## D14 — Les pièces jointes, et l'IA qui les lit sur demande
+
+Un visiteur joint des fichiers depuis le widget, un conseiller depuis l'inbox, à une
+réponse ou à une note : le trombone, un glisser-déposer, ou une image collée. Le texte est
+alors facultatif. Le widget et l'inbox ont aussi leur palette d'emoji, sans bibliothèque :
+le système les dessine.
+
+- **Ce qui est pris** se décide sur les octets, pas sur le nom ni le type annoncé : images
+  (PNG, JPEG, GIF, WebP), PDF, textes (TXT, CSV, MD), Word et Excel. 10 Mo par fichier,
+  cinq par message.
+- **Où ils vont** : les octets dans un dossier du serveur (`CHAT_FILES_DIR`, `.files` par
+  défaut), jamais dans la base ni dans basedb ; la table `chat.attachment` garde le nom,
+  le type, la taille et la clé. La purge de rétention emporte le dossier de la
+  conversation avec elle.
+- **Comment ils se lisent** : par un lien signé par le serveur (HMAC, valable un jour),
+  que l'inbox et le widget mettent dans un `<img>` sans jeton. Servis avec `nosniff`, en
+  pièce jointe sauf les images et les PDF, et sans rien qui s'exécute.
+- **L'IA lit un fichier quand un conseiller le demande**, jamais parce qu'il est arrivé :
+  « Analyser avec l'IA » sous le fichier. Une image va au modèle de vision
+  (`CHAT_AI_VISION_MODEL`, le modèle par défaut sinon — Mistral Small lit les images), un
+  PDF à l'OCR du fournisseur (`mistral-ocr-latest` chez Mistral, `CHAT_AI_OCR_MODEL`), un
+  texte tel quel, masqué si le modèle est externe. Ce qu'elle en dit reste sous le
+  fichier pour toute l'équipe, et l'appel est tracé (`ai_run` de genre `attachment`, D9).
+  Une image ou un PDF ne se masquent pas : l'inbox dit où part le fichier avant qu'on le
+  demande.
+- **L'agent IA sait qu'un fichier a été joint** : son contexte nomme chaque pièce, avec ce
+  qu'en a dit l'analyse quand elle existe.
+
 ---
 
 ## Ce que le chat attend de basedb

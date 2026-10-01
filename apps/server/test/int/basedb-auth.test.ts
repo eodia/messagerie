@@ -1,4 +1,6 @@
 import type { AddressInfo } from 'node:net'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { serve } from '@hono/node-server'
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql'
 import { Hono } from 'hono'
@@ -102,6 +104,7 @@ beforeAll(async () => {
   await migrateDatabase(db)
 
   const config: Config = {
+    filesDir: join(tmpdir(), 'chat-test-files'),
     port: 0,
     databaseUrl: container.getConnectionUri(),
     webOrigin: 'http://localhost:3210',

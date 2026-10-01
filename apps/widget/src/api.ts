@@ -18,6 +18,10 @@ export interface Backend {
   conversation(): Promise<VisitorConversation | null>
   /** With the metadata the page set for the conversation before it began. */
   send(body: string, data?: Data): Promise<VisitorConversation>
+  /** Files, with or without words. */
+  sendFiles(files: readonly File[], body: string): Promise<VisitorConversation>
+  /** A file's address, from the path the server signed. */
+  fileUrl(path: string): string
   follow(onEvent: (event: WidgetEvent) => void): () => void
   /** `MessagerieChat.setUser`, `setContactData`. */
   updateContact(change: Profile & { readonly data?: Data }): Promise<void>
@@ -69,13 +73,15 @@ export class WidgetApi implements Backend {
   private async call<T>(method: string, path: string, body?: unknown): Promise<T> {
     let response: Response
     try {
+      // A form says its own type, with the boundary of its parts.
+      const form = body instanceof FormData
       response = await fetch(`${this.base}/api/widget${path}`, {
         method,
         headers: {
-          ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+          ...(body === undefined || form ? {} : { 'content-type': 'application/json' }),
           ...(this.token ? { authorization: `Bearer ${this.token}` } : {}),
         },
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body: body === undefined ? undefined : form ? body : JSON.stringify(body),
       })
     } catch {
       throw new WidgetFailure('UNREACHABLE', 0)
@@ -106,6 +112,17 @@ export class WidgetApi implements Backend {
 
   send(body: string, data?: Data): Promise<VisitorConversation> {
     return this.call('POST', '/messages', data ? { body, data } : { body })
+  }
+
+  sendFiles(files: readonly File[], body: string): Promise<VisitorConversation> {
+    const form = new FormData()
+    for (const file of files) form.append('file', file, file.name)
+    form.append('body', body)
+    return this.call('POST', '/attachments', form)
+  }
+
+  fileUrl(path: string): string {
+    return `${this.base}${path}`
   }
 
   async updateContact(change: Profile & { readonly data?: Data }): Promise<void> {

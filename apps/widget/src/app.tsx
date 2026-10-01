@@ -1,14 +1,25 @@
 import type {
   VisitorConversation,
   WidgetAppearance,
+  WidgetAttachment,
   WidgetMessage,
   WidgetSession,
   WidgetSite,
 } from '@chat/contracts'
+import { Fragment } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { type Backend, WidgetFailure } from './api'
 import { clock, setLanguage, t, when } from './i18n'
-import { ChatIcon, ChevronDownIcon, CloseIcon, Orb, SendIcon } from './icons'
+import {
+  ChatIcon,
+  ChevronDownIcon,
+  CloseIcon,
+  FileIcon,
+  Orb,
+  PaperclipIcon,
+  SendIcon,
+  SmileIcon,
+} from './icons'
 import { Markdown } from './markdown'
 import type { Commands, Data, PageEvent } from './page-api'
 import type { Scene } from './preview'
@@ -73,7 +84,24 @@ interface Line {
   readonly id: string
   readonly body: string
   readonly at: string | null
+  readonly attachments?: readonly WidgetAttachment[]
 }
+
+/** What the widget sends: what the server keeps — images, PDF, text and office files. */
+const ACCEPT = 'image/png,image/jpeg,image/gif,image/webp,application/pdf,.txt,.csv,.md,.docx,.xlsx'
+const MAX_BYTES = 10 * 1024 * 1024
+const MAX_FILES = 5
+
+/** The emoji a visitor reaches for: the system draws them, nothing is loaded. */
+const EMOJI =
+  '😀 😊 🙂 😉 😍 🥰 😎 🤗 🤔 😅 😂 😇 🙃 😌 😢 😭 😤 😡 😱 😳 🙄 😴 👍 👎 👌 🙏 👏 🙌 👋 💪 🤝 ❤️ 💯 ✅ ❌ ⚠️ ❓ ⭐ 🎉 🔥 📄 📎 📷 📞 🏠 🚗 🔑 💶 📅'.split(
+    ' ',
+  )
+
+const sizeOf = (bytes: number) =>
+  bytes >= 1024 * 1024
+    ? `${(bytes / (1024 * 1024)).toLocaleString(undefined, { maximumFractionDigits: 1 })} Mo`
+    : `${Math.max(1, Math.round(bytes / 1024))} Ko`
 
 type Item =
   | {
@@ -105,7 +133,12 @@ function itemsOf(welcome: Line & { from: Speaker }, messages: readonly WidgetMes
       continue
     }
     const author = message.from === 'agent' ? message.author : null
-    const line = { id: message.id, body: message.body, at: message.at }
+    const line = {
+      id: message.id,
+      body: message.body,
+      at: message.at,
+      ...(message.attachments ? { attachments: message.attachments } : {}),
+    }
     const last = items[items.length - 1]
     if (last?.kind === 'group' && last.from === message.from && last.author === author)
       last.lines.push(line)
@@ -157,6 +190,11 @@ export function App({
   const [open, setOpen] = useState(() => !inEditor && wasOpen())
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
+  /** Files to send with the next message. */
+  const [files, setFiles] = useState<File[]>([])
+  const [emojiOpen, setEmojiOpen] = useState(false)
+  const [dropping, setDropping] = useState(false)
+  const picker = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [typing, setTyping] = useState<'ai' | 'agent' | null>(null)
   const [unread, setUnread] = useState(0)
@@ -333,17 +371,48 @@ export function App({
     if (!inEditor) remember(OPEN_KEY, next ? '1' : '0')
   }
 
+  function addFiles(chosen: readonly File[]) {
+    if (chosen.length === 0) return
+    const fitting = chosen.filter((file) => file.size <= MAX_BYTES)
+    setFiles((current) => [...current, ...fitting].slice(0, MAX_FILES))
+    setError(
+      fitting.length < chosen.length
+        ? t('Fichier refusé : images, PDF ou documents, 10 Mo au plus.')
+        : files.length + fitting.length > MAX_FILES
+          ? t('Cinq fichiers au plus par message.')
+          : null,
+    )
+    field.current?.focus()
+  }
+
+  function addEmoji(emoji: string) {
+    const element = field.current
+    const at = element?.selectionStart ?? draft.length
+    const end = element?.selectionEnd ?? at
+    setDraft(draft.slice(0, at) + emoji + draft.slice(end))
+    setEmojiOpen(false)
+    requestAnimationFrame(() => {
+      element?.focus()
+      element?.setSelectionRange(at + emoji.length, at + emoji.length)
+    })
+  }
+
   async function send(text = draft) {
     const body = text.trim()
-    if (!body || sending) return
+    const sendingFiles = text === draft ? files : []
+    if ((!body && sendingFiles.length === 0) || sending) return
     setSending(true)
     setError(null)
     try {
       const data = pendingData.current
-      const next = await api.send(body, Object.keys(data).length > 0 ? data : undefined)
-      pendingData.current = {}
+      const next =
+        sendingFiles.length > 0
+          ? await api.sendFiles(sendingFiles, body)
+          : await api.send(body, Object.keys(data).length > 0 ? data : undefined)
+      if (sendingFiles.length === 0) pendingData.current = {}
       emit('message:sent', { body })
       setDraft('')
+      setFiles([])
       if (field.current) field.current.style.height = 'auto'
       apply(next)
       setFollowing(true)
@@ -353,7 +422,9 @@ export function App({
       setError(
         failure instanceof WidgetFailure && failure.code === 'RATE_LIMITED'
           ? t('Trop de messages d’un coup : patientez un instant.')
-          : t('Le message n’est pas parti. Réessayez.'),
+          : failure instanceof WidgetFailure && failure.code === 'ATTACHMENT_REFUSED'
+            ? t('Fichier refusé : images, PDF ou documents, 10 Mo au plus.')
+            : t('Le message n’est pas parti. Réessayez.'),
       )
     } finally {
       setSending(false)
@@ -500,6 +571,7 @@ export function App({
                   }
                   avatar={avatarOf(item.from, item.author)}
                   lines={item.lines}
+                  fileUrl={(path) => api.fileUrl(path)}
                 />
               ),
             )}
@@ -538,13 +610,64 @@ export function App({
           </div>
 
           <form
-            class="composer"
+            class={dropping ? 'composer dropping' : 'composer'}
             onSubmit={(event) => {
               event.preventDefault()
               void send()
             }}
+            onDragOver={(event) => {
+              if (!event.dataTransfer?.types.includes('Files')) return
+              event.preventDefault()
+              setDropping(true)
+            }}
+            onDragLeave={() => setDropping(false)}
+            onDrop={(event) => {
+              const dropped = [...(event.dataTransfer?.files ?? [])]
+              if (dropped.length === 0) return
+              event.preventDefault()
+              setDropping(false)
+              addFiles(dropped)
+            }}
           >
+            {dropping && <div class="drop">{t('Déposez vos fichiers ici')}</div>}
             {error && <div class="error">{error}</div>}
+            {emojiOpen && (
+              <fieldset class="emoji" aria-label={t('Emoji')}>
+                {EMOJI.map((emoji) => (
+                  <button key={emoji} type="button" onClick={() => addEmoji(emoji)}>
+                    {emoji}
+                  </button>
+                ))}
+              </fieldset>
+            )}
+            {files.length > 0 && (
+              <ul class="pending">
+                {files.map((file, index) => (
+                  <li key={`${file.name}-${file.size}-${file.lastModified}`}>
+                    <PendingFile file={file} />
+                    <span class="pending-name">{file.name}</span>
+                    <button
+                      type="button"
+                      aria-label={t('Retirer {name}', { name: file.name })}
+                      onClick={() => setFiles(files.filter((_, i) => i !== index))}
+                    >
+                      <CloseIcon />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <input
+              ref={picker}
+              type="file"
+              multiple
+              hidden
+              accept={ACCEPT}
+              onChange={(event) => {
+                addFiles([...(event.currentTarget.files ?? [])])
+                event.currentTarget.value = ''
+              }}
+            />
             <div class="field">
               <textarea
                 ref={field}
@@ -565,12 +688,35 @@ export function App({
                     void send()
                   }
                 }}
+                onPaste={(event) => {
+                  const pasted = [...(event.clipboardData?.files ?? [])]
+                  if (pasted.length === 0) return
+                  event.preventDefault()
+                  addFiles(pasted)
+                }}
               />
+              <button
+                type="button"
+                class="tool"
+                aria-label={t('Emoji')}
+                aria-expanded={emojiOpen}
+                onClick={() => setEmojiOpen((open) => !open)}
+              >
+                <SmileIcon />
+              </button>
+              <button
+                type="button"
+                class="tool"
+                aria-label={t('Joindre un fichier')}
+                onClick={() => picker.current?.click()}
+              >
+                <PaperclipIcon />
+              </button>
               <button
                 type="submit"
                 class="send"
                 aria-label={t('Envoyer')}
-                disabled={!draft.trim() || sending}
+                disabled={(!draft.trim() && files.length === 0) || sending}
               >
                 <SendIcon />
               </button>
@@ -626,16 +772,81 @@ export function App({
   )
 }
 
+/** A file about to go: its picture, or its icon. */
+function PendingFile({ file }: { readonly file: File }) {
+  const [url, setUrl] = useState<string | null>(null)
+  useEffect(() => {
+    if (!file.type.startsWith('image/')) return
+    const made = URL.createObjectURL(file)
+    setUrl(made)
+    return () => URL.revokeObjectURL(made)
+  }, [file])
+  return url ? (
+    <img class="pending-thumb" src={url} alt="" />
+  ) : (
+    <span class="pending-thumb">
+      <FileIcon />
+    </span>
+  )
+}
+
+/** The files of a message: pictures to open, the rest to download. */
+function Files({
+  items,
+  fileUrl,
+}: {
+  readonly items: readonly WidgetAttachment[]
+  readonly fileUrl: (path: string) => string
+}) {
+  return (
+    <div class="files">
+      {items.map((file) =>
+        file.mime.startsWith('image/') ? (
+          <a
+            key={file.id}
+            class="shot"
+            href={fileUrl(file.url)}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={t('Ouvrir {name}', { name: file.name })}
+          >
+            <img src={fileUrl(file.url)} alt={file.name} loading="lazy" />
+          </a>
+        ) : (
+          <a
+            key={file.id}
+            class="file"
+            href={fileUrl(file.url)}
+            target="_blank"
+            rel="noreferrer"
+            download={file.name}
+          >
+            <span class="file-icon">
+              <FileIcon />
+            </span>
+            <span class="file-text">
+              <span class="file-name">{file.name}</span>
+              <span class="file-size">{sizeOf(file.size)}</span>
+            </span>
+          </a>
+        ),
+      )}
+    </div>
+  )
+}
+
 function Group({
   from,
   name,
   avatar,
   lines,
+  fileUrl = (path) => path,
 }: {
   readonly from: Speaker
   readonly name: string | null
   readonly avatar: preact.ComponentChild
   readonly lines: readonly Line[]
+  readonly fileUrl?: (path: string) => string
 }) {
   const mine = from === 'visitor'
   const at = lines[lines.length - 1]?.at ?? null
@@ -655,9 +866,16 @@ function Group({
           </div>
         )}
         {lines.map((line, index) => (
-          <div key={line.id} class={index === lines.length - 1 ? 'bubble tail' : 'bubble'}>
-            {mine ? line.body : <Markdown text={line.body} />}
-          </div>
+          <Fragment key={line.id}>
+            {line.body && (
+              <div class={index === lines.length - 1 ? 'bubble tail' : 'bubble'}>
+                {mine ? line.body : <Markdown text={line.body} />}
+              </div>
+            )}
+            {line.attachments && line.attachments.length > 0 && (
+              <Files items={line.attachments} fileUrl={fileUrl} />
+            )}
+          </Fragment>
         ))}
         {at && <div class="time">{clock(at)}</div>}
       </div>

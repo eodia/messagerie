@@ -67,15 +67,40 @@ interface MessageBase {
   readonly at: string
 }
 
+/** What the AI made of a file, when an agent asked. */
+export interface AttachmentAnalysis {
+  readonly summary: string
+  readonly model: string
+  readonly at: string
+  /** The agent who asked. */
+  readonly by: string
+}
+
+/**
+ * A file sent with a message. `url`, relative to the chat server's address, reads it for a
+ * day without a token: an `<img>` can.
+ */
+export interface Attachment {
+  readonly id: string
+  readonly name: string
+  readonly mime: string
+  readonly size: number
+  readonly url: string
+  readonly analysis: AttachmentAnalysis | null
+}
+
 export interface VisitorMessage extends MessageBase {
   readonly kind: 'visitor'
+  /** Empty when the visitor only sent files. */
   readonly body: string
+  readonly attachments: readonly Attachment[]
 }
 
 export interface AgentMessage extends MessageBase {
   readonly kind: 'agent'
   readonly author: string
   readonly body: string
+  readonly attachments: readonly Attachment[]
 }
 
 export interface AiMessage extends MessageBase {
@@ -91,6 +116,7 @@ export interface NoteMessage extends MessageBase {
   readonly kind: 'note'
   readonly author: string
   readonly body: string
+  readonly attachments: readonly Attachment[]
 }
 
 /**

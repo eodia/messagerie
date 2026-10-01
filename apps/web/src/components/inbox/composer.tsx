@@ -1,5 +1,6 @@
 'use client'
 
+import { EmojiPicker } from '@/components/app/emoji-picker'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -21,14 +22,17 @@ import {
   CircleCheck,
   LoaderCircle,
   MessageSquare,
+  Paperclip,
   RefreshCw,
   SendHorizontal,
+  SmilePlus,
   Sparkles,
   StickyNote,
   WandSparkles,
   X,
 } from 'lucide-react'
-import { type ReactNode, type RefObject, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from 'react'
+import { iconOf, sizeLabel } from './attachments'
 
 type Mode = 'reply' | 'note'
 
@@ -94,9 +98,48 @@ export function Composer({
   const [highlight, setHighlight] = useState(0)
   const [rewording, setRewording] = useState(false)
   const [asking, setAsking] = useState(false)
+  /** Files to send with the next message, and why the last ones were refused. */
+  const [files, setFiles] = useState<File[]>([])
+  const [refused, setRefused] = useState<string | null>(null)
+  const [dropping, setDropping] = useState(false)
+  const picker = useRef<HTMLInputElement>(null)
 
   const suggestions = conversation.suggestions
-  const canSend = draft.trim() !== '' && !sending
+  const canSend = (draft.trim() !== '' || files.length > 0) && !sending
+
+  // Another conversation: the files chosen for this one are not carried over.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the conversation is the trigger
+  useEffect(() => {
+    setFiles([])
+    setRefused(null)
+  }, [conversation.id])
+
+  function addFiles(chosen: readonly File[]) {
+    if (chosen.length === 0) return
+    const tooBig = chosen.filter((f) => f.size > MAX_BYTES)
+    const fitting = chosen.filter((f) => f.size <= MAX_BYTES)
+    const next = [...files, ...fitting].slice(0, MAX_FILES)
+    setFiles(next)
+    setRefused(
+      tooBig.length > 0
+        ? $t('« {name} » dépasse 10 Mo.', { name: tooBig[0]?.name ?? '' })
+        : files.length + fitting.length > MAX_FILES
+          ? $t('Cinq fichiers au plus par message.')
+          : null,
+    )
+    inputRef.current?.focus()
+  }
+
+  function addEmoji(emoji: string) {
+    const field = inputRef.current
+    const at = field?.selectionStart ?? draft.length
+    const end = field?.selectionEnd ?? at
+    setDraft(conversation.id, draft.slice(0, at) + emoji + draft.slice(end))
+    requestAnimationFrame(() => {
+      field?.focus()
+      field?.setSelectionRange(at + emoji.length, at + emoji.length)
+    })
+  }
 
   useEffect(() => {
     void loadCanned().then(setCanned)
@@ -121,8 +164,12 @@ export function Composer({
 
   async function submit(andResolve = false) {
     if (!canSend) return
-    // A refused send keeps the draft; the inbox says why.
-    if (await send(conversation.id, draft.trim(), mode, andResolve)) setFromCopilot(false)
+    // A refused send keeps the draft and the files; the inbox says why.
+    if (await send(conversation.id, draft.trim(), mode, andResolve, files)) {
+      setFromCopilot(false)
+      setFiles([])
+      setRefused(null)
+    }
   }
 
   function take(suggestion: string) {
@@ -243,7 +290,29 @@ export function Composer({
         </div>
       )}
 
-      <div className="relative p-3 pt-2">
+      <div
+        className="relative p-3 pt-2"
+        onDragOver={(event) => {
+          if (!event.dataTransfer.types.includes('Files')) return
+          event.preventDefault()
+          setDropping(true)
+        }}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropping(false)
+        }}
+        onDrop={(event) => {
+          if (!event.dataTransfer.files.length) return
+          event.preventDefault()
+          setDropping(false)
+          addFiles([...event.dataTransfer.files])
+        }}
+      >
+        {dropping && (
+          <div className="pointer-events-none absolute inset-3 top-2 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-primary/60 bg-background/90 text-sm font-medium">
+            <Paperclip className="mr-2 size-4" />
+            {$t('Déposez les fichiers ici')}
+          </div>
+        )}
         {listing && (
           <div className="absolute inset-x-3 bottom-full z-20 mb-1 overflow-hidden rounded-lg border bg-popover shadow-lg">
             <div className="flex items-center gap-2 border-b px-3 py-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
@@ -306,10 +375,27 @@ export function Composer({
           )}
         >
           <div className={cn('rounded-[11px]', mode === 'note' ? 'bg-note' : 'bg-background')}>
+            {files.length > 0 && (
+              <ul className="flex flex-wrap gap-1.5 px-2.5 pt-2.5">
+                {files.map((file, index) => (
+                  <PendingFile
+                    key={`${file.name}-${file.size}-${file.lastModified}`}
+                    file={file}
+                    onRemove={() => setFiles(files.filter((_, i) => i !== index))}
+                  />
+                ))}
+              </ul>
+            )}
             <textarea
               ref={inputRef}
               value={draft}
               onChange={(event) => setDraft(conversation.id, event.target.value)}
+              onPaste={(event) => {
+                const pasted = [...event.clipboardData.files]
+                if (pasted.length === 0) return
+                event.preventDefault()
+                addFiles(pasted)
+              }}
               onBlur={() => setBrowsing(false)}
               onKeyDown={(event) => {
                 if (listing && matches.length > 0) {
@@ -349,7 +435,44 @@ export function Composer({
               }
               className="field-sizing-content block max-h-48 min-h-16 w-full resize-none bg-transparent px-3 pt-2.5 pb-1 text-sm outline-none placeholder:text-muted-foreground"
             />
+            {refused && (
+              <p className="px-3 pb-1 text-xs text-destructive" role="alert">
+                {refused}
+              </p>
+            )}
             <div className="flex items-center gap-0.5 px-1.5 pb-1.5">
+              <input
+                ref={picker}
+                type="file"
+                multiple
+                hidden
+                accept={ACCEPT}
+                onChange={(event) => {
+                  addFiles([...(event.target.files ?? [])])
+                  event.target.value = ''
+                }}
+              />
+              <Hint label={$t('Joindre des fichiers — ou glissez-les, ou collez une image')}>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={$t('Joindre des fichiers')}
+                  className="size-7 text-muted-foreground"
+                  onClick={() => picker.current?.click()}
+                >
+                  <Paperclip className="size-4" />
+                </Button>
+              </Hint>
+              <EmojiPicker onPick={addEmoji}>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={$t('Emoji')}
+                  className="size-7 text-muted-foreground"
+                >
+                  <SmilePlus className="size-4" />
+                </Button>
+              </EmojiPicker>
               {mode === 'reply' && (
                 <Hint label={$t('Réponses types — ou « / » dans le texte')}>
                   <Button
@@ -444,6 +567,46 @@ export function Composer({
         </div>
       </div>
     </div>
+  )
+}
+
+/** What the composer takes: what the server keeps (images, PDF, text, Word, Excel). */
+const ACCEPT = 'image/png,image/jpeg,image/gif,image/webp,application/pdf,.txt,.csv,.md,.docx,.xlsx'
+const MAX_BYTES = 10 * 1024 * 1024
+const MAX_FILES = 5
+
+/** A file waiting to go: a thumbnail for an image, a card for the rest. */
+function PendingFile({ file, onRemove }: { readonly file: File; readonly onRemove: () => void }) {
+  const [preview, setPreview] = useState<string | null>(null)
+  useEffect(() => {
+    if (!file.type.startsWith('image/')) return
+    const url = URL.createObjectURL(file)
+    setPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file])
+  const Icon = iconOf(file.type)
+  return (
+    <li className="group relative flex h-12 max-w-56 items-center gap-2 rounded-lg border bg-muted/40 pr-7 pl-1.5">
+      {preview ? (
+        <img src={preview} alt="" className="size-9 shrink-0 rounded-md object-cover" />
+      ) : (
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-background">
+          <Icon className="size-4 text-muted-foreground" />
+        </span>
+      )}
+      <span className="min-w-0">
+        <span className="block truncate text-xs font-medium">{file.name}</span>
+        <span className="block text-[10px] text-muted-foreground">{sizeLabel(file.size)}</span>
+      </span>
+      <button
+        type="button"
+        aria-label={$t('Retirer {name}', { name: file.name })}
+        onClick={onRemove}
+        className="absolute top-1 right-1 rounded-sm p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+      >
+        <X className="size-3.5" />
+      </button>
+    </li>
   )
 }
 

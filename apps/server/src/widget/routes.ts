@@ -5,6 +5,8 @@ import { type Context, Hono } from 'hono'
 import { cors } from 'hono/cors'
 import type { UpgradeWebSocket } from 'hono/ws'
 import type { TicketBook } from '../auth/tickets.js'
+import { filesOf, readUploads } from '../files/attachments.js'
+import { uploadLimit } from '../files/routes.js'
 import { readPatch, readProfile } from '../inbox/metadata.js'
 import { Refusal } from '../refusal.js'
 import { RateLimiter, type WidgetHub } from './hub.js'
@@ -99,6 +101,17 @@ export function widgetRoutes(
     return c.json(
       await postVisitorMessage(deps, visitor, body, data === undefined ? null : readPatch(data)),
     )
+  })
+
+  // Files, with or without words: multipart, `file` once per file, and `body`.
+  widget.post('/attachments', uploadLimit, async (c) => {
+    const visitor = await visitorFrom(deps, bearer(c), c.req.header('origin'))
+    if (!posts.allow(visitor.contactId)) throw new Refusal('RATE_LIMITED', 429)
+    const form = await c.req.parseBody({ all: true })
+    const uploads = await readUploads(filesOf(form))
+    if (uploads.length === 0) throw new Refusal('INVALID_REQUEST', 400, { field: 'file' })
+    const body = typeof form.body === 'string' ? form.body : ''
+    return c.json(await postVisitorMessage(deps, visitor, body, null, uploads))
   })
 
   /** `MessagerieChat.setUser` and `setContactData`. */

@@ -107,7 +107,7 @@ export async function startJobs(
       }
     })
     await boss.work(QUEUES.retention, async () => {
-      const purged = await purgeExpired(deps.db as Db, deps.settings)
+      const purged = await purgeExpired(deps.db as Db, deps.settings, new Date(), deps.files)
       if (purged > 0) console.log(`chat : rétention — ${purged} conversation(s) purgée(s)`)
     })
     // Every night at three, in the server's time zone.

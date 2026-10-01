@@ -2,6 +2,7 @@ import { type ChatMessage, Redactor } from '@chat/ai'
 import { desc, eq } from 'drizzle-orm'
 import type { Db } from '../db/client.js'
 import { agents, contacts, conversations, messages } from '../db/schema.js'
+import { attachmentsOf } from '../files/attachments.js'
 import { type Availability, availability } from '../settings/hours.js'
 import type { Settings, Site } from '../settings/settings.js'
 import type { Found, Knowledge } from './knowledge.js'
@@ -56,17 +57,34 @@ export async function loadContext(
     .orderBy(desc(messages.createdAt))
     .limit(HISTORY * 2)
   const thread = recent.reverse().filter(({ message }) => message.kind === 'text')
+  // A file is named to the model, with what the AI made of it when an agent asked.
+  const files = await attachmentsOf(
+    db,
+    thread.map(({ message }) => message.id),
+  )
+  const said = (message: (typeof thread)[number]['message']) =>
+    [
+      message.body,
+      ...(files.get(message.id) ?? []).map(
+        (file) =>
+          `[Pièce jointe : « ${file.name} » (${file.mime})${
+            file.analysis ? ` — ce qu'on y voit : ${file.analysis.summary}` : ' — pas encore lue'
+          }]`,
+      ),
+    ]
+      .filter(Boolean)
+      .join('\n')
 
   const redactor = new Redactor(redact)
   const history: ChatMessage[] = thread.slice(-HISTORY).map(({ message, agent }) =>
     message.author === 'contact'
-      ? { role: 'user', content: redactor.mask(message.body) }
+      ? { role: 'user', content: redactor.mask(said(message)) }
       : {
           role: 'assistant',
           content: redactor.mask(
             message.author === 'agent'
-              ? `[${agent ?? 'Conseiller'}] ${message.body}`
-              : message.body,
+              ? `[${agent ?? 'Conseiller'}] ${said(message)}`
+              : said(message),
           ),
         },
   )

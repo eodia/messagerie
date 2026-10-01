@@ -149,6 +149,31 @@ export class PreviewBackend implements Backend {
     return current
   }
 
+  /** The files stay in the editor's page: shown from the browser's memory. */
+  async sendFiles(files: readonly File[], body: string): Promise<VisitorConversation> {
+    const conversation = await this.send(body || ' ')
+    const last = conversation.messages[conversation.messages.length - 1]
+    if (last && last.from === 'visitor') {
+      const attachments = files.map((file, index) => ({
+        id: `${last.id}-${index}`,
+        name: file.name,
+        mime: file.type,
+        size: file.size,
+        url: URL.createObjectURL(file),
+      }))
+      const withFiles = { ...last, body: body.trim(), attachments }
+      this.conversationNow = {
+        ...conversation,
+        messages: [...conversation.messages.slice(0, -1), withFiles],
+      }
+    }
+    return this.conversationNow ?? conversation
+  }
+
+  fileUrl(path: string): string {
+    return path
+  }
+
   follow(onEvent: (event: WidgetEvent) => void): () => void {
     this.listeners.add(onEvent)
     return () => this.listeners.delete(onEvent)

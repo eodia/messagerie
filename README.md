@@ -26,8 +26,8 @@ Les décisions qui expliquent le reste sont dans
 |---|---|
 | Modèle basedb « Messagerie » | 13 tables, validé par le validateur de basedb, avec les lignes de démonstration d'Acme Assurances |
 | Serveur (`apps/server`) | API de l'inbox et du widget, temps réel par WebSocket et `LISTEN/NOTIFY`, schéma `chat` en Drizzle, tâches pg-boss, tests d'intégration |
-| Inbox (`apps/web`) | Boîtes de réception, conversations, transferts, métadonnées, contacts, base de connaissance rédigée sur place (éditeur, publication pour l’IA), statistiques ; paramétrage complet ; volets redimensionnables |
-| Widget (`apps/widget`) | Preact dans un Shadow DOM, ~50 Ko ; visiteur anonyme ou client connecté (identité signée par le site) ; apparence réglée par site ; API JavaScript `window.MessagerieChat` |
+| Inbox (`apps/web`) | Boîtes de réception, conversations, transferts, métadonnées, contacts, base de connaissance rédigée sur place (éditeur, publication pour l’IA), pièces jointes lues par l’IA sur demande, emoji, statistiques ; paramétrage complet ; volets redimensionnables |
+| Widget (`apps/widget`) | Preact dans un Shadow DOM, ~60 Ko ; visiteur anonyme ou client connecté (identité signée par le site) ; apparence réglée par site ; API JavaScript `window.MessagerieChat` ; pièces jointes et emoji |
 | IA (`packages/ai`) | Mistral par défaut (tout serveur compatible OpenAI) ; réponses sourcées, seuil de confiance, garde-fous, transfert avec résumé, données personnelles masquées |
 | Outils de l'IA | Lecture dans basedb, appels HTTP (en-têtes et jetons lus dans l'environnement), rappels, serveurs MCP |
 | Alertes | Son, notifications du bureau, pastilles de l'onglet, cloche par conseiller, réglables |

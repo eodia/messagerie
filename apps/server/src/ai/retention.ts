@@ -1,15 +1,23 @@
 import { and, eq, lt, notExists, sql } from 'drizzle-orm'
 import type { Db } from '../db/client.js'
 import { contacts, conversations } from '../db/schema.js'
+import type { FileStore } from '../files/store.js'
 import type { Settings } from '../settings/settings.js'
 
 /**
  * The retention of each site (« Conservation (jours) », framing: « purge automatique »):
  * a conversation quiet for longer is deleted with its messages, attachments, traces and
- * the passages indexed from it (they all cascade); then the contacts left with none.
+ * the passages indexed from it (they all cascade), and its files; then the contacts left
+ * with none.
  * Returns how many conversations went.
  */
-export async function purgeExpired(db: Db, settings: Settings, now = new Date()): Promise<number> {
+export async function purgeExpired(
+  db: Db,
+  settings: Settings,
+  now = new Date(),
+  /** Where the conversations' files are: each purged conversation's folder goes too. */
+  files: FileStore | null = null,
+): Promise<number> {
   let purged = 0
   for (const site of await settings.sites()) {
     if (site.retentionDays === null || site.retentionDays <= 0) continue
@@ -19,6 +27,7 @@ export async function purgeExpired(db: Db, settings: Settings, now = new Date())
       .where(and(eq(conversations.siteId, site.id), lt(conversations.lastMessageAt, before)))
       .returning({ id: conversations.id })
     purged += gone.length
+    for (const { id } of gone) await files?.removeConversation(id)
     await db
       .delete(contacts)
       .where(

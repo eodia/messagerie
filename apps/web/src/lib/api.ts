@@ -1,6 +1,7 @@
 import type {
   Agent,
   ApiError,
+  Attachment,
   CannedReply,
   ContactDetail,
   ContactListItem,
@@ -48,6 +49,9 @@ export function configureApi(url: string): void {
 
 export const apiAddress = (): string => base
 
+/** A file's address: the server signs a path, read from its own host. */
+export const fileUrl = (path: string): string => `${base}${path}`
+
 /** The inbox's WebSocket, on the same host as the API, opened with a one-use ticket. */
 export const eventsUrl = (ticket: string): string =>
   `${base.replace(/^http/, 'ws')}/api/inbox/events?ticket=${encodeURIComponent(ticket)}`
@@ -82,8 +86,10 @@ async function request<T>(
     }
     throw error
   }
+  const form = body instanceof FormData
   const headers: Record<string, string> = {}
-  if (body !== undefined) headers['content-type'] = 'application/json'
+  // A form says its own type, with the boundary of its parts.
+  if (body !== undefined && !form) headers['content-type'] = 'application/json'
   if (token !== null) headers.authorization = `Bearer ${token}`
 
   let response: Response
@@ -91,7 +97,7 @@ async function request<T>(
     response = await fetch(`${base}/api/inbox${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : form ? body : JSON.stringify(body),
     })
   } catch {
     throw new ApiFailure('UNREACHABLE', 0)
@@ -162,6 +168,21 @@ export const api = {
   deleteRow: (table: string, id: string) =>
     request<void>('DELETE', `/settings/${encodeURIComponent(table)}/${encodeURIComponent(id)}`),
   inviteAgent: (body: InviteBody) => request<Invited>('POST', '/agents/invite', body),
+  /** A reply or a note with files — words optional. */
+  sendFiles: (
+    id: string,
+    files: readonly File[],
+    message: { readonly body: string; readonly kind: 'reply' | 'note'; readonly resolve?: boolean },
+  ) => {
+    const form = new FormData()
+    for (const file of files) form.append('file', file, file.name)
+    form.append('body', message.body)
+    form.append('kind', message.kind)
+    if (message.resolve) form.append('resolve', 'true')
+    return request<Conversation>('POST', `${conversation(id)}/attachments`, form)
+  },
+  analyzeAttachment: (id: string) =>
+    request<Attachment>('POST', `/attachments/${encodeURIComponent(id)}/analysis`),
   resetAgentPassword: (rowId: string) =>
     request<PasswordReset>('POST', `/agents/${encodeURIComponent(rowId)}/password`),
   widget: () => request<WidgetEditor>('GET', '/widget'),

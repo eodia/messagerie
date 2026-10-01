@@ -1,3 +1,5 @@
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { WidgetSession } from '@chat/contracts'
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql'
 import { and, eq } from 'drizzle-orm'
@@ -124,6 +126,7 @@ beforeAll(async () => {
   supervisor = rows[0] as AgentRow
   autoAgent = rows[1] as AgentRow
   const config: Config = {
+    filesDir: join(tmpdir(), 'chat-test-files'),
     port: 0,
     databaseUrl: container.getConnectionUri(),
     webOrigin: 'http://localhost:3210',

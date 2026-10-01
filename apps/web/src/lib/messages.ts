@@ -27,6 +27,16 @@ export function messageFor(code: string): string {
       return $t('La connexion en direct a expiré ; elle se rétablit seule.')
     case 'AGENT_NOT_FOUND':
       return $t('Ce conseiller n’est plus actif.')
+    case 'ATTACHMENT_REFUSED':
+      return $t(
+        'Fichier refusé : images, PDF, textes, Word ou Excel, 10 Mo au plus, cinq à la fois.',
+      )
+    case 'ATTACHMENT_NOT_FOUND':
+      return $t('Ce fichier n’existe plus.')
+    case 'ATTACHMENT_NOT_ANALYZABLE':
+      return $t(
+        'L’IA ne sait pas lire ce fichier avec le modèle configuré (images, PDF et textes seulement).',
+      )
     case 'AI_UNAVAILABLE':
       return $t('Aucun modèle d’IA n’est configuré sur le serveur (CHAT_AI_API_KEY).')
     case 'PROMOTION_UNAVAILABLE':

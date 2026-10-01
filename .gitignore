@@ -12,6 +12,9 @@ out/
 # Tests
 coverage/
 
+# Files sent in conversations, in development
+.files/
+
 # Env
 .env
 .env.local

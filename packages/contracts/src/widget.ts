@@ -6,6 +6,15 @@
 
 import type { MetadataValue } from './inbox.js'
 
+/** A file as the visitor sees it: no analysis of the team's. */
+export interface WidgetAttachment {
+  readonly id: string
+  readonly name: string
+  readonly mime: string
+  readonly size: number
+  readonly url: string
+}
+
 /** A message as the visitor sees it. An answer of the AI always says it is one (framing). */
 export type WidgetMessage =
   | {
@@ -13,6 +22,7 @@ export type WidgetMessage =
       readonly at: string
       readonly from: 'visitor' | 'ai'
       readonly body: string
+      readonly attachments?: readonly WidgetAttachment[]
     }
   | {
       readonly id: string
@@ -21,6 +31,7 @@ export type WidgetMessage =
       readonly body: string
       /** The agent's first name — no more. */
       readonly author: string
+      readonly attachments?: readonly WidgetAttachment[]
     }
   | {
       readonly id: string

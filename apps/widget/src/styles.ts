@@ -278,6 +278,79 @@ img.person-avatar { object-fit: cover; background: #fff; }
 .send:disabled { opacity: .35; cursor: default; }
 .send svg { width: 18px; height: 18px; }
 .error { margin: 0 4px 6px; font-size: 13px; color: #be123c; }
+.composer { position: relative; }
+.tool {
+  flex: none; width: 32px; height: 38px; border: 0; border-radius: 10px; background: transparent;
+  color: var(--muted); display: grid; place-items: center; transition: color .15s, background .15s;
+}
+.tool:hover, .tool[aria-expanded="true"] { color: var(--ink); background: var(--canvas); }
+.tool svg { width: 19px; height: 19px; }
+
+/* The emoji, above the field. */
+.emoji {
+  min-width: 0; min-inline-size: 0; display: grid; grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 2px; margin: 0 0 8px; padding: 6px;
+  border: 1px solid var(--line); border-radius: 14px; background: var(--surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.08); animation: rise .18s cubic-bezier(.2,.8,.2,1);
+}
+.emoji button {
+  aspect-ratio: 1; padding: 0; border: 0; border-radius: 8px; background: transparent; font-size: 18px;
+  line-height: 1; transition: transform .1s, background .1s;
+}
+.emoji button:hover { background: var(--canvas); transform: scale(1.15); }
+
+/* The files about to go. */
+.pending { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; padding: 0; }
+.pending li {
+  display: flex; align-items: center; gap: 8px; max-width: 100%; padding: 4px 4px 4px 4px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--canvas);
+  animation: rise .2s cubic-bezier(.2,.8,.2,1);
+}
+.pending-thumb {
+  width: 34px; height: 34px; flex: none; border-radius: 8px; object-fit: cover;
+  display: grid; place-items: center; background: var(--surface); color: var(--muted);
+}
+.pending-thumb svg { width: 17px; height: 17px; }
+.pending-name { font-size: 12.5px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pending button {
+  width: 22px; height: 22px; border: 0; border-radius: 6px; background: transparent; color: var(--muted);
+  display: grid; place-items: center;
+}
+.pending button:hover { color: var(--ink); background: var(--surface); }
+.pending button svg { width: 14px; height: 14px; }
+
+/* Dropping files on the composer. */
+.drop {
+  position: absolute; inset: 6px 10px; z-index: 2; display: grid; place-items: center;
+  border: 2px dashed color-mix(in srgb, var(--accent) 70%, var(--line)); border-radius: var(--r-field);
+  background: color-mix(in srgb, var(--surface) 92%, transparent); font-size: 14px; font-weight: 600;
+  pointer-events: none;
+}
+
+/* The files of a message. */
+.files { display: flex; flex-direction: column; gap: 4px; max-width: 240px; }
+.group.mine .files { align-items: flex-end; }
+.shot {
+  display: block; overflow: hidden; border-radius: 16px; border: 1px solid var(--line);
+  background: var(--canvas); animation: rise .22s cubic-bezier(.2,.8,.2,1);
+}
+.shot img { display: block; max-width: 240px; max-height: 220px; width: 100%; object-fit: cover; transition: transform .3s; }
+.shot:hover img { transform: scale(1.03); }
+.file {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px 8px 8px; border-radius: 14px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink); text-decoration: none;
+  transition: border-color .15s; animation: rise .22s cubic-bezier(.2,.8,.2,1);
+}
+.file:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+.file-icon {
+  width: 34px; height: 34px; flex: none; border-radius: 10px; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  color: color-mix(in oklab, var(--accent) 75%, var(--ink));
+}
+.file-icon svg { width: 17px; height: 17px; }
+.file-text { display: flex; flex-direction: column; min-width: 0; }
+.file-name { font-size: 13px; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px; }
+.file-size { font-size: 11.5px; color: var(--muted); }
 .foot { padding: 6px 0 2px; text-align: center; font-size: 11.5px; color: var(--muted); }
 .disclosure { font-size: 11.5px; color: var(--muted); margin: 4px 12px 0; }
 

@@ -12,10 +12,12 @@ import {
   accessLog,
   agents,
   aiFeedback,
+  attachments,
   conversations,
   messages,
   notifications,
 } from '../db/schema.js'
+import type { AttachRows } from '../files/attachments.js'
 import { signalChange } from '../realtime/signals.js'
 import { Refusal } from '../refusal.js'
 import type { Settings } from '../settings/settings.js'
@@ -88,24 +90,33 @@ export async function sendMessage(
   agent: AgentRow,
   id: string,
   request: SendMessageBody,
+  /** The rows of the files sent with it, given the message's id. */
+  attach?: AttachRows,
 ): Promise<Conversation> {
   const body = request.body.trim()
-  if (body === '') throw new Refusal('EMPTY_MESSAGE', 400)
+  if (body === '' && !attach) throw new Refusal('EMPTY_MESSAGE', 400)
 
   await db.transaction(async (tx) => {
     const row = await lock(tx, id)
     const tick = clock()
+    const withFiles = async (messageId: string | undefined) => {
+      if (attach && messageId) await tx.insert(attachments).values(attach(messageId))
+    }
 
     if (request.kind === 'note') {
       const at = tick()
-      await tx.insert(messages).values({
-        conversationId: id,
-        author: 'agent',
-        kind: 'note',
-        agentId: agent.id,
-        body,
-        createdAt: at,
-      })
+      const [note] = await tx
+        .insert(messages)
+        .values({
+          conversationId: id,
+          author: 'agent',
+          kind: 'note',
+          agentId: agent.id,
+          body,
+          createdAt: at,
+        })
+        .returning({ id: messages.id })
+      await withFiles(note?.id)
       await tx.update(conversations).set({ updatedAt: at }).where(eq(conversations.id, id))
     } else {
       // Answering a resolved conversation opens it again, and says so.
@@ -115,14 +126,18 @@ export async function sendMessage(
           .values(eventRow(id, { type: 'reopened', agent: agent.name }, tick()))
       }
       const sentAt = tick()
-      await tx.insert(messages).values({
-        conversationId: id,
-        author: 'agent',
-        kind: 'text',
-        agentId: agent.id,
-        body,
-        createdAt: sentAt,
-      })
+      const [sent] = await tx
+        .insert(messages)
+        .values({
+          conversationId: id,
+          author: 'agent',
+          kind: 'text',
+          agentId: agent.id,
+          body,
+          createdAt: sentAt,
+        })
+        .returning({ id: messages.id })
+      await withFiles(sent?.id)
       if (request.resolve) {
         await tx
           .insert(messages)

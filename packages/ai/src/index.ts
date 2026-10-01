@@ -4,6 +4,7 @@ export {
   type ChatMessage,
   type Completion,
   type CompletionRequest,
+  type FilePart,
   type Llm,
   LlmFailure,
   type ToolCall,

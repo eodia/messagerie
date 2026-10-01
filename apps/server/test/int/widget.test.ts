@@ -1,3 +1,5 @@
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { VisitorConversation, WidgetSession } from '@chat/contracts'
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql'
 import { eq } from 'drizzle-orm'
@@ -35,6 +37,7 @@ beforeAll(async () => {
   await migrateDatabase(db)
   await db.insert(siteSecrets).values({ siteId: 'acme', identitySecret: SECRET })
   const config: Config = {
+    filesDir: join(tmpdir(), 'chat-test-files'),
     port: 0,
     databaseUrl: container.getConnectionUri(),
     webOrigin: 'http://localhost:3210',

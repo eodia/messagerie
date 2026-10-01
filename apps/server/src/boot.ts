@@ -6,6 +6,7 @@ import { McpConnections } from './ai/mcp.js'
 import { BasedbClient } from './basedb/client.js'
 import { type Config, ConfigError, readConfig } from './config.js'
 import { type Db, connect, migrateDatabase } from './db/client.js'
+import { DiskStore } from './files/store.js'
 import { Settings, TABLES } from './settings/settings.js'
 import { sourceFor } from './settings/source.js'
 
@@ -55,7 +56,16 @@ export async function boot(role: 'server' | 'worker'): Promise<Booted> {
     const work = role === 'worker' || process.env.CHAT_WORKER !== 'separate'
     const started = await startJobs(
       config.databaseUrl,
-      { db, settings, knowledge, llm: setup.llm, redact: setup.redact, basedb, mcp },
+      {
+        db,
+        settings,
+        knowledge,
+        llm: setup.llm,
+        redact: setup.redact,
+        basedb,
+        mcp,
+        files: new DiskStore(config.filesDir),
+      },
       { work },
     )
     stopJobs = started.stop

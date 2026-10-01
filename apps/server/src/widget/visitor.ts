@@ -9,6 +9,8 @@ import { and, asc, desc, eq } from 'drizzle-orm'
 import type { Config } from '../config.js'
 import type { Db } from '../db/client.js'
 import { agents, contacts, conversations, messages, siteSecrets } from '../db/schema.js'
+import { type Upload, attachmentsOf, forVisitor, keeping } from '../files/attachments.js'
+import type { FileStore } from '../files/store.js'
 import { createConversation, receiveVisitorMessage } from '../inbox/incoming.js'
 import {
   type MetadataPatch,
@@ -33,6 +35,8 @@ export interface WidgetDeps {
   readonly settings: Settings
   /** A model is configured: the sites that want it get the AI first. */
   readonly aiAvailable: boolean
+  /** Where the files the visitors send are kept. */
+  readonly files: FileStore
   /** Told of each visitor message — the AI's cue to answer. */
   readonly onVisitorMessage?: (conversationId: string) => void
 }
@@ -204,14 +208,27 @@ export async function visitorConversation(
     .where(eq(messages.conversationId, conversation.id))
     .orderBy(asc(messages.createdAt))
 
+  const files = await attachmentsOf(
+    db,
+    rows.map(({ message }) => message.id),
+  )
   const shown: WidgetMessage[] = []
   for (const { message, agent } of rows) {
     const base = { id: message.id, at: message.createdAt.toISOString() }
+    const attached = (files.get(message.id) ?? []).map(forVisitor)
+    const withFiles = attached.length > 0 ? { attachments: attached } : {}
     if (message.kind === 'text') {
-      if (message.author === 'contact') shown.push({ ...base, from: 'visitor', body: message.body })
-      else if (message.author === 'ai') shown.push({ ...base, from: 'ai', body: message.body })
+      if (message.author === 'contact') {
+        shown.push({ ...base, from: 'visitor', body: message.body, ...withFiles })
+      } else if (message.author === 'ai') shown.push({ ...base, from: 'ai', body: message.body })
       else if (message.author === 'agent') {
-        shown.push({ ...base, from: 'agent', body: message.body, author: firstName(agent) ?? '' })
+        shown.push({
+          ...base,
+          from: 'agent',
+          body: message.body,
+          author: firstName(agent) ?? '',
+          ...withFiles,
+        })
       }
     } else if (message.kind === 'handoff') {
       shown.push({ ...base, from: 'event', event: 'handoff', author: null })
@@ -242,9 +259,10 @@ export async function postVisitorMessage(
   visitor: VisitorClaims & { site: Site },
   body: string,
   data: MetadataPatch | null = null,
+  uploads: readonly Upload[] = [],
 ): Promise<VisitorConversation> {
   const text = body.trim()
-  if (text === '') throw new Refusal('EMPTY_MESSAGE', 400)
+  if (text === '' && uploads.length === 0) throw new Refusal('EMPTY_MESSAGE', 400)
   if (text.length > 4000) throw new Refusal('INVALID_REQUEST', 400, { max: 4000 })
   const current = await currentConversation(deps.db, visitor.contactId)
   const id =
@@ -256,7 +274,9 @@ export async function postVisitorMessage(
       await deps.settings.routeOf(visitor.site),
     ))
   if (data && Object.keys(data).length > 0) await patchConversationData(deps.db, id, data)
-  await receiveVisitorMessage(deps.db, id, text)
+  await keeping(deps.files, id, uploads, (attach) =>
+    receiveVisitorMessage(deps.db, id, text, attach),
+  )
   deps.onVisitorMessage?.(id)
   const conversation = await visitorConversation(deps.db, visitor.contactId)
   if (!conversation) throw new Refusal('INTERNAL_ERROR', 500)

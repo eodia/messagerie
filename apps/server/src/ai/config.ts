@@ -8,6 +8,10 @@ import { type Llm, OpenAiCompatible, PROVIDERS } from '@chat/ai'
  *   CHAT_AI_MODEL      mistral-small-latest by default
  *   CHAT_AI_API_KEY
  *   CHAT_AI_EMBEDDING_MODEL   mistral-embed by default: 1024 dimensions, the schema's
+ *   CHAT_AI_VISION_MODEL   the model that looks at images (attachments); CHAT_AI_MODEL
+ *                      by default — mistral-small-latest does
+ *   CHAT_AI_OCR_MODEL  reads PDF attachments: mistral-ocr-latest with Mistral, none
+ *                      elsewhere (`off` to do without)
  *   CHAT_AI_REDACT     0 to send personal data as it is; masked by default when the model
  *                      is hosted elsewhere (framing)
  *
@@ -31,6 +35,11 @@ export function readAi(env: NodeJS.ProcessEnv = process.env): AiSetup | null {
     apiKey,
     model: env.CHAT_AI_MODEL || 'mistral-small-latest',
     embeddingModel: env.CHAT_AI_EMBEDDING_MODEL || 'mistral-embed',
+    visionModel: env.CHAT_AI_VISION_MODEL || undefined,
+    ocrModel:
+      env.CHAT_AI_OCR_MODEL === 'off'
+        ? undefined
+        : env.CHAT_AI_OCR_MODEL || (provider === 'mistral' ? 'mistral-ocr-latest' : undefined),
     timeoutMs: 45_000,
   })
   return { llm, redact: env.CHAT_AI_REDACT === '0' ? false : llm.external }

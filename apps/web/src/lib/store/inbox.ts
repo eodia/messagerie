@@ -136,7 +136,14 @@ interface InboxState {
   /** A failure's code, shown like the refusal of an action. */
   fail: (error: unknown) => void
   say: (notice: string) => void
-  send: (id: string, body: string, kind: 'reply' | 'note', resolve?: boolean) => Promise<boolean>
+  /** With files, words are optional. */
+  send: (
+    id: string,
+    body: string,
+    kind: 'reply' | 'note',
+    resolve?: boolean,
+    files?: readonly File[],
+  ) => Promise<boolean>
   takeOver: (id: string) => Promise<void>
   resolve: (id: string) => Promise<void>
   assign: (id: string, assigneeId: string | null) => Promise<void>
@@ -368,9 +375,13 @@ export const useInbox = create<InboxState>((set, get) => {
       }, 6000)
     },
 
-    send: async (id, body, kind, resolve = false) => {
+    send: async (id, body, kind, resolve = false, files = []) => {
       set({ sending: true })
-      const sent = await act(id, () => api.send(id, { body, kind, resolve }))
+      const sent = await act(id, () =>
+        files.length > 0
+          ? api.sendFiles(id, files, { body, kind, resolve })
+          : api.send(id, { body, kind, resolve }),
+      )
       set((state) => ({
         sending: false,
         drafts: sent ? { ...state.drafts, [id]: '' } : state.drafts,

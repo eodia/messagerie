@@ -45,6 +45,7 @@ export const aiRunKind = chat.enum('ai_run_kind', [
   'tag',
   'summary',
   'rephrase',
+  'attachment',
 ])
 export const feedbackAction = chat.enum('feedback_action', ['accepted', 'edited', 'rejected'])
 export const tagOrigin = chat.enum('tag_origin', ['agent', 'ai'])
@@ -264,16 +265,35 @@ export const kbChunks = chat.table(
   ],
 )
 
-export const attachments = chat.table('attachment', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  messageId: uuid('message_id')
-    .notNull()
-    .references(() => messages.id, { onDelete: 'cascade' }),
-  storageKey: text('storage_key').notNull(),
-  mime: text('mime').notNull(),
-  size: integer('size').notNull(),
-  createdAt: createdAt(),
-})
+/** What the AI made of a file, at an agent's request. */
+export interface AttachmentAnalysis {
+  readonly summary: string
+  readonly model: string
+  readonly at: string
+  /** Who asked for it. */
+  readonly by: string
+}
+
+/**
+ * A file sent with a message, by the visitor or an agent. The bytes are in the file store
+ * (`storageKey`), never in the database; the name is the sender's, shown, never trusted.
+ */
+export const attachments = chat.table(
+  'attachment',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    messageId: uuid('message_id')
+      .notNull()
+      .references(() => messages.id, { onDelete: 'cascade' }),
+    storageKey: text('storage_key').notNull(),
+    name: text('name').notNull().default(''),
+    mime: text('mime').notNull(),
+    size: integer('size').notNull(),
+    analysis: jsonb('analysis').$type<AttachmentAnalysis>(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('attachment_message_idx').on(t.messageId)],
+)
 
 /**
  * The secret each site signs its visitors' identity with. Here, never in basedb, where

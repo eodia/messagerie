@@ -2,6 +2,7 @@ import {
   type ChatMessage,
   type Completion,
   type CompletionRequest,
+  type FilePart,
   type Llm,
   LlmFailure,
   type ToolCall,
@@ -19,6 +20,10 @@ export interface ProviderConfig {
   readonly embeddingModel: string
   readonly headers?: Readonly<Record<string, string>>
   readonly timeoutMs?: number
+  /** The model that looks at images; `model` when unset. */
+  readonly visionModel?: string
+  /** The provider's OCR model for documents (Mistral's `/ocr`); none when unset. */
+  readonly ocrModel?: string
 }
 
 /** Mistral's API unless told otherwise. */
@@ -30,11 +35,24 @@ export const PROVIDERS: Readonly<Record<string, string>> = {
 
 type WireMessage = Record<string, unknown>
 
+const dataUrl = (part: FilePart) =>
+  `data:${part.mime};base64,${Buffer.from(part.data).toString('base64')}`
+
 function toWire(message: ChatMessage): WireMessage {
   switch (message.role) {
     case 'system':
     case 'user':
-      return { role: message.role, content: message.content }
+      if (!message.images?.length) return { role: message.role, content: message.content }
+      return {
+        role: message.role,
+        content: [
+          { type: 'text', text: message.content },
+          ...message.images.map((image) => ({
+            type: 'image_url',
+            image_url: { url: dataUrl(image) },
+          })),
+        ],
+      }
     case 'assistant':
       return {
         role: 'assistant',
@@ -62,6 +80,7 @@ function toWire(message: ChatMessage): WireMessage {
 export class OpenAiCompatible implements Llm {
   readonly model: string
   readonly embeddingModel: string
+  readonly visionModel: string
   readonly external: boolean
 
   constructor(
@@ -70,6 +89,11 @@ export class OpenAiCompatible implements Llm {
   ) {
     this.model = config.model
     this.embeddingModel = config.embeddingModel
+    this.visionModel = config.visionModel ?? config.model
+    if (config.ocrModel) {
+      const ocrModel = config.ocrModel
+      this.ocr = (document) => this.readDocument(ocrModel, document)
+    }
     const host = new URL(config.baseUrl).hostname
     this.external = !['localhost', '127.0.0.1', '::1'].includes(host) && !host.endsWith('.internal')
   }
@@ -107,7 +131,7 @@ export class OpenAiCompatible implements Llm {
     const started = Date.now()
     const tools = request.tools?.length ? request.tools : undefined
     const answer = (await this.post('/chat/completions', {
-      model: this.model,
+      model: request.model ?? this.model,
       messages: request.messages.map(toWire),
       temperature: request.temperature ?? 0.2,
       ...(request.maxTokens ? { max_tokens: request.maxTokens } : {}),
@@ -157,6 +181,24 @@ export class OpenAiCompatible implements Llm {
         : null,
       latencyMs: Date.now() - started,
     }
+  }
+
+  ocr?: (document: FilePart) => Promise<string>
+
+  /** Mistral's `/ocr`: a PDF or an image, read page by page into Markdown. */
+  private async readDocument(model: string, document: FilePart): Promise<string> {
+    const answer = (await this.post('/ocr', {
+      model,
+      document:
+        document.mime === 'application/pdf'
+          ? { type: 'document_url', document_url: dataUrl(document) }
+          : { type: 'image_url', image_url: dataUrl(document) },
+      include_image_base64: false,
+    })) as { pages?: { markdown?: string }[] }
+    return (answer.pages ?? [])
+      .map((page) => page.markdown ?? '')
+      .join('\n\n')
+      .trim()
   }
 
   async embed(texts: readonly string[]): Promise<number[][]> {

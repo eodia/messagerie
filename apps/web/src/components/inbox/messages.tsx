@@ -35,6 +35,7 @@ import {
   X,
 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
+import { AttachmentList } from './attachments'
 import { ConfidenceChip, ContactAvatar } from './labels'
 
 function Meta({
@@ -64,9 +65,12 @@ export function VisitorBubble({
     <div className="flex items-end gap-2.5">
       <ContactAvatar name={name} className="mb-5 size-7 text-[10px]" />
       <div className="max-w-[75%]">
-        <div className="whitespace-pre-line rounded-2xl rounded-bl-md border bg-background px-3.5 py-2 text-sm shadow-xs">
-          {message.body}
-        </div>
+        {message.body && (
+          <div className="whitespace-pre-line rounded-2xl rounded-bl-md border bg-background px-3.5 py-2 text-sm shadow-xs">
+            {message.body}
+          </div>
+        )}
+        <AttachmentList items={message.attachments} />
         <Meta>{clockTime(message.at)}</Meta>
       </div>
     </div>
@@ -76,10 +80,13 @@ export function VisitorBubble({
 export function AgentBubble({ message }: { readonly message: AgentMessage }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[75%]">
-        <div className="whitespace-pre-line rounded-2xl rounded-br-md bg-primary px-3.5 py-2 text-sm text-primary-foreground">
-          {message.body}
-        </div>
+      <div className="flex max-w-[75%] flex-col items-end">
+        {message.body && (
+          <div className="whitespace-pre-line rounded-2xl rounded-br-md bg-primary px-3.5 py-2 text-sm text-primary-foreground">
+            {message.body}
+          </div>
+        )}
+        <AttachmentList items={message.attachments} align="right" />
         <Meta align="right">
           {message.author} · {clockTime(message.at)}
         </Meta>
@@ -96,7 +103,8 @@ export function NoteCard({ message }: { readonly message: NoteMessage }) {
           <StickyNote className="size-3" />
           {$t('Note interne · invisible pour le visiteur')}
         </div>
-        <p className="whitespace-pre-line text-sm">{message.body}</p>
+        {message.body && <p className="whitespace-pre-line text-sm">{message.body}</p>}
+        <AttachmentList items={message.attachments} />
         <div className="mt-1.5 text-[11px] text-muted-foreground tabular-nums">
           {message.author} · {clockTime(message.at)}
         </div>

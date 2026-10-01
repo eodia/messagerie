@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm'
 import type { BasedbClient } from '../basedb/client.js'
 import type { Db } from '../db/client.js'
 import { conversations, messages } from '../db/schema.js'
+import type { FileStore } from '../files/store.js'
 import { Access } from '../inbox/access.js'
 import { handOff } from '../inbox/incoming.js'
 import { signalChange, signalTyping } from '../realtime/signals.js'
@@ -30,6 +31,8 @@ export interface AiDeps {
   readonly redact: boolean
   readonly basedb: BasedbClient | null
   readonly mcp: McpConnections
+  /** Where the conversations' files are, for the purge. */
+  readonly files: FileStore | null
 }
 
 interface Decision {

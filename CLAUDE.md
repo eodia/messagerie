@@ -68,6 +68,10 @@ Messagerie client libre, sœur de basedb (`../basedb`). Les décisions qui font 
   rien d'autre du schéma.
 - `pnpm test:int` lance les tests sur un vrai PostgreSQL (Testcontainers, image
   `pgvector/pgvector:pg16`).
+- **Fichiers** (D14) : les octets dans `CHAT_FILES_DIR` (`files/store.ts`), jamais en base ;
+  le type se décide sur les octets (`files/attachments.ts`) ; un fichier se lit par un lien
+  signé. L'IA ne lit un fichier qu'à la demande d'un conseiller.
+- `@chat/ai` se consomme compilé : après une modification, `pnpm --filter @chat/ai build`.
 
 ## Widget (`apps/widget`)
 

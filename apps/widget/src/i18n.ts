@@ -35,6 +35,14 @@ const EN: Readonly<Record<string, string>> = {
   'Trop de messages d’un coup : patientez un instant.':
     'Too many messages at once: please wait a moment.',
   'Bonjour ! Comment pouvons-nous vous aider ?': 'Hello! How can we help you?',
+  'Joindre un fichier': 'Attach a file',
+  Emoji: 'Emoji',
+  'Retirer {name}': 'Remove {name}',
+  'Déposez vos fichiers ici': 'Drop your files here',
+  'Fichier refusé : images, PDF ou documents, 10 Mo au plus.':
+    'File refused: images, PDF or documents, 10 MB at most.',
+  'Cinq fichiers au plus par message.': 'Five files at most per message.',
+  'Ouvrir {name}': 'Open {name}',
   'aujourd’hui à {time}': 'today at {time}',
   'demain à {time}': 'tomorrow at {time}',
   '{day} à {time}': '{day} at {time}',

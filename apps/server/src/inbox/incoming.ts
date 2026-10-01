@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import type { Db } from '../db/client.js'
-import { agents, aiRuns, conversations, messages } from '../db/schema.js'
+import { agents, aiRuns, attachments, conversations, messages } from '../db/schema.js'
+import type { AttachRows } from '../files/attachments.js'
 import { signalChange } from '../realtime/signals.js'
 import { Refusal } from '../refusal.js'
 import type { Access } from './access.js'
@@ -54,15 +55,23 @@ export async function createConversation(
  * an agent has it, that agent is; unassigned, the inbox rings for everyone and the row
  * waits in « Non assignées ». A resolved conversation opens again.
  */
-export async function receiveVisitorMessage(db: Db, id: string, body: string): Promise<void> {
+export async function receiveVisitorMessage(
+  db: Db,
+  id: string,
+  body: string,
+  /** The rows of the files sent with it, given the message's id. */
+  attach?: AttachRows,
+): Promise<void> {
   const text = body.trim()
-  if (text === '') throw new Refusal('EMPTY_MESSAGE', 400)
+  if (text === '' && !attach) throw new Refusal('EMPTY_MESSAGE', 400)
   await db.transaction(async (tx) => {
     const row = await lock(tx, id)
     const at = new Date()
-    await tx
+    const [message] = await tx
       .insert(messages)
       .values({ conversationId: id, author: 'contact', body: text, createdAt: at })
+      .returning({ id: messages.id })
+    if (attach && message) await tx.insert(attachments).values(attach(message.id))
     const status =
       row.status === 'resolved'
         ? row.assigneeId

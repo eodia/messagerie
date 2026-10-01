@@ -1,5 +1,6 @@
 import type {
   Agent,
+  Attachment,
   Contact,
   Conversation,
   ConversationSummary,
@@ -20,6 +21,7 @@ import {
   conversations,
   messages,
 } from '../db/schema.js'
+import { attachmentsOf, forInbox } from '../files/attachments.js'
 import { Refusal } from '../refusal.js'
 import { type Visible, canSee } from './access.js'
 
@@ -159,6 +161,10 @@ export async function loadConversation(
     .from(conversationTags)
     .where(eq(conversationTags.conversationId, id))
     .orderBy(asc(conversationTags.createdAt))
+  const files = await attachmentsOf(
+    db,
+    thread.map(({ message }) => message.id),
+  )
 
   return {
     id: conversation.id,
@@ -179,7 +185,8 @@ export async function loadConversation(
     summary: conversation.summary,
     history: await pastConversations(db, contact.id, id),
     messages: thread.flatMap(({ message, author, confidence, feedback }) => {
-      const shown = toMessage(message, author, confidence, feedback)
+      const attached = (files.get(message.id) ?? []).map(forInbox)
+      const shown = toMessage(message, author, confidence, feedback, attached)
       return shown ? [shown] : []
     }),
   }
@@ -204,14 +211,19 @@ function toMessage(
   author: string | null,
   confidence: number | null,
   feedback: Feedback | null,
+  attachments: readonly Attachment[] = [],
 ): Message | null {
   const base = { id: row.id, at: row.createdAt.toISOString() }
   const meta: MessageMeta = row.meta
   const agent = author ?? '—'
   switch (row.kind) {
     case 'text':
-      if (row.author === 'contact') return { ...base, kind: 'visitor', body: row.body }
-      if (row.author === 'agent') return { ...base, kind: 'agent', author: agent, body: row.body }
+      if (row.author === 'contact') {
+        return { ...base, kind: 'visitor', body: row.body, attachments }
+      }
+      if (row.author === 'agent') {
+        return { ...base, kind: 'agent', author: agent, body: row.body, attachments }
+      }
       if (row.author === 'ai') {
         return {
           ...base,
@@ -224,13 +236,13 @@ function toMessage(
       }
       return null
     case 'note':
-      return { ...base, kind: 'note', author: agent, body: row.body }
+      return { ...base, kind: 'note', author: agent, body: row.body, attachments }
     case 'event':
       return meta.event ? { ...base, kind: 'event', event: meta.event } : null
     case 'handoff':
       return meta.handoff ? { ...base, kind: 'handoff', ...meta.handoff } : null
     case 'file':
-      // Attachments arrive with the widget; until then a file message has nothing to show.
+      // Files go with a text or a note — whose body may be empty; this kind is unused.
       return null
   }
 }

@@ -56,6 +56,11 @@ export type ErrorCode =
   | 'ACCOUNTS_ADMIN_REQUIRED'
   /** That account is an agent already. */
   | 'AGENT_EXISTS'
+  /** A file refused: `details.reason` is `type` (not one the chat takes) or `size`. */
+  | 'ATTACHMENT_REFUSED'
+  | 'ATTACHMENT_NOT_FOUND'
+  /** The AI cannot read this kind of file with the configured model. */
+  | 'ATTACHMENT_NOT_ANALYZABLE'
 
 /** Opens the inbox's WebSocket, once, within thirty seconds. */
 export interface Ticket {

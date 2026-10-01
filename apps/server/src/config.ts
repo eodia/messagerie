@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 /**
  * The server's configuration, read once from the environment. Every value has a default
  * that works on a developer's machine with `docker compose up -d`.
@@ -7,6 +8,8 @@ export interface Config {
   readonly databaseUrl: string
   /** The inbox's origin, allowed by CORS. */
   readonly webOrigin: string
+  /** Where the files sent in conversations are kept, outside the database. */
+  readonly filesDir: string
   readonly production: boolean
   /**
    * Development only: the basedb user every request is made as when it carries no token
@@ -71,6 +74,7 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
     port: Number(env.CHAT_PORT || 8810),
     databaseUrl: env.DATABASE_URL || 'postgres://chat:chat@127.0.0.1:55440/chat',
     webOrigin: env.CHAT_WEB_ORIGIN || 'http://localhost:3210',
+    filesDir: resolve(env.CHAT_FILES_DIR || '.files'),
     production,
     devAgent: production ? null : env.CHAT_DEV_AGENT || null,
     basedb,

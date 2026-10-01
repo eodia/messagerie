@@ -12,6 +12,7 @@ import { createNodeWebSocket } from '@hono/node-ws'
 import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { analyzeAttachment } from './ai/attachments.js'
 import { type Rewording, rephrase } from './ai/copilot.js'
 import type { AiJobs } from './ai/jobs.js'
 import type { McpConnections } from './ai/mcp.js'
@@ -21,6 +22,9 @@ import type { BasedbClient } from './basedb/client.js'
 import type { Config } from './config.js'
 import type { Db } from './db/client.js'
 import { conversations } from './db/schema.js'
+import { filesOf, keeping, readUploads, signLinksWith } from './files/attachments.js'
+import { serveFile, uploadLimit } from './files/routes.js'
+import { DiskStore, type FileStore } from './files/store.js'
 import { homePage } from './home-page.js'
 import { Access, canSee, inboxDirectory } from './inbox/access.js'
 import { followRole, inviteAgent, resetAgentPassword } from './inbox/accounts.js'
@@ -120,6 +124,7 @@ export function createApp({
   widgetHub,
   ai,
   mcp,
+  files,
 }: {
   db: Db
   hub: InboxHub
@@ -131,8 +136,12 @@ export function createApp({
   /** The model and its queues; null without AI — conversations then go to the agents. */
   ai: { readonly llm: Llm; readonly redact: boolean; readonly jobs: AiJobs } | null
   mcp: McpConnections
+  /** Where the files sent in conversations are kept: `config.filesDir` unless given. */
+  files?: FileStore
 }) {
   const app = new Hono()
+  const store = files ?? new DiskStore(config.filesDir)
+  signLinksWith(config.secret)
   const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app })
 
   // CORS for the inbox's origin — not on a WebSocket upgrade, whose response headers are
@@ -148,6 +157,9 @@ export function createApp({
   )
 
   app.get('/health', (c) => c.json({ ok: true }))
+
+  // The files sent in conversations, to whoever holds a link the server signed.
+  app.get('/files/:id', serveFile(db, store))
 
   // Opened in a browser, the server's address says where the inbox is.
   app.get('/', (c) => c.html(homePage(config.webOrigin, config.production)))
@@ -479,6 +491,22 @@ export function createApp({
     return c.json({ text: reworded })
   })
 
+  // What the AI makes of a file — at the agent's request, kept for the team.
+  inbox.post('/attachments/:id/analysis', async (c) => {
+    if (!ai) throw new Refusal('AI_UNAVAILABLE', 503)
+    const id = c.req.param('id')
+    if (!UUID.test(id)) throw new Refusal('ATTACHMENT_NOT_FOUND', 404)
+    const agent = c.get('agent')
+    return c.json(
+      await analyzeAttachment(
+        { db, llm: ai.llm, redact: ai.redact, store },
+        agent,
+        await access.visibleTo(agent),
+        id,
+      ),
+    )
+  })
+
   inbox.post('/conversations/:id/assign', async (c) => {
     const { assigneeId } = assignBody(await jsonBody(c.req.raw))
     return c.json(await assign(db, c.get('agent'), uuidParam(c.req.param('id')), assigneeId))
@@ -499,6 +527,25 @@ export function createApp({
     return c.json(await setFeedback(db, c.get('agent'), id, messageId, action))
   })
 
+  // A reply or a note with files: multipart, `file` once per file, `body`, `kind`.
+  inbox.post('/conversations/:id/attachments', uploadLimit, async (c) => {
+    const id = uuidParam(c.req.param('id'))
+    const form = await c.req.parseBody({ all: true })
+    const uploads = await readUploads(filesOf(form))
+    if (uploads.length === 0) throw new Refusal('INVALID_REQUEST', 400, { field: 'file' })
+    const request: SendMessageBody = {
+      body: typeof form.body === 'string' ? form.body : '',
+      kind: form.kind === 'note' ? 'note' : 'reply',
+      resolve: form.resolve === 'true',
+    }
+    if (request.body.length > 4000) throw new Refusal('INVALID_REQUEST', 400, { max: 4000 })
+    return c.json(
+      await keeping(store, id, uploads, (attach) =>
+        sendMessage(db, c.get('agent'), id, request, attach),
+      ),
+    )
+  })
+
   app.route('/api/inbox', inbox)
 
   // The widget: its API, when there are settings to know the sites by, and its script.
@@ -511,6 +558,7 @@ export function createApp({
           config,
           settings,
           aiAvailable: ai !== null,
+          files: store,
           onVisitorMessage: (id) => ai?.jobs.visitorMessage(id),
         },
         widgetHub,

@@ -395,7 +395,13 @@ export function ChatGlimpse() {
                     <Arrive>
                       <VisitorBubble
                         name={person.name}
-                        message={{ id: 'q', at: at(1), kind: 'visitor', body: QUESTION }}
+                        message={{
+                          id: 'q',
+                          at: at(1),
+                          kind: 'visitor',
+                          body: QUESTION,
+                          attachments: [],
+                        }}
                       />
                     </Arrive>
                   )}
@@ -437,7 +443,13 @@ export function ChatGlimpse() {
                     <Arrive>
                       <VisitorBubble
                         name={person.name}
-                        message={{ id: 'q', at: at(2), kind: 'visitor', body: ANGRY }}
+                        message={{
+                          id: 'q',
+                          at: at(2),
+                          kind: 'visitor',
+                          body: ANGRY,
+                          attachments: [],
+                        }}
                       />
                     </Arrive>
                   )}
@@ -483,6 +495,7 @@ export function ChatGlimpse() {
                           body: $t(
                             'Bonjour Thomas, je reprends votre dossier : regardons ensemble le montant proposé.',
                           ),
+                          attachments: [],
                         }}
                       />
                     </Arrive>
@@ -494,12 +507,19 @@ export function ChatGlimpse() {
                 <>
                   <VisitorBubble
                     name={person.name}
-                    message={{ id: 'q', at: at(3), kind: 'visitor', body: JULIE }}
+                    message={{ id: 'q', at: at(3), kind: 'visitor', body: JULIE, attachments: [] }}
                   />
                   {step >= 4 && (
                     <Arrive>
                       <AgentBubble
-                        message={{ id: 'r', at: at(0), kind: 'agent', author: 'Marc', body: SENT }}
+                        message={{
+                          id: 'r',
+                          at: at(0),
+                          kind: 'agent',
+                          author: 'Marc',
+                          body: SENT,
+                          attachments: [],
+                        }}
                       />
                     </Arrive>
                   )}

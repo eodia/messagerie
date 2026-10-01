@@ -4,8 +4,19 @@
  * provider is a class that implements `Llm`.
  */
 
+/** A file shown to the model: an image with a user's words, or a document to read. */
+export interface FilePart {
+  readonly mime: string
+  readonly data: Uint8Array
+}
+
 export type ChatMessage =
-  | { readonly role: 'system' | 'user'; readonly content: string }
+  | {
+      readonly role: 'system' | 'user'
+      readonly content: string
+      /** Images the model looks at with these words — a vision model's. */
+      readonly images?: readonly FilePart[]
+    }
   | {
       readonly role: 'assistant'
       readonly content: string | null
@@ -40,6 +51,8 @@ export interface CompletionRequest {
   readonly json?: boolean
   readonly temperature?: number
   readonly maxTokens?: number
+  /** Another model than the provider's default — the one that sees images. */
+  readonly model?: string
 }
 
 export interface Usage {
@@ -61,8 +74,12 @@ export interface Llm {
   readonly embeddingModel: string
   /** Whether what is sent leaves the organisation's infrastructure. */
   readonly external: boolean
+  /** The model that looks at images; the default one when it does. */
+  readonly visionModel?: string
   complete(request: CompletionRequest): Promise<Completion>
   embed(texts: readonly string[]): Promise<number[][]>
+  /** A document's text, read by the provider's OCR — when it has one (Mistral). */
+  ocr?(document: FilePart): Promise<string>
 }
 
 /** The provider refused, failed, or took too long. */

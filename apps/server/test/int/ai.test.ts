@@ -81,6 +81,7 @@ beforeAll(async () => {
     redact: true,
     basedb: null,
     mcp: new McpConnections(),
+    files: null,
   }
   await deps.knowledge.sync()
 }, 180_000)
