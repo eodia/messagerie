@@ -13,6 +13,7 @@ import {
 import { Hint } from '@/components/ui/tooltip'
 import { api } from '@/lib/api'
 import { $t } from '@/lib/i18n'
+import { useSpeech } from '@/lib/speech'
 import { useInbox } from '@/lib/store/inbox'
 import { THREAD_MIN } from '@/lib/store/panels'
 import { dayLabel } from '@/lib/time'
@@ -103,6 +104,19 @@ export function Thread({
   const last = messages[messages.length - 1]
   const aiWriting = status === 'ai' && last !== undefined && last.kind !== 'ai'
   const visitorWriting = useInbox((s) => s.typing[conversation.id] === true)
+
+  // Audio mode: each new message of the visitor, read aloud as it arrives — not those that
+  // were there when the conversation opened.
+  const heard = useRef<string | null>(null)
+  useEffect(() => {
+    const latest = [...messages].reverse().find((m) => m.kind === 'visitor')
+    if (!latest) return
+    const before = heard.current
+    heard.current = `${conversation.id}:${latest.id}`
+    if (before === null || before === heard.current || !before.startsWith(conversation.id)) return
+    const { audioMode, speak } = useSpeech.getState()
+    if (audioMode && latest.body) speak(latest.id, latest.body)
+  }, [messages, conversation.id])
   const inbox = directory.inboxes.find((i) => i.id === conversation.inboxId)
   const team = directory.teams.find((t) => t.id === conversation.teamId)
 

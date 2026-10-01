@@ -15,6 +15,7 @@ import { Kbd } from '@/components/ui/kbd'
 import { Hint } from '@/components/ui/tooltip'
 import { ApiFailure, api } from '@/lib/api'
 import { $t, $tp, msg } from '@/lib/i18n'
+import { canDictate, canSpeak, useDictation, useSpeech } from '@/lib/speech'
 import { useInbox } from '@/lib/store/inbox'
 import { cn } from '@/lib/utils'
 import type { CannedReply, Contact, Conversation, Rewording } from '@chat/contracts'
@@ -23,8 +24,10 @@ import {
   BookText,
   ChevronDown,
   CircleCheck,
+  Headphones,
   LoaderCircle,
   MessageSquare,
+  Mic,
   Paperclip,
   RefreshCw,
   SendHorizontal,
@@ -246,6 +249,21 @@ export function Composer({
   })
 
   useImperativeHandle(inputRef, () => ({ focus: () => editor?.commands.focus('end') }), [editor])
+
+  // The voice: a reply dictated, and the audio mode that reads the visitor aloud.
+  const [voiced, setVoiced] = useState({ dictate: false, speak: false })
+  useEffect(() => setVoiced({ dictate: canDictate(), speak: canSpeak() }), [])
+  const audioMode = useSpeech((s) => s.audioMode)
+  const dictation = useDictation((text) => {
+    if (!editor || text === '') return
+    const { from } = editor.state.selection
+    const before = editor.state.doc.textBetween(Math.max(0, from - 1), from)
+    editor
+      .chain()
+      .focus()
+      .insertContent(`${before !== '' && !/\s/.test(before) ? ' ' : ''}${text}`)
+      .run()
+  })
 
   /** Once the draft set elsewhere is in the field. */
   function focusSoon() {
@@ -524,6 +542,22 @@ export function Composer({
               </ul>
             )}
             <EditorContent editor={editor} onBlur={() => setBrowsing(false)} />
+            {(dictation.listening || dictation.error) && (
+              <div className="mx-3 mb-1.5 flex items-center gap-2 text-xs text-muted-foreground">
+                {dictation.listening ? (
+                  <>
+                    <span className="size-2 shrink-0 animate-pulse rounded-full bg-rose-500" />
+                    <span className="truncate italic">{dictation.heard || $t('À l’écoute…')}</span>
+                  </>
+                ) : (
+                  <span className="text-destructive">
+                    {dictation.error === 'not-allowed'
+                      ? $t('Le micro est refusé : autorisez-le dans le navigateur.')
+                      : $t('La dictée s’est interrompue ({code}).', { code: dictation.error })}
+                  </span>
+                )}
+              </div>
+            )}
             {corrections > 0 && editor && (
               <div className="mx-2 mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border bg-muted/40 px-2.5 py-1.5 text-xs">
                 <SpellCheck className="size-3.5 shrink-0 text-emerald-700 dark:text-emerald-400" />
@@ -653,6 +687,58 @@ export function Composer({
                   </DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              {voiced.dictate && (
+                <Hint
+                  label={
+                    dictation.listening
+                      ? $t('Arrêter la dictée')
+                      : $t(
+                          'Dicter — votre navigateur reconnaît la voix (Chrome et Edge : sur leurs serveurs)',
+                        )
+                  }
+                >
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={$t('Dicter')}
+                    aria-pressed={dictation.listening}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={dictation.toggle}
+                    className={cn(
+                      'size-7 text-muted-foreground',
+                      dictation.listening && 'bg-rose-500/15 text-rose-600 dark:text-rose-400',
+                    )}
+                  >
+                    <Mic className={cn('size-4', dictation.listening && 'animate-pulse')} />
+                  </Button>
+                </Hint>
+              )}
+              {voiced.speak && (
+                <Hint
+                  label={
+                    audioMode
+                      ? $t(
+                          'Mode audio actif : les nouveaux messages du visiteur sont lus à voix haute',
+                        )
+                      : $t('Mode audio : lire à voix haute les nouveaux messages du visiteur')
+                  }
+                >
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={$t('Mode audio')}
+                    aria-pressed={audioMode}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => useSpeech.getState().setAudioMode(!audioMode)}
+                    className={cn(
+                      'size-7 text-muted-foreground',
+                      audioMode && 'bg-accent text-foreground',
+                    )}
+                  >
+                    <Headphones className="size-4" />
+                  </Button>
+                </Hint>
+              )}
               {(checking || clean) && (
                 <span className="ml-2 hidden items-center gap-1 text-[11px] text-muted-foreground lg:flex">
                   {checking ? (

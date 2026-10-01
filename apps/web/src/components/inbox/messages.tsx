@@ -4,6 +4,7 @@ import { Chip } from '@/components/app/chip'
 import { CopyButton } from '@/components/app/copy-button'
 import { Button } from '@/components/ui/button'
 import { $t, $tp } from '@/lib/i18n'
+import { canSpeak, useSpeech } from '@/lib/speech'
 import { clockTime } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import type {
@@ -29,12 +30,14 @@ import {
   MessagesSquare,
   Pencil,
   RotateCcw,
+  Square,
   StickyNote,
   UserRoundPlus,
+  Volume2,
   Wrench,
   X,
 } from 'lucide-react'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { AttachmentList } from './attachments'
 import { ConfidenceChip, ContactAvatar } from './labels'
 import { RichText } from './rich-text'
@@ -55,6 +58,30 @@ function Meta({
   )
 }
 
+/** Reads a message aloud — again, it stops. */
+export function SpeakButton({ id, text }: { readonly id: string; readonly text: string }) {
+  const speaking = useSpeech((s) => s.speaking === id)
+  const [able, setAble] = useState(false)
+  useEffect(() => setAble(canSpeak()), [])
+  if (!able || text.trim() === '') return null
+  const { speak, stop } = useSpeech.getState()
+  return (
+    <button
+      type="button"
+      aria-label={speaking ? $t('Arrêter la lecture') : $t('Écouter le message')}
+      onClick={() => (speaking ? stop() : speak(id, text))}
+      className={cn(
+        'inline-flex size-5 items-center justify-center rounded align-middle text-muted-foreground transition-opacity hover:bg-accent hover:text-foreground',
+        speaking
+          ? 'text-foreground opacity-100'
+          : 'opacity-0 group-hover/message:opacity-100 focus-visible:opacity-100',
+      )}
+    >
+      {speaking ? <Square className="size-3 fill-current" /> : <Volume2 className="size-3.5" />}
+    </button>
+  )
+}
+
 export function VisitorBubble({
   message,
   name,
@@ -63,7 +90,7 @@ export function VisitorBubble({
   readonly name: string
 }) {
   return (
-    <div className="flex items-end gap-2.5">
+    <div className="group/message flex items-end gap-2.5">
       <ContactAvatar name={name} className="mb-5 size-7 text-[10px]" />
       <div className="max-w-[75%]">
         {message.body && (
@@ -72,7 +99,9 @@ export function VisitorBubble({
           </div>
         )}
         <AttachmentList items={message.attachments} />
-        <Meta>{clockTime(message.at)}</Meta>
+        <Meta>
+          {clockTime(message.at)} <SpeakButton id={message.id} text={message.body} />
+        </Meta>
       </div>
     </div>
   )
@@ -80,7 +109,7 @@ export function VisitorBubble({
 
 export function AgentBubble({ message }: { readonly message: AgentMessage }) {
   return (
-    <div className="flex justify-end">
+    <div className="group/message flex justify-end">
       <div className="flex max-w-[75%] flex-col items-end">
         {message.body && (
           <RichText
@@ -90,7 +119,8 @@ export function AgentBubble({ message }: { readonly message: AgentMessage }) {
         )}
         <AttachmentList items={message.attachments} align="right" />
         <Meta align="right">
-          {message.author} · {clockTime(message.at)}
+          <SpeakButton id={message.id} text={message.body} /> {message.author} ·{' '}
+          {clockTime(message.at)}
         </Meta>
       </div>
     </div>
@@ -259,7 +289,7 @@ export function AiAnswer({
 }) {
   const [sourcesOpen, setSourcesOpen] = useState(true)
   return (
-    <div className="flex justify-end">
+    <div className="group/message flex justify-end">
       <article className="w-full max-w-[75%] overflow-hidden rounded-xl border bg-card shadow-xs">
         <header className="flex items-center gap-2 border-b px-3.5 py-2">
           <span className="flex size-6 items-center justify-center rounded-md bg-violet-500/15 text-violet-800 dark:text-violet-300">
@@ -267,7 +297,8 @@ export function AiAnswer({
           </span>
           <span className="text-xs font-semibold">{$t('Réponse de l’IA')}</span>
           <ConfidenceChip value={message.confidence} />
-          <span className="ml-auto text-[11px] text-muted-foreground tabular-nums">
+          <span className="ml-auto flex items-center gap-1 text-[11px] text-muted-foreground tabular-nums">
+            <SpeakButton id={message.id} text={message.body} />
             {$t('Envoyée · {time}', { time: clockTime(message.at) })}
           </span>
         </header>
