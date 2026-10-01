@@ -1,13 +1,14 @@
 import type { ComponentChildren } from 'preact'
 
 /**
- * The little Markdown an answer uses — paragraphs, lists, **bold**, *italic*, `code`,
- * links — turned into elements, never into HTML: nothing a message says can become markup
- * in the host page. A link opens elsewhere, and only http(s) or mailto.
+ * The little Markdown an answer uses — paragraphs, lists, **bold**, *italic*, ***both***,
+ * ~~struck~~, `code`, links — turned into elements, never into HTML: nothing a message says
+ * can become markup in the host page. A link opens elsewhere, and only http(s) or mailto.
+ * The inbox's composer writes it (`apps/web/src/lib/rich-text.ts`).
  */
 
 const INLINE =
-  /(\*\*[^*]+\*\*|\*[^*\s][^*]*\*|`[^`]+`|\[[^\]]+\]\([^)\s]+\)|https?:\/\/[^\s<>()]+[^\s<>().,;:!?])/g
+  /(\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|~~[^~]+~~|\*[^*\s][^*]*\*|`[^`]+`|\[[^\]]+\]\([^)\s]+\)|https?:\/\/[^\s<>()]+[^\s<>().,;:!?])/g
 
 function safeHref(href: string): string | null {
   return /^(https?:|mailto:)/i.test(href) ? href : null
@@ -20,7 +21,14 @@ function inline(text: string): ComponentChildren[] {
     const token = match[0]
     const at = match.index ?? 0
     if (at > last) parts.push(text.slice(last, at))
-    if (token.startsWith('**')) parts.push(<strong>{token.slice(2, -2)}</strong>)
+    if (token.startsWith('***'))
+      parts.push(
+        <strong>
+          <em>{inline(token.slice(3, -3))}</em>
+        </strong>,
+      )
+    else if (token.startsWith('**')) parts.push(<strong>{inline(token.slice(2, -2))}</strong>)
+    else if (token.startsWith('~~')) parts.push(<s>{inline(token.slice(2, -2))}</s>)
     else if (token.startsWith('`')) parts.push(<code>{token.slice(1, -1)}</code>)
     else if (token.startsWith('[')) {
       const [, label = '', href = ''] = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token) ?? []
@@ -40,7 +48,7 @@ function inline(text: string): ComponentChildren[] {
           {token.replace(/^https?:\/\//, '')}
         </a>,
       )
-    } else parts.push(<em>{token.slice(1, -1)}</em>)
+    } else parts.push(<em>{inline(token.slice(1, -1))}</em>)
     last = at + token.length
   }
   if (last < text.length) parts.push(text.slice(last))

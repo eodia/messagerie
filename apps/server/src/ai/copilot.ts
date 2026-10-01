@@ -212,7 +212,8 @@ const REWORDINGS: Readonly<Record<Rewording, string>> = {
   clearer: 'Reformule ce brouillon pour qu’il soit plus clair, sans en changer le sens.',
   shorter: 'Raccourcis ce brouillon en gardant l’essentiel.',
   warmer: 'Rends ce brouillon plus chaleureux et plus empathique, sans en changer le sens.',
-  correct: 'Corrige l’orthographe et la grammaire de ce brouillon, sans rien changer d’autre.',
+  correct:
+    'Relis ce brouillon et corrige seulement l’orthographe, les accords, la conjugaison, la ponctuation et la typographie. Ne reformule rien : garde les mêmes mots quand ils sont justes, le même ordre, et exactement les mêmes retours à la ligne. S’il n’y a rien à corriger, rends le texte tel quel.',
 }
 
 /** An agent's draft, reworded — never sent: the agent reads it and sends it. */

@@ -4,18 +4,21 @@ import { EmojiPicker } from '@/components/app/emoji-picker'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Kbd } from '@/components/ui/kbd'
 import { Hint } from '@/components/ui/tooltip'
-import { api } from '@/lib/api'
+import { ApiFailure, api } from '@/lib/api'
 import { $t, $tp, msg } from '@/lib/i18n'
 import { useInbox } from '@/lib/store/inbox'
 import { cn } from '@/lib/utils'
 import type { CannedReply, Contact, Conversation, Rewording } from '@chat/contracts'
+import { EditorContent } from '@tiptap/react'
 import {
   BookText,
   ChevronDown,
@@ -27,12 +30,39 @@ import {
   SendHorizontal,
   SmilePlus,
   Sparkles,
+  SpellCheck,
   StickyNote,
   WandSparkles,
   X,
 } from 'lucide-react'
-import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { iconOf, sizeLabel } from './attachments'
+import { FormatButtons, useDraftEditor } from './draft-editor'
+import { accept, correctionsOf, forget, propose, textOf } from './proofreading'
+
+/** What the thread asks of the composer: the field, focused. */
+export interface ComposerHandle {
+  focus: () => void
+}
+
+const PROOF_KEY = 'chat.proofreading'
+
+/** Whether the AI reads the draft over after a pause — the agent's choice, in this browser. */
+function proofreadingOn(): boolean {
+  try {
+    return window.localStorage.getItem(PROOF_KEY) !== 'off'
+  } catch {
+    return true
+  }
+}
 
 type Mode = 'reply' | 'note'
 
@@ -70,7 +100,6 @@ const REWORDINGS: readonly { readonly how: Rewording; readonly label: string }[]
   { how: 'clearer', label: msg('Plus clair') },
   { how: 'shorter', label: msg('Plus court') },
   { how: 'warmer', label: msg('Plus chaleureux') },
-  { how: 'correct', label: msg('Corriger l’orthographe') },
 ]
 
 /**
@@ -84,7 +113,7 @@ export function Composer({
   inputRef,
 }: {
   readonly conversation: Conversation
-  readonly inputRef: RefObject<HTMLTextAreaElement | null>
+  readonly inputRef: RefObject<ComposerHandle | null>
 }) {
   const draft = useInbox((s) => s.drafts[conversation.id] ?? '')
   const sending = useInbox((s) => s.sending)
@@ -104,6 +133,14 @@ export function Composer({
   const [dropping, setDropping] = useState(false)
   const picker = useRef<HTMLInputElement>(null)
   const typedAt = useRef(0)
+  /** The AI's proofreading: how many corrections it offers, whether it is reading. */
+  const [corrections, setCorrections] = useState(0)
+  const [checking, setChecking] = useState(false)
+  const [clean, setClean] = useState(false)
+  const [autoProof, setAutoProof] = useState(proofreadingOn)
+  /** No AI on this server: not asked again. */
+  const proofless = useRef(false)
+  const lastRead = useRef('')
 
   const suggestions = conversation.suggestions
   const canSend = (draft.trim() !== '' || files.length > 0) && !sending
@@ -128,7 +165,7 @@ export function Composer({
           ? $t('Cinq fichiers au plus par message.')
           : null,
     )
-    inputRef.current?.focus()
+    editor?.commands.focus()
   }
 
   /** The visitor sees three dots while a reply is written — said every few seconds. */
@@ -141,14 +178,7 @@ export function Composer({
   }
 
   function addEmoji(emoji: string) {
-    const field = inputRef.current
-    const at = field?.selectionStart ?? draft.length
-    const end = field?.selectionEnd ?? at
-    setDraft(conversation.id, draft.slice(0, at) + emoji + draft.slice(end))
-    requestAnimationFrame(() => {
-      field?.focus()
-      field?.setSelectionRange(at + emoji.length, at + emoji.length)
-    })
+    editor?.chain().focus().insertContent(emoji).run()
   }
 
   useEffect(() => {
@@ -172,6 +202,98 @@ export function Composer({
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new search starts at the top
   useEffect(() => setHighlight(0), [query, browsing])
 
+  /** Keys over the field while the canned replies are open: they choose one. */
+  function cannedKey(event: KeyboardEvent): boolean {
+    if (listing && matches.length > 0) {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        const step = event.key === 'ArrowDown' ? 1 : -1
+        setHighlight((at) => (at + step + matches.length) % matches.length)
+        return true
+      }
+      if (event.key === 'Enter' || event.key === 'Tab') {
+        const chosen = matches[highlight]
+        if (chosen) insert(chosen)
+        return true
+      }
+    }
+    if (listing && event.key === 'Escape') {
+      setBrowsing(false)
+      if (typed)
+        setDraft(
+          conversation.id,
+          draft.replace(SLASH, (_all, lead: string) => lead),
+        )
+      return true
+    }
+    return false
+  }
+
+  const editor = useDraftEditor({
+    value: draft,
+    placeholder:
+      mode === 'reply'
+        ? $t('Écrire au visiteur — « / » pour une réponse type…')
+        : $t('Une note pour l’équipe : le visiteur ne la verra pas.'),
+    onChange: (markdown) => {
+      setDraft(conversation.id, markdown)
+      typing(markdown)
+      setClean(false)
+    },
+    onKey: cannedKey,
+    onSubmit: () => void submit(),
+    onFiles: addFiles,
+    onCorrections: setCorrections,
+  })
+
+  useImperativeHandle(inputRef, () => ({ focus: () => editor?.commands.focus('end') }), [editor])
+
+  /** Once the draft set elsewhere is in the field. */
+  function focusSoon() {
+    setTimeout(() => editor?.commands.focus('end'), 0)
+  }
+
+  /**
+   * The AI reads the draft over and offers its corrections in it — after a pause, or now
+   * when asked. Only if the draft is still what it read.
+   */
+  async function proofread(now = false) {
+    if (!editor || proofless.current) return
+    const basis = textOf(editor.state.doc).text
+    const words = basis.trim() === '' ? 0 : basis.trim().split(/\s+/).length
+    if (words < (now ? 1 : 3) || (!now && basis === lastRead.current)) return
+    lastRead.current = basis
+    setChecking(true)
+    try {
+      const { text } = await api.rephrase(conversation.id, basis, 'correct')
+      if (editor.isDestroyed || textOf(editor.state.doc).text !== basis) return
+      propose(editor.view, text)
+      setClean(correctionsOf(editor.state).length === 0)
+    } catch (error) {
+      if (error instanceof ApiFailure && error.code === 'AI_UNAVAILABLE') proofless.current = true
+      if (now) fail(error)
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  // After a pause in the typing, if the agent wants it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the draft is the trigger
+  useEffect(() => {
+    if (!autoProof || !editor) return
+    const timer = setTimeout(() => void proofread(), 1800)
+    return () => clearTimeout(timer)
+  }, [draft, autoProof, editor])
+
+  function chooseAutoProof(on: boolean) {
+    setAutoProof(on)
+    try {
+      window.localStorage.setItem(PROOF_KEY, on ? 'on' : 'off')
+    } catch {
+      // Kept for this page only.
+    }
+    if (!on && editor) forget(editor.view)
+  }
+
   async function submit(andResolve = false) {
     if (!canSend) return
     // A refused send keeps the draft and the files; the inbox says why.
@@ -186,7 +308,7 @@ export function Composer({
     setMode('reply')
     setDraft(conversation.id, suggestion)
     setFromCopilot(true)
-    inputRef.current?.focus()
+    focusSoon()
   }
 
   function insert(reply: CannedReply) {
@@ -198,7 +320,7 @@ export function Composer({
         : text
     setDraft(conversation.id, next)
     setBrowsing(false)
-    inputRef.current?.focus()
+    focusSoon()
   }
 
   async function reword(how: Rewording) {
@@ -380,11 +502,16 @@ export function Composer({
 
         <div
           className={cn(
-            'rounded-xl p-px',
-            fromCopilot && mode === 'reply' ? 'animate-ai-turn bg-ai-edge' : 'bg-border',
+            'relative rounded-xl border shadow-xs transition-[border-color,box-shadow]',
+            mode === 'note'
+              ? 'border-note-border bg-note'
+              : 'bg-background focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20',
+            fromCopilot &&
+              mode === 'reply' &&
+              'ai-frame border-transparent focus-within:border-transparent',
           )}
         >
-          <div className={cn('rounded-[11px]', mode === 'note' ? 'bg-note' : 'bg-background')}>
+          <div>
             {files.length > 0 && (
               <ul className="flex flex-wrap gap-1.5 px-2.5 pt-2.5">
                 {files.map((file, index) => (
@@ -396,58 +523,38 @@ export function Composer({
                 ))}
               </ul>
             )}
-            <textarea
-              ref={inputRef}
-              value={draft}
-              onChange={(event) => {
-                setDraft(conversation.id, event.target.value)
-                typing(event.target.value)
-              }}
-              onPaste={(event) => {
-                const pasted = [...event.clipboardData.files]
-                if (pasted.length === 0) return
-                event.preventDefault()
-                addFiles(pasted)
-              }}
-              onBlur={() => setBrowsing(false)}
-              onKeyDown={(event) => {
-                if (listing && matches.length > 0) {
-                  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-                    event.preventDefault()
-                    const step = event.key === 'ArrowDown' ? 1 : -1
-                    setHighlight((at) => (at + step + matches.length) % matches.length)
-                    return
-                  }
-                  if (event.key === 'Enter' || event.key === 'Tab') {
-                    event.preventDefault()
-                    const chosen = matches[highlight]
-                    if (chosen) insert(chosen)
-                    return
-                  }
-                }
-                if (listing && event.key === 'Escape') {
-                  event.preventDefault()
-                  setBrowsing(false)
-                  if (typed)
-                    setDraft(
-                      conversation.id,
-                      draft.replace(SLASH, (_all, lead: string) => lead),
-                    )
-                  return
-                }
-                if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
-                  event.preventDefault()
-                  void submit()
-                }
-              }}
-              rows={2}
-              placeholder={
-                mode === 'reply'
-                  ? $t('Écrire au visiteur — « / » pour une réponse type…')
-                  : $t('Une note pour l’équipe : le visiteur ne la verra pas.')
-              }
-              className="field-sizing-content block max-h-48 min-h-16 w-full resize-none bg-transparent px-3 pt-2.5 pb-1 text-sm outline-none placeholder:text-muted-foreground"
-            />
+            <EditorContent editor={editor} onBlur={() => setBrowsing(false)} />
+            {corrections > 0 && editor && (
+              <div className="mx-2 mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border bg-muted/40 px-2.5 py-1.5 text-xs">
+                <SpellCheck className="size-3.5 shrink-0 text-emerald-700 dark:text-emerald-400" />
+                <span className="font-medium">
+                  {$tp(corrections, '{count} correction proposée', '{count} corrections proposées')}
+                </span>
+                <span className="text-muted-foreground">
+                  {$t('un clic sur le mot en vert l’accepte')}
+                </span>
+                <span className="ml-auto flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => forget(editor.view)}
+                  >
+                    {$t('Ignorer')}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => accept(editor.view)}
+                  >
+                    {$t('Tout accepter')}
+                  </Button>
+                </span>
+              </div>
+            )}
             {refused && (
               <p className="px-3 pb-1 text-xs text-destructive" role="alert">
                 {refused}
@@ -486,6 +593,13 @@ export function Composer({
                   <SmilePlus className="size-4" />
                 </Button>
               </EmojiPicker>
+              {editor && (
+                <>
+                  <span className="mx-1 h-4 w-px bg-border" />
+                  <FormatButtons editor={editor} />
+                  <span className="mx-1 h-4 w-px bg-border" />
+                </>
+              )}
               {mode === 'reply' && (
                 <Hint label={$t('Réponses types — ou « / » dans le texte')}>
                   <Button
@@ -495,7 +609,7 @@ export function Composer({
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => {
                       setBrowsing((open) => !open)
-                      inputRef.current?.focus()
+                      editor?.commands.focus()
                     }}
                   >
                     <BookText className="size-4" />
@@ -526,16 +640,37 @@ export function Composer({
                       {$t(label)}
                     </DropdownMenuItem>
                   ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => void proofread(true)}>
+                    <SpellCheck />
+                    {$t('Relire l’orthographe maintenant')}
+                  </DropdownMenuItem>
+                  <DropdownMenuCheckboxItem
+                    checked={autoProof}
+                    onCheckedChange={(on) => chooseAutoProof(on === true)}
+                  >
+                    {$t('Relire après chaque pause')}
+                  </DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <span className="ml-auto hidden items-center gap-1 pr-2 text-[11px] text-muted-foreground md:flex">
+              {(checking || clean) && (
+                <span className="ml-2 hidden items-center gap-1 text-[11px] text-muted-foreground lg:flex">
+                  {checking ? (
+                    <LoaderCircle className="size-3 animate-spin" />
+                  ) : (
+                    <SpellCheck className="size-3" />
+                  )}
+                  {checking ? $t('Relecture…') : $t('Aucune faute')}
+                </span>
+              )}
+              <span className="ml-auto hidden items-center gap-1 pr-2 text-[11px] text-muted-foreground 2xl:flex">
                 <Kbd>↵</Kbd> {$t('envoyer')}
                 <span className="mx-1 text-muted-foreground/50">·</span>
                 <Kbd>Maj</Kbd>
                 <Kbd>↵</Kbd> {$t('à la ligne')}
               </span>
               {mode === 'reply' ? (
-                <div className="flex">
+                <div className="ml-auto flex 2xl:ml-0">
                   <Button
                     size="sm"
                     disabled={!canSend}
@@ -568,6 +703,7 @@ export function Composer({
                 <Button
                   size="sm"
                   variant="secondary"
+                  className="ml-auto 2xl:ml-0"
                   disabled={!canSend}
                   onClick={() => void submit()}
                 >

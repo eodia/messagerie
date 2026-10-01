@@ -33,7 +33,7 @@ import {
 } from 'lucide-react'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { AssignPicker, afterMenus } from './assign-picker'
-import { Composer } from './composer'
+import { Composer, type ComposerHandle } from './composer'
 import { ContactAvatar, StateChip } from './labels'
 import {
   AgentBubble,
@@ -83,7 +83,7 @@ export function Thread({
     setTimeout(open, 60)
   }, [asked])
   const { takeOver, resolve, assign, giveFeedback, setDraft } = useInbox.getState()
-  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const inputRef = useRef<ComposerHandle>(null)
   const { scroller, content } = useStickToBottom(conversation.id)
   const { contact, messages, status } = conversation
 

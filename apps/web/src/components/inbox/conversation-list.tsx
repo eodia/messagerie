@@ -17,6 +17,7 @@ import {
   wordsLit,
 } from '@/lib/conversation-search'
 import { $t, $tp, formatCount, msg } from '@/lib/i18n'
+import { plainOf } from '@/lib/rich-text'
 import { excerpt } from '@/lib/search'
 import { type InboxFilter, inInbox, matchesFilter, useInbox } from '@/lib/store/inbox'
 import { type Sort, matchesFilters, sorted, useListFilters } from '@/lib/store/list-filters'
@@ -556,7 +557,7 @@ function Said({
       {files > 0 && <Paperclip className="size-3 shrink-0" />}
       <span className="truncate">
         {summary.preview ? (
-          <Excerpt text={summary.preview} tokens={tokens} />
+          <Excerpt text={plainOf(summary.preview)} tokens={tokens} />
         ) : files > 0 ? (
           $tp(files, '{count} fichier', '{count} fichiers')
         ) : (
@@ -577,7 +578,7 @@ function Found({ hit, tokens }: { readonly hit: MessageHit; readonly tokens: rea
         <StickyNote className="size-3 shrink-0" />
       ) : null}
       <span className="truncate">
-        <Excerpt text={hit.body} tokens={tokens} />
+        <Excerpt text={plainOf(hit.body)} tokens={tokens} />
       </span>
     </>
   )

@@ -301,3 +301,111 @@
   pointer-events: none;
   color: var(--muted-foreground);
 }
+
+/* The agent's draft: the little Markdown a message keeps, at the size of the field. */
+.draft-field > * + * {
+  margin-top: 0.15em;
+}
+.draft-field p {
+  margin: 0;
+}
+.draft-field ul,
+.rich-text ul {
+  list-style: disc;
+  padding-left: 1.3em;
+}
+.draft-field ol,
+.rich-text ol {
+  list-style: decimal;
+  padding-left: 1.3em;
+}
+.draft-field li > p {
+  margin: 0;
+}
+.draft-field code,
+.rich-text code {
+  border-radius: 0.3rem;
+  background: color-mix(in oklab, currentColor 10%, transparent);
+  padding: 0.05em 0.3em;
+  font-size: 0.9em;
+}
+.draft-field a,
+.rich-text a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.draft-field a {
+  color: color-mix(in oklab, var(--primary) 75%, var(--foreground));
+}
+.draft-field p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--muted-foreground);
+}
+
+/* A message's text: paragraphs and lists, as the widget shows them. */
+.rich-text > * + * {
+  margin-top: 0.5em;
+}
+.rich-text li + li {
+  margin-top: 0.15em;
+}
+
+/* The AI's proofreading, in the draft: the words it would change, and what it would write. */
+.proof-old {
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--color-rose-500) 12%, transparent);
+  text-decoration: line-through;
+  text-decoration-color: var(--color-rose-500);
+}
+.proof-new {
+  margin-left: 2px;
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--color-emerald-500) 16%, transparent);
+  padding: 0 2px;
+  color: var(--color-emerald-800);
+  cursor: pointer;
+}
+.dark .proof-new {
+  color: var(--color-emerald-300);
+}
+.proof-pick {
+  cursor: pointer;
+}
+.proof-new:hover {
+  background: color-mix(in oklab, var(--color-emerald-500) 28%, transparent);
+}
+
+/*
+ * What the AI wrote, in the field: a ring of its colours, turning — two pixels, outside the
+ * field's own border, so that nothing inside moves. The field's border is clear then.
+ */
+.ai-frame::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  padding: 2px;
+  border-radius: calc(var(--radius-xl) + 2px);
+  background: conic-gradient(
+    from var(--ai-angle),
+    #34d399,
+    #60a5fa,
+    #a78bfa,
+    #f472b6,
+    #fbbf24,
+    #34d399
+  );
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  animation: ai-turn 4s linear infinite;
+  pointer-events: none;
+}
+.ai-frame {
+  box-shadow: 0 0 18px -4px color-mix(in oklab, #a78bfa 45%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-frame::before {
+    animation: none;
+  }
+}

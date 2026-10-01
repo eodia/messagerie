@@ -493,9 +493,13 @@ export const useInbox = create<InboxState>((set, get) => {
           ? api.sendFiles(id, files, { body, kind, resolve })
           : api.send(id, { body, kind, resolve }),
       )
+      // Sent: the draft is emptied — unless the agent went on typing meanwhile.
       set((state) => ({
         sending: false,
-        drafts: sent ? { ...state.drafts, [id]: '' } : state.drafts,
+        drafts:
+          sent && (state.drafts[id] ?? '').trim() === body.trim()
+            ? { ...state.drafts, [id]: '' }
+            : state.drafts,
       }))
       return sent
     },

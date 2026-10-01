@@ -37,6 +37,7 @@ import {
 import { type ReactNode, useState } from 'react'
 import { AttachmentList } from './attachments'
 import { ConfidenceChip, ContactAvatar } from './labels'
+import { RichText } from './rich-text'
 
 function Meta({
   children,
@@ -82,9 +83,10 @@ export function AgentBubble({ message }: { readonly message: AgentMessage }) {
     <div className="flex justify-end">
       <div className="flex max-w-[75%] flex-col items-end">
         {message.body && (
-          <div className="whitespace-pre-line rounded-2xl rounded-br-md bg-primary px-3.5 py-2 text-sm text-primary-foreground">
-            {message.body}
-          </div>
+          <RichText
+            text={message.body}
+            className="rounded-2xl rounded-br-md bg-primary px-3.5 py-2 text-sm text-primary-foreground"
+          />
         )}
         <AttachmentList items={message.attachments} align="right" />
         <Meta align="right">
@@ -103,7 +105,7 @@ export function NoteCard({ message }: { readonly message: NoteMessage }) {
           <StickyNote className="size-3" />
           {$t('Note interne · invisible pour le visiteur')}
         </div>
-        {message.body && <p className="whitespace-pre-line text-sm">{message.body}</p>}
+        {message.body && <RichText text={message.body} className="text-sm" />}
         <AttachmentList items={message.attachments} />
         <div className="mt-1.5 text-[11px] text-muted-foreground tabular-nums">
           {message.author} · {clockTime(message.at)}
@@ -270,7 +272,7 @@ export function AiAnswer({
           </span>
         </header>
 
-        <p className="whitespace-pre-line px-3.5 py-3 text-sm leading-relaxed">{message.body}</p>
+        <RichText text={message.body} className="px-3.5 py-3 text-sm leading-relaxed" />
 
         {message.sources.length > 0 && (
           <div className="border-t px-3.5 py-2.5">
