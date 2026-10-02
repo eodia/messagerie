@@ -22,6 +22,7 @@ import { dayLabel } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import type { Conversation, Feedback, Message } from '@chat/contracts'
 import {
+  AlarmClockOff,
   BookmarkPlus,
   ChevronRight,
   CircleCheck,
@@ -50,6 +51,7 @@ import {
   VisitorBubble,
   VisitorTyping,
 } from './messages'
+import { SnoozeMenu } from './snooze-menu'
 import { TransferDialog } from './transfer-dialog'
 
 function dayOf(iso: string): string {
@@ -87,7 +89,7 @@ export function Thread({
     const open = asked === 'assign' ? () => setAssigning(true) : () => setTransferring(true)
     setTimeout(open, 60)
   }, [asked])
-  const { takeOver, resolve, assign, giveFeedback, setDraft } = useInbox.getState()
+  const { takeOver, resolve, wake, assign, giveFeedback, setDraft } = useInbox.getState()
   const inputRef = useRef<ComposerHandle>(null)
   const { scroller, content } = useStickToBottom(conversation.id)
   const { contact, messages, status } = conversation
@@ -188,10 +190,19 @@ export function Thread({
               {$t('Reprendre la main')}
             </Button>
           ) : status !== 'resolved' ? (
-            <Button size="sm" variant="outline" onClick={() => void resolve(conversation.id)}>
-              <CircleCheck />
-              {$t('Résoudre')}
-            </Button>
+            <>
+              {status === 'pending' ? (
+                <Button size="sm" variant="outline" onClick={() => void wake(conversation.id)}>
+                  <AlarmClockOff />
+                  {$t('Réveiller')}
+                </Button>
+              ) : null}
+              <Button size="sm" variant="outline" onClick={() => void resolve(conversation.id)}>
+                <CircleCheck />
+                {$t('Résoudre')}
+              </Button>
+              {status === 'open' && <SnoozeMenu conversationId={conversation.id} />}
+            </>
           ) : null}
           <AssignPicker
             conversation={conversation}

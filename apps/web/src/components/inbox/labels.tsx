@@ -1,10 +1,14 @@
 import { Chip, type Tint } from '@/components/app/chip'
+import { Hint } from '@/components/ui/tooltip'
 import { $t, intlLocale, msg } from '@/lib/i18n'
+import { useInbox } from '@/lib/store/inbox'
+import { wakeLabel } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import type { ConversationSummary, Priority, Sentiment } from '@chat/contracts'
-import { Sparkles } from 'lucide-react'
+import { AlarmClock, Sparkles } from 'lucide-react'
 
-type StateOf = Pick<ConversationSummary, 'status' | 'assignee' | 'handedOff'>
+type StateOf = Pick<ConversationSummary, 'status' | 'assignee' | 'handedOff'> &
+  Partial<Pick<ConversationSummary, 'snoozedUntil'>>
 
 /** How a conversation's state reads in a row and in its header. */
 export function conversationState(conversation: StateOf): { label: string; tint: Tint } {
@@ -30,7 +34,19 @@ export function StateChip({
   readonly conversation: StateOf
   readonly className?: string
 }) {
+  const now = useInbox((s) => s.now)
   const { label, tint } = conversationState(conversation)
+  if (conversation.status === 'pending' && conversation.snoozedUntil) {
+    const when = wakeLabel(conversation.snoozedUntil, now)
+    return (
+      <Hint label={$t('En attente jusqu’à {when}', { when })}>
+        <Chip tint={tint} className={className}>
+          <AlarmClock />
+          {when}
+        </Chip>
+      </Hint>
+    )
+  }
   return (
     <Chip tint={tint} className={className}>
       {conversation.status === 'ai' && <Sparkles />}

@@ -94,13 +94,14 @@ export function wordsAfter(base: string, pathname = window.location.pathname): s
 export const addressOf = (base: string, ...words: readonly (string | null)[]): string =>
   [base, ...words.filter((w): w is string => w !== null).map(encodeURIComponent)].join('/')
 
-export type ListFilter = 'all' | 'ai' | 'open' | 'unassigned' | 'resolved'
+export type ListFilter = 'all' | 'ai' | 'open' | 'unassigned' | 'snoozed' | 'resolved'
 
 const FILTER_WORDS: Readonly<Record<ListFilter, string | null>> = {
   all: null,
   ai: 'ia',
   open: 'ouvertes',
   unassigned: 'en-file',
+  snoozed: 'en-attente',
   resolved: 'resolues',
 }
 

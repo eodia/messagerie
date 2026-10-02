@@ -65,8 +65,10 @@ import {
   resolve,
   sendMessage,
   setFeedback,
+  snooze,
   takeOver,
   transfer,
+  wake,
 } from './inbox/write.js'
 import type { InboxHub } from './realtime/hub.js'
 import { signalTyping } from './realtime/signals.js'
@@ -603,6 +605,18 @@ export function createApp({
         uuidParam(c.req.param('messageId')),
       ),
     ),
+  // « Mettre en attente » until a time, and « Réveiller » before it.
+  inbox.post('/conversations/:id/snooze', async (c) => {
+    const { until } = await jsonBody(c.req.raw)
+    if (typeof until !== 'string') throw new Refusal('INVALID_REQUEST', 400, { field: 'until' })
+    return c.json(await snooze(db, c.get('agent'), uuidParam(c.req.param('id')), new Date(until)))
+  })
+  inbox.delete('/conversations/:id/snooze', async (c) => {
+    const id = uuidParam(c.req.param('id'))
+    await wake(db, c.get('agent'), id)
+    return c.json(await loadConversation(db, id, c.get('agent')))
+  })
+
   )
   inbox.delete('/conversations/:id/messages/:messageId', async (c) =>
     c.json(

@@ -3,7 +3,7 @@
 import { Chip } from '@/components/app/chip'
 import { CopyButton } from '@/components/app/copy-button'
 import { Button } from '@/components/ui/button'
-import { $t, $tp } from '@/lib/i18n'
+import { $t, $tp, intlLocale } from '@/lib/i18n'
 import { useSpeech } from '@/lib/speech'
 import { clockTime } from '@/lib/time'
 import { cn } from '@/lib/utils'
@@ -20,6 +20,8 @@ import type {
   VisitorMessage,
 } from '@chat/contracts'
 import {
+  AlarmClock,
+  AlarmClockOff,
   ArrowRightLeft,
   Ban,
   Bot,
@@ -180,6 +182,8 @@ const EVENT_ICONS = {
   reopened: RotateCcw,
   assigned: UserRoundPlus,
   transferred: Forward,
+  snoozed: AlarmClock,
+  woke: AlarmClockOff,
 } as const
 
 /** An event, said in the reader's language: the server stores what happened, not words. */
@@ -220,6 +224,18 @@ function eventText(event: ConversationEvent): string {
         by: event.by,
         team: event.team ?? '—',
       })
+    case 'snoozed':
+      return $t('{agent} a mis la conversation en attente jusqu’au {date}.', {
+        agent: event.agent,
+        date: new Intl.DateTimeFormat(intlLocale(), {
+          dateStyle: 'long',
+          timeStyle: 'short',
+        }).format(new Date(event.until)),
+      })
+    case 'woke':
+      return event.agent === null
+        ? $t('La conversation revient : son attente est finie.')
+        : $t('{agent} a sorti la conversation de l’attente.', { agent: event.agent })
   }
 }
 

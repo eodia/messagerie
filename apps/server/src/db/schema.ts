@@ -57,6 +57,8 @@ export const alertKind = chat.enum('alert_kind', [
   'handoff',
   'assigned',
   'transferred',
+  /** A conversation put on hold came back: its time came. */
+  'woke',
 ])
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
@@ -123,6 +125,11 @@ export const conversations = chat.table(
     /** The site's name when the conversation started — the list shows it without basedb. */
     siteName: text('site_name').notNull(),
     status: conversationStatus('status').notNull().default('ai'),
+    /**
+     * On hold until then (`pending`): back in the queue at that time, or sooner when the
+     * visitor writes.
+     */
+    snoozedUntil: timestamp('snoozed_until', { withTimezone: true }),
     assigneeId: uuid('assignee_id').references(() => agents.id, { onDelete: 'set null' }),
     /** « Boîtes de réception »: where it arrived, or was transferred. Null: before inboxes. */
     inboxId: text('inbox_id'),

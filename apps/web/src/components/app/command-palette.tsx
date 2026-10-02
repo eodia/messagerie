@@ -36,6 +36,7 @@ import type {
   TagOption,
 } from '@chat/contracts'
 import {
+  AlarmClock,
   ArrowRightLeft,
   BookOpen,
   ChartColumn,
@@ -435,6 +436,13 @@ function Palette({ seed, onClose }: { readonly seed: string; readonly onClose: (
       'en file attente personne',
     )
     command('ai', $t('Voir les conversations de l’IA'), Sparkles, show('ai'), 'ia robot')
+    command(
+      'snoozed',
+      $t('Voir les conversations en attente'),
+      AlarmClock,
+      show('snoozed'),
+      'attente plus tard snooze report rappel',
+    )
     command(
       'resolved',
       $t('Voir les conversations résolues'),

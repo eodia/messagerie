@@ -35,6 +35,7 @@ const CHIMES: Record<AlertKind, readonly number[]> = {
   handoff: [659.3, 880, 1318.5],
   assigned: [659.3, 880, 1318.5],
   transferred: [659.3, 880, 1318.5],
+  woke: [880, 659.3, 880],
 }
 
 export function chime(kind: AlertKind): void {

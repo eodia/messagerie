@@ -82,7 +82,7 @@ export async function receiveVisitorMessage(
           : row.status
     await tx
       .update(conversations)
-      .set({ status, agentUnread: true, lastMessageAt: at, updatedAt: at })
+      .set({ status, snoozedUntil: null, agentUnread: true, lastMessageAt: at, updatedAt: at })
       .where(eq(conversations.id, id))
     if (status === 'ai') {
       await signalChange(tx, id)

@@ -7,6 +7,7 @@ import { BasedbClient } from './basedb/client.js'
 import { type Config, ConfigError, readConfig } from './config.js'
 import { type Db, connect, migrateDatabase } from './db/client.js'
 import { DiskStore } from './files/store.js'
+import { startWaking } from './inbox/snooze.js'
 import { Settings, TABLES } from './settings/settings.js'
 import { sourceFor } from './settings/source.js'
 import { startWebhooks } from './webhooks/dispatch.js'
@@ -86,11 +87,11 @@ export async function boot(role: 'server' | 'worker'): Promise<Booted> {
     )
   }
 
-  // The webhooks' postman (D17), with the queues: in the server, or in the worker alone.
-  const postman =
-    role === 'worker' || process.env.CHAT_WORKER !== 'separate'
-      ? startWebhooks(db, config.secret)
-      : null
+  // The webhooks' postman (D17) and the clock of conversations on hold, with the queues:
+  // in the server, or in the worker alone.
+  const clockwork = role === 'worker' || process.env.CHAT_WORKER !== 'separate'
+  const postman = clockwork ? startWebhooks(db, config.secret) : null
+  const waking = clockwork ? startWaking(db) : null
 
   return {
     config,
@@ -103,6 +104,7 @@ export async function boot(role: 'server' | 'worker'): Promise<Booted> {
     stop: async () => {
       stopFollowing()
       await postman?.stop()
+      await waking?.stop()
       await stopJobs()
       await mcp.close()
       await pool.end()

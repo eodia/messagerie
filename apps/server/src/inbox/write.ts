@@ -193,11 +193,74 @@ export async function resolve(db: Db, agent: AgentRow, id: string): Promise<Conv
     await tx.insert(messages).values(eventRow(id, { type: 'resolved', agent: agent.name }, at))
     await tx
       .update(conversations)
-      .set({ status: 'resolved', agentUnread: false, updatedAt: at })
+      .set({ status: 'resolved', snoozedUntil: null, agentUnread: false, updatedAt: at })
       .where(eq(conversations.id, id))
     await signalChange(tx, id)
   })
   return loadConversation(db, id, agent)
+}
+
+/** The furthest a conversation is put on hold: a year. */
+const SNOOZE_MAX_MS = 366 * 24 * 3600_000
+
+/**
+ * « Mettre en attente » until `until`: off the queue and read, back at that time — or
+ * sooner, when the visitor writes. Only a conversation agents answer: not one the AI has,
+ * not a resolved one. Its assignee keeps it.
+ */
+export async function snooze(
+  db: Db,
+  agent: AgentRow,
+  id: string,
+  until: Date,
+): Promise<Conversation> {
+  const time = until.getTime()
+  const now = Date.now()
+  if (Number.isNaN(time) || time < now + 60_000 || time > now + SNOOZE_MAX_MS) {
+    throw new Refusal('INVALID_REQUEST', 400, { field: 'until' })
+  }
+  await db.transaction(async (tx) => {
+    const row = await lock(tx, id)
+    if (row.status === 'ai' || row.status === 'resolved') throw new Refusal('NOT_SNOOZABLE', 409)
+    const at = clock()()
+    await tx
+      .insert(messages)
+      .values(eventRow(id, { type: 'snoozed', agent: agent.name, until: until.toISOString() }, at))
+    await tx
+      .update(conversations)
+      .set({ status: 'pending', snoozedUntil: until, agentUnread: false, updatedAt: at })
+      .where(eq(conversations.id, id))
+    await signalChange(tx, id)
+  })
+  return loadConversation(db, id, agent)
+}
+
+/**
+ * Back from on hold: woken by an agent, or by its time (`agent` null) — then it is unread
+ * again, and its assignee is told.
+ */
+export async function wake(db: Db, agent: AgentRow | null, id: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    const row = await lock(tx, id)
+    if (row.status !== 'pending') return
+    const at = clock()()
+    await tx.insert(messages).values(eventRow(id, { type: 'woke', agent: agent?.name ?? null }, at))
+    await tx
+      .update(conversations)
+      .set({
+        status: 'open',
+        snoozedUntil: null,
+        ...(agent === null ? { agentUnread: true } : {}),
+        updatedAt: at,
+      })
+      .where(eq(conversations.id, id))
+    if (agent !== null) {
+      await signalChange(tx, id)
+      return
+    }
+    const told = await notify(tx, [row.assigneeId], id, 'woke')
+    await signalChange(tx, id, { alert: 'woke', notify: told })
+  })
 }
 
 /**

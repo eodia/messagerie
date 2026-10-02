@@ -151,6 +151,9 @@ export const api = {
     request<Conversation>('POST', `${conversation(id)}/messages`, body),
   takeOver: (id: string) => request<Conversation>('POST', `${conversation(id)}/takeover`),
   resolve: (id: string) => request<Conversation>('POST', `${conversation(id)}/resolve`),
+  snooze: (id: string, until: string) =>
+    request<Conversation>('POST', `${conversation(id)}/snooze`, { until }),
+  wake: (id: string) => request<Conversation>('DELETE', `${conversation(id)}/snooze`),
   assign: (id: string, assigneeId: string | null) =>
     request<Conversation>('POST', `${conversation(id)}/assign`, { assigneeId }),
   feedback: (id: string, messageId: string, body: FeedbackBody) =>

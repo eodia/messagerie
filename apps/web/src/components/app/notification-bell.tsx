@@ -14,6 +14,7 @@ import { inboxTime } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import type { AlertKind, Notification } from '@chat/contracts'
 import {
+  AlarmClock,
   ArrowRightLeft,
   Bell,
   Forward,
@@ -39,6 +40,10 @@ const KINDS: Record<AlertKind, { readonly icon: LucideIcon; readonly tint: strin
     icon: Forward,
     tint: 'bg-zinc-500/15 text-zinc-700 dark:text-zinc-300',
   },
+  woke: {
+    icon: AlarmClock,
+    tint: 'bg-amber-500/15 text-amber-800 dark:text-amber-300',
+  },
 }
 
 function sentence(notification: Notification): string {
@@ -58,6 +63,8 @@ function sentence(notification: Notification): string {
         by: notification.by ?? '—',
         name,
       })
+    case 'woke':
+      return $t('La conversation de {name} revient de l’attente', { name })
   }
 }
 

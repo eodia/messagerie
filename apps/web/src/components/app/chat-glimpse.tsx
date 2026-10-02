@@ -222,6 +222,7 @@ export function ChatGlimpse() {
     sentiment: null,
     tags: [],
     ...rest,
+    snoozedUntil: null,
   })
   const handedOver = scene === 'handoff' && step >= 3
   const takenOver = scene === 'handoff' && step >= 4

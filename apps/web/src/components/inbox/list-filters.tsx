@@ -27,6 +27,7 @@ const STATES: readonly { readonly value: InboxFilter; readonly label: string }[]
   { value: 'ai', label: msg('IA') },
   { value: 'open', label: msg('Ouvertes') },
   { value: 'unassigned', label: msg('En file') },
+  { value: 'snoozed', label: msg('En attente') },
   { value: 'resolved', label: msg('Résolues') },
 ]
 

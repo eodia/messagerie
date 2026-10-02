@@ -73,6 +73,8 @@ export type ErrorCode =
   | 'WEBHOOK_TARGET_REJECTED'
   /** An event or a handoff: part of the conversation's story, not a message to delete. */
   | 'MESSAGE_NOT_DELETABLE'
+  /** On hold: only a conversation an agent has — not the AI's, not a resolved one. */
+  | 'NOT_SNOOZABLE'
   | 'SPEECH_UNAVAILABLE'
   | 'GIFS_UNREACHABLE'
   | 'GIF_NOT_FOUND'

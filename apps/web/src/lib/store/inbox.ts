@@ -85,11 +85,13 @@ type Status = Pick<ConversationSummary, 'status' | 'assignee'>
 export function matchesFilter(conversation: Status, filter: InboxFilter): boolean {
   switch (filter) {
     case 'all':
-      return conversation.status !== 'resolved'
+      return conversation.status !== 'resolved' && conversation.status !== 'pending'
     case 'ai':
       return conversation.status === 'ai'
     case 'open':
-      return conversation.status === 'open' || conversation.status === 'pending'
+      return conversation.status === 'open'
+    case 'snoozed':
+      return conversation.status === 'pending'
     case 'unassigned':
       return conversation.status === 'open' && conversation.assignee === null
     case 'resolved':
@@ -108,6 +110,8 @@ export function concernsMe(summary: ConversationSummary, me: Agent | null): bool
 }
 
 /** What waits for the reader: unread, and theirs to answer — the tab's and sidebar's count. */
+  // On hold: nobody's to answer until it comes back.
+  if (summary.status === 'pending') return false
 export const waitingCount = (state: Pick<InboxState, 'summaries' | 'me'>): number =>
   state.summaries.filter((s) => s.unread && concernsMe(s, state.me)).length
 
@@ -220,6 +224,9 @@ const NO_NOTIFICATIONS: NotificationList = { unread: 0, items: [] }
 /** No such inbox, or not the reader's — its conversations are then all shown. */
 const INBOX_UNKNOWN = 'INBOX_NOT_FOUND'
 
+  /** « Mettre en attente » until `until` (ISO), and « Réveiller » before it. */
+  snooze: (id: string, until: string) => Promise<void>
+  wake: (id: string) => Promise<void>
 /** The widget says « still typing » every two seconds or so: silent longer, they stopped. */
 const TYPING_MS = 6000
 
@@ -302,7 +309,10 @@ export const useInbox = create<InboxState>((set, get) => {
   /** An alert, if it is the reader's: a chime, the desktop, and nothing if they are on it. */
   function raise(summary: ConversationSummary, alert: AlertKind): void {
     const { me, selectedId } = get()
-    const concerns = alert === 'assigned' ? summary.assigneeId === me?.id : concernsMe(summary, me)
+    const concerns =
+      alert === 'assigned' || alert === 'woke'
+        ? summary.assigneeId === me?.id
+        : concernsMe(summary, me)
     if (!concerns) return
     // Looking at it already: it is read, no need to call.
     if (summary.id === selectedId && inView()) {
@@ -316,7 +326,9 @@ export const useInbox = create<InboxState>((set, get) => {
         ? name
         : alert === 'handoff'
           ? $t('L’IA transfère {name}', { name })
-          : $t('Conversation confiée : {name}', { name })
+          : alert === 'woke'
+            ? $t('De retour de l’attente : {name}', { name })
+            : $t('Conversation confiée : {name}', { name })
     notifyDesktop(title, summary.preview, summary.id, () => get().open(summary.id))
   }
 
@@ -565,6 +577,14 @@ export const useInbox = create<InboxState>((set, get) => {
         await refreshNotifications()
       } catch (error) {
         set({ error: codeOf(error) })
+    snooze: async (id, until) => {
+      await act(id, () => api.snooze(id, until))
+    },
+
+    wake: async (id) => {
+      await act(id, () => api.wake(id))
+    },
+
       }
     },
   }

@@ -21,6 +21,7 @@ import {
   loadSummaries,
   searchMessages,
 } from '../../src/inbox/read.js'
+import { wakeDue } from '../../src/inbox/snooze.js'
 import {
   assign,
   deleteMessage,
@@ -29,7 +30,9 @@ import {
   resolve,
   sendMessage,
   setFeedback,
+  snooze,
   takeOver,
+  wake,
 } from '../../src/inbox/write.js'
 import {
   type Signal,
@@ -239,6 +242,62 @@ describe('deleting a message', () => {
     await expect(hideMessage(db, agent, id, event.id)).rejects.toMatchObject({
       code: 'MESSAGE_NOT_DELETABLE',
     })
+  })
+})
+
+describe('on hold', () => {
+  const inAnHour = () => new Date(Date.now() + 3600_000)
+
+  it('leaves the queue until its time, then comes back unread, its assignee told', async () => {
+    const { id } = await aiConversation()
+    await takeOver(db, agent, id)
+    const until = inAnHour()
+    const held = await snooze(db, agent, id, until)
+    expect(held).toMatchObject({
+      status: 'pending',
+      snoozedUntil: until.toISOString(),
+      unread: false,
+    })
+    expect(held.messages.at(-1)).toMatchObject({
+      kind: 'event',
+      event: { type: 'snoozed', agent: 'Agent de test', until: until.toISOString() },
+    })
+
+    expect(await wakeDue(db)).toBe(0)
+    expect(await wakeDue(db, new Date(until.getTime() + 1000))).toBe(1)
+    const back = await loadConversation(db, id, agent)
+    expect(back).toMatchObject({ status: 'open', snoozedUntil: null, unread: true })
+    expect(back.messages.at(-1)).toMatchObject({ event: { type: 'woke', agent: null } })
+    const told = (await listNotifications(db, agent)).items.filter((n) => n.conversationId === id)
+    expect(told.map((n) => n.kind)).toContain('woke')
+  })
+
+  it('comes back sooner when the visitor writes, or when an agent wakes it', async () => {
+    const { id } = await aiConversation()
+    await takeOver(db, agent, id)
+    await snooze(db, agent, id, inAnHour())
+    await receiveVisitorMessage(db, id, 'Finalement, j’ai une autre question')
+    expect(await loadConversation(db, id, agent)).toMatchObject({
+      status: 'open',
+      snoozedUntil: null,
+    })
+
+    await snooze(db, agent, id, inAnHour())
+    await wake(db, agent, id)
+    const woken = await loadConversation(db, id, agent)
+    expect(woken).toMatchObject({ status: 'open', snoozedUntil: null })
+    expect(woken.messages.at(-1)).toMatchObject({ event: { type: 'woke', agent: 'Agent de test' } })
+  })
+
+  it('is refused to the AI’s conversations, resolved ones, and to a time past', async () => {
+    const { id } = await aiConversation()
+    await expect(snooze(db, agent, id, inAnHour())).rejects.toMatchObject({ code: 'NOT_SNOOZABLE' })
+    await takeOver(db, agent, id)
+    await expect(snooze(db, agent, id, new Date(Date.now() - 1000))).rejects.toMatchObject({
+      code: 'INVALID_REQUEST',
+    })
+    await resolve(db, agent, id)
+    await expect(snooze(db, agent, id, inAnHour())).rejects.toMatchObject({ code: 'NOT_SNOOZABLE' })
   })
 })
 

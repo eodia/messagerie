@@ -158,6 +158,10 @@ export type ConversationEvent =
       readonly team?: string
       readonly by: string
     }
+  /** Put on hold by `agent` until `until`. */
+  | { readonly type: 'snoozed'; readonly agent: string; readonly until: string }
+  /** Back from on hold: woken by `agent`, or by its time (`null`). */
+  | { readonly type: 'woke'; readonly agent: string | null }
 
 /** Something that happened, told in one line: a tool called, an agent taking over. */
 export interface EventMessage extends MessageBase {
@@ -201,6 +205,8 @@ export interface Conversation {
   readonly status: ConversationStatus
   readonly assignee: string | null
   readonly assigneeId: string | null
+  /** On hold until then — `pending` —, or null. */
+  readonly snoozedUntil: string | null
   readonly unread: boolean
   readonly intent: string | null
   readonly tags: readonly Tag[]
@@ -271,10 +277,17 @@ export interface ConversationSummary {
 }
 
 /**
+  /** On hold until then — `pending` —, or null. */
+  readonly snoozedUntil: string | null
+}
+
+/** Put a conversation on hold until a time. */
+export interface SnoozeBody {
+  readonly until: string
  * Why a conversation calls for an agent's attention: a visitor wrote, the AI handed it
  * over, or someone gave it to them. What rings, what shows in the bell.
  */
-export type AlertKind = 'visitor_message' | 'handoff' | 'assigned' | 'transferred'
+export type AlertKind = 'visitor_message' | 'handoff' | 'assigned' | 'transferred' | 'woke'
 
 /** One entry of an agent's bell. Kept by the server, so that a reload loses none. */
 export interface Notification {
