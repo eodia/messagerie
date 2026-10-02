@@ -473,6 +473,36 @@ ensuite retenue par son émetteur et son `sub`. Il ne crée personne : on invite
 **La relecture des conversations promues** se fait dans « Connaissances » : la question et
 la réponse se corrigent, puis se publient — l'IA s'en sert — ou se rejettent.
 
+## D20 — Les automatisations, celles de basedb faites pour les conversations
+
+Une automatisation part d'un **déclencheur**, retient les **conversations** qui remplissent
+sa condition, et enchaîne des **étapes** : le flux de basedb, dessiné de même (React Flow,
+une carte par étape, un « + » sur chaque lien), dans « Administration › Automatisations ».
+
+- **Déclencheurs :** une conversation commence ; le visiteur écrit ; l'IA passe la main ;
+  attribuée, transférée, résolue, rouverte ; l'humeur change ; le visiteur attend une
+  réponse depuis N minutes ; à heure fixe — une fois, ou pour chaque conversation que la
+  condition retient ; un bouton dans la conversation ; l'appel d'un autre système, à
+  l'adresse de l'automatisation et avec sa clé.
+- **Étapes :** attribuer (à quelqu'un, au moins occupé d'une équipe, à tour de rôle),
+  transférer, étiqueter, priorité, statut, répondre, noter, demander l'e-mail du visiteur,
+  prévenir, appeler une adresse, demander à l'IA (classer ou rédiger), noter une donnée ;
+  une condition ouvre des chemins ; une attente reprend plus tard, sauf si le visiteur a
+  écrit. Les textes citent la conversation : `{{contact.prenom}}`, `{{etape.s2}}`.
+- **Le moteur** lit les événements que captent les déclencheurs de la base (D17), crée les
+  exécutions de celles qui écoutent, et les mène étape par étape, toutes les deux secondes,
+  à plusieurs processus (`SKIP LOCKED`). Une attente met l'exécution de côté jusqu'à son
+  heure.
+- **Chaque automatisation agit sous sa propre ligne de conseiller** (`automation:<id>`),
+  jamais active : le fil dit qui a fait quoi ; le visiteur lit ses réponses au nom du site.
+- **Pas de boucle :** une automatisation ne se déclenche jamais sur ce que son exécution a
+  fait (`chat.automation_run`, que la transaction nomme et que l'événement garde) ; une
+  chaîne s'arrête à trois ; cent exécutions par heure au plus.
+- **Une exécution interrompue** — le processus est tombé — échoue (`INTERRUPTED`) plutôt
+  que de recommencer : ses étapes ont peut-être déjà écrit.
+- **Par défaut**, une messagerie commence avec « Demander l'e-mail quand la réponse tarde ».
+  Quand l'IA passe la main site fermé, le widget demande l'adresse lui-même.
+
 ## Questions ouvertes
 
 Reprises du cadrage :

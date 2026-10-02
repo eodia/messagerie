@@ -34,6 +34,7 @@ Les décisions qui expliquent le reste sont dans
 | Alertes | Son, notifications du bureau, pastilles de l'onglet, cloche par conseiller, réglables |
 | API et MCP | API REST `/api/v1` et serveur MCP `/mcp` pour les programmes et les agents, avec des jetons (`msg_…`, lecture ou écriture, par boîte), gérés dans « Administration › API et MCP » (D16) |
 | Webhooks | Un autre système prévenu de ce qui se passe dans les conversations : appels signés, retentés, dans l'ordre par conversation, gérés dans « Administration › API et MCP » (D17) |
+| Automatisations | Un déclencheur (message, transfert, délai sans réponse, heure fixe, bouton, appel d'un autre système), des conditions et des étapes — attribuer, étiqueter, répondre, prévenir, appeler une adresse, demander à l'IA, attendre —, sur un flux comme celui de basedb, avec ses modèles et le journal de ses exécutions (D20) |
 | Contacts | Drapeau, heure locale et carte OpenStreetMap de chaque contact, tirés du fuseau horaire de son navigateur — sans géolocalisation par IP (D18) |
 
 ## Développer
@@ -109,12 +110,13 @@ la variable d'environnement qui le porte (`${METEO_TOKEN}` dans un en-tête, par
 
 | Dossier | Contenu |
 |---|---|
-| [`apps/web`](apps/web) | l'inbox des conseillers — Next.js, shadcn/ui, le style de basedb |
+| [`apps/web`](apps/web) | l'inbox des conseillers — Next.js, shadcn/ui |
 | [`apps/server`](apps/server) | le serveur — Hono, WebSocket, Drizzle, pg-boss, migrations dans `drizzle/` |
 | [`apps/widget`](apps/widget) | le widget — Preact, esbuild, un seul script |
 | [`packages/ai`](packages/ai) | le modèle derrière une interface, le masquage des données personnelles, le découpage des articles |
 | [`packages/contracts`](packages/contracts) | les types échangés entre le serveur, l'inbox et le widget |
 | [`docs/architecture`](docs/architecture) | les décisions d'architecture |
+| [`www`](www) | le site public : la page d'accueil et la documentation — Astro et Starlight |
 
 ### L'API et le serveur MCP (D16)
 
