@@ -14,6 +14,7 @@ import {
   type WidgetDeps,
   openSession,
   postVisitorMessage,
+  resetVisitorConversation,
   updateVisitorContact,
   updateVisitorConversation,
   visitorConversation,
@@ -135,6 +136,14 @@ export function widgetRoutes(
     const visitor = await visitorFrom(deps, bearer(c), c.req.header('origin'))
     if (!edits.allow(visitor.contactId)) throw new Refusal('RATE_LIMITED', 429)
     await updateVisitorConversation(deps, visitor, readPatch((await jsonOf(c)).data))
+    return c.body(null, 204)
+  })
+
+  // `MessagerieChat.reset()`: the conversation left, the next message opens another.
+  widget.post('/conversation/reset', async (c) => {
+    const visitor = await visitorFrom(deps, bearer(c), c.req.header('origin'))
+    if (!sessions.allow(address(c))) throw new Refusal('RATE_LIMITED', 429)
+    await resetVisitorConversation(deps.db, visitor)
     return c.body(null, 204)
   })
 

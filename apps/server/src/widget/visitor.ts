@@ -20,7 +20,7 @@ import {
   patchConversationData,
 } from '../inbox/metadata.js'
 import { isZonePoint, knownZone, placeOfZone } from '../places/place.js'
-import { signalTyping } from '../realtime/signals.js'
+import { signalChange, signalTyping } from '../realtime/signals.js'
 import { Refusal } from '../refusal.js'
 import { availability } from '../settings/hours.js'
 import type { Settings, Site } from '../settings/settings.js'
@@ -218,7 +218,7 @@ async function currentConversation(db: Db, contactId: string) {
     .where(eq(conversations.contactId, contactId))
     .orderBy(desc(conversations.createdAt))
     .limit(1)
-  if (!latest) return null
+  if (!latest || latest.visitorLeftAt !== null) return null
   if (latest.status === 'resolved' && Date.now() - latest.updatedAt.getTime() > RESUME_MS) {
     return null
   }
@@ -324,6 +324,41 @@ export async function postVisitorMessage(
   const conversation = await visitorConversation(deps.db, visitor.contactId)
   if (!conversation) throw new Refusal('INTERNAL_ERROR', 500)
   return conversation
+}
+
+/**
+ * `MessagerieChat.reset()`: the visitor begins anew. Their current conversation stays the
+ * team's, marked as left — the next message opens another. One the AI alone held is
+ * resolved: nobody waits on it; one an agent has stays theirs, told by its event.
+ */
+export async function resetVisitorConversation(db: Db, visitor: VisitorClaims): Promise<void> {
+  const current = await currentConversation(db, visitor.contactId)
+  if (!current) return
+  await db.transaction(async (tx) => {
+    const [row] = await tx
+      .select()
+      .from(conversations)
+      .where(eq(conversations.id, current.id))
+      .for('update')
+    if (!row || row.visitorLeftAt !== null) return
+    const at = new Date()
+    await tx.insert(messages).values({
+      conversationId: row.id,
+      author: 'system',
+      kind: 'event',
+      meta: { event: { type: 'restarted' } },
+      createdAt: at,
+    })
+    await tx
+      .update(conversations)
+      .set({
+        visitorLeftAt: at,
+        ...(row.status === 'ai' ? { status: 'resolved' as const, agentUnread: false } : {}),
+        updatedAt: at,
+      })
+      .where(eq(conversations.id, row.id))
+    await signalChange(tx, row.id)
+  })
 }
 
 /** What the page says of its visitor: their profile, their metadata. */

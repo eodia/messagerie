@@ -208,6 +208,7 @@ export function App({
   /** Metadata the page set before the conversation began: sent with its first message. */
   const pendingData = useRef<Record<string, Data[string]>>({})
   const sendRef = useRef<(text: string) => Promise<void>>(async () => {})
+  const resetRef = useRef<(forget: boolean) => Promise<void>>(async () => {})
   const conversationRef = useRef<VisitorConversation | null>(null)
   conversationRef.current = conversation
   const seen = useRef(new Set<string>())
@@ -316,6 +317,7 @@ export function App({
         if (conversationRef.current) void api.updateConversation(data).catch(failed)
         else pendingData.current = { ...pendingData.current, ...data }
       },
+      reset: (options) => void resetRef.current(options?.visitor === true).catch(failed),
     })
     emit('ready')
   }, [session === null])
@@ -442,6 +444,34 @@ export function App({
 
   // The page's `send` reaches the latest `send`, whatever render bound it.
   sendRef.current = send
+
+  /**
+   * `MessagerieChat.reset()`: the conversation left for the team, the panel back to its
+   * welcome — the next message opens a new one. With `visitor`, a new session too: the
+   * next visitor is a stranger.
+   */
+  async function reset(forget: boolean) {
+    if (conversationRef.current) await api.resetConversation()
+    pendingData.current = {}
+    setFollowing(false)
+    setConversation(null)
+    setDraft('')
+    setFiles([])
+    setError(null)
+    setUnread(0)
+    setPreview(null)
+    showTyping(null)
+    if (forget) {
+      api.forgetVisitor()
+      const opened = await api.session(identity)
+      for (const message of opened.conversation?.messages ?? []) seen.current.add(message.id)
+      setSession(opened)
+      setConversation(opened.conversation)
+      if (opened.conversation) setFollowing(true)
+    }
+    emit('reset', { visitor: forget })
+  }
+  resetRef.current = reset
 
   if (!session || hidden) return null
   const { site, availability, contact } = session

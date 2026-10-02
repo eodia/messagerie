@@ -42,8 +42,9 @@ const API_EXAMPLE = [
   "MessagerieChat.setUser({ name: 'Léa Martin', email: 'lea@exemple.fr', phone: '06…' })",
   "MessagerieChat.setContactData({ Abonnement: 'Pro' })",
   "MessagerieChat.setConversationData({ Commande: 'A-1042', 'Panier (€)': 89.9 })",
+  'MessagerieChat.reset()           // nouvelle conversation ; { visitor: true } : nouveau visiteur',
   "MessagerieChat.on('message:received', (message) => { … })",
-  '// événements : ready, open, close, message:sent, message:received',
+  '// événements : ready, open, close, message:sent, message:received, reset',
 ].join('\n')
 
 const QUEUE_EXAMPLE = [

@@ -126,6 +126,11 @@ export const conversations = chat.table(
     siteName: text('site_name').notNull(),
     status: conversationStatus('status').notNull().default('ai'),
     /**
+     * The visitor began anew from the page (`MessagerieChat.reset()`): no longer their
+     * current conversation — their next message opens another. Kept for the team.
+     */
+    visitorLeftAt: timestamp('visitor_left_at', { withTimezone: true }),
+    /**
      * On hold until then (`pending`): back in the queue at that time, or sooner when the
      * visitor writes.
      */

@@ -228,6 +228,40 @@ describe('a visitor who writes', () => {
     expect(seen.answeredBy).toBe('team')
   })
 
+  it('begins anew on reset(): the conversation left for the team, the next one new', async () => {
+    const { visitor } = await session()
+    const first = (await (
+      await call('/messages', { body: { body: 'Première question' }, token: visitor })
+    ).json()) as VisitorConversation
+    expect((await call('/conversation/reset', { body: {}, token: visitor })).status).toBe(204)
+    expect(await (await call('/conversation', { token: visitor })).json()).toBeNull()
+
+    // Held by the AI alone: resolved, and its event says why.
+    const [left] = await db.select().from(conversations).where(eq(conversations.id, first.id))
+    expect(left?.status).toBe('resolved')
+    expect(left?.visitorLeftAt).not.toBeNull()
+    const events = await db.select().from(messages).where(eq(messages.conversationId, first.id))
+    expect(events.some((m) => m.meta.event?.type === 'restarted')).toBe(true)
+
+    const second = (await (
+      await call('/messages', { body: { body: 'Nouvelle question' }, token: visitor })
+    ).json()) as VisitorConversation
+    expect(second.id).not.toBe(first.id)
+    expect(second.messages.map((m) => ('body' in m ? m.body : null))).toEqual(['Nouvelle question'])
+
+    // An agent's conversation stays theirs: left, never resolved behind their back.
+    const [agent] = await db
+      .insert(agents)
+      .values({ basedbUserId: 'w-reset-agent', name: 'Paul Martin' })
+      .returning()
+    if (!agent) throw new Error('agent not inserted')
+    await sendMessage(db, agent, second.id, { body: 'Je regarde.', kind: 'reply' })
+    await call('/conversation/reset', { body: {}, token: visitor })
+    const [kept] = await db.select().from(conversations).where(eq(conversations.id, second.id))
+    expect(kept?.status).toBe('open')
+    expect(kept?.visitorLeftAt).not.toBeNull()
+  })
+
   it('starts a new conversation after one resolved more than a day ago', async () => {
     const { visitor } = await session()
     const first = (await (

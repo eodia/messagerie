@@ -184,6 +184,7 @@ const EVENT_ICONS = {
   transferred: Forward,
   snoozed: AlarmClock,
   woke: AlarmClockOff,
+  restarted: RotateCcw,
 } as const
 
 /** An event, said in the reader's language: the server stores what happened, not words. */
@@ -236,6 +237,8 @@ function eventText(event: ConversationEvent): string {
       return event.agent === null
         ? $t('La conversation revient : son attente est finie.')
         : $t('{agent} a sorti la conversation de l’attente.', { agent: event.agent })
+    case 'restarted':
+      return $t('Le visiteur a commencé une nouvelle conversation depuis la page.')
   }
 }
 

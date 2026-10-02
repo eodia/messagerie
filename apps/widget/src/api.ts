@@ -29,6 +29,10 @@ export interface Backend {
   updateContact(change: Profile & { readonly data?: Data }): Promise<void>
   /** `MessagerieChat.setConversationData`, once the conversation has begun. */
   updateConversation(data: Data): Promise<void>
+  /** `MessagerieChat.reset()`: the current conversation left — the next message opens another. */
+  resetConversation(): Promise<void>
+  /** `reset({ visitor: true })`: the visitor's token forgotten — the next session, a stranger's. */
+  forgetVisitor(): void
 }
 
 export class WidgetFailure extends Error {
@@ -146,6 +150,14 @@ export class WidgetApi implements Backend {
 
   async updateConversation(data: Data): Promise<void> {
     await this.call('PATCH', '/conversation', { data })
+  }
+
+  async resetConversation(): Promise<void> {
+    if (this.token) await this.call('POST', '/conversation/reset')
+  }
+
+  forgetVisitor(): void {
+    this.keep(null)
   }
 
   /**

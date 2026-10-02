@@ -1,0 +1,1 @@
+ALTER TABLE "chat"."conversation" ADD COLUMN "visitor_left_at" timestamp with time zone;

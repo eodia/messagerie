@@ -10,6 +10,8 @@ import type { MetadataValue } from '@chat/contracts'
  *   MessagerieChat.setUser({ name, email, phone })       — an anonymous visitor's
  *   MessagerieChat.setContactData({ Abonnement: 'Pro' })
  *   MessagerieChat.setConversationData({ Commande: 'A-1042' })
+ *   MessagerieChat.reset()                               — a new conversation
+ *   MessagerieChat.reset({ visitor: true })              — and a new visitor: a sign-out
  *   MessagerieChat.on('message:received', (message) => …)  → a function that stops it
  *
  * Before the script has loaded, the page queues the same calls:
@@ -30,7 +32,16 @@ export interface Profile {
   readonly phone?: string
 }
 
-export type PageEvent = 'ready' | 'open' | 'close' | 'message:sent' | 'message:received'
+export type PageEvent = 'ready' | 'open' | 'close' | 'message:sent' | 'message:received' | 'reset'
+
+/** `reset()`: a new conversation — and with `visitor`, a new visitor too. */
+export interface ResetOptions {
+  /**
+   * Forget the visitor as well: the next one is a stranger, as after a sign-out on a
+   * shared computer. Without it, they keep their name, their data, their history.
+   */
+  readonly visitor?: boolean
+}
 
 /** What the widget does for the page — given by the widget once its session is open. */
 export interface Commands {
@@ -45,6 +56,7 @@ export interface Commands {
   setUser(profile: Profile): void
   setContactData(data: Data): void
   setConversationData(data: Data): void
+  reset(options?: ResetOptions): void
 }
 
 export type PageApi = Commands & {
@@ -67,6 +79,7 @@ const METHODS: readonly (keyof Commands)[] = [
   'setUser',
   'setContactData',
   'setConversationData',
+  'reset',
 ]
 
 /**

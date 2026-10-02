@@ -112,6 +112,8 @@ export async function demoPage(db: Db, settings: Settings, signedIn: boolean): P
       <button type="button" onclick="MessagerieChat.setContactData({ Abonnement: 'Formule Pro', 'Client depuis': 2019 })">setContactData(…)</button>
       <button type="button" onclick="MessagerieChat.setConversationData({ Page: location.pathname, Devis: 'Habitation T3', 'Montant (€)': 189 })">setConversationData(…)</button>
       <button type="button" onclick="MessagerieChat.send('Quel est le délai de remboursement ?')">send(…)</button>
+      <button type="button" onclick="MessagerieChat.reset()">reset()</button>
+      <button type="button" onclick="MessagerieChat.reset({ visitor: true })">reset({ visitor: true })</button>
       <button type="button" onclick="MessagerieChat.hide()">hide()</button>
       <button type="button" onclick="MessagerieChat.show()">show()</button>
     </div>
@@ -126,7 +128,7 @@ export async function demoPage(db: Db, settings: Settings, signedIn: boolean): P
     line.textContent = what + (detail && detail.body ? ' — ' + detail.body.slice(0, 80) : '')
     document.getElementById('events').prepend(line)
   }
-  for (const event of ['ready', 'open', 'close', 'message:sent', 'message:received']) {
+  for (const event of ['ready', 'open', 'close', 'message:sent', 'message:received', 'reset']) {
     MessagerieChat.push(['on', event, told(event)])
   }
 </script>

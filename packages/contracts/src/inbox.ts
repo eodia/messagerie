@@ -162,6 +162,11 @@ export type ConversationEvent =
   | { readonly type: 'snoozed'; readonly agent: string; readonly until: string }
   /** Back from on hold: woken by `agent`, or by its time (`null`). */
   | { readonly type: 'woke'; readonly agent: string | null }
+  /**
+   * The visitor began a new conversation from the page (`MessagerieChat.reset()`); one
+   * the AI alone held is resolved by it.
+   */
+  | { readonly type: 'restarted' }
 
 /** Something that happened, told in one line: a tool called, an agent taking over. */
 export interface EventMessage extends MessageBase {

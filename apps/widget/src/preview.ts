@@ -184,5 +184,9 @@ export class PreviewBackend implements Backend {
 
   async updateConversation(): Promise<void> {}
 
+  async resetConversation(): Promise<void> {}
+
+  forgetVisitor(): void {}
+
   typing(): void {}
 }
