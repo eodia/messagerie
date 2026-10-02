@@ -203,10 +203,10 @@ export interface Conversation {
   /** What the page or an agent attached to the conversation. */
   readonly data: Metadata
   readonly status: ConversationStatus
-  readonly assignee: string | null
-  readonly assigneeId: string | null
   /** On hold until then — `pending` —, or null. */
   readonly snoozedUntil: string | null
+  readonly assignee: string | null
+  readonly assigneeId: string | null
   readonly unread: boolean
   readonly intent: string | null
   readonly tags: readonly Tag[]
@@ -274,9 +274,6 @@ export interface ConversationSummary {
   readonly priority: Priority
   readonly sentiment: Sentiment | null
   readonly tags: readonly Tag[]
-}
-
-/**
   /** On hold until then — `pending` —, or null. */
   readonly snoozedUntil: string | null
 }
@@ -284,6 +281,9 @@ export interface ConversationSummary {
 /** Put a conversation on hold until a time. */
 export interface SnoozeBody {
   readonly until: string
+}
+
+/**
  * Why a conversation calls for an agent's attention: a visitor wrote, the AI handed it
  * over, or someone gave it to them. What rings, what shows in the bell.
  */

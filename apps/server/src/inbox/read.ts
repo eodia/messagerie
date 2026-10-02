@@ -135,21 +135,21 @@ export async function loadSummaries(
       unread: conversation.agentUnread,
       handedOff: handed.has(conversation.id),
       preview: said?.body ?? '',
-      snoozedUntil: snoozedUntil(conversation),
       previewAuthor: said ? PREVIEW_AUTHOR[said.author] : null,
       previewAgent: said?.author === 'agent' ? said.agent : null,
       previewFiles: said ? (files.get(said.id)?.length ?? 0) : 0,
       lastMessageAt: conversation.lastMessageAt.toISOString(),
-/** When a conversation on hold comes back — only while it is on hold. */
-const snoozedUntil = (row: typeof conversations.$inferSelect): string | null =>
-  row.status === 'pending' ? (row.snoozedUntil?.toISOString() ?? null) : null
-
       priority: conversation.priority,
       sentiment: conversation.sentiment,
       tags: tagsOf.get(conversation.id) ?? [],
+      snoozedUntil: snoozedUntil(conversation),
     }
   })
 }
+
+/** When a conversation on hold comes back — only while it is on hold. */
+const snoozedUntil = (row: typeof conversations.$inferSelect): string | null =>
+  row.status === 'pending' ? (row.snoozedUntil?.toISOString() ?? null) : null
 
 /** The accented letters of French and its neighbours, and what they read as once folded. */
 const ACCENTED = 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿ'
@@ -280,13 +280,13 @@ export async function loadConversation(
 
   return {
     id: conversation.id,
-    snoozedUntil: snoozedUntil(conversation),
     contact: toContact(contact),
     site: conversation.siteName,
     inboxId: conversation.inboxId,
     teamId: conversation.teamId,
     data: conversation.data,
     status: conversation.status,
+    snoozedUntil: snoozedUntil(conversation),
     assignee: row.assignee,
     assigneeId: conversation.assigneeId,
     unread: conversation.agentUnread,

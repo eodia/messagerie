@@ -105,13 +105,13 @@ export function matchesFilter(conversation: Status, filter: InboxFilter): boolea
  */
 export function concernsMe(summary: ConversationSummary, me: Agent | null): boolean {
   if (me === null) return false
+  // On hold: nobody's to answer until it comes back.
+  if (summary.status === 'pending') return false
   if (summary.assigneeId === me.id) return summary.status !== 'resolved'
   return summary.status === 'open' && summary.assigneeId === null
 }
 
 /** What waits for the reader: unread, and theirs to answer — the tab's and sidebar's count. */
-  // On hold: nobody's to answer until it comes back.
-  if (summary.status === 'pending') return false
 export const waitingCount = (state: Pick<InboxState, 'summaries' | 'me'>): number =>
   state.summaries.filter((s) => s.unread && concernsMe(s, state.me)).length
 
@@ -194,6 +194,9 @@ interface InboxState {
   ) => Promise<boolean>
   takeOver: (id: string) => Promise<void>
   resolve: (id: string) => Promise<void>
+  /** « Mettre en attente » until `until` (ISO), and « Réveiller » before it. */
+  snooze: (id: string, until: string) => Promise<void>
+  wake: (id: string) => Promise<void>
   assign: (id: string, assigneeId: string | null) => Promise<void>
   transfer: (id: string, body: TransferBody) => Promise<boolean>
   addTag: (id: string, label: string) => Promise<void>
@@ -224,9 +227,6 @@ const NO_NOTIFICATIONS: NotificationList = { unread: 0, items: [] }
 /** No such inbox, or not the reader's — its conversations are then all shown. */
 const INBOX_UNKNOWN = 'INBOX_NOT_FOUND'
 
-  /** « Mettre en attente » until `until` (ISO), and « Réveiller » before it. */
-  snooze: (id: string, until: string) => Promise<void>
-  wake: (id: string) => Promise<void>
 /** The widget says « still typing » every two seconds or so: silent longer, they stopped. */
 const TYPING_MS = 6000
 
@@ -528,6 +528,14 @@ export const useInbox = create<InboxState>((set, get) => {
       await act(id, () => api.resolve(id))
     },
 
+    snooze: async (id, until) => {
+      await act(id, () => api.snooze(id, until))
+    },
+
+    wake: async (id) => {
+      await act(id, () => api.wake(id))
+    },
+
     assign: async (id, assigneeId) => {
       await act(id, () => api.assign(id, assigneeId))
     },
@@ -577,14 +585,6 @@ export const useInbox = create<InboxState>((set, get) => {
         await refreshNotifications()
       } catch (error) {
         set({ error: codeOf(error) })
-    snooze: async (id, until) => {
-      await act(id, () => api.snooze(id, until))
-    },
-
-    wake: async (id) => {
-      await act(id, () => api.wake(id))
-    },
-
       }
     },
   }
