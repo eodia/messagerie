@@ -5,6 +5,7 @@ import {
   type AnalyticsDeps,
   createDashboard,
   defaultCards,
+  filterValues,
   getDashboard,
   listDashboards,
   runCard,
@@ -195,5 +196,87 @@ describe('a dashboard', () => {
     expect(shared.shared).toBe(true)
     const result = await runCard(deps, julie, made.id, 'c1', 'Europe/Paris')
     expect(result.rows).toEqual([[8]])
+  })
+
+  it('follows its filters, on the cards tied to them only', async () => {
+    const made = await createDashboard(db, marc, {
+      name: 'Filtré',
+      shared: true,
+      filters: [
+        {
+          id: 'statut',
+          label: 'Statut',
+          kind: 'choice',
+          source: 'conversations',
+          column: 'status',
+          default: [],
+        },
+        { id: 'periode', label: 'Période', kind: 'period', default: ['30', 'days'] },
+        { id: 'faux', label: 'Mal fait', kind: 'nope', default: [] },
+      ],
+      cards: [
+        {
+          id: 'lie',
+          x: 0,
+          y: 0,
+          w: 6,
+          h: 4,
+          title: 'Lié',
+          kind: 'question',
+          question: {
+            mode: 'builder',
+            query: {
+              source: 'conversations',
+              filters: [],
+              aggregations: [{ fn: 'count' }],
+              breakouts: [],
+            },
+            viz: { type: 'number' },
+          },
+          links: [
+            { filter: 'statut', column: 'status' },
+            { filter: 'periode', column: 'created_at' },
+            // A text column for a period: refused.
+            { filter: 'periode', column: 'inbox' },
+          ],
+        },
+        {
+          id: 'libre',
+          x: 6,
+          y: 0,
+          w: 6,
+          h: 4,
+          title: 'Libre',
+          kind: 'question',
+          question: {
+            mode: 'builder',
+            query: {
+              source: 'conversations',
+              filters: [],
+              aggregations: [{ fn: 'count' }],
+              breakouts: [],
+            },
+            viz: { type: 'number' },
+          },
+        },
+      ],
+    })
+    expect(made.filters.map((f) => f.id)).toEqual(['statut', 'periode'])
+    expect(made.cards[0]?.links).toEqual([
+      { filter: 'statut', column: 'status' },
+      { filter: 'periode', column: 'created_at' },
+    ])
+    expect((await runCard(deps, julie, made.id, 'lie', 'Europe/Paris', {})).rows).toEqual([[4]])
+    expect(
+      (await runCard(deps, julie, made.id, 'lie', 'Europe/Paris', { statut: ['resolved'] })).rows,
+    ).toEqual([[2]])
+    expect(
+      (await runCard(deps, julie, made.id, 'libre', 'Europe/Paris', { statut: ['resolved'] })).rows,
+    ).toEqual([[4]])
+    expect(await filterValues(deps, { source: 'conversations', column: 'status' })).toEqual([
+      'ai',
+      'open',
+      'resolved',
+    ])
   })
 })

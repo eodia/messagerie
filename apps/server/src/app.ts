@@ -24,6 +24,7 @@ import {
   assistQuestion,
   createDashboard,
   deleteDashboard,
+  filterValues,
   getDashboard,
   listDashboards,
   runCard,
@@ -759,11 +760,21 @@ export function createApp({
     return c.body(null, 204)
   })
   inbox.post('/dashboards/:id/cards/:card/run', async (c) => {
-    const { timeZone } = await jsonBody(c.req.raw)
+    const { timeZone, values } = await jsonBody(c.req.raw)
     return c.json(
-      await runCard(analytics, c.get('agent'), c.req.param('id'), c.req.param('card'), timeZone),
+      await runCard(
+        analytics,
+        c.get('agent'),
+        c.req.param('id'),
+        c.req.param('card'),
+        timeZone,
+        values,
+      ),
     )
   })
+  inbox.post('/analytics/values', async (c) =>
+    c.json(await filterValues(analytics, await jsonBody(c.req.raw))),
+  )
 
   // The page's actions (D21): what a site's pages declared, and what supervisors allow.
   inbox.get('/sites/:site/page-actions', async (c) =>

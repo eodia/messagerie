@@ -32,12 +32,15 @@ import type {
   Dashboard,
   DashboardBody,
   DashboardCard,
+  DashboardFilter,
+  FilterValues,
   QueryResult,
 } from '@chat/contracts'
 import {
   ChevronDown,
   Copy,
   Ellipsis,
+  Filter,
   GripVertical,
   LayoutDashboard,
   LoaderCircle,
@@ -54,6 +57,7 @@ import ReactGridLayout, {
   useContainerWidth,
   verticalCompactor,
 } from 'react-grid-layout'
+import { FilterBar, FilterEditor, relinked, suggestedColumn } from './filters'
 import { QuestionEditor } from './question-editor'
 import { ResultView } from './visualization'
 
@@ -76,8 +80,21 @@ const bodyOf = (d: Dashboard | DashboardBody): DashboardBody => ({
   name: d.name,
   description: d.description,
   cards: d.cards,
+  filters: d.filters,
   shared: d.shared,
 })
+
+/** The filters' values a viewer chose, kept in this browser by dashboard — a convenience. */
+const VALUES_KEY = (id: string) => `chat.dashboard-filters.${id}`
+
+function storedValues(id: string): FilterValues {
+  try {
+    const raw = window.localStorage.getItem(VALUES_KEY(id))
+    return raw ? (JSON.parse(raw) as FilterValues) : {}
+  } catch {
+    return {}
+  }
+}
 
 /** Where a new card goes: under all the others. */
 const below = (cards: readonly DashboardCard[]) => Math.max(0, ...cards.map((c) => c.y + c.h))
@@ -95,6 +112,8 @@ export function DashboardsScreen() {
   const [busy, setBusy] = useState(false)
   const [tick, setTick] = useState(0)
   const [arrived, setArrived] = useState(false)
+  const [values, setValues] = useState<FilterValues>({})
+  const [filterEdited, setFilterEdited] = useState<DashboardFilter | 'new' | null>(null)
 
   const fail = (failure: unknown) =>
     setError(messageFor(failure instanceof ApiFailure ? failure.code : 'INTERNAL_ERROR'))
@@ -133,23 +152,50 @@ export function DashboardsScreen() {
   )
   const shown: DashboardBody | null = draft ?? (current ? bodyOf(current) : null)
 
+  // A dashboard opened: the values this viewer chose last, else each filter's own.
+  const openedId = current?.id ?? null
+  useEffect(() => {
+    if (openedId) setValues(storedValues(openedId))
+  }, [openedId])
+  const valuesShown: FilterValues = Object.fromEntries(
+    (shown?.filters ?? []).map((f) => [f.id, values[f.id] ?? f.default]),
+  )
+  const chooseValue = (id: string, value: readonly string[]) => {
+    const next = { ...values, [id]: value }
+    setValues(next)
+    try {
+      if (current) window.localStorage.setItem(VALUES_KEY(current.id), JSON.stringify(next))
+    } catch {
+      // A blocked storage forgets the choice next time, nothing more.
+    }
+  }
+
   // The cards' results: the saved ones by their card, the ones being changed by their question.
   // biome-ignore lint/correctness/useExhaustiveDependencies: run again on a dashboard, a refresh, a draft's cards
   useEffect(() => {
     if (!shown || !current) return
     let alive = true
     const cards = shown.cards.filter((c) => c.kind === 'question' && c.question)
-    const savedCards = new Map(current.cards.map((c) => [c.id, JSON.stringify(c.question)]))
+    const savedCards = new Map(
+      current.cards.map((c) => [c.id, JSON.stringify([c.question, c.links ?? []])]),
+    )
+    const savedFilters = JSON.stringify(current.filters)
     setRuns((r) => Object.fromEntries(cards.map((c) => [c.id, { ...r[c.id], loading: true }])))
     const queue = [...cards]
     const next = async (): Promise<void> => {
       const card = queue.shift()
       if (!card || !alive) return
-      const saved = savedCards.get(card.id) === JSON.stringify(card.question)
+      const saved =
+        savedCards.get(card.id) === JSON.stringify([card.question, card.links ?? []]) &&
+        savedFilters === JSON.stringify(shown.filters)
       try {
         const result = saved
-          ? await api.runCard(current.id, card.id)
-          : await api.runQuestion(card.question as NonNullable<DashboardCard['question']>)
+          ? await api.runCard(current.id, card.id, valuesShown)
+          : await api.runQuestion(card.question as NonNullable<DashboardCard['question']>, {
+              filters: shown.filters,
+              links: card.links ?? [],
+              values: valuesShown,
+            })
         if (alive) setRuns((r) => ({ ...r, [card.id]: { result } }))
       } catch (failure) {
         if (alive) {
@@ -170,7 +216,13 @@ export function DashboardsScreen() {
     return () => {
       alive = false
     }
-  }, [current?.id, tick, JSON.stringify(shown?.cards.map((c) => [c.id, c.question]))])
+  }, [
+    current?.id,
+    tick,
+    JSON.stringify(shown?.cards.map((c) => [c.id, c.question, c.links])),
+    JSON.stringify(shown?.filters),
+    JSON.stringify(valuesShown),
+  ])
 
   const startEditing = () => current && setDraft(bodyOf(current))
 
@@ -195,6 +247,7 @@ export function DashboardsScreen() {
         name: $t('Nouveau tableau de bord'),
         description: '',
         cards: [],
+        filters: [],
         shared: true,
       })
       setList((l) => [...(l ?? []), made])
@@ -387,8 +440,20 @@ export function DashboardsScreen() {
         )}
         {list === null && !error && <CardsSkeleton />}
         {shown && (
+          <FilterBar
+            filters={shown.filters}
+            values={valuesShown}
+            sources={sources}
+            editing={draft !== null}
+            onChange={chooseValue}
+            onEdit={(filter) => setFilterEdited(filter)}
+            onAdd={() => setFilterEdited('new')}
+          />
+        )}
+        {shown && (
           <Grid
             cards={shown.cards}
+            filters={shown.filters}
             runs={runs}
             sources={sources}
             editing={draft !== null}
@@ -435,13 +500,63 @@ export function DashboardsScreen() {
           ai
           onClose={() => setEditing(null)}
           onSave={(card) => {
-            setCards((cards) =>
-              cards.some((c) => c.id === card.id)
-                ? cards.map((c) => (c.id === card.id ? card : c))
-                : [...cards, card],
-            )
+            setCards((cards) => {
+              if (cards.some((c) => c.id === card.id)) {
+                return cards.map((c) => (c.id === card.id ? card : c))
+              }
+              // A new card follows the dashboard's filters it has a column for.
+              const links = (draft?.filters ?? []).flatMap((filter) => {
+                const column = suggestedColumn(card, filter, sources)
+                return column ? [{ filter: filter.id, column }] : []
+              })
+              return [...cards, links.length > 0 ? { ...card, links } : card]
+            })
             setEditing(null)
           }}
+        />
+      )}
+
+      {filterEdited !== null && draft && (
+        <FilterEditor
+          filter={filterEdited === 'new' ? null : filterEdited}
+          cards={draft.cards}
+          sources={sources}
+          onClose={() => setFilterEdited(null)}
+          onSave={(filter, links) => {
+            setDraft((d) =>
+              d
+                ? {
+                    ...d,
+                    filters: d.filters.some((f) => f.id === filter.id)
+                      ? d.filters.map((f) => (f.id === filter.id ? filter : f))
+                      : [...d.filters, filter],
+                    cards: relinked(d.cards, filter.id, links),
+                  }
+                : d,
+            )
+            setFilterEdited(null)
+          }}
+          {...(filterEdited === 'new'
+            ? {}
+            : {
+                onRemove: () => {
+                  const id = filterEdited.id
+                  setDraft((d) =>
+                    d
+                      ? {
+                          ...d,
+                          filters: d.filters.filter((f) => f.id !== id),
+                          cards: relinked(
+                            d.cards,
+                            id,
+                            Object.fromEntries(d.cards.map((c) => [c.id, null])),
+                          ),
+                        }
+                      : d,
+                  )
+                  setFilterEdited(null)
+                },
+              })}
         />
       )}
     </>
@@ -450,6 +565,7 @@ export function DashboardsScreen() {
 
 function Grid({
   cards,
+  filters,
   runs,
   sources,
   editing,
@@ -460,6 +576,7 @@ function Grid({
   onDuplicate,
 }: {
   readonly cards: readonly DashboardCard[]
+  readonly filters: readonly DashboardFilter[]
   readonly runs: Readonly<Record<string, Run>>
   readonly sources: readonly AnalyticsSource[]
   readonly editing: boolean
@@ -479,6 +596,7 @@ function Grid({
   const frame = (card: DashboardCard) => (
     <CardFrame
       card={card}
+      followed={filters.filter((f) => card.links?.some((l) => l.filter === f.id))}
       run={runs[card.id]}
       sources={sources}
       editing={editing}
@@ -530,6 +648,7 @@ function Grid({
 
 function CardFrame({
   card,
+  followed,
   run,
   sources,
   editing,
@@ -539,6 +658,8 @@ function CardFrame({
   onDuplicate,
 }: {
   readonly card: DashboardCard
+  /** The filters it follows. */
+  readonly followed: readonly DashboardFilter[]
   readonly run: Run | undefined
   readonly sources: readonly AnalyticsSource[]
   readonly editing: boolean
@@ -567,6 +688,16 @@ function CardFrame({
           <h3 className="min-w-0 flex-1 truncate text-xs font-medium text-muted-foreground">
             {card.title || (text ? $t('Texte') : $t('Sans titre'))}
           </h3>
+          {editing && followed.length > 0 && (
+            <Hint
+              label={$t('Suit : {filters}', { filters: followed.map((f) => f.label).join(', ') })}
+            >
+              <span className="flex items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] text-primary">
+                <Filter className="size-3" />
+                {followed.length}
+              </span>
+            </Hint>
+          )}
           {!text && card.question?.viz.type !== 'table' && card.question?.viz.type !== 'number' && (
             <Hint label={asTable ? $t('Voir le graphique') : $t('Voir les chiffres')}>
               <Button

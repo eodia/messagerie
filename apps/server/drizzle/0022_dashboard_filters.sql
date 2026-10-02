@@ -1,0 +1,1 @@
+ALTER TABLE "chat"."dashboard" ADD COLUMN "filters" jsonb DEFAULT '[]'::jsonb NOT NULL;

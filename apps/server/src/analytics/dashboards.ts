@@ -4,6 +4,7 @@ import type {
   BuilderQuery,
   Dashboard,
   DashboardCard,
+  DashboardFilter,
   QueryResult,
   Question,
   QuestionDraft,
@@ -15,7 +16,8 @@ import type { Db } from '../db/client.js'
 import { agents, dashboards } from '../db/schema.js'
 import type { AgentRow } from '../inbox/read.js'
 import { Refusal } from '../refusal.js'
-import { SOURCES } from './catalog.js'
+import { SOURCES, sourceOf } from './catalog.js'
+import { readFilters, readLinks, readValues, valuesSource, withFilters } from './filters.js'
 import { compile, inlined, readQuestion } from './query.js'
 import { runRead } from './run.js'
 
@@ -55,7 +57,7 @@ const within = (value: unknown, min: number, max: number, fallback: number) => {
   return Number.isFinite(n) ? Math.min(Math.max(n, min), max) : fallback
 }
 
-function readCard(raw: unknown): DashboardCard {
+function readCard(raw: unknown, filters: readonly DashboardFilter[]): DashboardCard {
   const value = record(raw)
   const kind = value.kind === 'text' ? 'text' : 'question'
   const id = typeof value.id === 'string' && value.id.length <= 40 ? value.id : randomUUID()
@@ -71,7 +73,9 @@ function readCard(raw: unknown): DashboardCard {
   if (kind === 'text') {
     return { ...card, text: typeof value.text === 'string' ? value.text.slice(0, 4000) : '' }
   }
-  return { ...card, question: readQuestion(value.question) }
+  const question = readQuestion(value.question)
+  const links = readLinks(value.links, filters, question)
+  return { ...card, question, ...(links.length > 0 ? { links } : {}) }
 }
 
 function readBody(raw: unknown) {
@@ -80,10 +84,12 @@ function readBody(raw: unknown) {
   if (name === '') throw new Refusal('INVALID_REQUEST', 400, { field: 'name' })
   const cards = Array.isArray(value.cards) ? value.cards : []
   if (cards.length > MAX_CARDS) throw new Refusal('INVALID_REQUEST', 400, { field: 'cards' })
+  const filters = readFilters(value.filters)
   return {
     name,
     description: typeof value.description === 'string' ? value.description.slice(0, 500) : '',
-    cards: cards.map(readCard),
+    cards: cards.map((card) => readCard(card, filters)),
+    filters,
     shared: value.shared !== false,
   }
 }
@@ -97,6 +103,7 @@ async function present(db: Db, row: Row): Promise<Dashboard> {
     name: row.name,
     description: row.description,
     cards: row.cards,
+    filters: row.filters,
     shared: row.shared,
     createdBy: creator?.name ?? '—',
     updatedAt: row.updatedAt.toISOString(),
@@ -185,7 +192,10 @@ export async function runQuestion(
   return { ...result, sql: inlined(compiled) }
 }
 
-/** A supervisor's question, being written. */
+/**
+ * A supervisor's question, being written — under the dashboard's filters, when it is a
+ * card of one being changed.
+ */
 export async function runDraft(
   deps: AnalyticsDeps,
   agent: AgentRow,
@@ -193,7 +203,14 @@ export async function runDraft(
 ): Promise<QueryResult> {
   supervisor(agent)
   const body = record(raw)
-  return runQuestion(deps, readQuestion(body.question), body.timeZone)
+  const question = readQuestion(body.question)
+  const filters = readFilters(body.filters)
+  const links = readLinks(body.links, filters, question)
+  return runQuestion(
+    deps,
+    withFilters(question, links, filters, readValues(body.values)),
+    body.timeZone,
+  )
 }
 
 /** A card of a dashboard the agent sees, run as it was saved. */
@@ -203,11 +220,31 @@ export async function runCard(
   id: string,
   cardId: string,
   timeZone: unknown,
+  values: unknown = {},
 ): Promise<QueryResult> {
   const row = await rowOf(deps.db, agent, id)
   const card = row.cards.find((c) => c.id === cardId)
   if (!card?.question) throw new Refusal('DASHBOARD_NOT_FOUND', 404)
-  return runQuestion(deps, card.question, timeZone)
+  // The filters as saved, their values as chosen: an agent ties nothing, only picks.
+  return runQuestion(
+    deps,
+    withFilters(card.question, card.links, row.filters, readValues(values)),
+    timeZone,
+  )
+}
+
+/** The values a `choice` filter offers: those its column holds, two hundred at most. */
+export async function filterValues(deps: AnalyticsDeps, raw: unknown): Promise<readonly string[]> {
+  const { source, column } = valuesSource(raw)
+  const result = await runRead(
+    poolOf(deps),
+    {
+      text: `select distinct ${JSON.stringify(column)}::text as v from analytics.${JSON.stringify(source.key)} where ${JSON.stringify(column)} is not null order by 1 limit 200`,
+      values: [],
+    },
+    { authored: false },
+  )
+  return result.rows.map((r) => String(r[0]))
 }
 
 // ── Asked in words ──────────────────────────────────────────────────────────
@@ -305,6 +342,41 @@ const builder = (
   viz,
 })
 
+/** The default dashboard's filters: the period of everything, an inbox, a site. */
+export const DEFAULT_FILTERS: readonly DashboardFilter[] = [
+  { id: 'periode', label: 'Période', kind: 'period', default: ['30', 'days'] },
+  {
+    id: 'boite',
+    label: 'Boîte de réception',
+    kind: 'choice',
+    source: 'conversations',
+    column: 'inbox',
+    default: [],
+  },
+  {
+    id: 'site',
+    label: 'Site',
+    kind: 'choice',
+    source: 'conversations',
+    column: 'site',
+    default: [],
+  },
+]
+
+/** A card tied to every filter its source has a column for: the dates, the same column. */
+export function linksFor(card: DashboardCard, filters: readonly DashboardFilter[]) {
+  if (card.question?.mode !== 'builder') return []
+  const source = sourceOf(card.question.query.source)
+  if (!source) return []
+  return filters.flatMap((filter) => {
+    const column =
+      filter.kind === 'period'
+        ? source.columns.find((c) => c.name === 'created_at')
+        : source.columns.find((c) => c.name === filter.column)
+    return column ? [{ filter: filter.id, column: column.name }] : []
+  })
+}
+
 const card = (
   x: number,
   y: number,
@@ -322,7 +394,7 @@ export function defaultCards(): DashboardCard[] {
       0,
       3,
       3,
-      'Conversations, 7 derniers jours',
+      'Conversations',
       builder(
         { source: 'conversations', filters: [LAST_7], aggregations: [{ fn: 'count' }] },
         { type: 'number' },
@@ -479,7 +551,8 @@ export async function installDefaultDashboard(db: Db, createdBy: string | null):
     await tx.insert(dashboards).values({
       name: 'Vue d’ensemble',
       description: 'Ce qui se passe dans les conversations : volume, IA, délais, humeur, équipe.',
-      cards: defaultCards(),
+      cards: defaultCards().map((c) => ({ ...c, links: linksFor(c, DEFAULT_FILTERS) })),
+      filters: DEFAULT_FILTERS,
       shared: true,
       isDefault: true,
       createdBy,

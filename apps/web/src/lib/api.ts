@@ -11,6 +11,7 @@ import type {
   AutomationDefinition,
   AutomationRunList,
   CannedReply,
+  CardLink,
   ContactDetail,
   ContactListItem,
   Conversation,
@@ -21,8 +22,10 @@ import type {
   CreatedWebhook,
   Dashboard,
   DashboardBody,
+  DashboardFilter,
   ErrorCode,
   FeedbackBody,
+  FilterValues,
   GifHit,
   InboxDirectory,
   InboxStats,
@@ -232,8 +235,17 @@ export const api = {
     request<WebhookDelivery[]>('GET', `/webhooks/${encodeURIComponent(id)}/deliveries`),
   testWebhook: (id: string) => request<void>('POST', `/webhooks/${encodeURIComponent(id)}/test`),
   analyticsSources: () => request<AnalyticsSource[]>('GET', '/analytics/sources'),
-  runQuestion: (question: Question) =>
-    request<QueryResult>('POST', '/analytics/run', { question, timeZone: zone() }),
+  /** A question being written — under the dashboard's filters, when given. */
+  runQuestion: (
+    question: Question,
+    under?: {
+      readonly filters: readonly DashboardFilter[]
+      readonly links: readonly CardLink[]
+      readonly values: FilterValues
+    },
+  ) => request<QueryResult>('POST', '/analytics/run', { question, ...under, timeZone: zone() }),
+  filterValues: (source: string, column: string) =>
+    request<string[]>('POST', '/analytics/values', { source, column }),
   assistQuestion: (text: string) =>
     request<QuestionDraft>('POST', '/analytics/assist', { request: text, timeZone: zone() }),
   dashboards: () => request<Dashboard[]>('GET', '/dashboards'),
@@ -242,11 +254,11 @@ export const api = {
   saveDashboard: (id: string, body: DashboardBody) =>
     request<Dashboard>('PUT', `/dashboards/${encodeURIComponent(id)}`, body),
   deleteDashboard: (id: string) => request<void>('DELETE', `/dashboards/${encodeURIComponent(id)}`),
-  runCard: (id: string, card: string) =>
+  runCard: (id: string, card: string, values: FilterValues) =>
     request<QueryResult>(
       'POST',
       `/dashboards/${encodeURIComponent(id)}/cards/${encodeURIComponent(card)}/run`,
-      { timeZone: zone() },
+      { timeZone: zone(), values },
     ),
   pageActions: (siteId: string) =>
     request<PageAction[]>('GET', `/sites/${encodeURIComponent(siteId)}/page-actions`),

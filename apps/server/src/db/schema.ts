@@ -5,6 +5,7 @@ import type {
   ContactAttribute,
   ConversationEvent,
   DashboardCard,
+  DashboardFilter,
   Metadata,
   PageCallStatus,
   PageSnapshot,
@@ -565,6 +566,8 @@ export const dashboards = chat.table('dashboard', {
   name: text('name').notNull(),
   description: text('description').notNull().default(''),
   cards: jsonb('cards').$type<readonly DashboardCard[]>().notNull().default([]),
+  /** Its filters, above the cards (basedb's parameters). */
+  filters: jsonb('filters').$type<readonly DashboardFilter[]>().notNull().default([]),
   shared: boolean('shared').notNull().default(true),
   /** The one a new messaging starts with: shown first. */
   isDefault: boolean('is_default').notNull().default(false),

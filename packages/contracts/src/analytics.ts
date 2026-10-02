@@ -107,6 +107,32 @@ export interface QueryResult {
   readonly sql: string
 }
 
+/**
+ * A filter of a dashboard (basedb's parameters): a control above the cards — a period, values
+ * to pick, a text — tied, or not, to each card on a column of its question.
+ */
+export type DashboardFilterKind = 'period' | 'choice' | 'text'
+
+export interface DashboardFilter {
+  readonly id: string
+  readonly label: string
+  readonly kind: DashboardFilterKind
+  /** `choice`: where its values come from — a column of a source. */
+  readonly source?: string
+  readonly column?: string
+  /** Its value when the dashboard opens: `['30', 'days']`, values, a text. Empty: none. */
+  readonly default: readonly string[]
+}
+
+/** A filter tied to a card: the column of the card's question it bears on. */
+export interface CardLink {
+  readonly filter: string
+  readonly column: string
+}
+
+/** The filters' values, as chosen above the cards. */
+export type FilterValues = Readonly<Record<string, readonly string[]>>
+
 /** A card of a dashboard, on a twelve-column grid. */
 export interface DashboardCard {
   readonly id: string
@@ -119,6 +145,8 @@ export interface DashboardCard {
   readonly question?: Question
   /** A text card's Markdown. */
   readonly text?: string
+  /** The dashboard's filters it follows; none, it follows none. */
+  readonly links?: readonly CardLink[]
 }
 
 export interface Dashboard {
@@ -126,6 +154,7 @@ export interface Dashboard {
   readonly name: string
   readonly description: string
   readonly cards: readonly DashboardCard[]
+  readonly filters: readonly DashboardFilter[]
   /** Agents see it too; only supervisors change it. */
   readonly shared: boolean
   readonly createdBy: string
@@ -136,6 +165,7 @@ export interface DashboardBody {
   readonly name: string
   readonly description: string
   readonly cards: readonly DashboardCard[]
+  readonly filters: readonly DashboardFilter[]
   readonly shared: boolean
 }
 

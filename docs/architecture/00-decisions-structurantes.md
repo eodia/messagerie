@@ -555,6 +555,10 @@ avis gardent leur couleur de sens).
   Sans ce rôle — un utilisateur de base qui ne peut pas en créer —, le SQL est refusé
   (`SQL_UNAVAILABLE`), les questions assistées restent. L'IA écrit la requête d'une phrase,
   et l'essaie avant de la proposer.
+- **Les filtres** (les paramètres de basedb) : une période, des valeurs à choisir, un texte,
+  au-dessus des cartes. Chaque carte est liée ou non à chacun, sur une colonne de sa question ;
+  une valeur choisie remplace ce que la carte filtre sur cette colonne. Les questions en SQL ne
+  les suivent pas. Un conseiller choisit des valeurs, jamais les liens.
 - **Qui voit quoi :** les superviseurs font et changent les tableaux ; un tableau « visible
   des conseillers » s'ouvre à tous, et une carte s'y exécute telle qu'enregistrée — un
   conseiller n'envoie jamais de SQL.

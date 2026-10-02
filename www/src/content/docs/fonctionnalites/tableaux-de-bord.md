@@ -36,9 +36,10 @@ une carte limitée à une boîte ou à un site, ajoutez le filtre à sa question
 La première fois qu’on ouvre l’écran, la messagerie crée **Vue d’ensemble**, visible des
 conseillers — « Ce qui se passe dans les conversations : volume, IA, délais, humeur, équipe. » :
 
-- sur les sept derniers jours : les conversations, la part que l’IA a résolue seule parmi
-  celles où elle a répondu, la médiane de la première réponse, et les conversations transférées
-  par l’IA ;
+- trois filtres : **Période** (les 30 derniers jours à l’ouverture), **Boîte de réception** et
+  **Site** ;
+- les conversations, la part que l’IA a résolue seule parmi celles où elle a répondu, la médiane
+  de la première réponse, et les conversations transférées par l’IA ;
 - les conversations par jour, et par boîte de réception ;
 - l’humeur des visiteurs ;
 - les étiquettes les plus posées ;
@@ -71,6 +72,25 @@ bougent pas seules.
 
 Une carte **Texte** porte un titre de section ou une explication, sans question.
 
+## Les filtres
+
+Au-dessus des cartes, chaque filtre est un contrôle :
+
+| Sorte | Ce qu’on choisit |
+|---|---|
+| **Période** | aujourd’hui, les 7, 30 ou 90 derniers jours, les 12 derniers mois, toute la période, ou deux dates |
+| **Valeurs à choisir** | une ou plusieurs valeurs d’une colonne — les boîtes, les sites, les conseillers, les statuts… —, lues dans les données |
+| **Texte** | des mots qu’une colonne doit contenir |
+
+Un filtre ne s’applique qu’aux cartes qui lui sont **liées**, sur une colonne de leur question :
+une période sur une date, des valeurs ou un texte sur une colonne de texte. Choisi, il **remplace**
+ce que la carte filtre elle-même sur cette colonne : une carte enregistrée sur 30 jours montre 90
+jours quand la période dit 90. Une carte qui n’est pas liée ne bouge pas. Une question en SQL ne
+suit pas les filtres.
+
+Chacun garde ses choix dans son navigateur, tableau par tableau ; un tableau rouvert reprend ses
+derniers choix, ou la valeur que le filtre a à l’ouverture.
+
 ## Modifier un tableau
 
 Un superviseur clique sur **Modifier** :
@@ -79,6 +99,12 @@ Un superviseur clique sur **Modifier** :
 - **Question** ouvre l’éditeur de question, **Texte** ajoute une carte de texte ;
 - le menu d’une carte la modifie (**Modifier la question**), la duplique (**Dupliquer**) ou la
   retire (**Retirer la carte**) ;
+- **Filtre**, au bout de la barre des filtres, en ajoute un ; le crayon à côté d’un filtre le
+  modifie ou le retire (**Retirer le filtre**). Son éditeur liste les **graphiques filtrés** : un
+  interrupteur par carte, et la colonne visée. Un nouveau filtre se lie d’office aux cartes qui ont
+  la colonne — leur date pour une période — ; on délie celles qu’il ne doit pas filtrer. Une
+  carte ajoutée ensuite suit, de même, les filtres dont elle a la colonne ;
+- en mode modification, une carte montre combien de filtres elle suit ;
 - le tableau prend un nom ; **Visible des conseillers** l’ouvre à tous ;
 - **Enregistrer** garde le tout, **Annuler** y renonce ; **Supprimer le tableau de bord** est
   sous **Autres actions**.
