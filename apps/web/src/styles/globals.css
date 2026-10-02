@@ -629,3 +629,9 @@
     opacity: 0;
   }
 }
+
+/* A heading reached from the article's outline lands below the sticky toolbar. */
+.prose-article h2,
+.prose-article h3 {
+  scroll-margin-top: 4.5rem;
+}

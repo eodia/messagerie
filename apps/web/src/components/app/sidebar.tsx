@@ -51,7 +51,7 @@ interface Screen {
 /** After the conversations and their inboxes: the screens an agent works in. */
 const SCREENS: readonly Screen[] = [
   { href: '/contacts', label: msg('Contacts'), icon: UsersRound },
-  { href: '/connaissance', label: msg('Connaissance'), icon: BookOpen },
+  { href: '/connaissance', label: msg('Connaissances'), icon: BookOpen },
   { href: '/statistiques', label: msg('Statistiques'), icon: ChartColumn },
 ]
 

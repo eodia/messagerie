@@ -22,7 +22,7 @@ export const GROUPS: Readonly<Record<string, Group>> = {
   },
   'garde-fous': { title: msg('Garde-fous'), tables: ['garde_fous'] },
   outils: { title: msg('Outils IA'), tables: ['outils_ia', 'serveurs_mcp'] },
-  connaissance: { title: msg('Connaissance'), tables: ['articles', 'categories'] },
+  connaissance: { title: msg('Connaissances'), tables: ['articles', 'categories'] },
 }
 
 export interface TableView {

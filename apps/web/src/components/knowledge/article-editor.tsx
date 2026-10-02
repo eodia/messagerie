@@ -26,6 +26,7 @@ import {
   Strikethrough,
 } from 'lucide-react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { ArticleOutline } from './article-outline'
 
 /**
  * An article's body, written as one reads it: headings, lists, quotes, code, links — and
@@ -246,6 +247,7 @@ export function ArticleEditor({
     <div ref={box} className="relative">
       {editable && <Toolbar editor={editor} />}
       <EditorContent editor={editor} />
+      <ArticleOutline editor={editor} />
       {slash && choices.length > 0 && (
         <div
           className="absolute z-20 w-72 animate-in fade-in zoom-in-95 overflow-hidden rounded-xl border bg-popover p-1 shadow-lg duration-150"

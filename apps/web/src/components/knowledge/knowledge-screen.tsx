@@ -187,7 +187,7 @@ export function KnowledgeScreen() {
     }
   }
   useAddressBar(address, async () => follow())
-  useTitle([opened?.title || null, $t('Connaissance')])
+  useTitle([opened?.title || null, $t('Connaissances')])
   // biome-ignore lint/correctness/useExhaustiveDependencies: once, when the articles are read
   useEffect(() => {
     if (arrived || articles === null || overview === null) return
@@ -376,7 +376,7 @@ export function KnowledgeScreen() {
           </>
         }
       >
-        <span className="font-medium">{$t('Connaissance')}</span>
+        <span className="font-medium">{$t('Connaissances')}</span>
         {selected && (
           <>
             <Slash />

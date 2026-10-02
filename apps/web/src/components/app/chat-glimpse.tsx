@@ -339,7 +339,7 @@ export function ChatGlimpse() {
                 </div>
               ))}
               <NavLine icon={UsersRound} label={$t('Contacts')} />
-              <NavLine icon={BookOpen} label={$t('Connaissance')} />
+              <NavLine icon={BookOpen} label={$t('Connaissances')} />
               <NavLine icon={ChartColumn} label={$t('Statistiques')} />
             </div>
           </nav>

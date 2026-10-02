@@ -29,13 +29,14 @@ import {
   Ellipsis,
   Forward,
   Hand,
+  type LucideIcon,
   MapPin,
   PanelRight,
   ShieldCheck,
   Undo2,
   UserRoundPlus,
 } from 'lucide-react'
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, type RefObject, useEffect, useRef, useState } from 'react'
 import { AssignPicker, afterMenus } from './assign-picker'
 import { Composer, type ComposerHandle } from './composer'
 import { ContactAvatar, StateChip } from './labels'
@@ -68,6 +69,56 @@ function daySeparator(iso: string, now: Date): string {
   return dayLabel(iso)
 }
 
+/** Below this width, the header's actions keep their icon and lose their words. */
+const NARROW_HEADER = 760
+
+/** Whether an element is narrower than `width` — followed as it is resized. */
+function useNarrow(ref: RefObject<HTMLElement | null>, width: number): boolean {
+  const [narrow, setNarrow] = useState(false)
+  useEffect(() => {
+    const element = ref.current
+    if (!element) return
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setNarrow(entry.contentRect.width < width)
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [ref, width])
+  return narrow
+}
+
+/** An action of the header: its icon and its words — its icon alone, named on hover, when narrow. */
+function HeaderAction({
+  narrow,
+  primary = false,
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  readonly narrow: boolean
+  readonly primary?: boolean
+  readonly icon: LucideIcon
+  readonly label: string
+  readonly onClick: () => void
+}) {
+  const variant = primary ? 'default' : 'outline'
+  if (!narrow) {
+    return (
+      <Button size="sm" variant={variant} onClick={onClick}>
+        <Icon />
+        {label}
+      </Button>
+    )
+  }
+  return (
+    <Hint label={label}>
+      <Button size="icon-sm" variant={variant} aria-label={label} onClick={onClick}>
+        <Icon className={primary ? undefined : 'text-muted-foreground'} />
+      </Button>
+    </Hint>
+  )
+}
+
 export function Thread({
   conversation,
   detailsOpen,
@@ -81,6 +132,9 @@ export function Thread({
   const directory = useInbox((s) => s.directory)
   const [transferring, setTransferring] = useState(false)
   const [assigning, setAssigning] = useState(false)
+  // The header's room, not the window's: the panes beside the thread take their share.
+  const header = useRef<HTMLElement>(null)
+  const narrow = useNarrow(header, NARROW_HEADER)
   // A dialog asked from the palette: opened here, once whatever asked has closed.
   const asked = useInbox((s) => s.asked)
   useEffect(() => {
@@ -133,7 +187,10 @@ export function Thread({
       // a share of it rather than more than there is.
       style={{ minWidth: `min(${THREAD_MIN}px, 40%)` }}
     >
-      <header className="flex min-h-14 shrink-0 items-center gap-3 border-b bg-background px-5 py-2">
+      <header
+        ref={header}
+        className="@container flex min-h-14 shrink-0 items-center gap-3 border-b bg-background px-5 py-2"
+      >
         <ContactAvatar name={contact.name} online={status !== 'resolved'} />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2 overflow-hidden">
@@ -143,7 +200,7 @@ export function Thread({
                 <span className="shrink-0">
                   <Chip tint="emerald">
                     <ShieldCheck />
-                    <span className="hidden 2xl:inline">{$t('Identifié')}</span>
+                    <span className="hidden @4xl:inline">{$t('Identifié')}</span>
                   </Chip>
                 </span>
               </Hint>
@@ -153,25 +210,28 @@ export function Thread({
               </span>
             )}
             {/* The list says it too: in a narrow thread, the name keeps the room. */}
-            <span className="hidden shrink-0 2xl:inline-flex">
+            <span className="hidden shrink-0 @3xl:inline-flex">
               <StateChip conversation={{ ...conversation, handedOff }} />
             </span>
           </div>
-          <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
+          {/* What does not fit is cut, never laid under the buttons. */}
+          <div className="mt-0.5 flex min-w-0 items-center gap-3 overflow-hidden text-xs text-muted-foreground">
             {(inbox || team) && (
               <Hint label={$t('Boîte de réception et équipe')}>
-                <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap">
+                <span className="inline-flex max-w-full min-w-0 shrink-0 items-center gap-1.5 whitespace-nowrap">
                   {inbox && <InboxGlyph look={inbox} className="size-3" />}
-                  {inbox?.name}
-                  {inbox && team && <ChevronRight className="size-3" />}
-                  {team?.name}
+                  <span className="truncate">{inbox?.name}</span>
+                  {inbox && team && <ChevronRight className="size-3 shrink-0" />}
+                  {team && <span className="truncate">{team.name}</span>}
                 </span>
               </Hint>
             )}
-            {contact.email && <span className="truncate">{contact.email}</span>}
-            {code && <span className="font-mono">{code.value}</span>}
+            {contact.email && (
+              <span className="hidden min-w-0 truncate @xl:block">{contact.email}</span>
+            )}
+            {code && <span className="hidden shrink-0 font-mono @lg:inline">{code.value}</span>}
             {whereOf(contact) && (
-              <span className="hidden items-center gap-1.5 whitespace-nowrap 2xl:inline-flex">
+              <span className="hidden min-w-0 items-center gap-1.5 whitespace-nowrap @4xl:inline-flex">
                 {contact.country ? (
                   <Flag country={contact.country} className="text-[10px]" />
                 ) : (
@@ -185,22 +245,29 @@ export function Thread({
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {status === 'ai' ? (
-            <Button size="sm" onClick={() => void takeOver(conversation.id)}>
-              <Hand />
-              {$t('Reprendre la main')}
-            </Button>
+            <HeaderAction
+              narrow={narrow}
+              primary
+              icon={Hand}
+              label={$t('Reprendre la main')}
+              onClick={() => void takeOver(conversation.id)}
+            />
           ) : status !== 'resolved' ? (
             <>
               {status === 'pending' ? (
-                <Button size="sm" variant="outline" onClick={() => void wake(conversation.id)}>
-                  <AlarmClockOff />
-                  {$t('Réveiller')}
-                </Button>
+                <HeaderAction
+                  narrow={narrow}
+                  icon={AlarmClockOff}
+                  label={$t('Réveiller')}
+                  onClick={() => void wake(conversation.id)}
+                />
               ) : null}
-              <Button size="sm" variant="outline" onClick={() => void resolve(conversation.id)}>
-                <CircleCheck />
-                {$t('Résoudre')}
-              </Button>
+              <HeaderAction
+                narrow={narrow}
+                icon={CircleCheck}
+                label={$t('Résoudre')}
+                onClick={() => void resolve(conversation.id)}
+              />
               {status === 'open' && <SnoozeMenu conversationId={conversation.id} />}
             </>
           ) : null}

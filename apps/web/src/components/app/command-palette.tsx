@@ -608,7 +608,7 @@ function Palette({ seed, onClose }: { readonly seed: string; readonly onClose: (
       })
     page('/conversations', $t('Conversations'), MessagesSquare, 'inbox messagerie')
     page('/contacts', $t('Contacts'), UsersRound, 'clients visiteurs')
-    page('/connaissance', $t('Connaissance'), BookOpen, 'articles base faq')
+    page('/connaissance', $t('Connaissances'), BookOpen, 'articles base faq')
     page('/statistiques', $t('Statistiques'), ChartColumn, 'chiffres tableau de bord')
     if (me?.role === 'supervisor') {
       page('/parametrage/boites', $t('Boîtes de réception'), Inbox, 'paramétrage')
