@@ -51,7 +51,7 @@ interface Screen {
 const SCREENS: readonly Screen[] = [
   { href: '/contacts', label: msg('Contacts'), icon: UsersRound },
   { href: '/connaissance', label: msg('Connaissances'), icon: BookOpen },
-  { href: '/statistiques', label: msg('Statistiques'), icon: ChartColumn },
+  { href: '/tableaux-de-bord', label: msg('Tableaux de bord'), icon: ChartColumn },
 ]
 
 /**

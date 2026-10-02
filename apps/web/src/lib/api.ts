@@ -1,5 +1,6 @@
 import type {
   Agent,
+  AnalyticsSource,
   ApiDocumentation,
   ApiError,
   ApiToken,
@@ -18,6 +19,8 @@ import type {
   CreateWebhookBody,
   CreatedToken,
   CreatedWebhook,
+  Dashboard,
+  DashboardBody,
   ErrorCode,
   FeedbackBody,
   GifHit,
@@ -32,6 +35,9 @@ import type {
   NotificationList,
   PageAction,
   PasswordReset,
+  QueryResult,
+  Question,
+  QuestionDraft,
   Rewording,
   SendMessageBody,
   SettingsOverview,
@@ -119,6 +125,9 @@ async function request<T>(method: string, path: string, body?: unknown, bytes = 
 }
 
 const conversation = (id: string) => `/conversations/${encodeURIComponent(id)}`
+
+/** The reader's time zone: a day of the dashboards is theirs. */
+const zone = () => Intl.DateTimeFormat().resolvedOptions().timeZone
 
 export const api = {
   me: () => request<Agent>('GET', '/me'),
@@ -217,6 +226,23 @@ export const api = {
   webhookDeliveries: (id: string) =>
     request<WebhookDelivery[]>('GET', `/webhooks/${encodeURIComponent(id)}/deliveries`),
   testWebhook: (id: string) => request<void>('POST', `/webhooks/${encodeURIComponent(id)}/test`),
+  analyticsSources: () => request<AnalyticsSource[]>('GET', '/analytics/sources'),
+  runQuestion: (question: Question) =>
+    request<QueryResult>('POST', '/analytics/run', { question, timeZone: zone() }),
+  assistQuestion: (text: string) =>
+    request<QuestionDraft>('POST', '/analytics/assist', { request: text, timeZone: zone() }),
+  dashboards: () => request<Dashboard[]>('GET', '/dashboards'),
+  dashboard: (id: string) => request<Dashboard>('GET', `/dashboards/${encodeURIComponent(id)}`),
+  createDashboard: (body: DashboardBody) => request<Dashboard>('POST', '/dashboards', body),
+  saveDashboard: (id: string, body: DashboardBody) =>
+    request<Dashboard>('PUT', `/dashboards/${encodeURIComponent(id)}`, body),
+  deleteDashboard: (id: string) => request<void>('DELETE', `/dashboards/${encodeURIComponent(id)}`),
+  runCard: (id: string, card: string) =>
+    request<QueryResult>(
+      'POST',
+      `/dashboards/${encodeURIComponent(id)}/cards/${encodeURIComponent(card)}/run`,
+      { timeZone: zone() },
+    ),
   pageActions: (siteId: string) =>
     request<PageAction[]>('GET', `/sites/${encodeURIComponent(siteId)}/page-actions`),
   setPageAction: (id: string, patch: { enabled?: boolean; confirm?: boolean }) =>

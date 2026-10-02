@@ -527,6 +527,33 @@ se recopie pas dans le serveur, l'IA le demande à la page.
 - La page de démonstration (`/demo`) déclare un tarif, un devis à pré-remplir et une
   section à montrer.
 
+## D22 — Les tableaux de bord, ceux de basedb faits pour les conversations
+
+« Tableaux de bord » remplace « Statistiques » : des cartes sur une grille de douze
+colonnes (react-grid-layout), chacune une question dessinée en nombre, tableau, barres,
+courbe, aire ou camembert (ECharts, la palette catégorielle validée ; une humeur ou un
+avis gardent leur couleur de sens).
+
+- **Ce qu'on lit :** les vues du schéma `analytics` — conversations, messages, appels à
+  l'IA, avis sur l'IA, étiquettes, contacts, exécutions d'automatisations —, jamais les
+  tables elles-mêmes. Leurs colonnes ont un libellé en français (`analytics/catalog.ts`).
+- **Une question assistée :** une source, des filtres (dont « dans les derniers N jours »,
+  au fuseau du lecteur), des calculs (nombre, distincts, somme, moyenne, médiane, part des
+  « oui »), deux regroupements au plus (une date par heure, jour, semaine, mois, jour de la
+  semaine…). Compilée en SQL paramétré, chaque nom pris dans le catalogue.
+- **Une question en SQL :** un seul `SELECT`, lancé par le protocole étendu (une instruction,
+  pas deux), dans une transaction `READ ONLY` de quinze secondes au plus, sous le rôle
+  `chat_analytics`, qui lit les vues et rien d'autre : ni comptes, ni sessions, ni secrets.
+  Sans ce rôle — un utilisateur de base qui ne peut pas en créer —, le SQL est refusé
+  (`SQL_UNAVAILABLE`), les questions assistées restent. L'IA écrit la requête d'une phrase,
+  et l'essaie avant de la proposer.
+- **Qui voit quoi :** les superviseurs font et changent les tableaux ; un tableau « visible
+  des conseillers » s'ouvre à tous, et une carte s'y exécute telle qu'enregistrée — un
+  conseiller n'envoie jamais de SQL.
+- **Par défaut**, « Vue d'ensemble » : conversations, résolution par l'IA, première réponse,
+  transferts, conversations par jour, par boîte, humeur, étiquettes, avis sur l'IA, charge
+  par conseiller, heures où les visiteurs écrivent.
+
 ## Questions ouvertes
 
 Reprises du cadrage :

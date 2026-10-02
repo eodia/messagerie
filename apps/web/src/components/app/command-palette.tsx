@@ -71,6 +71,7 @@ import {
   UserRound,
   UserRoundPlus,
   UsersRound,
+  Workflow,
   Wrench,
 } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
@@ -609,7 +610,12 @@ function Palette({ seed, onClose }: { readonly seed: string; readonly onClose: (
     page('/conversations', $t('Conversations'), MessagesSquare, 'inbox messagerie')
     page('/contacts', $t('Contacts'), UsersRound, 'clients visiteurs')
     page('/connaissance', $t('Connaissances'), BookOpen, 'articles base faq')
-    page('/statistiques', $t('Statistiques'), ChartColumn, 'chiffres tableau de bord')
+    page(
+      '/tableaux-de-bord',
+      $t('Tableaux de bord'),
+      ChartColumn,
+      'statistiques chiffres graphiques',
+    )
     if (me?.role === 'supervisor') {
       page('/parametrage/boites', $t('Boîtes de réception'), Inbox, 'paramétrage')
       page(
@@ -632,6 +638,7 @@ function Palette({ seed, onClose }: { readonly seed: string; readonly onClose: (
       )
       page('/parametrage/garde-fous', $t('Garde-fous'), ShieldAlert, 'paramétrage sujets sensibles')
       page('/outils', $t('Outils IA et serveurs MCP'), Wrench, 'paramétrage api')
+      page('/automatisations', $t('Automatisations'), Workflow, 'règles relances flux déclencheurs')
       page('/widget', $t('Widget'), PaletteIcon, 'paramétrage apparence couleur installation')
       page('/parametrage/api', $t('API et MCP'), KeyRound, 'paramétrage jetons webhooks')
     }

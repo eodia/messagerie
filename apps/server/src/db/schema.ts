@@ -4,6 +4,7 @@ import type {
   Condition,
   ContactAttribute,
   ConversationEvent,
+  DashboardCard,
   Metadata,
   PageCallStatus,
   PageSnapshot,
@@ -554,6 +555,23 @@ export const pageCalls = chat.table(
   },
   (t) => [index('page_call_conversation_idx').on(t.conversationId, t.createdAt)],
 )
+
+/**
+ * The dashboards (D22): their cards, on a twelve-column grid, each a question and how it
+ * is drawn. Shared, agents see it; supervisors alone change it.
+ */
+export const dashboards = chat.table('dashboard', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  description: text('description').notNull().default(''),
+  cards: jsonb('cards').$type<readonly DashboardCard[]>().notNull().default([]),
+  shared: boolean('shared').notNull().default(true),
+  /** The one a new messaging starts with: shown first. */
+  isDefault: boolean('is_default').notNull().default(false),
+  createdBy: uuid('created_by').references(() => agents.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})
 
 /** A message an agent took out of their own view of the thread — « Supprimer pour moi ». */
 export const hiddenMessages = chat.table(

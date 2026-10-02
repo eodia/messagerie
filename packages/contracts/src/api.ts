@@ -77,6 +77,13 @@ export type ErrorCode =
   | 'GIFS_UNREACHABLE'
   | 'GIF_NOT_FOUND'
   | 'AUTOMATION_NOT_FOUND'
+  | 'DASHBOARD_NOT_FOUND'
+  /** A question that cannot run: `details.reason`, the database's words for SQL. */
+  | 'QUERY_INVALID'
+  /** Longer than fifteen seconds. */
+  | 'QUERY_TIMEOUT'
+  /** The database refuses the reading role: SQL questions are off on this server. */
+  | 'SQL_UNAVAILABLE'
   /** An automation that cannot run as written: `details.problem`, `details.step`. */
   | 'AUTOMATION_INVALID'
   /** An automation's own address, called with a wrong key, or while it is off. */

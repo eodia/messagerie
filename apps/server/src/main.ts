@@ -14,7 +14,7 @@ import { WidgetHub } from './widget/hub.js'
  * Starts the chat server: what `boot` starts, the change listener, then the HTTP and
  * WebSocket server. Stops cleanly on Ctrl+C and `docker stop`.
  */
-const { config, db, settings, ai, mcp, automations, stop: stopBoot } = await boot('server')
+const { config, db, pool, settings, ai, mcp, automations, stop: stopBoot } = await boot('server')
 
 const hub = new InboxHub()
 const widgetHub = new WidgetHub()
@@ -104,6 +104,7 @@ const { app, injectWebSocket } = createApp({
   ai,
   mcp,
   automations,
+  pool,
 })
 const server = serve({ fetch: app.fetch, port: config.port }, ({ port }) => {
   console.log(`chat : à l’écoute sur http://localhost:${port}`)

@@ -1,4 +1,5 @@
 import type { Llm } from '@chat/ai'
+import type pg from 'pg'
 import { readAi } from './ai/config.js'
 import { type AiJobs, startJobs } from './ai/jobs.js'
 import { Knowledge } from './ai/knowledge.js'
@@ -27,6 +28,7 @@ import { startWebhooks } from './webhooks/dispatch.js'
 export interface Booted {
   readonly config: Config
   readonly db: Db
+  readonly pool: pg.Pool
   readonly settings: Settings
   readonly ai: { readonly llm: Llm; readonly redact: boolean; readonly jobs: AiJobs } | null
   /** The MCP servers' connections — shared by the AI and the tools screen. */
@@ -122,6 +124,7 @@ export async function boot(role: 'server' | 'worker'): Promise<Booted> {
   return {
     config,
     db,
+    pool,
     settings,
     ai,
     mcp,

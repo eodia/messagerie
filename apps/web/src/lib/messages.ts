@@ -28,6 +28,16 @@ export function messageFor(code: string): string {
       return $t('Aucune voix d’IA sur ce serveur : celle du navigateur lit les messages.')
     case 'MESSAGE_NOT_DELETABLE':
       return $t('Ce message ne se supprime pas.')
+    case 'DASHBOARD_NOT_FOUND':
+      return $t('Ce tableau de bord n’existe plus, ou n’est pas partagé.')
+    case 'QUERY_INVALID':
+      return $t('Cette question ne peut pas s’exécuter telle quelle.')
+    case 'QUERY_TIMEOUT':
+      return $t('La question a pris plus de quinze secondes : resserrez-la.')
+    case 'SQL_UNAVAILABLE':
+      return $t(
+        'Les questions en SQL sont indisponibles : la base refuse le rôle de lecture (chat_analytics).',
+      )
     case 'AUTOMATION_NOT_FOUND':
       return $t('Cette automatisation n’existe plus.')
     case 'AUTOMATION_INVALID':

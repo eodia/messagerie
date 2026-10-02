@@ -1,0 +1,30 @@
+/*
+ * The dashboard grid in the product's own tokens: where a card will land, and the corner a
+ * card is resized by, drawn in the theme rather than in react-grid-layout's defaults.
+ */
+
+.dashboard-grid .react-grid-item.react-grid-placeholder {
+  background: var(--primary);
+  opacity: 0.14;
+  border-radius: 0.75rem;
+}
+
+.dashboard-grid .react-grid-item > .react-resizable-handle {
+  width: 18px;
+  height: 18px;
+  z-index: 5;
+}
+
+.dashboard-grid .react-grid-item > .react-resizable-handle::after {
+  right: 5px;
+  bottom: 5px;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--muted-foreground);
+  border-bottom: 2px solid var(--muted-foreground);
+}
+
+.dashboard-grid .react-grid-item.react-draggable-dragging {
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.18);
+  border-radius: 0.75rem;
+}

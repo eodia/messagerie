@@ -12,11 +12,24 @@ import { createNodeWebSocket } from '@hono/node-ws'
 import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import type pg from 'pg'
 import { analyzeAttachment } from './ai/attachments.js'
 import { type Rewording, rephrase } from './ai/copilot.js'
 import type { AiJobs } from './ai/jobs.js'
 import type { McpConnections } from './ai/mcp.js'
 import { speakMessage } from './ai/speech.js'
+import { SOURCES } from './analytics/catalog.js'
+import {
+  type AnalyticsDeps,
+  assistQuestion,
+  createDashboard,
+  deleteDashboard,
+  getDashboard,
+  listDashboards,
+  runCard,
+  runDraft,
+  saveDashboard,
+} from './analytics/dashboards.js'
 import { documentation, openApi } from './api/documentation.js'
 import { mcpRoutes } from './api/mcp.js'
 import { publicAddress, restRoutes } from './api/rest.js'
@@ -164,6 +177,7 @@ export function createApp({
   mcp,
   files,
   automations,
+  pool,
 }: {
   db: Db
   hub: InboxHub
@@ -178,6 +192,8 @@ export function createApp({
   files?: FileStore
   /** The automations' engine, when it runs in this process: hurried by a button. */
   automations?: { poke(): void } | null
+  /** The database's pool: the dashboards' questions run on a client of their own (D22). */
+  pool?: pg.Pool
 }) {
   const app = new Hono()
   const store = files ?? new DiskStore(config.filesDir)
@@ -699,6 +715,37 @@ export function createApp({
   inbox.post('/webhooks/:id/test', async (c) => {
     await pingWebhook(db, c.get('agent'), webhookParam(c.req.param('id')))
     return c.body(null, 202)
+  })
+
+  // The dashboards (D22): supervisors write them and their questions; agents run the
+  // cards of the shared ones, as saved.
+  const analytics: AnalyticsDeps = { db, pool: pool ?? null, llm: ai?.llm ?? null }
+  inbox.get('/analytics/sources', (c) => c.json(SOURCES))
+  inbox.post('/analytics/run', async (c) =>
+    c.json(await runDraft(analytics, c.get('agent'), await jsonBody(c.req.raw))),
+  )
+  inbox.post('/analytics/assist', async (c) =>
+    c.json(await assistQuestion(analytics, c.get('agent'), await jsonBody(c.req.raw))),
+  )
+  inbox.get('/dashboards', async (c) => c.json(await listDashboards(db, c.get('agent'))))
+  inbox.post('/dashboards', async (c) =>
+    c.json(await createDashboard(db, c.get('agent'), await jsonBody(c.req.raw)), 201),
+  )
+  inbox.get('/dashboards/:id', async (c) =>
+    c.json(await getDashboard(db, c.get('agent'), c.req.param('id'))),
+  )
+  inbox.put('/dashboards/:id', async (c) =>
+    c.json(await saveDashboard(db, c.get('agent'), c.req.param('id'), await jsonBody(c.req.raw))),
+  )
+  inbox.delete('/dashboards/:id', async (c) => {
+    await deleteDashboard(db, c.get('agent'), c.req.param('id'))
+    return c.body(null, 204)
+  })
+  inbox.post('/dashboards/:id/cards/:card/run', async (c) => {
+    const { timeZone } = await jsonBody(c.req.raw)
+    return c.json(
+      await runCard(analytics, c.get('agent'), c.req.param('id'), c.req.param('card'), timeZone),
+    )
   })
 
   // The page's actions (D21): what a site's pages declared, and what supervisors allow.
