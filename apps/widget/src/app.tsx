@@ -15,6 +15,7 @@ import {
   ChevronDownIcon,
   CloseIcon,
   FileIcon,
+  MailIcon,
   Orb,
   PaperclipIcon,
   SendIcon,
@@ -114,6 +115,12 @@ type Item =
       readonly lines: Line[]
     }
   | { readonly kind: 'event'; readonly key: string; readonly text: string }
+  | {
+      readonly kind: 'email'
+      readonly key: string
+      readonly text: string | null
+      readonly email: string | null
+    }
 
 function eventText(message: Extract<WidgetMessage, { from: 'event' }>): string {
   if (message.event === 'joined')
@@ -132,6 +139,10 @@ function itemsOf(welcome: Line & { from: Speaker }, messages: readonly WidgetMes
   for (const message of messages) {
     if (message.from === 'event') {
       items.push({ kind: 'event', key: message.id, text: eventText(message) })
+      continue
+    }
+    if (message.from === 'email') {
+      items.push({ kind: 'email', key: message.id, text: message.text, email: message.email })
       continue
     }
     const author = message.from === 'agent' ? message.author : null
@@ -238,7 +249,7 @@ export function App({
     for (const message of next.messages) {
       if (seen.current.has(message.id)) continue
       seen.current.add(message.id)
-      if (message.from === 'ai' || message.from === 'agent') {
+      if (message.from === 'ai' || message.from === 'agent' || message.from === 'site') {
         count++
         fresh = {
           from: message.from,
@@ -597,6 +608,16 @@ export function App({
                 <div key={item.key} class="event">
                   {item.text}
                 </div>
+              ) : item.kind === 'email' ? (
+                <EmailCard
+                  key={item.key}
+                  text={item.text}
+                  email={item.email}
+                  onLeave={async (email) => {
+                    await api.leaveEmail(email)
+                    apply(await api.conversation())
+                  }}
+                />
               ) : (
                 <Group
                   key={item.key}
@@ -876,6 +897,83 @@ function Files({
         ),
       )}
     </div>
+  )
+}
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/**
+ * « Laissez-nous votre e-mail »: nobody can answer soon — the visitor leaves an address to
+ * be answered later, and is thanked once it is kept.
+ */
+function EmailCard({
+  text,
+  email,
+  onLeave,
+}: {
+  readonly text: string | null
+  readonly email: string | null
+  readonly onLeave: (email: string) => Promise<void>
+}) {
+  const [typed, setTyped] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [wrong, setWrong] = useState(false)
+  if (email !== null) {
+    return (
+      <output class="email-card done">
+        <MailIcon />
+        <p>{t('Merci ! Nous vous répondrons à {email}.', { email })}</p>
+      </output>
+    )
+  }
+  const submit = async (event: Event) => {
+    event.preventDefault()
+    const value = typed.trim()
+    if (!EMAIL.test(value)) {
+      setWrong(true)
+      return
+    }
+    setBusy(true)
+    try {
+      await onLeave(value)
+    } catch {
+      setWrong(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <form class="email-card" onSubmit={(e) => void submit(e)}>
+      <p class="email-why">
+        <MailIcon />
+        <span>
+          {text ??
+            t(
+              'Personne ne peut vous répondre tout de suite. Laissez votre e-mail : nous vous répondrons dès que possible.',
+            )}
+        </span>
+      </p>
+      <div class="email-row">
+        <input
+          type="email"
+          autocomplete="email"
+          inputMode="email"
+          required
+          value={typed}
+          placeholder={t('votre@adresse.fr')}
+          aria-label={t('Votre adresse e-mail')}
+          aria-invalid={wrong}
+          onInput={(e) => {
+            setTyped((e.target as HTMLInputElement).value)
+            setWrong(false)
+          }}
+        />
+        <button type="submit" disabled={busy || typed.trim() === ''}>
+          {t('Envoyer')}
+        </button>
+      </div>
+      {wrong && <p class="email-wrong">{t('Cette adresse ne semble pas valable.')}</p>}
+    </form>
   )
 }
 

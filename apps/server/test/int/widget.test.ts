@@ -12,6 +12,7 @@ import { TicketBook } from '../../src/auth/tickets.js'
 import type { Config } from '../../src/config.js'
 import { type Db, connect, migrateDatabase } from '../../src/db/client.js'
 import { agents, contacts, conversations, messages, siteSecrets } from '../../src/db/schema.js'
+import { requestEmail } from '../../src/inbox/email-request.js'
 import { sendMessage } from '../../src/inbox/write.js'
 import { InboxHub } from '../../src/realtime/hub.js'
 import { MemorySource } from '../../src/settings/demo.js'
@@ -148,7 +149,7 @@ describe('a session', () => {
     })
     const signed = await session({ visitor: anonymous.visitor, identity })
     expect(signed.contact).toEqual({ name: 'Camille Test', identified: true })
-    expect(signed.conversation?.messages.map((m) => ('body' in m ? m.body : m.event))).toEqual([
+    expect(signed.conversation?.messages.map((m) => ('body' in m ? m.body : m.from))).toEqual([
       'Question avant connexion',
     ])
   })
@@ -226,6 +227,47 @@ describe('a visitor who writes', () => {
     expect(seen.messages.map((m) => m.from)).toEqual(['visitor', 'agent'])
     expect(seen.messages[1]).toMatchObject({ author: 'Nadia', body: 'Bonjour, je suis là.' })
     expect(seen.answeredBy).toBe('team')
+  })
+
+  it('asks for an address when nobody can answer, once, and keeps the one left', async () => {
+    const { visitor } = await session()
+    const { id } = (await (
+      await call('/messages', { body: { body: 'Il y a quelqu’un ?' }, token: visitor })
+    ).json()) as VisitorConversation
+    expect(await db.transaction((tx) => requestEmail(tx, id, null, null))).toBe(true)
+    expect(await db.transaction((tx) => requestEmail(tx, id, 'Relance', null))).toBe(false)
+    let seen = (await (
+      await call('/conversation', { token: visitor })
+    ).json()) as VisitorConversation
+    expect(seen.messages.at(-1)).toMatchObject({ from: 'email', text: null, email: null })
+
+    expect(
+      (await call('/email', { body: { email: 'pas une adresse' }, token: visitor })).status,
+    ).toBe(400)
+    expect(
+      (await call('/email', { body: { email: ' Lea@Exemple.FR ' }, token: visitor })).status,
+    ).toBe(204)
+    seen = (await (await call('/conversation', { token: visitor })).json()) as VisitorConversation
+    expect(seen.messages.find((m) => m.from === 'email')).toMatchObject({ email: 'lea@exemple.fr' })
+    const thread = await db.select().from(messages).where(eq(messages.conversationId, id))
+    expect(
+      thread.some((m) => (m.meta as { event?: { type?: string } }).event?.type === 'email_given'),
+    ).toBe(true)
+
+    // An automation's reply speaks for the site, not as an agent.
+    const [robot] = await db
+      .insert(agents)
+      .values({ login: 'automation:test', name: 'Relance automatique', active: false })
+      .returning()
+    if (!robot) throw new Error('agent not inserted')
+    await db.insert(messages).values({
+      conversationId: id,
+      author: 'agent',
+      agentId: robot.id,
+      body: 'Nous revenons vers vous.',
+    })
+    seen = (await (await call('/conversation', { token: visitor })).json()) as VisitorConversation
+    expect(seen.messages.at(-1)).toMatchObject({ from: 'site', body: 'Nous revenons vers vous.' })
   })
 
   it('begins anew on reset(): the conversation left for the team, the next one new', async () => {

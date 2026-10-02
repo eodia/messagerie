@@ -188,5 +188,7 @@ export class PreviewBackend implements Backend {
 
   forgetVisitor(): void {}
 
+  async leaveEmail(): Promise<void> {}
+
   typing(): void {}
 }

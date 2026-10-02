@@ -127,6 +127,13 @@
       "when": 1790971227742,
       "tag": "0017_sentiment_event",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790971526556,
+      "tag": "0018_automation_activated",
+      "breakpoints": true
     }
   ]
 }

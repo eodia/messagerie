@@ -1,5 +1,6 @@
 import type { ContactAttribute, ConversationEvent, Source } from '@chat/contracts'
-import { sql } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
+import { installDefaultAutomations } from './automations/defaults.js'
 import { readConfig } from './config.js'
 import { connect, migrateDatabase } from './db/client.js'
 import {
@@ -635,6 +636,15 @@ await db.transaction(async (tx) => {
     }
   }
 })
+
+// The automation every messaging starts with — on from now: the demonstration's past is not
+// its business.
+const [boss] = await db
+  .select({ id: agents.id })
+  .from(agents)
+  .where(eq(agents.role, 'supervisor'))
+  .limit(1)
+if (boss) await installDefaultAutomations(db, boss.id)
 
 const [counts] = (
   await db.execute<{ conversations: number; messages: number }>(

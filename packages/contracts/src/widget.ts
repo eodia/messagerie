@@ -44,6 +44,26 @@ export type WidgetMessage =
       readonly event: 'joined' | 'handoff' | 'resolved'
       readonly author: string | null
     }
+  /** Said by the site itself — an automation's reply (D20), signed with the site's name. */
+  | {
+      readonly id: string
+      readonly at: string
+      readonly from: 'site'
+      readonly body: string
+      readonly attachments?: readonly WidgetAttachment[]
+      readonly deleted?: true
+    }
+  /**
+   * « Laissez-nous votre e-mail »: nobody can answer soon. `email` is the address the
+   * contact has now — none, and the card asks for it.
+   */
+  | {
+      readonly id: string
+      readonly at: string
+      readonly from: 'email'
+      readonly text: string | null
+      readonly email: string | null
+    }
 
 export interface VisitorConversation {
   readonly id: string
@@ -125,6 +145,11 @@ export interface WidgetSession {
   readonly site: WidgetSite
   readonly availability: WidgetAvailability
   readonly conversation: VisitorConversation | null
+}
+
+/** The address the visitor leaves in the e-mail card. */
+export interface WidgetEmailBody {
+  readonly email: string
 }
 
 export interface WidgetMessageBody {

@@ -4,6 +4,7 @@ import { type Context, Hono } from 'hono'
 import { deleteCookie, getCookie, getSignedCookie, setCookie, setSignedCookie } from 'hono/cookie'
 import { cors } from 'hono/cors'
 import * as oidc from 'openid-client'
+import { installDefaultAutomations } from '../automations/defaults.js'
 import type { Config } from '../config.js'
 import type { Db } from '../db/client.js'
 import { agentIdentities, agents } from '../db/schema.js'
@@ -150,6 +151,7 @@ export function authRoutes(deps: {
       .returning()
     if (!agent) throw new Refusal('INTERNAL_ERROR', 500)
     deps.settings.invalidate()
+    await installDefaultAutomations(db, agent.id)
     await signIn(c, agent)
     return c.json(toAgent(agent), 201)
   })

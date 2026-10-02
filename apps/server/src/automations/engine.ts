@@ -257,12 +257,13 @@ export async function scanNoReply(deps: EngineDeps): Promise<number> {
   let queued = 0
   for (const automation of watching) {
     const minutes = automation.trigger.minutes ?? 15
+    const since = automation.activatedAt ?? new Date(0)
     // Their last words are the visitor's, and older than the delay — by a day at most.
     const { rows } = await deps.db.execute<{ id: string; message_id: string }>(sql`
       select c.id, m.id as message_id
       from chat.conversation c
       join lateral (
-        select id, author from chat.message
+        select id, author, created_at from chat.message
         where conversation_id = c.id and kind in ('text', 'file') and deleted_at is null
         order by created_at desc limit 1
       ) m on true
@@ -270,6 +271,7 @@ export async function scanNoReply(deps: EngineDeps): Promise<number> {
         and c.last_message_at <= now() - ${minutes} * interval '1 minute'
         and c.last_message_at > now() - ${minutes + 1440} * interval '1 minute'
         and m.author = 'contact'
+        and m.created_at >= ${since}
         and not exists (
           select 1 from chat.automation_run r
           where r.automation_id = ${automation.id} and r.dedup_key = 'reply:' || m.id::text)

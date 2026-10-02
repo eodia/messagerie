@@ -12,6 +12,7 @@ import { Refusal } from '../refusal.js'
 import { RateLimiter, type WidgetHub } from './hub.js'
 import {
   type WidgetDeps,
+  leaveEmail,
   openSession,
   postVisitorMessage,
   resetVisitorConversation,
@@ -128,6 +129,14 @@ export function widgetRoutes(
       profile: readProfile(raw),
       data: raw.data === undefined ? null : readPatch(raw.data),
     })
+    return c.body(null, 204)
+  })
+
+  /** The address left in the e-mail card. */
+  widget.post('/email', async (c) => {
+    const visitor = await visitorFrom(deps, bearer(c), c.req.header('origin'))
+    if (!edits.allow(visitor.contactId)) throw new Refusal('RATE_LIMITED', 429)
+    await leaveEmail(deps, visitor, (await jsonOf(c)).email)
     return c.body(null, 204)
   })
 

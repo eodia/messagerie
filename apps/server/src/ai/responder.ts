@@ -6,6 +6,7 @@ import type { Db } from '../db/client.js'
 import { conversations, messages } from '../db/schema.js'
 import type { FileStore } from '../files/store.js'
 import { Access } from '../inbox/access.js'
+import { requestEmail } from '../inbox/email-request.js'
 import { handOff } from '../inbox/incoming.js'
 import { signalChange, signalTyping } from '../realtime/signals.js'
 import type { Settings } from '../settings/settings.js'
@@ -281,4 +282,9 @@ export async function answerVisitor(deps: AiDeps, conversationId: string): Promi
     },
     new Access(settings),
   )
+  // Nobody answers before the agents are back: the widget asks for an address, to answer
+  // them later — once, and only of a contact without one.
+  if (!context.hours.open) {
+    await db.transaction((tx) => requestEmail(tx as unknown as Db, conversationId, null, null))
+  }
 }

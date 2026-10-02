@@ -33,6 +33,8 @@ export interface Backend {
   resetConversation(): Promise<void>
   /** `reset({ visitor: true })`: the visitor's token forgotten — the next session, a stranger's. */
   forgetVisitor(): void
+  /** The address left in the « Laissez-nous votre e-mail » card. */
+  leaveEmail(email: string): Promise<void>
 }
 
 export class WidgetFailure extends Error {
@@ -158,6 +160,10 @@ export class WidgetApi implements Backend {
 
   forgetVisitor(): void {
     this.keep(null)
+  }
+
+  async leaveEmail(email: string): Promise<void> {
+    await this.call('POST', '/email', { email })
   }
 
   /**

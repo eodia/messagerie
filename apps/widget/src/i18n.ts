@@ -47,6 +47,12 @@ const EN: Readonly<Record<string, string>> = {
   'aujourd’hui à {time}': 'today at {time}',
   'demain à {time}': 'tomorrow at {time}',
   '{day} à {time}': '{day} at {time}',
+  'Personne ne peut vous répondre tout de suite. Laissez votre e-mail : nous vous répondrons dès que possible.':
+    'Nobody can answer you right now. Leave your e-mail: we will get back to you as soon as possible.',
+  'votre@adresse.fr': 'you@example.com',
+  'Votre adresse e-mail': 'Your e-mail address',
+  'Cette adresse ne semble pas valable.': 'This address does not look valid.',
+  'Merci ! Nous vous répondrons à {email}.': 'Thank you! We will answer you at {email}.',
 }
 
 let language = 'fr'

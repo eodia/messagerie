@@ -175,13 +175,15 @@ describe('the AI in the first line', () => {
     })
     const id = await visitorAsks('Et pour les bateaux ?')
     await answerVisitor(deps, id)
-    const kinds = (await thread(id)).map((m) => `${m.author}:${m.kind}`)
+    // Outside the site's hours, the widget's request for an address follows: not said here.
+    const spoken = async () => (await thread(id)).filter((m) => m.kind !== 'event')
+    const kinds = (await spoken()).map((m) => `${m.author}:${m.kind}`)
     expect(kinds.slice(-2)).toEqual(['ai:text', 'ai:handoff'])
-    const said = (await thread(id)).at(-2)?.body ?? ''
+    const said = (await spoken()).at(-2)?.body ?? ''
     expect(said).not.toContain('Peut-être')
     expect(said).toMatch(/conseiller/)
     expect(await statusOf(id)).toBe('open')
-    const handoff = (await thread(id)).at(-1)?.meta.handoff
+    const handoff = (await spoken()).at(-1)?.meta.handoff
     expect(handoff?.reason).toMatch(/Confiance insuffisante \(40 % < 70 %\)/)
     // Nobody in particular has it: every active agent is told.
     expect(
@@ -198,7 +200,7 @@ describe('the AI in the first line', () => {
     })
     const id = await visitorAsks('Je vais porter plainte !')
     await answerVisitor(deps, id)
-    const [said, handoff] = (await thread(id)).slice(-2)
+    const [said, handoff] = (await thread(id)).filter((m) => m.kind !== 'event').slice(-2)
     expect(said?.body).toBe(
       'Je transmets votre demande à un conseiller, qui la reprend personnellement.',
     )

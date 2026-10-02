@@ -230,6 +230,29 @@ img.person-avatar { object-fit: cover; background: #fff; }
 }
 .event::before, .event::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 
+/* « Laissez-nous votre e-mail »: a card in the thread, the accent on its edge. */
+.email-card {
+  margin: 10px 0 4px 36px; padding: 12px; border-radius: 14px; background: var(--bubble);
+  border: 1px solid var(--line); border-left: 3px solid var(--accent);
+  display: flex; flex-direction: column; gap: 10px; font-size: 14px; color: var(--ink);
+}
+.email-card p { margin: 0; }
+.email-why, .email-card.done { display: flex; flex-direction: row; gap: 8px; align-items: flex-start; line-height: 1.45; }
+.email-card svg { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--accent); }
+.email-row { display: flex; gap: 6px; }
+.email-row input {
+  flex: 1; min-width: 0; height: 36px; padding: 0 10px; border-radius: 10px; font: inherit;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink); outline: none;
+}
+.email-row input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.email-row input[aria-invalid="true"] { border-color: #dc2626; }
+.email-row button {
+  height: 36px; padding: 0 14px; border-radius: 10px; border: 0; font: inherit; font-weight: 600;
+  background: var(--accent); color: var(--accent-ink); cursor: pointer;
+}
+.email-row button:disabled { opacity: .5; cursor: default; }
+.email-wrong { font-size: 12.5px; color: #dc2626; }
+
 /* What the visitor might say, where they would say it: one tap sends it. */
 .replies { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; margin: 12px 0 4px 36px; }
 .reply {

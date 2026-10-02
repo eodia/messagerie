@@ -198,6 +198,7 @@ export async function setAutomationActive(
     .update(automations)
     .set({
       isActive: active,
+      ...(active && !row.isActive ? { activatedAt: new Date() } : {}),
       // From now: a schedule switched on does not catch up on what it missed.
       ...derived(row, row, deps.secret),
       updatedAt: new Date(),

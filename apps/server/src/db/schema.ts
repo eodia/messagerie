@@ -441,6 +441,8 @@ export const automations = chat.table('automation', {
     .references(() => agents.id),
   /** `webhook`: the key of its address, sealed (AES-256-GCM) — shown again to supervisors. */
   webhookKey: text('webhook_key'),
+  /** Switched on then: a visitor left waiting since before is not its business. */
+  activatedAt: timestamp('activated_at', { withTimezone: true }),
   /** `schedule`: when it goes off next. */
   nextRunAt: timestamp('next_run_at', { withTimezone: true }),
   /** What it remembers between runs: whose turn it is, for « à tour de rôle ». */

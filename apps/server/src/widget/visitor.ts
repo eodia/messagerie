@@ -240,18 +240,22 @@ export async function visitorConversation(
   const conversation = await currentConversation(db, contactId)
   if (!conversation) return null
   const rows = await db
-    .select({ message: messages, agent: agents.name })
+    .select({ message: messages, agent: agents.name, login: agents.login })
     .from(messages)
     .leftJoin(agents, eq(agents.id, messages.agentId))
     .where(eq(messages.conversationId, conversation.id))
     .orderBy(asc(messages.createdAt))
+  const [contact] = await db
+    .select({ email: contacts.email })
+    .from(contacts)
+    .where(eq(contacts.id, contactId))
 
   const files = await attachmentsOf(
     db,
     rows.map(({ message }) => message.id),
   )
   const shown: WidgetMessage[] = []
-  for (const { message, agent } of rows) {
+  for (const { message, agent, login } of rows) {
     const base = {
       id: message.id,
       at: message.createdAt.toISOString(),
@@ -264,7 +268,10 @@ export async function visitorConversation(
       if (message.author === 'contact') {
         shown.push({ ...base, from: 'visitor', body: message.body, ...withFiles })
       } else if (message.author === 'ai') shown.push({ ...base, from: 'ai', body: message.body })
-      else if (message.author === 'agent') {
+      // An automation speaks for the site (D20).
+      else if (message.author === 'agent' && login?.startsWith('automation:')) {
+        shown.push({ ...base, from: 'site', body: message.body })
+      } else if (message.author === 'agent') {
         shown.push({
           ...base,
           from: 'agent',
@@ -282,6 +289,8 @@ export async function visitorConversation(
         shown.push({ ...base, from: 'event', event: 'joined', author: firstName(event.agent) })
       } else if (event?.type === 'resolved') {
         shown.push({ ...base, from: 'event', event: 'resolved', author: null })
+      } else if (event?.type === 'email_requested') {
+        shown.push({ ...base, from: 'email', text: event.text, email: contact?.email ?? null })
       }
     }
   }
@@ -370,6 +379,38 @@ export async function updateVisitorContact(
   await patchContact(deps.db, visitor.contactId, {
     profile: change.profile,
     ...(change.data ? { data: change.data } : {}),
+  })
+}
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/**
+ * The visitor leaves their address in the e-mail card: it goes on their record — unless the
+ * site signed another —, and the thread says so to the agents.
+ */
+export async function leaveEmail(
+  deps: WidgetDeps,
+  visitor: VisitorClaims,
+  raw: unknown,
+): Promise<void> {
+  const email = typeof raw === 'string' ? raw.trim().toLowerCase() : ''
+  if (email.length > 254 || !EMAIL.test(email)) {
+    throw new Refusal('INVALID_REQUEST', 400, { field: 'email' })
+  }
+  const current = await currentConversation(deps.db, visitor.contactId)
+  if (!current) throw new Refusal('CONVERSATION_NOT_FOUND', 404)
+  await deps.db.transaction(async (tx) => {
+    await tx
+      .update(contacts)
+      .set({ email, updatedAt: new Date() })
+      .where(and(eq(contacts.id, visitor.contactId), eq(contacts.identified, false)))
+    await tx.insert(messages).values({
+      conversationId: current.id,
+      author: 'system',
+      kind: 'event',
+      meta: { event: { type: 'email_given', email } },
+    })
+    await signalChange(tx, current.id)
   })
 }
 

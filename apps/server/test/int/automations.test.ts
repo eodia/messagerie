@@ -319,6 +319,11 @@ describe('an automation', () => {
       ],
     })
     const long = new Date(Date.now() - 15 * 60_000)
+    // On since before the visitor wrote: since after, the message is not its business.
+    await db
+      .update(automations)
+      .set({ activatedAt: new Date(Date.now() - 3600_000) })
+      .where(eq(automations.id, made.id))
     const waiting = await conversation({ lastMessageAt: long })
     await visitorSays(waiting, 'Il y a quelqu’un ?', long)
     const answered = await conversation({ lastMessageAt: long })
