@@ -1,6 +1,7 @@
 import { serve } from '@hono/node-server'
 import { eq } from 'drizzle-orm'
 import { createApp, startPings } from './app.js'
+import { devAgent } from './auth/agent.js'
 import { TicketBook } from './auth/tickets.js'
 import { boot } from './boot.js'
 import { conversations } from './db/schema.js'
@@ -109,7 +110,14 @@ const { app, injectWebSocket } = createApp({
 const server = serve({ fetch: app.fetch, port: config.port }, ({ port }) => {
   console.log(`chat : à l’écoute sur http://localhost:${port}`)
   if (config.devAgent) {
-    console.log(`chat : sans session, l’inbox agit comme ${config.devAgent} (développement)`)
+    const login = config.devAgent
+    void devAgent(db, login).then((agent) =>
+      console.log(
+        agent
+          ? `chat : sans session, l’inbox agit comme ${login} (développement)`
+          : `chat : CHAT_DEV_AGENT=${login} ne désigne aucun conseiller actif (une adresse est attendue) — l’inbox demande de se connecter`,
+      ),
+    )
   }
   if (config.oidc) console.log(`chat : connexion par ${config.oidc.name} (${config.oidc.issuer})`)
 })

@@ -35,20 +35,21 @@ export function agentAuth(db: Db, config: Config): MiddlewareHandler<AgentEnv> {
         throw new Refusal('SESSION_INVALID', 401)
       }
       c.set('agent', agent)
-    } else if (config.devAgent !== null) {
-      c.set('agent', await devAgent(db, config.devAgent))
     } else {
-      throw new Refusal('SESSION_INVALID', 401)
+      // A login that names nobody — an old value — is no stand-in: the sign-in screen shows.
+      const agent = config.devAgent === null ? null : await devAgent(db, config.devAgent)
+      if (!agent) throw new Refusal('SESSION_INVALID', 401)
+      c.set('agent', agent)
     }
     await next()
   }
 }
 
-async function devAgent(db: Db, login: string): Promise<AgentRow> {
+/** The active agent `CHAT_DEV_AGENT` names, or `null`. */
+export async function devAgent(db: Db, login: string): Promise<AgentRow | null> {
   const [agent] = await db
     .select()
     .from(agents)
     .where(and(eq(agents.login, login), eq(agents.active, true)))
-  if (!agent) throw new Refusal('NOT_AN_AGENT', 403)
-  return agent
+  return agent ?? null
 }
