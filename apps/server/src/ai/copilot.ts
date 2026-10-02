@@ -84,6 +84,9 @@ const PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const
  * What the conversation is about, as each visitor message makes it clearer: its intent,
  * the tags basedb lets the AI set, the visitor's mood and a priority. The agents' own tags
  * are never touched.
+ *
+ * It reads the whole conversation, answered or not: the AI answers within a second or two,
+ * and the visitor's words are no less angry for having been answered.
  */
 export async function enrich(deps: AiDeps, conversationId: string): Promise<void> {
   const context = await loadContext(
@@ -93,7 +96,7 @@ export async function enrich(deps: AiDeps, conversationId: string): Promise<void
     conversationId,
     deps.redact,
   )
-  if (!context || !context.question) return
+  if (!context || !context.history.some((m) => m.role === 'user')) return
   const tags = (await deps.settings.tags()).filter((t) => t.byAi)
   const completion = await deps.llm.complete({
     json: true,

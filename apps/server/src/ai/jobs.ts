@@ -117,7 +117,8 @@ export async function startJobs(
   const jobs: AiJobs = {
     visitorMessage: (conversationId) => {
       send(QUEUES.answer, { conversationId }, conversationId, 1)
-      send(QUEUES.enrich, { conversationId }, conversationId, 4)
+      // The visitor's mood, at once: it is the agents' first sign of a conversation going wrong.
+      send(QUEUES.enrich, { conversationId }, conversationId, 1)
       send(QUEUES.suggest, { conversationId }, conversationId, 2)
     },
     takenOver: (conversationId) => {

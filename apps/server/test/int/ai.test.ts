@@ -304,6 +304,17 @@ describe('the copilot', () => {
   })
 })
 
+describe('the reading of a conversation', () => {
+  it('reads the visitor’s mood even once the AI has answered them', async () => {
+    llm.script = decide({ intent: 'Insulte', tags: [], sentiment: 'negative', priority: 'high' })
+    const id = await visitorAsks('Hého vous êtes con ou quoi ?')
+    await db.insert(messages).values({ conversationId: id, author: 'ai', body: 'Je comprends.' })
+    await enrich(deps, id)
+    const [row] = await db.select().from(conversations).where(eq(conversations.id, id))
+    expect(row).toMatchObject({ sentiment: 'negative', priority: 'high', intent: 'Insulte' })
+  })
+})
+
 describe('retention', () => {
   it('purges what has been quiet longer than the site keeps it', async () => {
     const id = await visitorAsks('Vieille question')
