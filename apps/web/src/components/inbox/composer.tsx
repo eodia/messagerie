@@ -555,43 +555,12 @@ export function Composer({
                 )}
               </div>
             )}
-            {corrections > 0 && editor && (
-              <div className="mx-2 mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border bg-muted/40 px-2.5 py-1.5 text-xs">
-                <SpellCheck className="size-3.5 shrink-0 text-emerald-700 dark:text-emerald-400" />
-                <span className="font-medium">
-                  {$tp(corrections, '{count} correction proposée', '{count} corrections proposées')}
-                </span>
-                <span className="text-muted-foreground">
-                  {$t('un clic sur le mot en vert l’accepte')}
-                </span>
-                <span className="ml-auto flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-xs"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => forget(editor.view)}
-                  >
-                    {$t('Ignorer')}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-6 px-2 text-xs"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => accept(editor.view)}
-                  >
-                    {$t('Tout accepter')}
-                  </Button>
-                </span>
-              </div>
-            )}
             {refused && (
               <p className="px-3 pb-1 text-xs text-destructive" role="alert">
                 {refused}
               </p>
             )}
-            <div className="flex items-center gap-0.5 px-1.5 pb-1.5">
+            <div className="@container flex items-center gap-0.5 px-1.5 pb-1.5">
               <input
                 ref={picker}
                 type="file"
@@ -694,24 +663,61 @@ export function Composer({
                   </Button>
                 </Hint>
               )}
-              {(checking || clean) && (
-                <span className="ml-2 hidden items-center gap-1 text-[11px] text-muted-foreground lg:flex">
-                  {checking ? (
-                    <LoaderCircle className="size-3 animate-spin" />
-                  ) : (
-                    <SpellCheck className="size-3" />
-                  )}
-                  {checking ? $t('Relecture…') : $t('Aucune faute')}
-                </span>
-              )}
-              <span className="ml-auto hidden items-center gap-1 pr-2 text-[11px] text-muted-foreground 2xl:flex">
-                <Kbd>↵</Kbd> {$t('envoyer')}
-                <span className="mx-1 text-muted-foreground/50">·</span>
-                <Kbd>Maj</Kbd>
-                <Kbd>↵</Kbd> {$t('à la ligne')}
+              {/*
+                One place beside « Envoyer », for what matters now: the proofreading while it
+                reads or has something to offer, the keyboard's hint otherwise.
+              */}
+              <span className="ml-auto flex min-w-0 items-center gap-1 pr-1.5 pl-2 text-[11px] text-muted-foreground">
+                {corrections > 0 && editor ? (
+                  <>
+                    <Hint label={$t('Un clic sur un mot en vert l’accepte.')}>
+                      <span className="flex shrink-0 items-center gap-1 font-medium text-foreground">
+                        <SpellCheck className="size-3.5 text-emerald-700 dark:text-emerald-400" />
+                        <span className="hidden @2xl:inline">
+                          {$tp(corrections, '{count} correction', '{count} corrections')}
+                        </span>
+                        <span className="tabular-nums @2xl:hidden">{corrections}</span>
+                      </span>
+                    </Hint>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => forget(editor.view)}
+                    >
+                      {$t('Ignorer')}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => accept(editor.view)}
+                    >
+                      {$t('Tout accepter')}
+                    </Button>
+                  </>
+                ) : checking || clean ? (
+                  <span className="hidden items-center gap-1 @xl:flex">
+                    {checking ? (
+                      <LoaderCircle className="size-3 animate-spin" />
+                    ) : (
+                      <SpellCheck className="size-3" />
+                    )}
+                    {checking ? $t('Relecture…') : $t('Aucune faute')}
+                  </span>
+                ) : (
+                  <span className="hidden items-center gap-1 @3xl:flex">
+                    <Kbd>↵</Kbd> {$t('envoyer')}
+                    <span className="mx-1 text-muted-foreground/50">·</span>
+                    <Kbd>Maj</Kbd>
+                    <Kbd>↵</Kbd> {$t('à la ligne')}
+                  </span>
+                )}
               </span>
               {mode === 'reply' ? (
-                <div className="ml-auto flex 2xl:ml-0">
+                <div className="flex shrink-0">
                   <Button
                     size="sm"
                     disabled={!canSend}
@@ -744,7 +750,7 @@ export function Composer({
                 <Button
                   size="sm"
                   variant="secondary"
-                  className="ml-auto 2xl:ml-0"
+                  className="shrink-0"
                   disabled={!canSend}
                   onClick={() => void submit()}
                 >
