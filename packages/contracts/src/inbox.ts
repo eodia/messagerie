@@ -167,6 +167,20 @@ export type ConversationEvent =
    * the AI alone held is resolved by it.
    */
   | { readonly type: 'restarted' }
+  /**
+   * The widget asked the visitor for their e-mail — nobody could answer soon. `by`: the
+   * automation that asked; null when the AI handed over while the agents were away.
+   */
+  | { readonly type: 'email_requested'; readonly by: string | null; readonly text: string | null }
+  /** The visitor left their e-mail in the widget's card. */
+  | { readonly type: 'email_given'; readonly email: string }
+  /** Taken out of the AI's hands and given to the agents' queue — by an automation (D20). */
+  | { readonly type: 'queued'; readonly by: string }
+  | {
+      readonly type: 'priority'
+      readonly priority: 'low' | 'normal' | 'high' | 'urgent'
+      readonly by: string
+    }
 
 /** Something that happened, told in one line: a tool called, an agent taking over. */
 export interface EventMessage extends MessageBase {
@@ -292,7 +306,14 @@ export interface SnoozeBody {
  * Why a conversation calls for an agent's attention: a visitor wrote, the AI handed it
  * over, or someone gave it to them. What rings, what shows in the bell.
  */
-export type AlertKind = 'visitor_message' | 'handoff' | 'assigned' | 'transferred' | 'woke'
+export type AlertKind =
+  | 'visitor_message'
+  | 'handoff'
+  | 'assigned'
+  | 'transferred'
+  | 'woke'
+  /** An automation's « Prévenir » step: `text` says why, `by` is the automation. */
+  | 'automation'
 
 /** One entry of an agent's bell. Kept by the server, so that a reload loses none. */
 export interface Notification {
@@ -300,8 +321,9 @@ export interface Notification {
   readonly kind: AlertKind
   readonly conversationId: string
   readonly contactName: string
-  /** Who assigned the conversation, for `assigned`. */
+  /** Who assigned the conversation, for `assigned`; the automation, for `automation`. */
   readonly by: string | null
+  readonly text: string | null
   readonly at: string
   readonly read: boolean
 }

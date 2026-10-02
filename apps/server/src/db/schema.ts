@@ -1,4 +1,13 @@
-import type { ContactAttribute, ConversationEvent, Metadata, Source } from '@chat/contracts'
+import type {
+  AutomationStep,
+  AutomationTrigger,
+  Condition,
+  ContactAttribute,
+  ConversationEvent,
+  Metadata,
+  RunStepRecord,
+  Source,
+} from '@chat/contracts'
 import { sql } from 'drizzle-orm'
 import {
   boolean,
@@ -49,6 +58,8 @@ export const aiRunKind = chat.enum('ai_run_kind', [
   'rephrase',
   'attachment',
   'speech',
+  /** An automation's « Demander à l'IA » step (D20). */
+  'automation',
 ])
 export const feedbackAction = chat.enum('feedback_action', ['accepted', 'edited', 'rejected'])
 export const tagOrigin = chat.enum('tag_origin', ['agent', 'ai'])
@@ -60,6 +71,8 @@ export const alertKind = chat.enum('alert_kind', [
   'transferred',
   /** A conversation put on hold came back: its time came. */
   'woke',
+  /** An automation's « Prévenir » step (D20), with its text. */
+  'automation',
 ])
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
@@ -348,7 +361,8 @@ export const webhooks = chat.table('webhook', {
 
 /**
  * What happened, captured by triggers in the transaction that did it — and only while a
- * webhook listens. Drained into deliveries; kept seven days.
+ * webhook or an automation listens. Drained into deliveries, and into automations' runs
+ * (D20), each on its own; kept seven days.
  */
 export const changeEvents = chat.table(
   'change_event',
@@ -365,8 +379,15 @@ export const changeEvents = chat.table(
     webhookId: uuid('webhook_id'),
     occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
     drainedAt: timestamp('drained_at', { withTimezone: true }),
+    /** Read by the automations. */
+    automatedAt: timestamp('automated_at', { withTimezone: true }),
+    /** The automation's run that did it — `chat.automation_run` of the transaction. */
+    causedBy: uuid('caused_by'),
   },
-  (t) => [index('change_event_undrained_idx').on(t.occurredAt).where(sql`drained_at is null`)],
+  (t) => [
+    index('change_event_undrained_idx').on(t.occurredAt).where(sql`drained_at is null`),
+    index('change_event_unautomated_idx').on(t.occurredAt).where(sql`automated_at is null`),
+  ],
 )
 
 /**
@@ -399,6 +420,81 @@ export const webhookDeliveries = chat.table(
     index('webhook_delivery_due_idx').on(t.status, t.nextAttemptAt),
     index('webhook_delivery_partition_idx').on(t.partitionKey, t.createdAt),
     index('webhook_delivery_log_idx').on(t.webhookId, t.createdAt),
+  ],
+)
+
+/**
+ * The automations (D20): a trigger, the conversations it keeps, and steps — as
+ * `@chat/contracts` writes them. Each acts as an agent row of its own
+ * (`automation:<id>`), never active: the thread says « Relance » did it.
+ */
+export const automations = chat.table('automation', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  description: text('description').notNull().default(''),
+  isActive: boolean('is_active').notNull().default(false),
+  trigger: jsonb('trigger').$type<AutomationTrigger>().notNull(),
+  condition: jsonb('condition').$type<Condition>().notNull(),
+  steps: jsonb('steps').$type<readonly AutomationStep[]>().notNull().default([]),
+  agentId: uuid('agent_id')
+    .notNull()
+    .references(() => agents.id),
+  /** `webhook`: the key of its address, sealed (AES-256-GCM) — shown again to supervisors. */
+  webhookKey: text('webhook_key'),
+  /** `schedule`: when it goes off next. */
+  nextRunAt: timestamp('next_run_at', { withTimezone: true }),
+  /** What it remembers between runs: whose turn it is, for « à tour de rôle ». */
+  state: jsonb('state').$type<Record<string, string>>().notNull().default({}),
+  createdBy: uuid('created_by')
+    .notNull()
+    .references(() => agents.id),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+})
+
+/**
+ * A run of an automation: queued, worked, perhaps waiting, then done — with what each
+ * step did. Kept ninety days.
+ */
+export const automationRuns = chat.table(
+  'automation_run',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    automationId: uuid('automation_id')
+      .notNull()
+      .references(() => automations.id, { onDelete: 'cascade' }),
+    conversationId: uuid('conversation_id').references(() => conversations.id, {
+      onDelete: 'set null',
+    }),
+    /** `queued`, `running`, `waiting`, `succeeded`, `failed`, `stopped`. */
+    status: text('status').notNull().default('queued'),
+    /** What set it off: `{ type: 'event', event, messageId }`, `{ type: 'button', agent }`… */
+    cause: jsonb('cause').$type<Record<string, unknown>>().notNull(),
+    /** What a webhook sent. */
+    input: jsonb('input').$type<unknown>(),
+    /** What the steps gave, by step id. */
+    outputs: jsonb('outputs').$type<Record<string, string>>().notNull().default({}),
+    steps: jsonb('steps').$type<readonly RunStepRecord[]>().notNull().default([]),
+    /** A wait: the step it waits at, until when, and since when. */
+    resumeAfter: text('resume_after'),
+    resumeAt: timestamp('resume_at', { withTimezone: true }),
+    waitingSince: timestamp('waiting_since', { withTimezone: true }),
+    leaseUntil: timestamp('lease_until', { withTimezone: true }),
+    /** How deep in a chain of automations setting each other off. */
+    depth: integer('depth').notNull().default(0),
+    /** Once per key: `no_reply` runs once for a message left waiting. */
+    dedupKey: text('dedup_key'),
+    error: text('error'),
+    createdAt: createdAt(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (t) => [
+    index('automation_run_due_idx').on(t.status, t.resumeAt),
+    index('automation_run_log_idx').on(t.automationId, t.createdAt.desc()),
+    uniqueIndex('automation_run_dedup_key')
+      .on(t.automationId, t.dedupKey)
+      .where(sql`dedup_key is not null`),
   ],
 )
 
@@ -555,6 +651,8 @@ export const notifications = chat.table(
     kind: alertKind('kind').notNull(),
     /** Who assigned the conversation, for `assigned`. */
     byAgentId: uuid('by_agent_id').references(() => agents.id, { onDelete: 'set null' }),
+    /** What an automation says, for `automation`. */
+    text: text('text'),
     createdAt: createdAt(),
     readAt: timestamp('read_at', { withTimezone: true }),
   },

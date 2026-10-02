@@ -1,5 +1,5 @@
 import type { ApiError, AuthState, LinkInfo } from '@chat/contracts'
-import { and, eq, isNotNull, notLike, or, sql } from 'drizzle-orm'
+import { and, eq, isNotNull, or, sql } from 'drizzle-orm'
 import { type Context, Hono } from 'hono'
 import { deleteCookie, getCookie, getSignedCookie, setCookie, setSignedCookie } from 'hono/cookie'
 import { cors } from 'hono/cors'
@@ -8,6 +8,7 @@ import type { Config } from '../config.js'
 import type { Db } from '../db/client.js'
 import { agentIdentities, agents } from '../db/schema.js'
 import { type AgentRow, toAgent } from '../inbox/read.js'
+import { person } from '../programs.js'
 import { Refusal } from '../refusal.js'
 import type { Settings } from '../settings/settings.js'
 import { RateLimiter } from '../widget/hub.js'
@@ -44,7 +45,7 @@ async function anyoneCanSignIn(db: Db): Promise<boolean> {
       and(
         eq(agents.active, true),
         eq(agents.role, 'supervisor'),
-        notLike(agents.login, 'token:%'),
+        person(agents.login),
         or(
           isNotNull(agents.passwordHash),
           sql`exists (select 1 from ${agentIdentities} where ${agentIdentities.agentId} = ${agents.id})`,

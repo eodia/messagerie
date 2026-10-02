@@ -4,9 +4,11 @@ import { type AiJobs, startJobs } from './ai/jobs.js'
 import { Knowledge } from './ai/knowledge.js'
 import { McpConnections } from './ai/mcp.js'
 import { sweepCredentials } from './auth/credentials.js'
+import { startAutomations } from './automations/engine.js'
 import { type Config, ConfigError, readConfig } from './config.js'
 import { type Db, connect, migrateDatabase } from './db/client.js'
 import { DiskStore } from './files/store.js'
+import { Access } from './inbox/access.js'
 import { startWaking } from './inbox/snooze.js'
 import { DatabaseSource, settingsEmpty } from './settings/database.js'
 import { loadDemoSettings } from './settings/demo.js'
@@ -28,6 +30,8 @@ export interface Booted {
   readonly ai: { readonly llm: Llm; readonly redact: boolean; readonly jobs: AiJobs } | null
   /** The MCP servers' connections — shared by the AI and the tools screen. */
   readonly mcp: McpConnections
+  /** The automations' engine, when it runs in this process (D20). */
+  readonly automations: { poke(): void } | null
   stop(): Promise<void>
 }
 
@@ -99,6 +103,16 @@ export async function boot(role: 'server' | 'worker'): Promise<Booted> {
   const clockwork = role === 'worker' || process.env.CHAT_WORKER !== 'separate'
   const postman = clockwork ? startWebhooks(db, config.secret) : null
   const waking = clockwork ? startWaking(db) : null
+  const automations = clockwork
+    ? startAutomations({
+        db,
+        settings,
+        access: new Access(settings),
+        llm: ai?.llm ?? null,
+        redact: ai?.redact ?? true,
+        webOrigin: config.webOrigin,
+      })
+    : null
 
   return {
     config,
@@ -106,12 +120,14 @@ export async function boot(role: 'server' | 'worker'): Promise<Booted> {
     settings,
     ai,
     mcp,
+    automations,
     stop: async () => {
       stopFollowing()
       clearInterval(sweep)
       await source.close()
       await postman?.stop()
       await waking?.stop()
+      await automations?.stop()
       await stopJobs()
       await mcp.close()
       await pool.end()

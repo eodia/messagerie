@@ -1,8 +1,9 @@
 import type { InviteBody, Invited, PasswordReset } from '@chat/contracts'
-import { and, eq, notLike } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { issueLink } from '../auth/credentials.js'
 import type { Db } from '../db/client.js'
 import { agents } from '../db/schema.js'
+import { person } from '../programs.js'
 import { Refusal } from '../refusal.js'
 import type { Settings } from '../settings/settings.js'
 import type { AgentRow } from './read.js'
@@ -73,7 +74,7 @@ export async function resetAgentPassword(
   const [target] = await db
     .select({ id: agents.id })
     .from(agents)
-    .where(and(eq(agents.id, rowId), notLike(agents.login, 'token:%')))
+    .where(and(eq(agents.id, rowId), person(agents.login)))
   if (!target) throw new Refusal('ROW_NOT_FOUND', 404)
   const token = await issueLink(db, target.id, 'reset', agent.id)
   return { link: linkOf(webOrigin, token) }

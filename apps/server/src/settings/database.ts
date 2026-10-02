@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import { and, count, eq, notLike, sql } from 'drizzle-orm'
+import { and, count, eq, sql } from 'drizzle-orm'
 import type { Db } from '../db/client.js'
+import { person } from '../programs.js'
 import { listen } from '../realtime/signals.js'
 import { JOINS, STORES, type TableStore } from './catalog.js'
 import { type LabeledRow, SettingsFailure, type SettingsSource } from './source.js'
@@ -15,9 +16,6 @@ const CHANNEL = 'chat_settings'
 const ROLES: Readonly<Record<string, string>> = { agent: 'Conseiller', supervisor: 'Superviseur' }
 const ROLE_OF: Readonly<Record<string, string>> = { Conseiller: 'agent', Superviseur: 'supervisor' }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-/** The prefix of the integration tokens' rows: not agents to set up (D16). */
-const INTEGRATION = 'token:%'
 
 function storeOf(label: string): TableStore {
   const store = STORES.find((s) => s.label === label)
@@ -47,7 +45,7 @@ export class DatabaseSource implements SettingsSource {
     const rows: Record<string, unknown>[] = await this.db
       .select()
       .from(table)
-      .where(store.agents ? notLike(table.login, INTEGRATION) : undefined)
+      .where(store.agents ? person(table.login) : undefined)
       .orderBy(table.createdAt)
 
     // The multiple relations and the counts, read once for the whole table.
@@ -144,12 +142,7 @@ export class DatabaseSource implements SettingsSource {
       const changed = await tx
         .update(store.table)
         .set({ ...columns, updatedAt: new Date() })
-        .where(
-          and(
-            eq(store.table.id, id),
-            store.agents ? notLike(store.table.login, INTEGRATION) : undefined,
-          ),
-        )
+        .where(and(eq(store.table.id, id), store.agents ? person(store.table.login) : undefined))
         .returning({ id: store.table.id })
       if (changed.length === 0) throw new SettingsFailure('ROW_NOT_FOUND')
       await this.joins(tx, store, id, values)
@@ -165,7 +158,7 @@ export class DatabaseSource implements SettingsSource {
         const [row] = await tx
           .update(store.table)
           .set({ active: false, updatedAt: new Date() })
-          .where(and(eq(store.table.id, id), notLike(store.table.login, INTEGRATION)))
+          .where(and(eq(store.table.id, id), person(store.table.login)))
           .returning({ id: store.table.id })
         if (!row) throw new SettingsFailure('ROW_NOT_FOUND')
         return

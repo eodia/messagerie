@@ -21,6 +21,8 @@ export async function notify(
   conversationId: string,
   kind: AlertKind,
   byAgentId: string | null = null,
+  /** What an automation says. */
+  text: string | null = null,
 ): Promise<string[]> {
   const targets = [...new Set(agentIds.filter((id): id is string => id !== null))]
   if (targets.length === 0) return []
@@ -28,12 +30,19 @@ export async function notify(
   await tx
     .insert(notifications)
     .values(
-      targets.map((agentId) => ({ agentId, conversationId, kind, byAgentId, createdAt: now })),
+      targets.map((agentId) => ({
+        agentId,
+        conversationId,
+        kind,
+        byAgentId,
+        text,
+        createdAt: now,
+      })),
     )
     .onConflictDoUpdate({
       target: [notifications.agentId, notifications.conversationId, notifications.kind],
       targetWhere: sql`read_at is null`,
-      set: { createdAt: now, byAgentId },
+      set: { createdAt: now, byAgentId, text },
     })
   return targets
 }
@@ -67,6 +76,7 @@ export async function listNotifications(db: Db, agent: AgentRow): Promise<Notifi
       conversationId: notification.conversationId,
       contactName,
       by,
+      text: notification.text,
       at: notification.createdAt.toISOString(),
       read: notification.readAt !== null,
     })),

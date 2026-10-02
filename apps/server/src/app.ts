@@ -24,6 +24,23 @@ import { createToken, listTokens, readCreateBody, revokeToken } from './api/toke
 import { type AgentEnv, REQUEST_HEADER, agentAuth } from './auth/agent.js'
 import { authRoutes } from './auth/routes.js'
 import type { TicketBook } from './auth/tickets.js'
+import {
+  type ManageDeps,
+  automationChoices,
+  automationRunList,
+  buttonsFor,
+  createAutomation,
+  deleteAutomation,
+  getAutomation,
+  hookCalled,
+  listAutomations,
+  pressButton,
+  renewAutomationKey,
+  setAutomationActive,
+  stopRun,
+  tryAutomation,
+  updateAutomation,
+} from './automations/manage.js'
 import type { Config } from './config.js'
 import type { Db } from './db/client.js'
 import { conversations } from './db/schema.js'
@@ -145,6 +162,7 @@ export function createApp({
   ai,
   mcp,
   files,
+  automations,
 }: {
   db: Db
   hub: InboxHub
@@ -157,6 +175,8 @@ export function createApp({
   mcp: McpConnections
   /** Where the files sent in conversations are kept: `config.filesDir` unless given. */
   files?: FileStore
+  /** The automations' engine, when it runs in this process: hurried by a button. */
+  automations?: { poke(): void } | null
 }) {
   const app = new Hono()
   const store = files ?? new DiskStore(config.filesDir)
@@ -680,7 +700,110 @@ export function createApp({
     return c.body(null, 202)
   })
 
+  // The automations (D20): supervisors write, switch on, try and read them;
+  // `automations/engine.ts` runs them. Agents start the « button » ones from a conversation.
+  const automating: ManageDeps = {
+    db,
+    settings,
+    secret: config.secret,
+    publicUrl: config.publicUrl,
+    poke: automations?.poke ?? (() => {}),
+  }
+  const automationParam = (value: string) => {
+    if (!UUID.test(value)) throw new Refusal('AUTOMATION_NOT_FOUND', 404)
+    return value
+  }
+  inbox.get('/automations', async (c) => c.json(await listAutomations(automating, c.get('agent'))))
+  inbox.get('/automations/choices', async (c) =>
+    c.json(await automationChoices(automating, c.get('agent'), ai !== null)),
+  )
+  inbox.post('/automations', async (c) =>
+    c.json(await createAutomation(automating, c.get('agent'), await jsonBody(c.req.raw)), 201),
+  )
+  inbox.get('/automations/:id', async (c) =>
+    c.json(await getAutomation(automating, c.get('agent'), automationParam(c.req.param('id')))),
+  )
+  inbox.put('/automations/:id', async (c) =>
+    c.json(
+      await updateAutomation(
+        automating,
+        c.get('agent'),
+        automationParam(c.req.param('id')),
+        await jsonBody(c.req.raw),
+      ),
+    ),
+  )
+  inbox.patch('/automations/:id', async (c) => {
+    const { active } = await jsonBody(c.req.raw)
+    if (typeof active !== 'boolean') throw new Refusal('INVALID_REQUEST', 400, { field: 'active' })
+    return c.json(
+      await setAutomationActive(
+        automating,
+        c.get('agent'),
+        automationParam(c.req.param('id')),
+        active,
+      ),
+    )
+  })
+  inbox.post('/automations/:id/key', async (c) =>
+    c.json(
+      await renewAutomationKey(automating, c.get('agent'), automationParam(c.req.param('id'))),
+    ),
+  )
+  inbox.delete('/automations/:id', async (c) => {
+    await deleteAutomation(automating, c.get('agent'), automationParam(c.req.param('id')))
+    return c.body(null, 204)
+  })
+  inbox.get('/automations/:id/runs', async (c) =>
+    c.json(await automationRunList(automating, c.get('agent'), automationParam(c.req.param('id')))),
+  )
+  inbox.post('/automations/:id/try', async (c) => {
+    const { conversationId } = await jsonBody(c.req.raw)
+    const target =
+      conversationId === null || conversationId === undefined
+        ? null
+        : uuidParam(String(conversationId))
+    return c.json(
+      await tryAutomation(automating, c.get('agent'), automationParam(c.req.param('id')), target),
+      202,
+    )
+  })
+  inbox.post('/automation-runs/:id/stop', async (c) => {
+    await stopRun(automating, c.get('agent'), automationParam(c.req.param('id')))
+    return c.body(null, 204)
+  })
+  inbox.get('/conversations/:id/automations', async (c) =>
+    c.json(await buttonsFor(automating, uuidParam(c.req.param('id')))),
+  )
+  inbox.post('/conversations/:id/automations/:automation', async (c) =>
+    c.json(
+      await pressButton(
+        automating,
+        c.get('agent'),
+        uuidParam(c.req.param('id')),
+        automationParam(c.req.param('automation')),
+      ),
+      202,
+    ),
+  )
+
   app.route('/api/inbox', inbox)
+
+  // A « webhook » automation's address: another system calls it, with its key (D20).
+  app.post('/api/automations/:id/hook', async (c) => {
+    const key = c.req.header('x-messagerie-key') ?? c.req.query('key') ?? ''
+    const text = await c.req.text()
+    if (text.length > 64_000) throw new Refusal('INVALID_REQUEST', 413)
+    let body: unknown = {}
+    if (text.trim() !== '') {
+      try {
+        body = JSON.parse(text)
+      } catch {
+        throw new Refusal('INVALID_REQUEST', 400, { expected: 'JSON' })
+      }
+    }
+    return c.json(await hookCalled(automating, c.req.param('id'), key, body), 202)
+  })
 
   // The public API and the MCP server: programs and agents, with a token of the chat (D16).
   app.route('/api/v1', restRoutes({ db, settings, access, trustProxy: config.trustProxy }))

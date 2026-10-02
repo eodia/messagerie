@@ -76,6 +76,11 @@ export type ErrorCode =
   | 'SPEECH_UNAVAILABLE'
   | 'GIFS_UNREACHABLE'
   | 'GIF_NOT_FOUND'
+  | 'AUTOMATION_NOT_FOUND'
+  /** An automation that cannot run as written: `details.problem`, `details.step`. */
+  | 'AUTOMATION_INVALID'
+  /** An automation's own address, called with a wrong key, or while it is off. */
+  | 'AUTOMATION_KEY_INVALID'
 
 /** Opens the inbox's WebSocket, once, within thirty seconds. */
 export interface Ticket {

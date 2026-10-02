@@ -1,7 +1,7 @@
 import type { SettingsField, SettingsOverview, SettingsRow, SettingsTable } from '@chat/contracts'
-import { notLike } from 'drizzle-orm'
 import type { Db } from '../db/client.js'
 import { agents } from '../db/schema.js'
+import { person } from '../programs.js'
 import { Refusal } from '../refusal.js'
 import { MODEL } from '../settings/demo.js'
 import type { Settings } from '../settings/settings.js'
@@ -114,7 +114,7 @@ export async function settingsOverview(db: Db, agent: AgentRow): Promise<Setting
   const users = await db
     .select({ id: agents.id, name: agents.name, email: agents.email })
     .from(agents)
-    .where(notLike(agents.login, 'token:%'))
+    .where(person(agents.login))
     .orderBy(agents.name)
   return {
     tables: settingsSchema(),
