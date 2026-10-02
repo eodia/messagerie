@@ -148,7 +148,19 @@ export async function settingsOverview(
   }
 }
 
-export async function settingsRows(settings: Settings, key: string): Promise<SettingsRow[]> {
+/**
+ * What an agent may read of the settings: the knowledge base and the sites it is written
+ * for. The rest — inboxes, teams, accounts, hours, guardrails, tools… — is the
+ * administration's, read and written by supervisors alone.
+ */
+const READ_BY_AGENTS: ReadonlySet<string> = new Set(['articles', 'categories', 'sites'])
+
+export async function settingsRows(
+  settings: Settings,
+  agent: AgentRow,
+  key: string,
+): Promise<SettingsRow[]> {
+  if (!READ_BY_AGENTS.has(key)) supervisorOnly(agent)
   const table = tableOf(key)
   const rows = await settings.rowsOf(table.label)
   const known = new Set(table.fields.map((f) => f.label))

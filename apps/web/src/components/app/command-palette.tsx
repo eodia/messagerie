@@ -49,6 +49,7 @@ import {
   Hand,
   Headset,
   Inbox,
+  KeyRound,
   ListFilter,
   LoaderCircle,
   LogOut,
@@ -495,42 +496,45 @@ function Palette({ seed, onClose }: { readonly seed: string; readonly onClose: (
       'nouvel article connaissance',
       '/connaissance',
     )
-    command(
-      'invite',
-      $t('Inviter un conseiller'),
-      UserPlus,
-      () => go('/parametrage/equipes?inviter=1'),
-      'nouveau compte agent',
-    )
-    command(
-      'new-inbox',
-      $t('Nouvelle boîte de réception'),
-      Plus,
-      () => go('/parametrage/boites?nouveau=1'),
-      'créer',
-    )
-    command(
-      'new-team',
-      $t('Nouvelle équipe'),
-      Plus,
-      () => go('/parametrage/equipes?nouveau=1'),
-      'créer',
-    )
-    command(
-      'new-reply',
-      $t('Nouvelle réponse type'),
-      Plus,
-      () => go('/parametrage/reponses?nouveau=1'),
-      'créer modèle',
-    )
-    command(
-      'new-guardrail',
-      $t('Nouveau garde-fou'),
-      Plus,
-      () => go('/parametrage/garde-fous?nouveau=1'),
-      'créer sujet sensible',
-    )
-    command('new-tool', $t('Nouvel outil IA'), Plus, () => go('/outils?nouveau=1'), 'créer api')
+    // The administration's, for supervisors alone (`AdminOnly`).
+    if (me?.role === 'supervisor') {
+      command(
+        'invite',
+        $t('Inviter un conseiller'),
+        UserPlus,
+        () => go('/parametrage/equipes?inviter=1'),
+        'nouveau compte agent',
+      )
+      command(
+        'new-inbox',
+        $t('Nouvelle boîte de réception'),
+        Plus,
+        () => go('/parametrage/boites?nouveau=1'),
+        'créer',
+      )
+      command(
+        'new-team',
+        $t('Nouvelle équipe'),
+        Plus,
+        () => go('/parametrage/equipes?nouveau=1'),
+        'créer',
+      )
+      command(
+        'new-reply',
+        $t('Nouvelle réponse type'),
+        Plus,
+        () => go('/parametrage/reponses?nouveau=1'),
+        'créer modèle',
+      )
+      command(
+        'new-guardrail',
+        $t('Nouveau garde-fou'),
+        Plus,
+        () => go('/parametrage/garde-fous?nouveau=1'),
+        'créer sujet sensible',
+      )
+      command('new-tool', $t('Nouvel outil IA'), Plus, () => go('/outils?nouveau=1'), 'créer api')
+    }
     const theme = useTheme.getState()
     command('light', $t('Thème clair'), Sun, () => theme.setPreference('light'), 'apparence jour')
     command(
@@ -606,28 +610,31 @@ function Palette({ seed, onClose }: { readonly seed: string; readonly onClose: (
     page('/contacts', $t('Contacts'), UsersRound, 'clients visiteurs')
     page('/connaissance', $t('Connaissance'), BookOpen, 'articles base faq')
     page('/statistiques', $t('Statistiques'), ChartColumn, 'chiffres tableau de bord')
-    page('/parametrage/boites', $t('Boîtes de réception'), Inbox, 'paramétrage')
-    page(
-      '/parametrage/equipes',
-      $t('Équipes et conseillers'),
-      Headset,
-      'paramétrage agents comptes',
-    )
-    page(
-      '/parametrage/sites',
-      $t('Sites et horaires'),
-      Globe,
-      'paramétrage ouverture fermetures domaines',
-    )
-    page(
-      '/parametrage/reponses',
-      $t('Réponses types et étiquettes'),
-      MessageSquareText,
-      'paramétrage modèles tags',
-    )
-    page('/parametrage/garde-fous', $t('Garde-fous'), ShieldAlert, 'paramétrage sujets sensibles')
-    page('/outils', $t('Outils IA et serveurs MCP'), Wrench, 'paramétrage api')
-    page('/widget', $t('Widget'), PaletteIcon, 'paramétrage apparence couleur installation')
+    if (me?.role === 'supervisor') {
+      page('/parametrage/boites', $t('Boîtes de réception'), Inbox, 'paramétrage')
+      page(
+        '/parametrage/equipes',
+        $t('Équipes et conseillers'),
+        Headset,
+        'paramétrage agents comptes',
+      )
+      page(
+        '/parametrage/sites',
+        $t('Sites et horaires'),
+        Globe,
+        'paramétrage ouverture fermetures domaines',
+      )
+      page(
+        '/parametrage/reponses',
+        $t('Réponses types et étiquettes'),
+        MessageSquareText,
+        'paramétrage modèles tags',
+      )
+      page('/parametrage/garde-fous', $t('Garde-fous'), ShieldAlert, 'paramétrage sujets sensibles')
+      page('/outils', $t('Outils IA et serveurs MCP'), Wrench, 'paramétrage api')
+      page('/widget', $t('Widget'), PaletteIcon, 'paramétrage apparence couleur installation')
+      page('/parametrage/api', $t('API et MCP'), KeyRound, 'paramétrage jetons webhooks')
+    }
     return out
   }, [detail, pathname, me, summaries, inboxes, contacts, hits, agents, tagOptions, articles])
 

@@ -1,6 +1,14 @@
 'use client'
 
 import { InboxGlyph } from '@/components/app/look'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Separator } from '@/components/ui/separator'
 import { Hint } from '@/components/ui/tooltip'
 import { $t, msg } from '@/lib/i18n'
@@ -11,6 +19,7 @@ import { cn } from '@/lib/utils'
 import {
   BookOpen,
   ChartColumn,
+  ChevronDown,
   ChevronsUpDown,
   ExternalLink,
   Globe,
@@ -22,12 +31,14 @@ import {
   MessageSquareText,
   MessagesSquare,
   Palette,
+  Settings,
   ShieldAlert,
   UsersRound,
   Wrench,
 } from 'lucide-react'
 import Link, { useLinkStatus } from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useEffect } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { UserMenu } from './user-menu'
 
@@ -45,7 +56,8 @@ const SCREENS: readonly Screen[] = [
 ]
 
 /**
- * What a supervisor sets up. The data lives in basedb, base « Messagerie » (D1, D10): these
+ * What a supervisor sets up — « Administration », folded at the foot of the sidebar, shown
+ * to supervisors alone. The data lives in basedb, base « Messagerie » (D1, D10): these
  * screens read and write it there.
  */
 const SETTINGS: readonly Screen[] = [
@@ -147,44 +159,144 @@ export function Sidebar({ basedbUrl }: { readonly basedbUrl: string }) {
             />
           ))}
         </div>
-
-        <div className="mt-5 space-y-0.5">
-          {collapsed ? (
-            <Separator className="mb-2" />
-          ) : (
-            <div className="flex h-7 items-center gap-1.5 px-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-              <span className="flex-1">{$t('Paramétrage')}</span>
-              <Hint label={$t('Ouvrir la base dans basedb')}>
-                <a
-                  href={basedbUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1 rounded px-1 normal-case tracking-normal hover:text-foreground"
-                >
-                  basedb
-                  <ExternalLink className="size-3" />
-                </a>
-              </Hint>
-            </div>
-          )}
-          {SETTINGS.map((screen) => (
-            <NavRow
-              key={screen.href}
-              href={screen.href}
-              label={$t(screen.label)}
-              icon={screen.icon}
-              active={pathname.startsWith(screen.href)}
-              collapsed={collapsed}
-            />
-          ))}
-        </div>
       </nav>
 
+      <Administration basedbUrl={basedbUrl} collapsed={collapsed} pathname={pathname} />
       <Separator />
       <div className="p-2">
         <UserMenu collapsed={collapsed} basedbUrl={basedbUrl} />
       </div>
     </aside>
+  )
+}
+
+/**
+ * « Administration »: the screens a supervisor sets up, folded like an accordion — open
+ * by itself on arrival at one of them, and as left otherwise. Reduced to its icon, the
+ * sidebar lists them in a menu. An agent sees none of it: the server refuses them its
+ * writes, and the reading of its tables.
+ */
+function Administration({
+  basedbUrl,
+  collapsed,
+  pathname,
+}: {
+  readonly basedbUrl: string
+  readonly collapsed: boolean
+  readonly pathname: string
+}) {
+  const supervisor = useInbox((s) => s.me?.role === 'supervisor')
+  const open = useSidebar((s) => s.adminOpen)
+  const setOpen = useSidebar((s) => s.setAdminOpen)
+  const here = SETTINGS.some((screen) => pathname.startsWith(screen.href))
+
+  useEffect(() => {
+    if (here) setOpen(true)
+  }, [here, setOpen])
+
+  if (!supervisor) return null
+
+  if (collapsed) {
+    return (
+      <div className="border-t p-2">
+        <DropdownMenu>
+          <Hint label={$t('Administration')} side="right">
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={$t('Administration')}
+                className={cn(
+                  'flex h-9 w-full items-center justify-center rounded-lg transition-colors hover:bg-sidebar-accent',
+                  here && 'bg-sidebar-accent',
+                )}
+              >
+                <Settings
+                  className={cn('size-4', here ? 'text-foreground' : 'text-muted-foreground')}
+                />
+              </button>
+            </DropdownMenuTrigger>
+          </Hint>
+          <DropdownMenuContent side="right" align="end" className="w-64">
+            <DropdownMenuLabel className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+              {$t('Administration')}
+            </DropdownMenuLabel>
+            {SETTINGS.map((screen) => (
+              <DropdownMenuItem key={screen.href} asChild>
+                <Link href={screen.href}>
+                  <screen.icon />
+                  {$t(screen.label)}
+                </Link>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <a href={basedbUrl} target="_blank" rel="noreferrer">
+                <ExternalLink />
+                {$t('Ouvrir la base dans basedb')}
+              </a>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    )
+  }
+
+  return (
+    <div className="border-t px-2 py-1.5">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className={cn(
+          'flex h-8 w-full items-center gap-2.5 rounded-lg px-2 text-left text-sm transition-colors hover:bg-sidebar-accent',
+          here && !open && 'bg-sidebar-accent font-medium',
+        )}
+      >
+        <Settings
+          className={cn('size-4 shrink-0', here ? 'text-foreground' : 'text-muted-foreground')}
+        />
+        <span className="min-w-0 flex-1 truncate">{$t('Administration')}</span>
+        <ChevronDown
+          className={cn(
+            'size-4 shrink-0 text-muted-foreground transition-transform duration-200',
+            open && 'rotate-180',
+          )}
+        />
+      </button>
+      <div
+        className={cn(
+          'grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none',
+          open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+        )}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div
+            inert={!open}
+            className="max-h-[45vh] space-y-0.5 overflow-y-auto pt-0.5 scroll-discret"
+          >
+            {SETTINGS.map((screen) => (
+              <NavRow
+                key={screen.href}
+                href={screen.href}
+                label={$t(screen.label)}
+                icon={screen.icon}
+                active={pathname.startsWith(screen.href)}
+                collapsed={false}
+              />
+            ))}
+            <a
+              href={basedbUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex h-7 items-center gap-2.5 rounded-lg px-2 text-xs text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+            >
+              <ExternalLink className="size-4 shrink-0" />
+              {$t('Ouvrir la base dans basedb')}
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 

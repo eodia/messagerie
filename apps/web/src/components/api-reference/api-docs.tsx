@@ -6,6 +6,7 @@ import { Hint } from '@/components/ui/tooltip'
 import { ApiFailure, api } from '@/lib/api'
 import { $t } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
+import { useInbox } from '@/lib/store/inbox'
 import { useTitle } from '@/lib/title'
 import { cn } from '@/lib/utils'
 import type { DocSection } from '@chat/contracts'
@@ -429,6 +430,8 @@ function SpecDownload() {
 
 /** The tokens, one click from the pages that explain them. */
 function TokenButton() {
+  const supervisor = useInbox((s) => s.me?.role === 'supervisor')
+  if (!supervisor) return null
   return (
     <Hint label={$t('Créer un jeton pour l’API REST ou le MCP')}>
       <Button variant="outline" size="sm" asChild>

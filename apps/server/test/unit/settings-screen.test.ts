@@ -39,6 +39,18 @@ describe('the schema', () => {
 })
 
 describe('a row', () => {
+  it('is read by supervisors alone, but for the knowledge base and its sites', async () => {
+    const settings = fresh()
+    for (const key of ['boites', 'equipes', 'conseillers', 'garde_fous', 'outils_ia']) {
+      await expect(settingsRows(settings, agent, key)).rejects.toMatchObject({
+        code: 'NOT_ALLOWED',
+      })
+    }
+    for (const key of ['articles', 'categories', 'sites']) {
+      await expect(settingsRows(settings, agent, key)).resolves.toBeInstanceOf(Array)
+    }
+  })
+
   it('is created, changed and deleted by a supervisor', async () => {
     const settings = fresh()
     const created = await createRow(settings, supervisor, null, 'equipes', {
@@ -46,7 +58,7 @@ describe('a row', () => {
       Description: 'Les contrats de prévoyance.',
     })
     await updateRow(settings, supervisor, null, 'equipes', created.id, { Description: 'Revue.' })
-    const rows = await settingsRows(settings, 'equipes')
+    const rows = await settingsRows(settings, supervisor, 'equipes')
     expect(rows.find((r) => r.id === created.id)?.values).toMatchObject({
       Nom: 'Équipe Prévoyance',
       Description: 'Revue.',
@@ -54,7 +66,9 @@ describe('a row', () => {
     // The inboxes see it at once: the cache was forgotten.
     expect((await settings.teams()).some((t) => t.name === 'Équipe Prévoyance')).toBe(true)
     await deleteRow(settings, supervisor, null, 'equipes', created.id)
-    expect((await settingsRows(settings, 'equipes')).some((r) => r.id === created.id)).toBe(false)
+    expect(
+      (await settingsRows(settings, supervisor, 'equipes')).some((r) => r.id === created.id),
+    ).toBe(false)
   })
 
   it('is refused to an agent', async () => {
@@ -86,7 +100,9 @@ describe('a row', () => {
       'Équipe par défaut': null,
       Équipes: null,
     })
-    const row = (await settingsRows(settings, 'boites')).find((r) => r.id === 'sinistres')
+    const row = (await settingsRows(settings, supervisor, 'boites')).find(
+      (r) => r.id === 'sinistres',
+    )
     expect(row?.values).toMatchObject({ Description: null, 'Équipe par défaut': null, Équipes: [] })
   })
 })

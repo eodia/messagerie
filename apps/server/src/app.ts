@@ -241,7 +241,7 @@ export function createApp({
     c.json(await settingsOverview(configured(), basedb, c.get('agent'), c.get('basedbToken'))),
   )
   inbox.get('/settings/:table', async (c) =>
-    c.json(await settingsRows(configured(), c.req.param('table'))),
+    c.json(await settingsRows(configured(), c.get('agent'), c.req.param('table'))),
   )
   inbox.post('/settings/:table', async (c) => {
     const { values } = await jsonBody(c.req.raw)
