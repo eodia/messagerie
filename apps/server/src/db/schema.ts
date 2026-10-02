@@ -2,6 +2,7 @@ import type { ContactAttribute, ConversationEvent, Metadata, Source } from '@cha
 import { sql } from 'drizzle-orm'
 import {
   boolean,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -89,6 +90,14 @@ export const contacts = chat.table(
     email: text('email'),
     identified: boolean('identified').notNull().default(false),
     location: text('location'),
+    /**
+     * Where they are, roughly (D18): their country (ISO 3166), the time zone their browser
+     * gives, and a point — the zone's city, or a better one a site or the seed gave.
+     */
+    country: text('country'),
+    timeZone: text('time_zone'),
+    latitude: doublePrecision('latitude'),
+    longitude: doublePrecision('longitude'),
     segment: text('segment'),
     attributes: jsonb('attributes').$type<ContactAttribute[]>().notNull().default([]),
     phone: text('phone'),

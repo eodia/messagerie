@@ -71,6 +71,13 @@
       "when": 1790920548237,
       "tag": "0009_webhooks",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790921692437,
+      "tag": "0010_contact_place",
+      "breakpoints": true
     }
   ]
 }

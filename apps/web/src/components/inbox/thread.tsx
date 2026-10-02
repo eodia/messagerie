@@ -1,6 +1,7 @@
 'use client'
 
 import { Chip } from '@/components/app/chip'
+import { Flag } from '@/components/app/flag'
 import { InboxGlyph } from '@/components/app/look'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,6 +14,7 @@ import {
 import { Hint } from '@/components/ui/tooltip'
 import { api } from '@/lib/api'
 import { $t } from '@/lib/i18n'
+import { whereOf } from '@/lib/place'
 import { useSpeech } from '@/lib/speech'
 import { useInbox } from '@/lib/store/inbox'
 import { THREAD_MIN } from '@/lib/store/panels'
@@ -166,10 +168,14 @@ export function Thread({
             )}
             {contact.email && <span className="truncate">{contact.email}</span>}
             {code && <span className="font-mono">{code.value}</span>}
-            {contact.location && (
-              <span className="hidden items-center gap-1 whitespace-nowrap 2xl:inline-flex">
-                <MapPin className="size-3" />
-                {contact.location}
+            {whereOf(contact) && (
+              <span className="hidden items-center gap-1.5 whitespace-nowrap 2xl:inline-flex">
+                {contact.country ? (
+                  <Flag country={contact.country} className="text-[10px]" />
+                ) : (
+                  <MapPin className="size-3" />
+                )}
+                {whereOf(contact)}
               </span>
             )}
           </div>

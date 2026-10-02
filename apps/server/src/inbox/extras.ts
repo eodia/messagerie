@@ -10,6 +10,7 @@ import { and, asc, desc, eq, ilike, inArray, max, or, sql } from 'drizzle-orm'
 import type { BasedbClient } from '../basedb/client.js'
 import type { Db } from '../db/client.js'
 import { contacts, conversations, kbChunks, messages } from '../db/schema.js'
+import { pointOf } from '../places/place.js'
 import { Refusal } from '../refusal.js'
 import { type Settings, TABLES } from '../settings/settings.js'
 import type { AgentRow } from './read.js'
@@ -84,6 +85,10 @@ export async function listContacts(
     email: contact.email,
     identified: contact.identified,
     site,
+    location: contact.location,
+    country: contact.country,
+    timeZone: contact.timeZone,
+    place: pointOf(contact),
     conversations: count,
     lastMessageAt: lastMessageAt ? new Date(lastMessageAt).toISOString() : null,
   }))
@@ -133,6 +138,9 @@ export async function contactDetail(
       phone: contact.phone,
       identified: contact.identified,
       location: contact.location,
+      country: contact.country,
+      timeZone: contact.timeZone,
+      place: pointOf(contact),
       segment: contact.segment,
       attributes: contact.attributes,
       data: contact.data,

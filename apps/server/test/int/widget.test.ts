@@ -11,13 +11,13 @@ import { createApp } from '../../src/app.js'
 import { TicketBook } from '../../src/auth/tickets.js'
 import type { Config } from '../../src/config.js'
 import { type Db, connect, migrateDatabase } from '../../src/db/client.js'
-import { agents, conversations, messages, siteSecrets } from '../../src/db/schema.js'
+import { agents, contacts, conversations, messages, siteSecrets } from '../../src/db/schema.js'
 import { sendMessage } from '../../src/inbox/write.js'
 import { InboxHub } from '../../src/realtime/hub.js'
 import { Settings } from '../../src/settings/settings.js'
 import { TemplateSource } from '../../src/settings/source.js'
 import { WidgetHub } from '../../src/widget/hub.js'
-import { signIdentity } from '../../src/widget/tokens.js'
+import { signIdentity, verifyVisitor } from '../../src/widget/tokens.js'
 
 /**
  * The widget's API, on the demonstration settings (Acme Assurances, `localhost` allowed),
@@ -158,6 +158,41 @@ describe('a session', () => {
     expect((await call('/session', { body: { site: 'acme', identity: forged } })).status).toBe(401)
     const expired = signIdentity(SECRET, { sub: 'CLI-1', exp: 1 })
     expect((await call('/session', { body: { site: 'acme', identity: expired } })).status).toBe(401)
+  })
+
+  it('places the visitor by their browser’s time zone, never over a better point', async () => {
+    const opened = await session({ timeZone: 'Asia/Calcutta' })
+    const id = verifyVisitor('a-secret-for-the-tests-of-the-chat-server', opened.visitor)?.contactId
+    const placed = async () => {
+      const [row] = await db
+        .select()
+        .from(contacts)
+        .where(eq(contacts.id, id ?? ''))
+      return row
+    }
+    expect(await placed()).toMatchObject({
+      timeZone: 'Asia/Kolkata',
+      country: 'IN',
+      latitude: 22.53,
+      longitude: 88.37,
+    })
+
+    // Travelled: the zone's point follows.
+    await session({ visitor: opened.visitor, timeZone: 'Europe/Paris' })
+    expect(await placed()).toMatchObject({ country: 'FR', latitude: 48.87, longitude: 2.33 })
+
+    // A point a site gave stays; a zone it does not know changes nothing.
+    await db
+      .update(contacts)
+      .set({ latitude: 45.76, longitude: 4.84 })
+      .where(eq(contacts.id, id ?? ''))
+    await session({ visitor: opened.visitor, timeZone: 'America/New_York' })
+    await session({ visitor: opened.visitor, timeZone: 'Mars/Olympus_Mons' })
+    expect(await placed()).toMatchObject({
+      timeZone: 'America/New_York',
+      latitude: 45.76,
+      longitude: 4.84,
+    })
   })
 })
 

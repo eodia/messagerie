@@ -504,6 +504,23 @@ onglet « Webhooks » : créer, arrêter, reprendre, supprimer (gardé arrêté,
 journal), envoyer un test, lire les derniers envois. Ils restent dans le schéma `chat`,
 jamais dans basedb (D5).
 
+## D18 — Où est un contact : son fuseau horaire, pas son adresse IP
+
+Un drapeau dans la liste des contacts, une carte qui vole jusqu'à eux : il faut savoir à
+peu près où ils sont. La Messagerie ne le demande à personne — ni base GeoIP, ni service
+tiers : le widget transmet le fuseau horaire du navigateur (`Europe/Paris`), et la table
+des fuseaux de la base tz (`zone.tab`, générée dans `apps/server/src/places/zones.ts`) en
+dit le pays et la ville de référence. Les anciens noms que donnent encore les navigateurs
+(`Asia/Calcutta`) y sont.
+
+- Le contact garde `country`, `time_zone`, `latitude`, `longitude`. Le point du fuseau est
+  marqué « approximatif » : la carte montre alors le pays, pas la ville.
+- Un point plus précis — donné par un site, ou le jeu de démonstration — n'est jamais
+  remplacé par celui d'un fuseau ; un visiteur qui voyage suit son fuseau.
+- La carte est celle d'OpenStreetMap, dessinée par Leaflet comme dans basedb : seules les
+  tuiles sont demandées, par le navigateur du conseiller. Les drapeaux sont des SVG
+  (`flag-icons`) : Windows écrit les drapeaux emoji en deux lettres.
+
 ---
 
 ## Ce que le chat attend de basedb

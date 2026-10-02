@@ -41,13 +41,14 @@ async function jsonOf(c: Context): Promise<Record<string, unknown>> {
 }
 
 function sessionBody(raw: Record<string, unknown>): WidgetSessionBody {
-  const { site, visitor, identity } = raw
+  const { site, visitor, identity, timeZone } = raw
   if (typeof site !== 'string' || site === '')
     throw new Refusal('INVALID_REQUEST', 400, { field: 'site' })
   return {
     site,
     ...(typeof visitor === 'string' ? { visitor } : {}),
     ...(typeof identity === 'string' && identity !== '' ? { identity } : {}),
+    ...(typeof timeZone === 'string' ? { timeZone } : {}),
   }
 }
 

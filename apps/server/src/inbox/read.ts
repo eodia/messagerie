@@ -25,6 +25,7 @@ import {
   messages,
 } from '../db/schema.js'
 import { attachmentsOf, forInbox } from '../files/attachments.js'
+import { pointOf } from '../places/place.js'
 import { Refusal } from '../refusal.js'
 import { type Visible, canSee } from './access.js'
 
@@ -351,6 +352,9 @@ function toContact(row: typeof contacts.$inferSelect): Contact {
     phone: row.phone,
     identified: row.identified,
     location: row.location,
+    country: row.country,
+    timeZone: row.timeZone,
+    place: pointOf(row),
     segment: row.segment,
     attributes: row.attributes,
     data: row.data,

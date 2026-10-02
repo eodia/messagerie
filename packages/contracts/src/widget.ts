@@ -114,6 +114,8 @@ export interface WidgetSessionBody {
   readonly visitor?: string
   /** The identity the site signed (HS256 JWT), for a visitor signed in to it. */
   readonly identity?: string
+  /** The browser's time zone, `Europe/Paris`: where the visitor is, roughly (D18). */
+  readonly timeZone?: string
 }
 
 export interface WidgetSession {

@@ -40,6 +40,15 @@ export class WidgetFailure extends Error {
   }
 }
 
+/** The browser's time zone — where the visitor is, roughly (D18) —, or nothing. */
+function timeZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined
+  } catch {
+    return undefined
+  }
+}
+
 export class WidgetApi implements Backend {
   private token: string | null
   /** The socket `follow` holds open — the way back for « I am typing ». */
@@ -105,6 +114,7 @@ export class WidgetApi implements Backend {
         site: this.site,
         ...(this.token ? { visitor: this.token } : {}),
         ...(identity ? { identity } : {}),
+        ...(timeZone() ? { timeZone: timeZone() } : {}),
       })
     const session = await open()
     this.keep(session.visitor)

@@ -33,11 +33,22 @@ export interface Contact {
   /** True when the site signed who the visitor is (HMAC or JWT) — never on its word alone. */
   readonly identified: boolean
   readonly location: string | null
+  /** Where they are, roughly (D18): a country, an IANA time zone, a point. */
+  readonly country: string | null
+  readonly timeZone: string | null
+  readonly place: GeoPoint | null
   readonly segment: string | null
   /** The attributes the site sent with the signed identity, in its order. */
   readonly attributes: readonly ContactAttribute[]
   /** What the page or an agent said of the contact — declared, not checked. */
   readonly data: Metadata
+}
+
+/** A point on the map. `approximate`: the city of the visitor's time zone, not theirs. */
+export interface GeoPoint {
+  readonly latitude: number
+  readonly longitude: number
+  readonly approximate: boolean
 }
 
 export interface ContactAttribute {
@@ -299,6 +310,10 @@ export interface ContactListItem {
   readonly email: string | null
   readonly identified: boolean
   readonly site: string | null
+  readonly location: string | null
+  readonly country: string | null
+  readonly timeZone: string | null
+  readonly place: GeoPoint | null
   readonly conversations: number
   readonly lastMessageAt: string | null
 }

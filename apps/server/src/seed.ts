@@ -129,6 +129,14 @@ interface Demo {
 
 const ME = 'Marc JAMAIN'
 
+/** Where the seed's customers live. */
+const CITIES: Readonly<Record<string, { latitude: number; longitude: number }>> = {
+  'Paris, France': { latitude: 48.8566, longitude: 2.3522 },
+  'Lyon, France': { latitude: 45.764, longitude: 4.8357 },
+  'Nantes, France': { latitude: 47.2184, longitude: -1.5536 },
+  'Lille, France': { latitude: 50.6292, longitude: 3.0573 },
+}
+
 const DEMOS: readonly Demo[] = [
   {
     contact: {
@@ -452,6 +460,11 @@ await db.transaction(async (tx) => {
         email: demo.contact.email,
         identified: demo.contact.externalId !== null,
         location: demo.contact.location ?? null,
+        // A French site's visitors, in France: their city when the site said it, else
+        // their time zone's.
+        country: 'FR',
+        timeZone: 'Europe/Paris',
+        ...(CITIES[demo.contact.location ?? ''] ?? { latitude: 48.87, longitude: 2.33 }),
         segment: demo.contact.externalId !== null ? 'Particulier' : null,
         attributes: [...(demo.contact.attributes ?? [])],
       })

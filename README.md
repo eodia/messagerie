@@ -33,6 +33,7 @@ Les décisions qui expliquent le reste sont dans
 | Alertes | Son, notifications du bureau, pastilles de l'onglet, cloche par conseiller, réglables |
 | API et MCP | API REST `/api/v1` et serveur MCP `/mcp` pour les programmes et les agents, avec des jetons à la basedb (`msg_…`, lecture ou écriture, par boîte), gérés dans « Paramétrage › API et MCP » (D16) |
 | Webhooks | Un autre système prévenu de ce qui se passe dans les conversations : appels signés, retentés, dans l'ordre par conversation, gérés dans « Paramétrage › API et MCP » (D17) |
+| Contacts | Drapeau, heure locale et carte OpenStreetMap de chaque contact, tirés du fuseau horaire de son navigateur — sans géolocalisation par IP (D18) |
 | basedb (0.5.0 et plus) | Un basedb dédié dans `docker compose` ; base créée et reliée par `pnpm basedb:setup` ; conseillers reconnus par introspection de leur jeton ; tables suivies en direct |
 
 ## Développer

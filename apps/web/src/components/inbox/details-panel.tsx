@@ -2,6 +2,7 @@
 
 import { Chip, ColorBadge } from '@/components/app/chip'
 import { CopyButton } from '@/components/app/copy-button'
+import { Flag } from '@/components/app/flag'
 import { InboxGlyph } from '@/components/app/look'
 import { ResizablePanel } from '@/components/app/resizable-panel'
 import { ToolDialog, type ToolTarget } from '@/components/app/tool-dialog'
@@ -11,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Hint } from '@/components/ui/tooltip'
 import { api } from '@/lib/api'
 import { $t, $tp, msg } from '@/lib/i18n'
+import { clockOf, whereInFull } from '@/lib/place'
 import { type BlockId, useDetailsLayout } from '@/lib/store/details-layout'
 import { useInbox } from '@/lib/store/inbox'
 import { dayLabel } from '@/lib/time'
@@ -564,26 +566,47 @@ function ContactHero({ conversation }: { readonly conversation: Conversation }) 
 }
 
 function ContactLines({ contact }: { readonly contact: Contact }) {
-  const lines: { icon: LucideIcon; value: string; copy: boolean; label: string }[] = [
+  const now = useInbox((s) => s.now)
+  const where = whereInFull(contact)
+  const clock = contact.timeZone ? clockOf(contact.timeZone, now) : null
+  const lines: {
+    icon: LucideIcon
+    value: string
+    copy: boolean
+    label: string
+    flag?: string | null
+  }[] = [
     ...(contact.email
       ? [{ icon: Mail, value: contact.email, copy: true, label: $t('Copier l’adresse') }]
       : []),
     ...(contact.phone
       ? [{ icon: Phone, value: contact.phone, copy: true, label: $t('Copier le numéro') }]
       : []),
-    ...(contact.location
-      ? [{ icon: MapPin, value: contact.location, copy: false, label: '' }]
+    ...(where
+      ? [
+          {
+            icon: MapPin,
+            value: clock ? `${where} · ${clock}` : where,
+            copy: false,
+            label: '',
+            flag: contact.country,
+          },
+        ]
       : []),
   ]
   if (lines.length === 0) return null
   return (
     <ul className="mt-3.5 space-y-0.5">
-      {lines.map(({ icon: Icon, value, copy, label }) => (
+      {lines.map(({ icon: Icon, value, copy, label, flag }) => (
         <li
           key={value}
           className="group -mx-1.5 flex h-7 items-center gap-2.5 rounded-md px-1.5 text-[13px] transition-colors hover:bg-muted/60"
         >
-          <Icon className="size-3.5 shrink-0 text-muted-foreground" />
+          {flag ? (
+            <Flag country={flag} className="text-[10.5px]" />
+          ) : (
+            <Icon className="size-3.5 shrink-0 text-muted-foreground" />
+          )}
           <span className="min-w-0 flex-1 truncate tabular-nums">{value}</span>
           {copy && (
             <CopyButton

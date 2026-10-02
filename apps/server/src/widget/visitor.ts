@@ -19,6 +19,7 @@ import {
   patchContact,
   patchConversationData,
 } from '../inbox/metadata.js'
+import { isZonePoint, knownZone, placeOfZone } from '../places/place.js'
 import { signalTyping } from '../realtime/signals.js'
 import { Refusal } from '../refusal.js'
 import { availability } from '../settings/hours.js'
@@ -159,6 +160,7 @@ export async function openSession(
       .returning()
   }
   if (!contact) throw new Refusal('INTERNAL_ERROR', 500)
+  contact = await locate(db, contact, body.timeZone)
 
   return {
     visitor: signVisitor(config.secret, { contactId: contact.id, siteId: site.id }),
@@ -178,6 +180,34 @@ export async function openSession(
     availability: await whenAvailable(settings, site),
     conversation: await visitorConversation(db, contact.id),
   }
+}
+
+/**
+ * Where the visitor is, from their browser's time zone (D18): the zone kept, and the
+ * country and the point it says — unless a better point was given (a site's, the seed's),
+ * which a zone never overwrites. A visitor who travelled moves with their zone.
+ */
+async function locate(
+  db: Db,
+  contact: typeof contacts.$inferSelect,
+  raw: string | undefined,
+): Promise<typeof contacts.$inferSelect> {
+  const zone = knownZone(raw)
+  if (zone === null || zone === contact.timeZone) return contact
+  const zoned =
+    contact.latitude === null || isZonePoint(contact.timeZone, contact.latitude, contact.longitude)
+  const place = placeOfZone(zone)
+  const [moved] = await db
+    .update(contacts)
+    .set({
+      timeZone: zone,
+      ...(zoned && place
+        ? { country: place.country, latitude: place.latitude, longitude: place.longitude }
+        : {}),
+    })
+    .where(eq(contacts.id, contact.id))
+    .returning()
+  return moved ?? contact
 }
 
 /** The contact's current conversation: one still going, or one resolved within a day. */
