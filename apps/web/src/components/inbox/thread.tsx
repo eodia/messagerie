@@ -335,7 +335,7 @@ export function Thread({
                         .getState()
                         .say(
                           $t(
-                            'Conversation envoyée à la relecture, dans basedb (« Conversations promues »).',
+                            'Conversation envoyée à la relecture, dans « Connaissances › Conversations promues ».',
                           ),
                         ),
                     )

@@ -39,8 +39,7 @@ const SOPHIE = {
 const htmlEscape = (value: string) => value.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`)
 
 export async function demoPage(db: Db, settings: Settings, signedIn: boolean): Promise<string> {
-  // Acme Assurances: the first active site — `acme` in the template's rows, an id of basedb's
-  // once the chat has its basedb.
+  // Acme Assurances: the first active site of the settings.
   const site = (await settings.sites()).find((s) => s.active)?.id ?? 'acme'
   const identity = signedIn
     ? signIdentity(await siteSecret(db, site), {

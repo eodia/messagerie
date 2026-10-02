@@ -12,14 +12,20 @@ export interface ApiError {
 }
 
 export type ErrorCode =
-  | 'AUTH_NOT_CONFIGURED'
-  /** No token, or one basedb no longer vouches for: sign in to basedb again. */
+  /** No session, or one that ended: sign in again. */
   | 'SESSION_INVALID'
   | 'NOT_AN_AGENT'
   | 'TICKET_INVALID'
-  | 'BASEDB_UNREACHABLE'
-  /** The « Messagerie » base lacks a table or field the chat reads (`details.missing`). */
-  | 'SETTINGS_MISMATCH'
+  /** A wrong e-mail or password — never said which. */
+  | 'SIGN_IN_FAILED'
+  /** Ten characters at least, and not the e-mail. */
+  | 'PASSWORD_WEAK'
+  /** A link that does not exist, was used, or expired. */
+  | 'LINK_INVALID'
+  /** The first supervisor exists already: sign in. */
+  | 'SETUP_DONE'
+  /** The identity provider refused, or signed in someone who is not an agent here. */
+  | 'SSO_FAILED'
   | 'CONVERSATION_NOT_FOUND'
   | 'MESSAGE_NOT_FOUND'
   | 'AGENT_NOT_FOUND'
@@ -36,24 +42,16 @@ export type ErrorCode =
   | 'RATE_LIMITED'
   /** No model is configured (CHAT_AI_API_KEY). */
   | 'AI_UNAVAILABLE'
-  /** Promoting needs basedb, and a token that may write in the « Messagerie » base. */
-  | 'PROMOTION_UNAVAILABLE'
   | 'CONTACT_NOT_FOUND'
   /** Reserved to supervisors. */
   | 'NOT_ALLOWED'
   | 'TOOL_NOT_FOUND'
-  /** basedb refused a change of settings: the person may not edit that table there. */
-  | 'SETTINGS_WRITE_REFUSED'
   /** No such inbox, or an inactive one. */
   | 'INBOX_NOT_FOUND'
   /** No such team — or not one of the target inbox's teams. */
   | 'TEAM_NOT_FOUND'
   /** A settings row that no longer exists. */
   | 'ROW_NOT_FOUND'
-  /** basedb asks the supervisor's password again before an account is created or reset. */
-  | 'ELEVATION_REQUIRED'
-  /** Only a basedb administrator creates accounts and resets passwords. */
-  | 'ACCOUNTS_ADMIN_REQUIRED'
   /** That account is an agent already. */
   | 'AGENT_EXISTS'
   /** A file refused: `details.reason` is `type` (not one the chat takes) or `size`. */
@@ -62,7 +60,7 @@ export type ErrorCode =
   /** The AI cannot read this kind of file with the configured model. */
   | 'ATTACHMENT_NOT_ANALYZABLE'
   | 'GIFS_UNAVAILABLE'
-  /** The public API and the MCP server: basedb's codes, for the chat's tokens (D16). */
+  /** The public API and the MCP server's tokens (D16). */
   | 'TOKEN_INVALID'
   | 'TOKEN_EXPIRED'
   | 'TOKEN_REVOKED'

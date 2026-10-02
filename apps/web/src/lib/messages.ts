@@ -1,28 +1,15 @@
 import { $t } from './i18n'
 
 /**
- * A server's code, as a sentence the agent can act on — as basedb's `messageFor`. The
+ * A server's code, as a sentence the agent can act on. The
  * server never writes sentences; each code gets its words here, in the reader's language.
  */
 export function messageFor(code: string): string {
   switch (code) {
     case 'UNREACHABLE':
       return $t('Le serveur de la messagerie ne répond pas.')
-    case 'AUTH_NOT_CONFIGURED':
-      return $t(
-        'Le serveur de la messagerie n’est relié à aucun basedb : renseignez BASEDB_API_URL, BASEDB_TENANT, BASEDB_BASE et BASEDB_TOKEN — ou CHAT_DEV_AGENT en développement.',
-      )
-    case 'SIGNED_OUT':
     case 'SESSION_INVALID':
-      return $t(
-        'Connectez-vous à basedb dans ce navigateur : la messagerie reconnaît les conseillers par leur compte basedb.',
-      )
-    case 'BASEDB_UNREACHABLE':
-      return $t('basedb ne répond pas : la messagerie ne peut pas vérifier qui vous êtes.')
-    case 'SETTINGS_MISMATCH':
-      return $t(
-        'La base « Messagerie » de basedb ne correspond plus au modèle attendu : une table ou un champ a été renommé.',
-      )
+      return $t('Votre session a pris fin : connectez-vous à nouveau.')
     case 'TICKET_INVALID':
       return $t('La connexion en direct a expiré ; elle se rétablit seule.')
     case 'AGENT_NOT_FOUND':
@@ -61,10 +48,6 @@ export function messageFor(code: string): string {
       return $t('Ce GIF n’est plus disponible.')
     case 'AI_UNAVAILABLE':
       return $t('Aucun modèle d’IA n’est configuré sur le serveur (CHAT_AI_API_KEY).')
-    case 'PROMOTION_UNAVAILABLE':
-      return $t(
-        'Promouvoir une conversation demande basedb, et un jeton de la base « Messagerie » créé en écriture.',
-      )
     case 'NOT_ALLOWED':
       return $t('Réservé aux superviseurs.')
     case 'TOOL_NOT_FOUND':
@@ -74,23 +57,13 @@ export function messageFor(code: string): string {
     case 'TEAM_NOT_FOUND':
       return $t('Cette équipe n’existe plus, ou ne répond pas dans cette boîte.')
     case 'ROW_NOT_FOUND':
-      return $t('Cette ligne n’existe plus dans basedb : rechargez la page.')
-    case 'ELEVATION_REQUIRED':
-      return $t('Confirmez votre mot de passe pour continuer.')
-    case 'ACCOUNTS_ADMIN_REQUIRED':
-      return $t(
-        'Seul un administrateur de basedb crée des comptes : choisissez plutôt un compte existant.',
-      )
+      return $t('Cette ligne n’existe plus : rechargez la page.')
     case 'AGENT_EXISTS':
-      return $t('Ce compte est déjà celui d’un conseiller.')
-    case 'SETTINGS_WRITE_REFUSED':
-      return $t(
-        'basedb a refusé l’enregistrement : votre compte n’a pas ce droit sur cette table (une suppression demande un administrateur de basedb).',
-      )
+      return $t('Cette adresse est déjà celle d’un conseiller.')
     case 'CONTACT_NOT_FOUND':
       return $t('Ce contact n’existe plus.')
     case 'NOT_AN_AGENT':
-      return $t('Votre compte ne figure pas, actif, dans la table « Conseillers » de basedb.')
+      return $t('Votre compte n’est pas, ou plus, celui d’un conseiller actif.')
     case 'CONVERSATION_NOT_FOUND':
       return $t('Cette conversation n’existe plus.')
     case 'MESSAGE_NOT_FOUND':

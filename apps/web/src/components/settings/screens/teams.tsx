@@ -236,7 +236,7 @@ export function TeamsScreen() {
             {$t('Inviter un conseiller')}
           </Button>
         }
-        used={['Nom', 'Compte basedb', 'Rôle', 'Équipes', 'Conversations simultanées']}
+        used={['Nom', 'E-mail', 'Rôle', 'Équipes', 'Conversations simultanées']}
         searchOf={(values) => text(values.Nom)}
         item={(_row, values) => (
           <>
@@ -475,17 +475,9 @@ function AgentForm({
   readonly id: string | null
   readonly set: (label: string, value: unknown) => void
 }) {
-  const users = data.overview?.users ?? []
-  const account = one(values['Compte basedb'])
-  const user = users.find((u) => u.id === account)
+  const email = text(values['E-mail'])
   const limit = num(values['Conversations simultanées'])
   const [resetting, setResetting] = useState(false)
-  const taken = new Set(
-    data
-      .rows('conseillers')
-      .filter((r) => r.id !== id)
-      .flatMap((r) => list(r.values['Compte basedb'])),
-  )
 
   return (
     <>
@@ -508,55 +500,40 @@ function AgentForm({
       </FormSection>
 
       <FormSection title={$t('Connexion')}>
-        {user ? (
-          <div className="overflow-hidden rounded-lg border">
-            <div className="flex items-center gap-3 px-3 py-2.5">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/10">
-                <ShieldCheck className="size-4 text-emerald-700 dark:text-emerald-400" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium">{user.email ?? user.name}</div>
-                <div className="text-[11px] text-muted-foreground">
-                  {$t('Se connecte avec cette adresse et son mot de passe.')}
-                </div>
-              </div>
-            </div>
-            {data.canEdit && id !== NEW && (
-              <div className="flex justify-end border-t bg-muted/30 px-2 py-1.5">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 gap-1.5 text-xs"
-                  onClick={() => setResetting(true)}
-                >
-                  <KeyRound className="size-3.5" />
-                  {$t('Nouveau mot de passe temporaire')}
-                </Button>
-              </div>
-            )}
+        <Field
+          label={$t('Adresse e-mail')}
+          hint={$t(
+            'Celle de sa connexion — avec son mot de passe, ou par le fournisseur d’identité de l’entreprise.',
+          )}
+        >
+          {(fieldId) => (
+            <Input
+              id={fieldId}
+              type="email"
+              value={email}
+              onChange={(event) => set('E-mail', event.target.value)}
+              placeholder="camille.durand@exemple.fr"
+              maxLength={254}
+              disabled={!data.canEdit}
+            />
+          )}
+        </Field>
+        {data.canEdit && id !== NEW && email !== '' && (
+          <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-3 py-2">
+            <span className="text-xs text-muted-foreground">
+              {$t('Mot de passe oublié, ou jamais choisi : un lien pour en choisir un.')}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 shrink-0 gap-1.5 text-xs"
+              onClick={() => setResetting(true)}
+            >
+              <KeyRound className="size-3.5" />
+              {$t('Créer un lien')}
+            </Button>
           </div>
-        ) : (
-          <Field
-            label={$t('Compte de connexion')}
-            hint={$t(
-              'Sans compte, la personne ne peut pas se connecter. « Inviter un conseiller » en crée un.',
-            )}
-            warn
-          >
-            {(fieldId) => (
-              <ChoiceMenu
-                id={fieldId}
-                value={account}
-                choices={users
-                  .filter((u) => !taken.has(u.id))
-                  .map((u) => ({ id: u.id, label: u.email ? `${u.name} — ${u.email}` : u.name }))}
-                onChange={(next) => set('Compte basedb', next)}
-                allowNone
-                disabled={!data.canEdit}
-              />
-            )}
-          </Field>
         )}
       </FormSection>
 
@@ -617,17 +594,17 @@ function AgentForm({
         </ToggleField>
       </FormSection>
 
-      {resetting && user && (
+      {resetting && id && (
         <AccountDialog
-          title={$t('Nouveau mot de passe temporaire')}
+          title={$t('Nouveau mot de passe')}
           description={$t(
-            '{name} choisira le sien à sa prochaine connexion. Ses sessions ouvertes restent ouvertes.',
-            { name: text(values.Nom) || user.name },
+            '{name} choisira un nouveau mot de passe à ce lien ; ses sessions ouvertes seront alors fermées.',
+            { name: text(values.Nom) || email },
           )}
-          action={$t('Générer')}
-          run={async () => (id ? (await api.resetAgentPassword(id)).temporaryPassword : null)}
+          action={$t('Créer le lien')}
+          run={async () => (await api.resetAgentPassword(id)).link}
           onClose={() => setResetting(false)}
-          done={() => <SignInHint email={user.email} />}
+          done={<SignInHint email={email} />}
         />
       )}
     </>
@@ -637,7 +614,7 @@ function AgentForm({
 function SignInHint({ email }: { readonly email: string | null }) {
   return (
     <div className="rounded-lg border bg-muted/30 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
-      {$t('Pour se connecter : {address}, avec {email} et ce mot de passe.', {
+      {$t('Ensuite, pour se connecter : {address}, avec {email} et ce mot de passe.', {
         address: typeof window === 'undefined' ? '' : window.location.origin,
         email: email ?? '—',
       })}
@@ -649,7 +626,7 @@ function AgentPreview({ data, values }: { readonly data: SettingsData; readonly 
   const name = text(values.Nom) || $t('Nouveau conseiller')
   const supervisor = values.Rôle === 'Superviseur'
   const teamIds = list(values.Équipes)
-  const user = data.overview?.users.find((u) => u.id === one(values['Compte basedb']))
+  const email = text(values['E-mail'])
   const inboxes = data
     .rows('boites')
     .filter(
@@ -667,7 +644,7 @@ function AgentPreview({ data, values }: { readonly data: SettingsData; readonly 
           <div className="min-w-0 flex-1 space-y-1">
             <div className="truncate text-lg font-semibold">{name}</div>
             <div className="truncate text-xs text-muted-foreground">
-              {user?.email ?? $t('Pas encore de compte de connexion')}
+              {email || $t('Pas encore d’adresse de connexion')}
             </div>
             <div className="flex flex-wrap gap-1.5 pt-1">
               {supervisor ? (
@@ -754,35 +731,22 @@ function InviteDialog({
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<'agent' | 'supervisor'>('agent')
   const [teamIds, setTeamIds] = useState<string[]>([])
-  const [existing, setExisting] = useState(false)
 
   return (
     <AccountDialog
       title={$t('Inviter un conseiller')}
       description={$t(
-        'Son compte est créé maintenant, avec un mot de passe temporaire à lui transmettre ; il choisira le sien à la première connexion.',
+        'Son compte est créé maintenant, avec un lien à lui transmettre : il y choisira son mot de passe.',
       )}
       action={$t('Inviter')}
-      ready={name.trim() !== '' && /^[^\s@]+@[^\s@]+$/.test(email.trim())}
+      ready={name.trim() !== '' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())}
       run={async () => {
         const invited = await api.inviteAgent({ name, email, role, teamIds })
-        setExisting(invited.temporaryPassword === null)
         onInvited(invited.row)
-        return invited.temporaryPassword
+        return invited.link
       }}
       onClose={onClose}
-      done={(password) => (
-        <>
-          {password === null && existing && (
-            <p className="text-sm text-muted-foreground">
-              {$t(
-                'Cette adresse avait déjà un compte : il se connecte avec son mot de passe habituel.',
-              )}
-            </p>
-          )}
-          <SignInHint email={email.trim()} />
-        </>
-      )}
+      done={<SignInHint email={email.trim()} />}
     >
       <InviteField label={$t('Nom')}>
         {(id) => (

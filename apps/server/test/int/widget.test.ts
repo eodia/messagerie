@@ -14,8 +14,8 @@ import { type Db, connect, migrateDatabase } from '../../src/db/client.js'
 import { agents, contacts, conversations, messages, siteSecrets } from '../../src/db/schema.js'
 import { sendMessage } from '../../src/inbox/write.js'
 import { InboxHub } from '../../src/realtime/hub.js'
+import { MemorySource } from '../../src/settings/demo.js'
 import { Settings } from '../../src/settings/settings.js'
-import { TemplateSource } from '../../src/settings/source.js'
 import { WidgetHub } from '../../src/widget/hub.js'
 import { signIdentity, verifyVisitor } from '../../src/widget/tokens.js'
 
@@ -43,7 +43,8 @@ beforeAll(async () => {
     webOrigin: 'http://localhost:3210',
     production: true,
     devAgent: null,
-    basedb: null,
+    publicUrl: 'http://localhost:8810',
+    oidc: null,
     secret: 'a-secret-for-the-tests-of-the-chat-server',
     trustProxy: false,
     giphyKey: null,
@@ -52,8 +53,7 @@ beforeAll(async () => {
     db,
     hub: new InboxHub(),
     config,
-    basedb: null,
-    settings: new Settings(new TemplateSource(null, true)),
+    settings: new Settings(new MemorySource(null)),
     tickets: new TicketBook(),
     widgetHub: new WidgetHub(),
     mcp: new McpConnections(),
@@ -215,7 +215,7 @@ describe('a visitor who writes', () => {
     ).json()) as VisitorConversation
     const [agent] = await db
       .insert(agents)
-      .values({ basedbUserId: 'w-agent', name: 'Nadia Benali' })
+      .values({ login: 'w-agent', name: 'Nadia Benali' })
       .returning()
     if (!agent) throw new Error('agent not inserted')
     await sendMessage(db, agent, id, { body: 'Note pour l’équipe', kind: 'note' })
@@ -252,7 +252,7 @@ describe('a visitor who writes', () => {
     // An agent's conversation stays theirs: left, never resolved behind their back.
     const [agent] = await db
       .insert(agents)
-      .values({ basedbUserId: 'w-reset-agent', name: 'Paul Martin' })
+      .values({ login: 'w-reset-agent', name: 'Paul Martin' })
       .returning()
     if (!agent) throw new Error('agent not inserted')
     await sendMessage(db, agent, second.id, { body: 'Je regarde.', kind: 'reply' })

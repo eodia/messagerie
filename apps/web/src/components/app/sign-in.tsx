@@ -3,13 +3,13 @@
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { SignInFailure, type SsoProvider, ssoProviders } from '@/lib/basedb-session'
 import { $t } from '@/lib/i18n'
+import { AuthFailure, ssoStart } from '@/lib/session'
 import { useSession } from '@/lib/store/session'
 import { useTitle } from '@/lib/title'
 import { cn } from '@/lib/utils'
 import { Check, ChevronDown, KeyRound, Loader2 } from 'lucide-react'
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useState } from 'react'
 import {
   AuthLayout,
   FormError,
@@ -21,57 +21,59 @@ import {
 } from './auth-layout'
 
 /**
- * The inbox's sign-in — with basedb's account, on basedb's sign-in screen dressed for the
- * chat: the form signs in to basedb itself, whose session the inbox then shares. One
- * account, one session, for both. An account basedb created with a temporary password
- * chooses its own here, as basedb's interface asks.
+ * The inbox's sign-in (D19): an e-mail and a password, or the identity provider the
+ * server names. At the very first start, nobody can sign in yet: the same screen creates
+ * the first supervisor.
  */
 
-function sentence(failure: SignInFailure): string {
-  switch (failure.code) {
-    case 'CREDENTIALS_INVALID':
-      return $t('Identifiants incorrects, ou compte indisponible.')
-    case 'RATE_LIMIT_EXCEEDED':
-      return $t('Trop d’essais : patientez une minute avant de recommencer.')
+export const PASSWORD_MIN = 10
+
+export function sentence(code: string): string {
+  switch (code) {
+    case 'SIGN_IN_FAILED':
+      return $t('Adresse ou mot de passe incorrect.')
+    case 'RATE_LIMITED':
+      return $t('Trop d’essais : patientez un quart d’heure avant de recommencer.')
     case 'UNREACHABLE':
-      return $t('basedb ne répond pas : vérifiez qu’il est démarré.')
-    case 'PASSWORD_POLICY_VIOLATION':
-      switch (failure.reason) {
-        case 'trop_court':
-          return $t('Trop court : 8 caractères au moins.')
-        case 'trop_long':
-          return $t('Trop long : 256 caractères au plus.')
-        case 'trop_courant':
-          return $t('Ce mot de passe est trop courant : choisissez-en un autre.')
-        case 'ressemble_a_identite':
-          return $t('Il ressemble trop à votre adresse ou à votre nom.')
-        default:
-          return $t('basedb refuse ce mot de passe.')
-      }
+      return $t('Le serveur de la messagerie ne répond pas.')
+    case 'PASSWORD_WEAK':
+      return $t('Ce mot de passe ne convient pas : 10 caractères au moins, et pas votre adresse.')
+    case 'LINK_INVALID':
+      return $t('Ce lien ne vaut plus : il a servi, ou il a expiré. Demandez-en un autre.')
+    case 'SETUP_DONE':
+      return $t('Le premier superviseur existe déjà : connectez-vous.')
+    case 'SSO_FAILED':
+      return $t('La connexion par votre fournisseur d’identité a échoué.')
+    case 'NOT_AN_AGENT':
+      return $t('Ce compte n’est pas celui d’un conseiller actif de la messagerie.')
     default:
-      return $t('basedb a refusé ({code}).', { code: failure.code })
+      return $t('La connexion a échoué ({code}).', { code })
   }
 }
 
-const failureOf = (error: unknown) =>
-  error instanceof SignInFailure ? error : new SignInFailure('UNREACHABLE')
+const codeOf = (error: unknown) => (error instanceof AuthFailure ? error.code : 'UNREACHABLE')
 
 /** A refusal, numbered: each new one shakes again. */
-type Refusal = { readonly failure: SignInFailure; readonly attempt: number }
+type Refusal = { readonly code: string; readonly attempt: number }
 
-export function SignInScreen({ basedbUrl }: { readonly basedbUrl: string }) {
-  const status = useSession((s) => s.status)
-  useTitle([status === 'must-change' ? $t('Nouveau mot de passe') : $t('Connexion')])
-  return status === 'must-change' ? <ChoosePassword /> : <SignIn basedbUrl={basedbUrl} />
+export function SignInScreen() {
+  const setup = useSession((s) => s.setup)
+  useTitle([setup ? $t('Premier lancement') : $t('Connexion')])
+  return setup ? <SetUp /> : <SignIn />
 }
 
-function SignIn({ basedbUrl }: { readonly basedbUrl: string }) {
+function SignIn() {
+  const sso = useSession((s) => s.sso)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [visible, setVisible] = useState(false)
   const [busy, setBusy] = useState(false)
   const [signedIn, setSignedIn] = useState(false)
-  const [error, setError] = useState<Refusal | null>(null)
+  // A refusal the identity provider's return brought: `/connexion?erreur=…`.
+  const [error, setError] = useState<Refusal | null>(() => {
+    const code = new URLSearchParams(window.location.search).get('erreur')
+    return code ? { code, attempt: 1 } : null
+  })
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -79,27 +81,29 @@ function SignIn({ basedbUrl }: { readonly basedbUrl: string }) {
     setBusy(true)
     setError(null)
     try {
-      const session = useSession.getState()
-      await session.signIn(email.trim(), password, async () => {
+      await useSession.getState().signIn(email.trim(), password, async () => {
         setSignedIn(true)
         await pauseOnSuccess()
       })
     } catch (failure) {
-      setError((was) => ({ failure: failureOf(failure), attempt: (was?.attempt ?? 0) + 1 }))
+      setError((was) => ({ code: codeOf(failure), attempt: (was?.attempt ?? 0) + 1 }))
       setBusy(false)
     }
   }
 
   const described = error !== null ? 'sign-in-error' : undefined
+  const next = window.location.pathname.startsWith('/connexion')
+    ? '/'
+    : `${window.location.pathname}${window.location.search}`
 
   return (
     <AuthLayout
       title={$t('Vos clients vous attendent')}
-      description={$t('Connectez-vous avec votre compte basedb pour retrouver vos conversations.')}
+      description={$t('Connectez-vous pour retrouver vos conversations.')}
       footer={
         <details className="group">
           <summary className="flex w-fit cursor-pointer list-none items-center gap-1.5 rounded-sm transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
-            {$t('Première connexion ?')}
+            {$t('Première connexion, mot de passe oublié ?')}
             <ChevronDown
               className="size-3.5 transition-transform duration-200 group-open:rotate-180"
               aria-hidden="true"
@@ -107,7 +111,7 @@ function SignIn({ basedbUrl }: { readonly basedbUrl: string }) {
           </summary>
           <p className="mt-2 max-w-sm animate-in fade-in slide-in-from-top-1 leading-relaxed duration-300">
             {$t(
-              'Un administrateur crée votre compte dans basedb, vous ajoute aux « Conseillers » et vous transmet un mot de passe temporaire : vous choisirez le vôtre ici, à la première connexion.',
+              'Un superviseur vous invite depuis « Équipes et conseillers » : il vous transmet un lien où choisir votre mot de passe. Le même lien, renouvelé, sert quand on l’a oublié.',
             )}
           </p>
         </details>
@@ -139,22 +143,12 @@ function SignIn({ basedbUrl }: { readonly basedbUrl: string }) {
         </div>
 
         <div className={cn('group grid gap-2', REVEAL)} style={revealAt(1)}>
-          <div className="flex items-baseline justify-between gap-2">
-            <Label
-              htmlFor="sign-in-password"
-              className="text-foreground transition-colors group-focus-within:text-primary"
-            >
-              {$t('Mot de passe')}
-            </Label>
-            <a
-              href={basedbUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-sm text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-            >
-              {$t('Mot de passe oublié ?')}
-            </a>
-          </div>
+          <Label
+            htmlFor="sign-in-password"
+            className="text-foreground transition-colors group-focus-within:text-primary"
+          >
+            {$t('Mot de passe')}
+          </Label>
           <PasswordInput
             id="sign-in-password"
             name="password"
@@ -172,7 +166,7 @@ function SignIn({ basedbUrl }: { readonly basedbUrl: string }) {
 
         {error !== null && (
           <FormError key={error.attempt} id="sign-in-error">
-            {sentence(error.failure)}
+            {sentence(error.code)}
           </FormError>
         )}
 
@@ -195,145 +189,196 @@ function SignIn({ basedbUrl }: { readonly basedbUrl: string }) {
         </div>
       </form>
 
-      <SsoButtons />
+      {sso && (
+        <div className={cn('mt-6 grid gap-2', REVEAL)} style={revealAt(5)}>
+          <div className="mb-1 flex items-center gap-3 text-xs text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border">
+            {$t('ou')}
+          </div>
+          <Button variant="outline" size="lg" className="w-full" asChild>
+            <a href={ssoStart(next)}>
+              <KeyRound />
+              {$t('Continuer avec {provider}', { provider: sso })}
+            </a>
+          </Button>
+        </div>
+      )}
+    </AuthLayout>
+  )
+}
+
+/** The first start: the first supervisor, who invites the others. */
+function SetUp() {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<Refusal | null>(null)
+
+  return (
+    <AuthLayout
+      title={$t('Bienvenue dans la messagerie')}
+      description={$t(
+        'Premier lancement : créez le compte du premier superviseur. Il invitera les autres conseillers.',
+      )}
+    >
+      <div className="grid gap-5">
+        <div className={cn('group grid gap-2', REVEAL)} style={revealAt(0)}>
+          <Label htmlFor="setup-name" className="text-foreground">
+            {$t('Nom')}
+          </Label>
+          <Input
+            id="setup-name"
+            autoComplete="name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            disabled={busy}
+            className="h-10"
+          />
+        </div>
+        <div className={cn('group grid gap-2', REVEAL)} style={revealAt(1)}>
+          <Label htmlFor="setup-email" className="text-foreground">
+            {$t('Adresse e-mail')}
+          </Label>
+          <Input
+            id="setup-email"
+            type="email"
+            autoComplete="username"
+            autoCapitalize="none"
+            spellCheck={false}
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            disabled={busy}
+            className="h-10"
+          />
+        </div>
+        <ChoosePassword
+          order={2}
+          email={email}
+          action={$t('Créer le compte')}
+          disabled={name.trim() === '' || email.trim() === ''}
+          error={error}
+          onChoose={async (password) => {
+            setBusy(true)
+            setError(null)
+            try {
+              await useSession.getState().setUp(name.trim(), email.trim(), password)
+            } catch (failure) {
+              setError((was) => ({ code: codeOf(failure), attempt: (was?.attempt ?? 0) + 1 }))
+              setBusy(false)
+            }
+          }}
+        />
+      </div>
     </AuthLayout>
   )
 }
 
 /**
- * « Continuer avec … » — basedb's providers, where the inbox shares basedb's address: basedb
- * only sends a sign-in back to an address of its own. Nothing when there are none.
+ * A new password, typed twice — the first supervisor's, an invited agent's, a forgotten
+ * one's. `onChoose` gets it once both agree.
  */
-function SsoButtons() {
-  const [providers, setProviders] = useState<SsoProvider[]>([])
-  useEffect(() => {
-    ssoProviders()
-      .then(setProviders)
-      .catch(() => {})
-  }, [])
-  if (providers.length === 0) return null
-  return (
-    <div className={cn('mt-6 grid gap-2', REVEAL)} style={revealAt(5)}>
-      <div className="mb-1 flex items-center gap-3 text-xs text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border">
-        {$t('ou')}
-      </div>
-      {providers.map((provider) => (
-        <Button key={provider.slug} variant="outline" size="lg" className="w-full" asChild>
-          <a href={provider.href}>
-            <KeyRound />
-            {$t('Continuer avec {provider}', { provider: provider.label })}
-          </a>
-        </Button>
-      ))}
-    </div>
-  )
-}
-
-function ChoosePassword() {
-  const needsCurrent = useSession((s) => s.needsCurrent)
-  const [current, setCurrent] = useState('')
+export function ChoosePassword({
+  order = 0,
+  email,
+  action,
+  disabled = false,
+  error,
+  onChoose,
+}: {
+  readonly order?: number
+  readonly email: string | null
+  readonly action: string
+  readonly disabled?: boolean
+  readonly error: Refusal | null
+  readonly onChoose: (password: string) => Promise<void>
+}) {
   const [next, setNext] = useState('')
   const [again, setAgain] = useState('')
   const [visible, setVisible] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<Refusal | null>(null)
   const mismatch = again !== '' && next !== again
+  const short = next !== '' && next.length < PASSWORD_MIN
+  const sameAsEmail =
+    next !== '' && email !== null && next.toLowerCase() === email.trim().toLowerCase()
 
   async function submit(event: FormEvent) {
     event.preventDefault()
-    if (mismatch || busy) return
+    if (mismatch || busy || short || sameAsEmail) return
     setBusy(true)
-    setError(null)
     try {
-      await useSession.getState().choosePassword(next, needsCurrent ? current : undefined)
-    } catch (failure) {
-      setError((was) => ({ failure: failureOf(failure), attempt: (was?.attempt ?? 0) + 1 }))
+      await onChoose(next)
+    } finally {
       setBusy(false)
     }
   }
 
   return (
-    <AuthLayout
-      title={$t('Choisissez votre mot de passe')}
-      description={$t(
-        'Votre compte a un mot de passe temporaire : choisissez le vôtre, 8 caractères au moins. Il vaudra aussi pour basedb.',
-      )}
-    >
-      <form onSubmit={(event) => void submit(event)} className="grid gap-5" aria-busy={busy}>
-        {needsCurrent && (
-          <div className={cn('group grid gap-2', REVEAL)} style={revealAt(0)}>
-            <Label htmlFor="password-current" className="text-foreground">
-              {$t('Mot de passe temporaire')}
-            </Label>
-            <PasswordInput
-              id="password-current"
-              autoComplete="current-password"
-              value={current}
-              onChange={(event) => setCurrent(event.target.value)}
-              visible={visible}
-              onVisibleChange={setVisible}
-              required
-              className="h-10"
-            />
-          </div>
-        )}
-        <div className={cn('group grid gap-2', REVEAL)} style={revealAt(1)}>
-          <Label
-            htmlFor="password-next"
-            className="text-foreground transition-colors group-focus-within:text-primary"
-          >
-            {$t('Nouveau mot de passe')}
-          </Label>
-          <PasswordInput
-            id="password-next"
-            autoComplete="new-password"
-            minLength={8}
-            value={next}
-            onChange={(event) => setNext(event.target.value)}
-            visible={visible}
-            onVisibleChange={setVisible}
-            required
-            className="h-10"
-          />
-        </div>
-        <div className={cn('group grid gap-2', REVEAL)} style={revealAt(2)}>
-          <Label
-            htmlFor="password-again"
-            className="text-foreground transition-colors group-focus-within:text-primary"
-          >
-            {$t('Le même, une seconde fois')}
-          </Label>
-          <Input
-            id="password-again"
-            type={visible ? 'text' : 'password'}
-            autoComplete="new-password"
-            value={again}
-            onChange={(event) => setAgain(event.target.value)}
-            aria-invalid={mismatch}
-            required
-            className="h-10"
-          />
-          {mismatch && (
-            <p className="text-xs text-destructive">{$t('Les deux saisies diffèrent.')}</p>
+    <form onSubmit={(event) => void submit(event)} className="grid gap-5" aria-busy={busy}>
+      <div className={cn('group grid gap-2', REVEAL)} style={revealAt(order)}>
+        <Label
+          htmlFor="password-next"
+          className="text-foreground transition-colors group-focus-within:text-primary"
+        >
+          {$t('Mot de passe')}
+        </Label>
+        <PasswordInput
+          id="password-next"
+          autoComplete="new-password"
+          minLength={PASSWORD_MIN}
+          value={next}
+          onChange={(event) => setNext(event.target.value)}
+          visible={visible}
+          onVisibleChange={setVisible}
+          required
+          className="h-10"
+        />
+        <p
+          className={cn(
+            'text-xs',
+            short || sameAsEmail ? 'text-destructive' : 'text-muted-foreground',
           )}
-        </div>
-        {error !== null && (
-          <FormError key={error.attempt} id="password-error">
-            {sentence(error.failure)}
-          </FormError>
+        >
+          {sameAsEmail
+            ? $t('Pas votre adresse e-mail.')
+            : $t('{count} caractères au moins.', { count: PASSWORD_MIN })}
+        </p>
+      </div>
+      <div className={cn('group grid gap-2', REVEAL)} style={revealAt(order + 1)}>
+        <Label
+          htmlFor="password-again"
+          className="text-foreground transition-colors group-focus-within:text-primary"
+        >
+          {$t('Le même, une seconde fois')}
+        </Label>
+        <Input
+          id="password-again"
+          type={visible ? 'text' : 'password'}
+          autoComplete="new-password"
+          value={again}
+          onChange={(event) => setAgain(event.target.value)}
+          aria-invalid={mismatch}
+          required
+          className="h-10"
+        />
+        {mismatch && (
+          <p className="text-xs text-destructive">{$t('Les deux saisies diffèrent.')}</p>
         )}
-        <div className={REVEAL} style={revealAt(3)}>
-          <Button
-            type="submit"
-            size="lg"
-            className={cn('mt-1 w-full', PRESSABLE)}
-            disabled={busy || !next || next !== again || (needsCurrent && !current)}
-          >
-            {busy && <Loader2 className="animate-spin" aria-hidden="true" />}
-            {$t('Enregistrer et continuer')}
-          </Button>
-        </div>
-      </form>
-    </AuthLayout>
+      </div>
+      {error !== null && (
+        <FormError key={error.attempt} id="password-error">
+          {sentence(error.code)}
+        </FormError>
+      )}
+      <div className={REVEAL} style={revealAt(order + 2)}>
+        <Button
+          type="submit"
+          size="lg"
+          className={cn('mt-1 w-full', PRESSABLE)}
+          disabled={disabled || busy || !next || next !== again || short || sameAsEmail}
+        >
+          {busy && <Loader2 className="animate-spin" aria-hidden="true" />}
+          {action}
+        </Button>
+      </div>
+    </form>
   )
 }

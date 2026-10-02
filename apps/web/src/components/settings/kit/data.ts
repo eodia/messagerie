@@ -30,7 +30,6 @@ export interface SettingsData {
   readonly reload: (keys?: readonly string[]) => Promise<void>
   readonly canEdit: boolean
   /** False: the template's rows, changed in memory only. */
-  readonly persistent: boolean
 }
 
 export const codeOf = (failure: unknown): string =>
@@ -85,7 +84,6 @@ export function useSettingsData(keys: readonly string[]): SettingsData {
       table: (key: string) => overview?.tables.find((t) => t.key === key),
       reload,
       canEdit: overview?.canEdit ?? false,
-      persistent: overview?.persistent ?? true,
     }),
     [overview, error, loading, tables, reload],
   )

@@ -61,7 +61,7 @@ export interface WidgetAvailability {
   readonly closureMessage: string | null
 }
 
-/** How the widget looks and behaves on a site: its row in basedb, table « Sites ». */
+/** How the widget looks and behaves on a site: its row of « Sites ». */
 export interface WidgetAppearance {
   readonly position: 'right' | 'left'
   /** Pixels from the page's side, and from its bottom. */

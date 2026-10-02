@@ -3,18 +3,19 @@ import { readAi } from './ai/config.js'
 import { type AiJobs, startJobs } from './ai/jobs.js'
 import { Knowledge } from './ai/knowledge.js'
 import { McpConnections } from './ai/mcp.js'
-import { BasedbClient } from './basedb/client.js'
+import { sweepCredentials } from './auth/credentials.js'
 import { type Config, ConfigError, readConfig } from './config.js'
 import { type Db, connect, migrateDatabase } from './db/client.js'
 import { DiskStore } from './files/store.js'
 import { startWaking } from './inbox/snooze.js'
+import { DatabaseSource, settingsEmpty } from './settings/database.js'
+import { loadDemoSettings } from './settings/demo.js'
 import { Settings, TABLES } from './settings/settings.js'
-import { sourceFor } from './settings/source.js'
 import { startWebhooks } from './webhooks/dispatch.js'
 
 /**
  * What the server and the worker both start with: the configuration, the schema up to
- * date, the settings (basedb, or the demonstration in development), and the AI with its
+ * date, the settings (the demonstration's at a first start in development), and the AI with its
  * queues. The server works the queues itself unless `CHAT_WORKER=separate` gives them to
  * `worker.ts` (D7: the model's calls away from the WebSocket's process) — and so do the
  * webhooks' calls (D17).
@@ -23,9 +24,7 @@ import { startWebhooks } from './webhooks/dispatch.js'
 export interface Booted {
   readonly config: Config
   readonly db: Db
-  readonly basedb: BasedbClient | null
-  readonly settings: Settings | null
-  readonly settingsKind: 'basedb' | 'template' | null
+  readonly settings: Settings
   readonly ai: { readonly llm: Llm; readonly redact: boolean; readonly jobs: AiJobs } | null
   /** The MCP servers' connections — shared by the AI and the tools screen. */
   readonly mcp: McpConnections
@@ -44,17 +43,26 @@ export async function boot(role: 'server' | 'worker'): Promise<Booted> {
   const { pool, db } = connect(config.databaseUrl)
   await migrateDatabase(db)
 
-  const basedb = config.basedb ? new BasedbClient(config.basedb) : null
-  const source = sourceFor(basedb, config.production, config.devAgent)
-  const settings = source ? new Settings(source) : null
-  const stopFollowing =
-    settings?.follow((error) => console.error('chat : flux basedb', error)) ?? (() => {})
+  // A first start in development: Acme Assurances, the demonstration, to work with.
+  if (!config.production && (await settingsEmpty(db))) {
+    await loadDemoSettings(db)
+    console.log('chat : paramétrage de démonstration (Acme Assurances) écrit dans la base')
+  }
+  const source = new DatabaseSource(db, config.databaseUrl)
+  const settings = new Settings(source)
+  const stopFollowing = settings.follow((error) =>
+    console.error('chat : écoute du paramétrage', error),
+  )
+  const sweep = setInterval(
+    () => void sweepCredentials(db).catch((e) => console.error('chat : sessions', e)),
+    3600_000,
+  )
 
   const setup = readAi()
   let ai: Booted['ai'] = null
   let stopJobs = async () => {}
   const mcp = new McpConnections()
-  if (setup && settings) {
+  if (setup) {
     const knowledge = new Knowledge(db, settings, setup.llm)
     const work = role === 'worker' || process.env.CHAT_WORKER !== 'separate'
     const started = await startJobs(
@@ -65,7 +73,6 @@ export async function boot(role: 'server' | 'worker'): Promise<Booted> {
         knowledge,
         llm: setup.llm,
         redact: setup.redact,
-        basedb,
         mcp,
         files: new DiskStore(config.filesDir),
       },
@@ -96,13 +103,13 @@ export async function boot(role: 'server' | 'worker'): Promise<Booted> {
   return {
     config,
     db,
-    basedb,
     settings,
-    settingsKind: source?.kind ?? null,
     ai,
     mcp,
     stop: async () => {
       stopFollowing()
+      clearInterval(sweep)
+      await source.close()
       await postman?.stop()
       await waking?.stop()
       await stopJobs()

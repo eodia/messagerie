@@ -7,7 +7,6 @@ import type {
   KnowledgeItem,
 } from '@chat/contracts'
 import { and, asc, desc, eq, ilike, inArray, max, or, sql } from 'drizzle-orm'
-import type { BasedbClient } from '../basedb/client.js'
 import type { Db } from '../db/client.js'
 import { contacts, conversations, kbChunks, messages } from '../db/schema.js'
 import { pointOf } from '../places/place.js'
@@ -17,7 +16,7 @@ import type { AgentRow } from './read.js'
 
 /**
  * What the inbox shows beyond the conversations: canned replies, contacts, counters, what
- * the AI answers from — and the promotion of a conversation into basedb.
+ * the AI answers from — and the promotion of a conversation into it.
  */
 
 export async function cannedReplies(settings: Settings | null): Promise<CannedReply[]> {
@@ -260,22 +259,21 @@ export async function knowledge(db: Db): Promise<KnowledgeItem[]> {
 
 /**
  * A conversation well resolved becomes a source for the AI — after an editor reads it in
- * basedb (framing, « boucle d'amélioration »). It lands « À relire » in « Conversations
+ * the knowledge base (framing, « boucle d'amélioration »). It lands « À relire » in « Conversations
  * promues »: the question and the answer drafted without personal data, the link back to
  * the conversation, and who promoted it.
  */
 export async function promote(
   deps: {
     readonly db: Db
-    readonly basedb: BasedbClient | null
+    readonly settings: Settings
     readonly llm: Llm | null
     readonly webOrigin: string
   },
   agent: AgentRow,
   conversationId: string,
 ): Promise<void> {
-  const { db, basedb } = deps
-  if (!basedb) throw new Refusal('PROMOTION_UNAVAILABLE', 503)
+  const { db } = deps
   const thread = await db
     .select()
     .from(messages)
@@ -310,27 +308,13 @@ export async function promote(
     if (typeof json?.answer === 'string' && json.answer.trim()) answer = json.answer.trim()
   }
 
-  const base = await basedb.describe()
-  const table = base.tables.find((t) => t.label === TABLES.promoted)
-  if (!table) throw new Refusal('SETTINGS_MISMATCH', 503, { missing: TABLES.promoted })
-  const field = (label: string) => table.fields.find((f) => f.label === label)
-  const option = (label: string, choice: string) =>
-    field(label)?.options?.find((o) => o.label === choice)?.value ?? choice
-  const values: Record<string, unknown> = {}
-  const set = (label: string, value: unknown) => {
-    const found = field(label)
-    if (found) values[found.name] = value
-  }
-  set('Question', question.slice(0, 500))
-  set('Réponse', answer)
-  set('Statut', option('Statut', 'À relire'))
-  set('Origine', option('Origine', 'Conseiller'))
-  set('Conversation', `${deps.webOrigin}/conversations?c=${conversationId}`)
-  set('Promue par', agent.basedbUserId)
-  try {
-    await basedb.create(table.name, values)
-  } catch {
-    // A read-only token, most often: the chat's token must be issued with write access.
-    throw new Refusal('PROMOTION_UNAVAILABLE', 503)
-  }
+  await deps.settings.source.create(TABLES.promoted, {
+    Question: question.slice(0, 500),
+    Réponse: answer,
+    Statut: 'À relire',
+    Origine: 'Conseiller',
+    Conversation: `${deps.webOrigin}/conversations?c=${conversationId}`,
+    'Promue par': agent.id,
+  })
+  deps.settings.invalidate(TABLES.promoted)
 }

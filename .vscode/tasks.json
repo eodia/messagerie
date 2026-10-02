@@ -1,6 +1,6 @@
 {
-  // Les tâches de la messagerie (Terminal › Exécuter la tâche). « Docker : PostgreSQL et
-  // basedb » précède le lancement « Messagerie » de launch.json.
+  // Les tâches de la messagerie (Terminal › Exécuter la tâche). « Docker : PostgreSQL »
+  // précède le lancement « Messagerie » de launch.json.
   "version": "2.0.0",
   // Sous Windows, toujours PowerShell, quel que soit le terminal par défaut de VS Code.
   "windows": {
@@ -10,8 +10,8 @@
   },
   "tasks": [
     {
-      "label": "Docker : PostgreSQL et basedb",
-      "detail": "PostgreSQL 16 + pgvector (55440) et basedb (http://localhost:8890) ; écrit .env au premier lancement",
+      "label": "Docker : PostgreSQL",
+      "detail": "PostgreSQL 16 + pgvector, sur 127.0.0.1:55440",
       "type": "shell",
       "command": "corepack pnpm db:up",
       "problemMatcher": [],
@@ -24,19 +24,11 @@
       "problemMatcher": []
     },
     {
-      "label": "basedb : créer la base et relier la messagerie",
-      "detail": "La base « Messagerie » avec Acme Assurances, le jeton du chat, apps/server/.env et apps/web/.env.local",
-      "type": "shell",
-      "command": "corepack pnpm basedb:setup",
-      "dependsOn": "Docker : PostgreSQL et basedb",
-      "problemMatcher": []
-    },
-    {
       "label": "Données de démonstration",
-      "detail": "Vide le schéma chat et y met les conversations de démo",
+      "detail": "Vide le schéma chat et y met la démonstration : paramétrage et conversations",
       "type": "shell",
       "command": "corepack pnpm seed",
-      "dependsOn": "Docker : PostgreSQL et basedb",
+      "dependsOn": "Docker : PostgreSQL",
       "problemMatcher": []
     },
     {

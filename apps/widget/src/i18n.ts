@@ -1,5 +1,5 @@
 /**
- * The widget's words, in the site's language (the « Langue » of its row in basedb). French
+ * The widget's words, in the site's language (the « Langue » of its row of « Sites »). French
  * is the source and the key, as in the inbox; a sentence without a translation reads in
  * French.
  */

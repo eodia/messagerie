@@ -20,7 +20,7 @@ export interface AiJobs {
   resolved(conversationId: string): void
   /** The agent asks for new suggestions. */
   suggest(conversationId: string): void
-  /** basedb's articles or promoted conversations changed. */
+  /** The articles or promoted conversations changed. */
   knowledgeChanged(): void
 }
 
@@ -130,7 +130,7 @@ export async function startJobs(
     suggest: (conversationId) => send(QUEUES.suggest, { conversationId }, conversationId),
     knowledgeChanged: () => send(QUEUES.knowledge, {}, 'all', 2),
   }
-  // What is indexed may lag behind basedb since the last start.
+  // What is indexed may lag behind the articles since the last start.
   jobs.knowledgeChanged()
   return { jobs, stop: () => boss.stop({ graceful: true, timeout: 10_000 }) }
 }

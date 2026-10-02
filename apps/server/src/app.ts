@@ -21,9 +21,9 @@ import { documentation, openApi } from './api/documentation.js'
 import { mcpRoutes } from './api/mcp.js'
 import { publicAddress, restRoutes } from './api/rest.js'
 import { createToken, listTokens, readCreateBody, revokeToken } from './api/tokens.js'
-import { type AgentEnv, agentAuth } from './auth/agent.js'
+import { type AgentEnv, REQUEST_HEADER, agentAuth } from './auth/agent.js'
+import { authRoutes } from './auth/routes.js'
 import type { TicketBook } from './auth/tickets.js'
-import type { BasedbClient } from './basedb/client.js'
 import type { Config } from './config.js'
 import type { Db } from './db/client.js'
 import { conversations } from './db/schema.js'
@@ -33,7 +33,7 @@ import { DiskStore, type FileStore } from './files/store.js'
 import { gifFile, searchGifs } from './gifs.js'
 import { homePage } from './home-page.js'
 import { Access, canSee, inboxDirectory } from './inbox/access.js'
-import { followRole, inviteAgent, resetAgentPassword } from './inbox/accounts.js'
+import { inviteAgent, resetAgentPassword } from './inbox/accounts.js'
 import {
   cannedReplies,
   contactByTail,
@@ -139,7 +139,6 @@ export function createApp({
   db,
   hub,
   config,
-  basedb,
   settings,
   tickets,
   widgetHub,
@@ -150,8 +149,7 @@ export function createApp({
   db: Db
   hub: InboxHub
   config: Config
-  basedb: BasedbClient | null
-  settings: Settings | null
+  settings: Settings
   tickets: TicketBook
   widgetHub: WidgetHub
   /** The model and its queues; null without AI — conversations then go to the agents. */
@@ -167,15 +165,20 @@ export function createApp({
 
   // CORS for the inbox's origin — not on a WebSocket upgrade, whose response headers are
   // not the middleware's to touch.
+  // With credentials: the session is a cookie (D19).
   const withCors = cors({
     origin: config.webOrigin,
+    credentials: true,
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-    allowHeaders: ['content-type', 'authorization'],
+    allowHeaders: ['content-type', REQUEST_HEADER],
     maxAge: 600,
   })
-  app.use('/api/*', (c, next) =>
+  app.use('/api/inbox/*', (c, next) =>
     c.req.header('upgrade')?.toLowerCase() === 'websocket' ? next() : withCors(c, next),
   )
+
+  // Signing in: the session, the first supervisor, links, an identity provider.
+  app.route('/api/auth', authRoutes({ db, config, settings }))
 
   app.get('/health', (c) => c.json({ ok: true }))
 
@@ -214,7 +217,7 @@ export function createApp({
   )
 
   const inbox = new Hono<AgentEnv>()
-  inbox.use(agentAuth(db, config, basedb, settings))
+  inbox.use(agentAuth(db, config))
   const access = new Access(settings)
 
   // An agent reaches the conversations of the inboxes they see; another inbox's
@@ -231,67 +234,39 @@ export function createApp({
     await next()
   })
 
-  // The settings screens: the « Messagerie » base's tables, read by all, written by a
-  // supervisor — with their own basedb token.
-  const configured = () => {
-    if (!settings) throw new Refusal('BASEDB_UNREACHABLE', 503)
-    return settings
-  }
-  inbox.get('/settings', async (c) =>
-    c.json(await settingsOverview(configured(), basedb, c.get('agent'), c.get('basedbToken'))),
-  )
+  // The settings screens (D19): the knowledge base read by all, the administration's
+  // tables read and written by supervisors.
+  inbox.get('/settings', async (c) => c.json(await settingsOverview(db, c.get('agent'))))
   inbox.get('/settings/:table', async (c) =>
-    c.json(await settingsRows(configured(), c.get('agent'), c.req.param('table'))),
+    c.json(await settingsRows(settings, c.get('agent'), c.req.param('table'))),
   )
   inbox.post('/settings/:table', async (c) => {
     const { values } = await jsonBody(c.req.raw)
-    const agent = c.get('agent')
-    if (c.req.param('table') === 'conseillers') {
-      await followRole(configured(), basedb, agent, c.get('basedbToken'), null, values)
-    }
-    return c.json(
-      await createRow(configured(), agent, c.get('basedbToken'), c.req.param('table'), values),
-      201,
-    )
+    return c.json(await createRow(settings, c.get('agent'), c.req.param('table'), values), 201)
   })
   inbox.patch('/settings/:table/:id', async (c) => {
     const { values } = await jsonBody(c.req.raw)
     const { table, id } = c.req.param()
-    if (table === 'conseillers') {
-      await followRole(configured(), basedb, c.get('agent'), c.get('basedbToken'), id, values)
-    }
-    await updateRow(configured(), c.get('agent'), c.get('basedbToken'), table, id, values)
+    await updateRow(settings, c.get('agent'), table, id, values)
     return c.body(null, 204)
   })
   inbox.delete('/settings/:table/:id', async (c) => {
     const { table, id } = c.req.param()
-    await deleteRow(configured(), c.get('agent'), c.get('basedbToken'), table, id)
+    await deleteRow(settings, c.get('agent'), table, id)
     return c.body(null, 204)
   })
-  // Agents' accounts, created and reset from the inbox — by a basedb administrator.
+  // Agents' accounts, from the inbox: an invitation, a new password — each a link.
   inbox.post('/agents/invite', async (c) =>
     c.json(
-      await inviteAgent(
-        configured(),
-        basedb,
-        c.get('agent'),
-        c.get('basedbToken'),
-        await jsonBody(c.req.raw),
-      ),
+      await inviteAgent(db, settings, config.webOrigin, c.get('agent'), await jsonBody(c.req.raw)),
       201,
     ),
   )
-  inbox.post('/agents/:id/password', async (c) =>
-    c.json(
-      await resetAgentPassword(
-        configured(),
-        basedb,
-        c.get('agent'),
-        c.get('basedbToken'),
-        c.req.param('id'),
-      ),
-    ),
-  )
+  inbox.post('/agents/:id/password', async (c) => {
+    const id = c.req.param('id')
+    if (!UUID.test(id)) throw new Refusal('ROW_NOT_FOUND', 404)
+    return c.json(await resetAgentPassword(db, config.webOrigin, c.get('agent'), id))
+  })
 
   inbox.get('/tags', async (c) => c.json(await tagOptions(settings)))
 
@@ -373,20 +348,14 @@ export function createApp({
   inbox.get('/tools', async (c) => c.json(await toolsOverview(settings, mcp)))
 
   inbox.get('/widget', async (c) =>
-    c.json(
-      settings
-        ? await widgetEditor(settings, c.get('agent'), ai !== null)
-        : { sites: [], persistent: false, canEdit: false },
-    ),
+    c.json(await widgetEditor(settings, c.get('agent'), ai !== null)),
   )
 
-  /** A supervisor saves a site's widget — into its row of basedb, as themselves. */
+  /** A supervisor saves a site's widget — into its row of « Sites ». */
   inbox.put('/widget/:site', async (c) => {
-    if (!settings) throw new Refusal('SITE_NOT_FOUND', 404)
     const saved = await saveWidget(
       settings,
       c.get('agent'),
-      c.get('basedbToken'),
       c.req.param('site'),
       await jsonBody(c.req.raw),
       ai !== null,
@@ -406,7 +375,7 @@ export function createApp({
         : {}
     const id = uuidParam(c.req.param('id'))
     return c.json(
-      await runInConversation({ db, settings, basedb, mcp }, id, {
+      await runInConversation({ db, settings, mcp }, id, {
         tool,
         ...(server ? { server } : {}),
         arguments: values,
@@ -425,7 +394,7 @@ export function createApp({
         ? (args as Record<string, unknown>)
         : {}
     return c.json(
-      await testTool({ db, settings, basedb, mcp }, c.get('agent'), {
+      await testTool({ db, settings, mcp }, c.get('agent'), {
         tool,
         ...(server ? { server } : {}),
         arguments: values,
@@ -439,7 +408,6 @@ export function createApp({
 
   /** To another inbox, another team, or both. */
   inbox.post('/conversations/:id/transfer', async (c) => {
-    if (!settings) throw new Refusal('INBOX_NOT_FOUND', 404)
     const { inboxId, teamId, note } = await jsonBody(c.req.raw)
     if (
       (inboxId !== undefined && typeof inboxId !== 'string') ||
@@ -474,11 +442,11 @@ export function createApp({
     return c.body(null, 204)
   })
 
-  /** Into basedb's « Conversations promues », « À relire ». */
+  /** Into « Conversations promues », « À relire »: a source for the AI once reviewed. */
   inbox.post('/conversations/:id/promote', async (c) => {
     const id = uuidParam(c.req.param('id'))
     await promote(
-      { db, basedb, llm: ai?.llm ?? null, webOrigin: config.webOrigin },
+      { db, settings, llm: ai?.llm ?? null, webOrigin: config.webOrigin },
       c.get('agent'),
       id,
     )

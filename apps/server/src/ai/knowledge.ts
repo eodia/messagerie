@@ -6,7 +6,7 @@ import { kbChunks } from '../db/schema.js'
 import type { Settings } from '../settings/settings.js'
 
 /**
- * What the AI answers from: the published articles and promoted conversations of basedb,
+ * What the AI answers from: the published articles and promoted conversations,
  * cut into passages and embedded in `chat.kb_chunk` (pgvector).
  *
  * A sync compares each source's digest with the one indexed: only what changed is embedded
@@ -74,7 +74,7 @@ export class Knowledge {
     return vectors
   }
 
-  /** Brings the index in line with basedb. */
+  /** Brings the index in line with the knowledge base. */
   async sync(): Promise<{ indexed: number; removed: number; kept: number }> {
     const sources = await this.sources()
     const indexed = await this.db
@@ -120,7 +120,7 @@ export class Knowledge {
       count++
     }
 
-    // What basedb no longer publishes.
+    // What is no longer published.
     let removed = 0
     for (const kind of ['article', 'conversation'] as const) {
       const live = sources.filter((s) => s.kind === kind).map((s) => s.id)

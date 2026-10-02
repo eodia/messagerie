@@ -1,6 +1,5 @@
 'use client'
 
-import { useBasedbUrl } from '@/components/app/app-shell'
 import { Chip } from '@/components/app/chip'
 import { EmptyState } from '@/components/app/empty-state'
 import { ScreenHeader, Slash } from '@/components/app/screen-header'
@@ -9,7 +8,6 @@ import { Kbd, useModKey } from '@/components/ui/kbd'
 import { Hint } from '@/components/ui/tooltip'
 import { conversationsPlace } from '@/lib/address'
 import { apiAddress } from '@/lib/api'
-import { usesBasedb } from '@/lib/basedb-session'
 import { $t } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
 import { inboxAddress, useInbox } from '@/lib/store/inbox'
@@ -54,7 +52,6 @@ export function Inbox() {
   const notice = useInbox((s) => s.notice)
   const inboxName = useInbox((s) => s.directory.inboxes.find((i) => i.id === s.inbox)?.name ?? null)
   const [detailsOpen, setDetailsOpen] = useState(true)
-  const basedbUrl = useBasedbUrl()
   const searchRef = useRef<HTMLInputElement>(null)
   const mod = useModKey()
 
@@ -122,39 +119,16 @@ export function Inbox() {
             <LoaderCircle className="size-4 animate-spin" />
             {$t('Chargement des conversations…')}
           </div>
-        ) : loadError === 'SIGNED_OUT' || loadError === 'SESSION_INVALID' ? (
-          <EmptyState
-            icon={LogIn}
-            title={$t('Connectez-vous à basedb')}
-            actions={
-              <>
-                <Button asChild>
-                  <a href={basedbUrl} target="_blank" rel="noreferrer">
-                    <ExternalLink />
-                    {$t('Ouvrir basedb')}
-                  </a>
-                </Button>
-                <Button variant="outline" onClick={() => void useInbox.getState().reload()}>
-                  <RefreshCw />
-                  {$t('Réessayer')}
-                </Button>
-              </>
-            }
-          >
-            {messageFor(loadError)}
-          </EmptyState>
         ) : loadError === 'NOT_AN_AGENT' ? (
           <EmptyState
             icon={UserX}
             title={$t('Ce compte n’est pas conseiller')}
             actions={
               <>
-                {usesBasedb() && (
-                  <Button onClick={() => void useSession.getState().signOut()}>
-                    <LogOut />
-                    {$t('Changer de compte')}
-                  </Button>
-                )}
+                <Button onClick={() => void useSession.getState().signOut()}>
+                  <LogOut />
+                  {$t('Changer de compte')}
+                </Button>
                 <Button variant="outline" onClick={() => void useInbox.getState().reload()}>
                   <RefreshCw />
                   {$t('Réessayer')}

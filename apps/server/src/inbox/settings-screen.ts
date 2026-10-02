@@ -1,18 +1,18 @@
-import { readFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
 import type { SettingsField, SettingsOverview, SettingsRow, SettingsTable } from '@chat/contracts'
-import { type BasedbClient, BasedbFailure } from '../basedb/client.js'
+import { notLike } from 'drizzle-orm'
+import type { Db } from '../db/client.js'
+import { agents } from '../db/schema.js'
 import { Refusal } from '../refusal.js'
+import { MODEL } from '../settings/demo.js'
 import type { Settings } from '../settings/settings.js'
+import { SettingsFailure } from '../settings/source.js'
 import type { AgentRow } from './read.js'
 
 /**
- * The settings screens of the inbox: the tables of the « Messagerie » base that a
- * supervisor sets up — inboxes, teams, agents, sites, hours, canned replies, guardrails,
- * tools… — read and written through basedb's API, which stays where they live (D1, D10).
- * The fields are the template's: what `messagerie.json` declares is what the screens show.
- * A change is written with the supervisor's own basedb token, so basedb applies their
- * rights and keeps their name in the row's history.
+ * The settings screens of the inbox: the tables a supervisor sets up — inboxes, teams,
+ * agents, sites, hours, canned replies, guardrails, tools… —, in the chat's own tables
+ * (D19). The fields are the model's: what `settings/model.json` declares is what the
+ * screens show.
  */
 
 /** The tables the inbox sets up, in the order its menu shows them. */
@@ -30,6 +30,7 @@ const EDITABLE = [
   'serveurs_mcp',
   'categories',
   'articles',
+  'conversations_promues',
 ] as const
 
 interface TemplateField {
@@ -68,15 +69,12 @@ const KINDS = new Set<string>([
   'user',
 ])
 
-const require = createRequire(import.meta.url)
 let schema: SettingsTable[] | null = null
 
 /** The editable tables and their fields — computed fields (counts) left out. */
 export function settingsSchema(): SettingsTable[] {
   if (schema) return schema
-  const template = JSON.parse(
-    readFileSync(require.resolve('@chat/basedb-template/messagerie.json'), 'utf8'),
-  ) as Template
+  const template = MODEL as unknown as Template
   schema = EDITABLE.flatMap((key) => {
     const table = template.tables.find((t) => t.key === key)
     if (!table) return []
@@ -111,39 +109,16 @@ function tableOf(key: string): SettingsTable {
   return table
 }
 
-/**
- * The accounts a « Personne » field may name. A supervisor's own token sees every account
- * when they administer basedb — those just invited too; the chat's token, only those who
- * share a project with it.
- */
-async function accountsFor(
-  basedb: BasedbClient,
-  agent: AgentRow,
-  token: string | null,
-): Promise<SettingsOverview['users']> {
-  if (agent.role === 'supervisor' && token) {
-    try {
-      return await basedb.users(token)
-    } catch {
-      // Not theirs to list: the chat's view will do.
-    }
-  }
-  return basedb.users().catch(() => [])
-}
-
-export async function settingsOverview(
-  settings: Settings,
-  basedb: BasedbClient | null,
-  agent: AgentRow,
-  token: string | null,
-): Promise<SettingsOverview> {
-  const users = basedb
-    ? await accountsFor(basedb, agent, token)
-    : [{ id: agent.basedbUserId, name: agent.name, email: agent.email }]
+/** The people a « Personne » field may name: the agents — the API's tokens left out. */
+export async function settingsOverview(db: Db, agent: AgentRow): Promise<SettingsOverview> {
+  const users = await db
+    .select({ id: agents.id, name: agents.name, email: agents.email })
+    .from(agents)
+    .where(notLike(agents.login, 'token:%'))
+    .orderBy(agents.name)
   return {
     tables: settingsSchema(),
     users,
-    persistent: settings.source.kind === 'basedb',
     canEdit: agent.role === 'supervisor',
   }
 }
@@ -153,7 +128,12 @@ export async function settingsOverview(
  * for. The rest — inboxes, teams, accounts, hours, guardrails, tools… — is the
  * administration's, read and written by supervisors alone.
  */
-const READ_BY_AGENTS: ReadonlySet<string> = new Set(['articles', 'categories', 'sites'])
+const READ_BY_AGENTS: ReadonlySet<string> = new Set([
+  'articles',
+  'categories',
+  'sites',
+  'conversations_promues',
+])
 
 export async function settingsRows(
   settings: Settings,
@@ -238,23 +218,14 @@ function cleanValues(
   return values
 }
 
-/** basedb's refusals, in the chat's codes. */
+/** The settings' refusals, in the chat's codes. */
 async function written<T>(write: () => Promise<T>): Promise<T> {
   try {
     return await write()
   } catch (error) {
-    if (!(error instanceof BasedbFailure)) throw error
-    if (error.status === 401 || error.status === 403) {
-      throw new Refusal('SETTINGS_WRITE_REFUSED', 403)
-    }
-    if (error.code.startsWith('TEMPLATE_MISMATCH')) {
-      throw new Refusal('SETTINGS_MISMATCH', 409, { missing: error.code.slice(19) })
-    }
-    if (error.status === 404) throw new Refusal('ROW_NOT_FOUND', 404)
-    if (error.status === 400 || error.status === 409 || error.status === 422) {
-      throw new Refusal('INVALID_REQUEST', 400, { reason: error.code })
-    }
-    throw new Refusal('BASEDB_UNREACHABLE', 502)
+    if (!(error instanceof SettingsFailure)) throw error
+    if (error.code === 'ROW_NOT_FOUND') throw new Refusal('ROW_NOT_FOUND', 404)
+    throw new Refusal('INVALID_REQUEST', 400, error.field ? { field: error.field } : undefined)
   }
 }
 
@@ -264,20 +235,19 @@ function supervisorOnly(agent: AgentRow): void {
 
 /** What a new row of some tables starts with, unless given: an article is its writer's draft. */
 const ON_CREATE: Readonly<Record<string, (agent: AgentRow) => Record<string, unknown>>> = {
-  articles: (agent) => ({ Statut: 'Brouillon', Auteur: agent.basedbUserId }),
+  articles: (agent) => ({ Statut: 'Brouillon', Auteur: agent.id }),
 }
 
 export async function createRow(
   settings: Settings,
   agent: AgentRow,
-  token: string | null,
   key: string,
   raw: unknown,
 ): Promise<SettingsRow> {
   supervisorOnly(agent)
   const table = tableOf(key)
   const values = { ...ON_CREATE[key]?.(agent), ...cleanValues(table, raw, true) }
-  const id = await written(() => settings.source.create(table.label, values, token))
+  const id = await written(() => settings.source.create(table.label, values))
   settings.invalidate(table.label)
   return { id, values }
 }
@@ -285,7 +255,6 @@ export async function createRow(
 export async function updateRow(
   settings: Settings,
   agent: AgentRow,
-  token: string | null,
   key: string,
   id: string,
   raw: unknown,
@@ -294,20 +263,19 @@ export async function updateRow(
   const table = tableOf(key)
   const values = cleanValues(table, raw, false)
   if (Object.keys(values).length === 0) return
-  await written(() => settings.source.update(table.label, id, values, token))
+  await written(() => settings.source.update(table.label, id, values))
   settings.invalidate(table.label)
 }
 
 export async function deleteRow(
   settings: Settings,
   agent: AgentRow,
-  token: string | null,
   key: string,
   id: string,
 ): Promise<void> {
   supervisorOnly(agent)
   const table = tableOf(key)
-  await written(() => settings.source.remove(table.label, id, token))
+  await written(() => settings.source.remove(table.label, id))
   // Other tables may have pointed at it.
   settings.invalidate()
 }

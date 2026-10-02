@@ -21,8 +21,8 @@ import {
   notifications,
 } from '../../src/db/schema.js'
 import { createConversation, receiveVisitorMessage } from '../../src/inbox/incoming.js'
+import { MemorySource } from '../../src/settings/demo.js'
 import { Settings } from '../../src/settings/settings.js'
-import { TemplateSource } from '../../src/settings/source.js'
 
 /**
  * The AI's decisions, against a real PostgreSQL and a scripted model: what it answers,
@@ -64,22 +64,19 @@ let pool: pg.Pool
 let db: Db
 let deps: AiDeps
 const llm = new ScriptedLlm()
-const settings = new Settings(new TemplateSource('dev-marc', true))
+const settings = new Settings(new MemorySource('dev-marc'))
 
 beforeAll(async () => {
   container = await new PostgreSqlContainer('pgvector/pgvector:pg16').start()
   ;({ pool, db } = connect(container.getConnectionUri()))
   await migrateDatabase(db)
-  await db
-    .insert(agents)
-    .values({ basedbUserId: 'dev-marc', name: 'Marc JAMAIN', role: 'supervisor' })
+  await db.insert(agents).values({ login: 'dev-marc', name: 'Marc JAMAIN', role: 'supervisor' })
   deps = {
     db,
     settings,
     knowledge: new Knowledge(db, settings, llm),
     llm,
     redact: true,
-    basedb: null,
     mcp: new McpConnections(),
     files: null,
   }
@@ -275,7 +272,7 @@ describe('the copilot', () => {
     expect(run?.output).toMatchObject({ suggestions: ['Bonjour, je regarde.', 'Un instant.'] })
   })
 
-  it('tags with the tags basedb allows it, and leaves the agents’ own', async () => {
+  it('tags with the tags the AI may set, and leaves the agents’ own', async () => {
     llm.script = decide({
       intent: 'Suivi de remboursement',
       tags: ['Remboursement', 'Inventée'],

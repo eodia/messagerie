@@ -1,6 +1,5 @@
 'use client'
 
-import { useBasedbUrl } from '@/components/app/app-shell'
 import { Chip } from '@/components/app/chip'
 import { ScreenHeader, Slash } from '@/components/app/screen-header'
 import { Button } from '@/components/ui/button'
@@ -10,7 +9,7 @@ import { $t, $tp } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
 import { useTitle } from '@/lib/title'
 import type { SettingsField, SettingsOverview, SettingsRow, SettingsTable } from '@chat/contracts'
-import { Check, ExternalLink, LoaderCircle, Plus, RefreshCw } from 'lucide-react'
+import { Check, LoaderCircle, Plus, RefreshCw } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Choice, Choices } from './field-input'
 import { RowEditor } from './row-editor'
@@ -33,7 +32,6 @@ function titleOf(table: SettingsTable | undefined, row: SettingsRow): string {
 
 export function SettingsScreen({ group: key }: { readonly group: string }) {
   const group = GROUPS[key]
-  const basedbUrl = useBasedbUrl()
   useTitle([group ? $t(group.title) : null])
   const [overview, setOverview] = useState<SettingsOverview | null>(null)
   const [rows, setRows] = useState<Readonly<Record<string, readonly SettingsRow[]>>>({})
@@ -118,7 +116,7 @@ export function SettingsScreen({ group: key }: { readonly group: string }) {
             {savedAt !== null && (
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Check className="size-3.5 text-primary" />
-                {overview?.persistent ? $t('Enregistré dans basedb') : $t('Enregistré en mémoire')}
+                {$t('Enregistré')}
               </span>
             )}
             <Button
@@ -129,12 +127,6 @@ export function SettingsScreen({ group: key }: { readonly group: string }) {
             >
               <RefreshCw className={loading ? 'size-3.5 animate-spin' : 'size-3.5'} />
               {$t('Actualiser')}
-            </Button>
-            <Button variant="outline" size="sm" asChild className="h-8 gap-1.5 text-xs">
-              <a href={basedbUrl} target="_blank" rel="noreferrer">
-                <ExternalLink className="size-3.5" />
-                {$t('Ouvrir dans basedb')}
-              </a>
             </Button>
             {canEdit && table && (
               <Button
@@ -173,13 +165,6 @@ export function SettingsScreen({ group: key }: { readonly group: string }) {
 
           {table?.description && (
             <p className="max-w-3xl text-sm text-muted-foreground">{table.description}</p>
-          )}
-          {overview && !overview.persistent && (
-            <p className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
-              {$t(
-                'Mode démonstration : sans basedb, les réglages viennent du modèle et ne sont gardés qu’en mémoire, jusqu’au redémarrage du serveur.',
-              )}
-            </p>
           )}
           {overview && !canEdit && (
             <p className="rounded-md border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
@@ -307,7 +292,7 @@ function Cell({
       )
     }
     case 'user':
-      return <span>{choices.users.find((u) => u.id === value)?.label ?? $t('Compte basedb')}</span>
+      return <span>{choices.users.find((u) => u.id === value)?.label ?? $t('Personne')}</span>
     default: {
       const text = String(value)
       if (isColorField(field.label) && /^#[0-9a-f]{6}$/i.test(text)) {

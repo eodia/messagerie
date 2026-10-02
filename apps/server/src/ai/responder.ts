@@ -2,7 +2,6 @@ import type { ChatMessage, Completion, Llm } from '@chat/ai'
 import { readJson } from '@chat/ai'
 import type { Source } from '@chat/contracts'
 import { eq } from 'drizzle-orm'
-import type { BasedbClient } from '../basedb/client.js'
 import type { Db } from '../db/client.js'
 import { conversations, messages } from '../db/schema.js'
 import type { FileStore } from '../files/store.js'
@@ -18,7 +17,7 @@ import { toolBoxFor } from './tools.js'
 
 /**
  * The AI in the first line (framing, phase 4): it answers the visitor from the knowledge
- * base and the customer's record, calls the tools basedb declares, and hands over — with a
+ * base and the customer's record, calls the tools the settings declare, and hands over — with a
  * summary — when a guardrail says so, when the visitor asks for a person, or when it is not
  * sure enough by the site's threshold. It never answers in a conversation an agent took.
  */
@@ -29,7 +28,6 @@ export interface AiDeps {
   readonly knowledge: Knowledge
   readonly llm: Llm
   readonly redact: boolean
-  readonly basedb: BasedbClient | null
   readonly mcp: McpConnections
   /** Where the conversations' files are, for the purge. */
   readonly files: FileStore | null
@@ -135,7 +133,6 @@ export async function answerVisitor(deps: AiDeps, conversationId: string): Promi
     {
       db,
       settings,
-      basedb: deps.basedb,
       mcp: deps.mcp,
       conversationId,
       contact: context.contact,

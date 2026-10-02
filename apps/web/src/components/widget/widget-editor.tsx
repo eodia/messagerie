@@ -1,6 +1,5 @@
 'use client'
 
-import { useBasedbUrl } from '@/components/app/app-shell'
 import { ScreenHeader, Slash } from '@/components/app/screen-header'
 import { Button } from '@/components/ui/button'
 import {
@@ -35,11 +34,10 @@ type Scene = 'closed' | 'nudge' | 'welcome' | 'conversation'
 
 /**
  * The widget editor: a site's widget as it will look — its colour, its side, its font, its
- * words — with the real widget beside the fields, in preview mode. Settings live in basedb
- * (the site's row in « Sites »); this screen reads them, and a supervisor saves them there.
+ * words — with the real widget beside the fields, in preview mode. Settings are the site's
+ * row in « Sites »: this screen reads them, and a supervisor saves them there.
  */
 export function WidgetEditorScreen() {
-  const basedbUrl = useBasedbUrl()
   const [editor, setEditor] = useState<WidgetEditor | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [siteId, setSiteId] = useState<string | null>(null)
@@ -157,7 +155,7 @@ export function WidgetEditorScreen() {
               {savedAt !== null && !dirty && (
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                   <Check className="size-3.5 text-primary" />
-                  {editor.persistent ? $t('Enregistré dans basedb') : $t('Enregistré en mémoire')}
+                  {$t('Enregistré')}
                 </span>
               )}
               {dirty && (
@@ -223,25 +221,18 @@ export function WidgetEditorScreen() {
       )}
       {editor && !site && (
         <p className="p-6 text-sm text-muted-foreground">
-          {$t('Aucun site : ajoutez-en un dans basedb, table « Sites ».')}
+          {$t('Aucun site : ajoutez-en un dans « Sites et horaires ».')}
         </p>
       )}
 
       {editor && site && draft && problems && (
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
           <div className="scroll-discret shrink-0 border-b lg:w-[440px] lg:overflow-y-auto lg:border-r lg:border-b-0">
-            {(error || !editor.persistent || !editor.canEdit) && (
+            {(error || !editor.canEdit) && (
               <div className="space-y-2 px-5 pt-4">
                 {error && (
                   <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
                     {messageFor(error)}
-                  </p>
-                )}
-                {!editor.persistent && (
-                  <p className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
-                    {$t(
-                      'Mode démonstration : sans basedb, les réglages viennent du modèle et ne sont gardés qu’en mémoire, jusqu’au redémarrage du serveur.',
-                    )}
                   </p>
                 )}
                 {!editor.canEdit && (
@@ -259,7 +250,6 @@ export function WidgetEditorScreen() {
               problems={problems}
               onChange={change}
               server={server}
-              basedbUrl={basedbUrl}
             />
           </div>
 

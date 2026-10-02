@@ -2,7 +2,7 @@
  * The widget's styles, inside its shadow root: the page's CSS cannot reach them, and they
  * reach nothing of the page.
  *
- * What the site chooses in its row of basedb arrives as custom properties and classes on
+ * What the site chooses in its row of « Sites » arrives as custom properties and classes on
  * `.root`: its colour (`--accent`), its distances to the page's edges (`--x`, `--y`), its
  * font (`--font`: the page's own by default — a widget loads no font on someone else's
  * page), its corners (`.soft`, `.square`), its side (`.left`) and its theme (`.light`,

@@ -62,7 +62,7 @@ export interface Source {
   readonly title: string
   readonly origin: 'article' | 'conversation'
   readonly detail: string
-  /** A promoted conversation that an editor reviewed in basedb. */
+  /** A promoted conversation that a supervisor reviewed. */
   readonly validated?: boolean
 }
 
@@ -146,7 +146,7 @@ export type ConversationEvent =
   | { readonly type: 'reopened'; readonly agent: string }
   /** `agent` has it now, given by `by`; `agent` is null when it was taken back to the queue. */
   | { readonly type: 'assigned'; readonly agent: string | null; readonly by: string }
-  /** The AI called one of basedb's « Outils IA »; `detail` is what it looked at. */
+  /** The AI called one of the « Outils IA »; `detail` is what it looked at. */
   | { readonly type: 'tool'; readonly tool: string; readonly detail: string }
   /**
    * Moved to another inbox, or another team, by `by` — the names as they were then. A
@@ -225,7 +225,7 @@ export interface Conversation {
   readonly messages: readonly Message[]
 }
 
-/** An agent — a basedb account listed in the « Conseillers » table (D4). */
+/** An agent — a row of « Conseillers », and their account (D19). */
 export interface Agent {
   readonly id: string
   readonly name: string
@@ -312,7 +312,7 @@ export interface NotificationList {
   readonly items: readonly Notification[]
 }
 
-/** A canned reply of basedb's « Réponses types », offered after « / » in the composer. */
+/** A canned reply of « Réponses types », offered after « / » in the composer. */
 export interface CannedReply {
   readonly id: string
   readonly title: string
@@ -347,7 +347,7 @@ export interface ContactDetail {
   }[]
 }
 
-/** The simple counters of the framing's MVP — full dashboards are basedb's. */
+/** The simple counters of the statistics screen. */
 export interface InboxStats {
   /** The last seven days, today included. */
   readonly conversations: number
@@ -378,13 +378,14 @@ export interface KnowledgeItem {
   readonly indexedAt: string
 }
 
-/** The AI's tools, as the tools screen shows them — declared in basedb. */
+/** The AI's tools, as the tools screen shows them. */
 export interface ToolsOverview {
   readonly tools: readonly {
     readonly id: string
     readonly name: string
     readonly description: string
-    readonly type: 'basedb' | 'http' | 'callback'
+    /** `contact`: the visitor's record, as their site signed it. */
+    readonly type: 'contact' | 'http' | 'callback'
     readonly target: string | null
     readonly method: 'GET' | 'POST'
     readonly agent: boolean
@@ -427,7 +428,7 @@ export interface WidgetSettings {
 
 export interface WidgetEditorSite {
   readonly id: string
-  /** Where the widget may show, from basedb. */
+  /** Where the widget may show, from « Sites ». */
   readonly domains: readonly string[]
   /** The AI answers first on this site. */
   readonly ai: boolean
@@ -438,8 +439,6 @@ export interface WidgetEditorSite {
 
 export interface WidgetEditor {
   readonly sites: readonly WidgetEditorSite[]
-  /** False: settings from the template, changed in memory only — lost at restart. */
-  readonly persistent: boolean
   /** A supervisor may save. */
   readonly canEdit: boolean
 }
@@ -525,19 +524,17 @@ export interface SettingsRow {
 
 export interface SettingsOverview {
   readonly tables: readonly SettingsTable[]
-  /** The basedb accounts a « Personne » field may name. */
+  /** The agents a « Personne » field may name. */
   readonly users: readonly {
     readonly id: string
     readonly name: string
     readonly email: string | null
   }[]
-  /** False: the template's rows, changed in memory only. */
-  readonly persistent: boolean
   /** A supervisor may change the settings. */
   readonly canEdit: boolean
 }
 
-/** Someone a supervisor invites as an agent: their basedb account is created with it. */
+/** Someone a supervisor invites as an agent. */
 export interface InviteBody {
   readonly name: string
   readonly email: string
@@ -548,12 +545,48 @@ export interface InviteBody {
 export interface Invited {
   /** Their row in « Conseillers ». */
   readonly row: SettingsRow
-  /** Shown once, to hand over; null when the address already had an account. */
-  readonly temporaryPassword: string | null
+  /** The link to hand over — they choose their password there. Shown once, seven days good. */
+  readonly link: string
 }
 
+/** A link to choose a new password, for an agent: shown once, seven days good. */
 export interface PasswordReset {
-  readonly temporaryPassword: string
+  readonly link: string
+}
+
+// ── Signing in (D19) ────────────────────────────────────────────────────────────────────
+
+export interface AuthState {
+  /** The agent signed in; null: the sign-in screen. */
+  readonly agent: Agent | null
+  /** Nobody can sign in yet: the first supervisor is created from the sign-in screen. */
+  readonly setup: boolean
+  /** The identity provider's name, when one is configured: « Se connecter avec {sso} ». */
+  readonly sso: string | null
+}
+
+export interface SignInBody {
+  readonly email: string
+  readonly password: string
+}
+
+/** The first supervisor, at the first start. */
+export interface SetupBody {
+  readonly name: string
+  readonly email: string
+  readonly password: string
+}
+
+/** What a link a supervisor handed over is for. */
+export interface LinkInfo {
+  readonly name: string
+  readonly email: string | null
+  readonly purpose: 'invite' | 'reset'
+}
+
+export interface ChangePasswordBody {
+  readonly current: string
+  readonly next: string
 }
 
 /** A tag « Étiquettes » offers, to put on a conversation. */

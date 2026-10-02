@@ -10,7 +10,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { $t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import type { WidgetAppearance, WidgetEditorSite, WidgetSettings } from '@chat/contracts'
-import { Check, Copy, ExternalLink, Plus, X } from 'lucide-react'
+import { ArrowUpRight, Check, Copy, ExternalLink, Plus, X } from 'lucide-react'
+import Link from 'next/link'
 import { type ReactNode, useId, useState } from 'react'
 import { type Problems, contrastOn } from './settings'
 
@@ -59,7 +60,6 @@ export function WidgetForm({
   problems,
   onChange,
   server,
-  basedbUrl,
 }: {
   readonly site: WidgetEditorSite
   readonly draft: WidgetSettings
@@ -68,7 +68,6 @@ export function WidgetForm({
   readonly onChange: (update: (draft: WidgetSettings) => WidgetSettings) => void
   /** The chat server's address, for the installation snippet. */
   readonly server: string
-  readonly basedbUrl: string
 }) {
   const look = draft.appearance
   const set = (patch: Partial<WidgetSettings>) => onChange((d) => ({ ...d, ...patch }))
@@ -503,7 +502,9 @@ export function WidgetForm({
           <div className="text-sm font-medium">{$t('Domaines autorisés')}</div>
           {site.domains.length === 0 ? (
             <p className="text-xs text-muted-foreground">
-              {$t('Aucun : le widget ne s’affiche nulle part. Ajoutez-les dans basedb.')}
+              {$t(
+                'Aucun : le widget ne s’affiche nulle part. Ajoutez-les dans « Sites et horaires ».',
+              )}
             </p>
           ) : (
             <ul className="flex flex-wrap gap-1.5">
@@ -514,15 +515,13 @@ export function WidgetForm({
               ))}
             </ul>
           )}
-          <a
-            href={basedbUrl}
-            target="_blank"
-            rel="noreferrer"
+          <Link
+            href="/parametrage/sites"
             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
           >
-            <ExternalLink className="size-3" />
-            {$t('Modifier dans basedb, table « Sites »')}
-          </a>
+            <ArrowUpRight className="size-3" />
+            {$t('Modifier dans « Sites et horaires »')}
+          </Link>
         </div>
 
         <Snippet

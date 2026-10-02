@@ -105,11 +105,11 @@
   "conseillers": [
     {
       "Nom": "Marc JAMAIN",
-      "Compte basedb": "$moi",
       "Rôle": "Superviseur",
       "Conversations simultanées": 6,
       "Actif": true,
-      "Équipes": ["@support", "@auto"]
+      "Équipes": ["@support", "@auto"],
+      "E-mail": "marc.jamain@exemple.fr"
     }
   ],
   "reponses_types": [
@@ -316,7 +316,7 @@
     {
       "Nom": "Consulter la fiche du client",
       "Description pour l'IA": "Lit ce que le site a transmis du client connecté : numéro de client, contrat, produit, garanties, statut du dossier en cours, dernier sinistre. À appeler quand le client demande où en est son dossier ou ce que couvre son contrat.",
-      "Type": "Lecture dans basedb",
+      "Type": "Fiche du visiteur",
       "Cible": "Fiche du visiteur",
       "Paramètres": "{ \"type\": \"object\", \"properties\": {} }",
       "Agent IA": true,

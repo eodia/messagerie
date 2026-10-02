@@ -385,8 +385,8 @@ export async function listAgents(db: Db, settings: Settings | null = null): Prom
     .orderBy(asc(agents.name))
   // Their teams, from « Conseillers »: whom to suggest for a conversation of a team.
   const entries = settings ? await settings.agents().catch(() => []) : []
-  const teams = new Map(entries.map((e) => [e.basedbUserId, e.teamIds]))
-  return rows.map((row) => ({ ...toAgent(row), teamIds: teams.get(row.basedbUserId) ?? [] }))
+  const teams = new Map(entries.map((e) => [e.id, e.teamIds]))
+  return rows.map((row) => ({ ...toAgent(row), teamIds: teams.get(row.id) ?? [] }))
 }
 
 /**

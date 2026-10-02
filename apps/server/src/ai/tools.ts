@@ -1,5 +1,4 @@
 import type { Redactor, ToolCall, ToolSpec } from '@chat/ai'
-import type { BasedbClient } from '../basedb/client.js'
 import type { Db } from '../db/client.js'
 import { type contacts, conversationTags, messages } from '../db/schema.js'
 import { signalChange } from '../realtime/signals.js'
@@ -7,7 +6,7 @@ import { type Settings, type ToolDefinition, resolveHeaders } from '../settings/
 import type { McpConnections, McpTool } from './mcp.js'
 
 /**
- * The only actions the AI may take: basedb's « Outils IA », and the tools of its « Serveurs
+ * The only actions the AI may take: the « Outils IA », and the tools of the « Serveurs
  * MCP » — « un outil qui n'est pas ici n'existe pas pour elle ». Each call leaves an event
  * in the conversation, which the agents see and the visitor does not (D9).
  */
@@ -15,7 +14,6 @@ import type { McpConnections, McpTool } from './mcp.js'
 export interface ToolContext {
   readonly db: Db
   readonly settings: Settings
-  readonly basedb: BasedbClient | null
   readonly mcp: McpConnections
   /** Null outside a conversation — a test from the tools screen: nothing is traced. */
   readonly conversationId: string | null
@@ -132,7 +130,7 @@ export class ToolBox {
             ? await this.http(definition, values)
             : definition.type === 'callback'
               ? await this.callback(values)
-              : await this.read(definition, values)
+              : this.read()
       }
     } catch (error) {
       outcome = {
@@ -158,51 +156,19 @@ export class ToolBox {
     })
   }
 
-  /** A reading: the customer's record as the site signed it, or rows of a basedb table. */
-  private async read(
-    definition: ToolDefinition,
-    values: Record<string, unknown>,
-  ): Promise<{ content: string; detail: string }> {
-    const target = definition.target ?? 'Fiche du visiteur'
-    const { contact, basedb } = this.context
-    if (fold(target) === fold('Fiche du visiteur')) {
-      if (!contact?.identified) {
-        return {
-          content: 'Visiteur anonyme : aucune fiche.',
-          detail: 'fiche du client — visiteur anonyme',
-        }
-      }
-      const lines = contact.attributes.map((a) => `${a.label} : ${a.value}`)
+  /** A reading: the customer's record, as their site signed it. */
+  private read(): { content: string; detail: string } {
+    const { contact } = this.context
+    if (!contact?.identified) {
       return {
-        content: lines.length > 0 ? lines.join('\n') : 'Aucune information transmise par le site.',
-        detail: `fiche du client ${contact.externalId ?? contact.name}`,
+        content: 'Visiteur anonyme : aucune fiche.',
+        detail: 'fiche du client — visiteur anonyme',
       }
     }
-    if (!basedb) return { content: 'Données indisponibles.', detail: `${target} — basedb absent` }
-    const base = await basedb.describe()
-    const table = base.tables.find((t) => fold(t.label) === fold(target))
-    if (!table) {
-      return { content: 'Données indisponibles.', detail: `${target} — table introuvable` }
-    }
-    // Each parameter filters the field of the same name: « numero » → « Numéro ».
-    const filters = Object.entries(values).flatMap(([key, value]) => {
-      const field = table.fields.find(
-        (f) => fold(f.label) === fold(key) || fold(f.name) === fold(key),
-      )
-      return field && (typeof value === 'string' || typeof value === 'number')
-        ? [`${field.name} eq ${JSON.stringify(String(value))}`]
-        : []
-    })
-    const rows = (await basedb.rows(table.name, filters.join(' and ') || undefined)).slice(0, 5)
-    const readable = rows.map((row) =>
-      table.fields
-        .filter((f) => row[f.name] !== null && row[f.name] !== undefined && !f.name.startsWith('_'))
-        .map((f) => `${f.label} : ${JSON.stringify(row[f.name])}`)
-        .join('\n'),
-    )
+    const lines = contact.attributes.map((a) => `${a.label} : ${a.value}`)
     return {
-      content: readable.length > 0 ? readable.join('\n---\n') : 'Aucune ligne ne correspond.',
-      detail: `${table.label} — ${rows.length} ligne(s)`,
+      content: lines.length > 0 ? lines.join('\n') : 'Aucune information transmise par le site.',
+      detail: `fiche du client ${contact.externalId ?? contact.name}`,
     }
   }
 

@@ -65,6 +65,16 @@ export function listenForChanges(
   onChange: (signal: Signal) => void,
   onError: (error: unknown) => void = () => {},
 ): () => Promise<void> {
+  return listen(databaseUrl, CHANNEL, (payload) => onChange(JSON.parse(payload) as Signal), onError)
+}
+
+/** `LISTEN`s on `channel`: each payload to `onMessage`. The same, for any channel. */
+export function listen(
+  databaseUrl: string,
+  channel: string,
+  onMessage: (payload: string) => void,
+  onError: (error: unknown) => void = () => {},
+): () => Promise<void> {
   let client: pg.Client | null = null
   let stopped = false
   let delay = 500
@@ -73,9 +83,9 @@ export function listenForChanges(
     if (stopped) return
     const next = new pg.Client({ connectionString: databaseUrl })
     next.on('notification', (message) => {
-      if (message.channel !== CHANNEL || !message.payload) return
+      if (message.channel !== channel || !message.payload) return
       try {
-        onChange(JSON.parse(message.payload) as Signal)
+        onMessage(message.payload)
       } catch (error) {
         onError(error)
       }
@@ -87,7 +97,7 @@ export function listenForChanges(
     next.on('end', () => retry(next))
     try {
       await next.connect()
-      await next.query(`LISTEN ${CHANNEL}`)
+      await next.query(`LISTEN ${channel}`)
       client = next
       delay = 500
     } catch (error) {

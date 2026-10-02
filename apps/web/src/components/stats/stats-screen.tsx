@@ -1,6 +1,5 @@
 'use client'
 
-import { useBasedbUrl } from '@/components/app/app-shell'
 import { ScreenHeader } from '@/components/app/screen-header'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
@@ -9,7 +8,7 @@ import { messageFor } from '@/lib/messages'
 import { useTitle } from '@/lib/title'
 import { cn } from '@/lib/utils'
 import type { InboxStats } from '@chat/contracts'
-import { ExternalLink, LoaderCircle, RefreshCw, Table2 } from 'lucide-react'
+import { LoaderCircle, RefreshCw, Table2 } from 'lucide-react'
 import { type ReactNode, useCallback, useEffect, useState } from 'react'
 
 /**
@@ -56,7 +55,6 @@ function duration(seconds: number | null): string {
 }
 
 export function StatsScreen() {
-  const basedbUrl = useBasedbUrl()
   useTitle([$t('Statistiques')])
   const [stats, setStats] = useState<InboxStats | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -85,18 +83,10 @@ export function StatsScreen() {
     <>
       <ScreenHeader
         tools={
-          <>
-            <Button variant="ghost" size="sm" onClick={load} className="h-8 gap-1.5 text-xs">
-              <RefreshCw className={loading ? 'size-3.5 animate-spin' : 'size-3.5'} />
-              {$t('Actualiser')}
-            </Button>
-            <Button variant="outline" size="sm" asChild className="h-8 gap-1.5 text-xs">
-              <a href={basedbUrl} target="_blank" rel="noreferrer">
-                <ExternalLink className="size-3.5" />
-                {$t('Tableaux de bord dans basedb')}
-              </a>
-            </Button>
-          </>
+          <Button variant="ghost" size="sm" onClick={load} className="h-8 gap-1.5 text-xs">
+            <RefreshCw className={loading ? 'size-3.5 animate-spin' : 'size-3.5'} />
+            {$t('Actualiser')}
+          </Button>
         }
       >
         <span className="font-medium">{$t('Statistiques')}</span>
@@ -149,12 +139,6 @@ export function StatsScreen() {
               </div>
 
               <PerDay days={stats.perDay} />
-
-              <p className="text-xs text-muted-foreground">
-                {$t(
-                  'Des compteurs simples, comme le prévoit le MVP. Les tableaux de bord complets se construisent dans basedb, sur des vues du schéma de la messagerie.',
-                )}
-              </p>
             </>
           )}
         </div>

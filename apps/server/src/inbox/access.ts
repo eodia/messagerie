@@ -22,11 +22,11 @@ export class Access {
 
   /** The inboxes `agent` sees. */
   async visibleTo(agent: {
-    readonly basedbUserId: string
+    readonly id: string
     readonly role: 'agent' | 'supervisor'
   }): Promise<Visible> {
     if (!this.settings || agent.role === 'supervisor') return null
-    const entry = await this.settings.agent(agent.basedbUserId)
+    const entry = await this.settings.agent(agent.id)
     if (!entry) return new Set()
     const teams = new Set(entry.teamIds)
     const inboxes = await this.settings.inboxes()
@@ -40,16 +40,16 @@ export class Access {
    */
   async audience(db: Db, inboxId: string | null, teamId: string | null = null): Promise<string[]> {
     const rows = await db
-      .select({ id: agents.id, basedbUserId: agents.basedbUserId, role: agents.role })
+      .select({ id: agents.id, role: agents.role })
       .from(agents)
       .where(eq(agents.active, true))
     if (!this.settings || (inboxId === null && teamId === null)) return rows.map((r) => r.id)
-    const teamsOf = new Map((await this.settings.agents()).map((a) => [a.basedbUserId, a.teamIds]))
+    const teamsOf = new Map((await this.settings.agents()).map((a) => [a.id, a.teamIds]))
     const inbox = inboxId ? (await this.settings.inboxes()).find((i) => i.id === inboxId) : null
     return rows
       .filter((row) => {
         if (row.role === 'supervisor') return true
-        const teams = teamsOf.get(row.basedbUserId) ?? []
+        const teams = teamsOf.get(row.id) ?? []
         if (teamId !== null) return teams.includes(teamId)
         return !inbox || teams.some((t) => inbox.teamIds.includes(t))
       })
@@ -61,7 +61,7 @@ export class Access {
 export async function inboxDirectory(
   settings: Settings | null,
   access: Access,
-  agent: { readonly basedbUserId: string; readonly role: 'agent' | 'supervisor' },
+  agent: { readonly id: string; readonly role: 'agent' | 'supervisor' },
 ): Promise<InboxDirectory> {
   if (!settings) return { inboxes: [], teams: [] }
   const [inboxes, teams, visible] = await Promise.all([

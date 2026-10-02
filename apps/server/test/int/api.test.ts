@@ -18,8 +18,8 @@ import { type Db, connect, migrateDatabase } from '../../src/db/client.js'
 import { agents, contacts, conversations, messages } from '../../src/db/schema.js'
 import type { AgentRow } from '../../src/inbox/read.js'
 import { InboxHub } from '../../src/realtime/hub.js'
+import { MemorySource } from '../../src/settings/demo.js'
 import { Settings } from '../../src/settings/settings.js'
-import { TemplateSource } from '../../src/settings/source.js'
 import { WidgetHub } from '../../src/widget/hub.js'
 
 /**
@@ -92,7 +92,7 @@ beforeAll(async () => {
   await migrateDatabase(db)
   const [row] = await db
     .insert(agents)
-    .values({ basedbUserId: 'test-supervisor', name: 'Marc', role: 'supervisor' })
+    .values({ login: 'test-supervisor', name: 'Marc', role: 'supervisor' })
     .returning()
   if (!row) throw new Error('supervisor not inserted')
   supervisor = row
@@ -103,7 +103,8 @@ beforeAll(async () => {
     webOrigin: 'http://localhost:3210',
     production: true,
     devAgent: null,
-    basedb: null,
+    publicUrl: 'http://localhost:8810',
+    oidc: null,
     secret: 'a-secret-for-the-tests-of-the-chat-server',
     trustProxy: false,
     giphyKey: null,
@@ -112,8 +113,7 @@ beforeAll(async () => {
     db,
     hub: new InboxHub(),
     config,
-    basedb: null,
-    settings: new Settings(new TemplateSource(null, true)),
+    settings: new Settings(new MemorySource(null)),
     tickets: new TicketBook(),
     widgetHub: new WidgetHub(),
     mcp: new McpConnections(),

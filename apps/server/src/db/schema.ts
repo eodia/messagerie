@@ -2,6 +2,7 @@ import type { ContactAttribute, ConversationEvent, Metadata, Source } from '@cha
 import { sql } from 'drizzle-orm'
 import {
   boolean,
+  date,
   doublePrecision,
   index,
   integer,
@@ -22,8 +23,8 @@ import {
  * The `chat` schema — the flow of conversations, owned by the chat server (D1).
  *
  * What is set up by people (sites, teams, canned replies, articles, guardrails, tools)
- * lives in basedb and is referred to here by the `_id` of its basedb row, as text: a site
- * is `site_id`, a team `team_id`. No foreign key crosses into basedb — its tables are its
+ * lives in the settings tables below (D19) and is referred to by its id, as text: a site
+ * is `site_id`, a team `team_id` — kept when the row is gone, for the history; its tables are its
  * own business, and a row deleted there leaves a dangling id here, not a failed delete.
  *
  * Identifiers and columns in English (basedb's A2); what people read stays in French.
@@ -65,20 +66,78 @@ const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull(
 const updatedAt = () => timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 
 /**
- * The agents, as the chat knows them: a copy of basedb's « Conseillers » rows, kept so
- * that a message can name its author after the row is gone (D4).
+ * The agents — the people who answer, and their accounts (D19) — and the rows the API's
+ * tokens write under (`token:<prefix>`). `login` is what one signs in with: a person's
+ * e-mail, lowercased. A row is never deleted while a message names it: it is deactivated.
  */
 export const agents = chat.table('agent', {
   id: uuid('id').primaryKey().defaultRandom(),
-  basedbUserId: text('basedb_user_id').notNull().unique(),
+  login: text('login').notNull().unique(),
   name: text('name').notNull(),
   email: text('email'),
   role: text('role', { enum: ['agent', 'supervisor'] })
     .notNull()
     .default('agent'),
   active: boolean('active').notNull().default(true),
-  syncedAt: timestamp('synced_at', { withTimezone: true }).notNull().defaultNow(),
+  /** « Conversations simultanées »: how many they take at once; null, no limit. */
+  maxConversations: integer('max_conversations'),
+  /** scrypt, `scrypt$N$r$p$salt$hash`; null: they sign in by invitation or identity provider. */
+  passwordHash: text('password_hash'),
+  lastSignInAt: timestamp('last_sign_in_at', { withTimezone: true }),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
 })
+
+/**
+ * A signed-in agent's session (D19): the cookie holds its token, the database only its
+ * SHA-256. It lasts thirty days from its last use; signing out deletes it.
+ */
+export const sessions = chat.table(
+  'session',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    agentId: uuid('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull().unique(),
+    userAgent: text('user_agent'),
+    createdAt: createdAt(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [index('session_agent_idx').on(t.agentId)],
+)
+
+/**
+ * A link a supervisor hands over — to join (`invite`), or to choose a new password
+ * (`reset`) —, used once, for seven days. Only its SHA-256 is kept.
+ */
+export const invitations = chat.table('invitation', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  agentId: uuid('agent_id')
+    .notNull()
+    .references(() => agents.id, { onDelete: 'cascade' }),
+  tokenHash: text('token_hash').notNull().unique(),
+  purpose: text('purpose', { enum: ['invite', 'reset'] }).notNull(),
+  createdBy: uuid('created_by').references(() => agents.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+})
+
+/** An agent as an identity provider knows them: its issuer and its `sub` (OIDC). */
+export const agentIdentities = chat.table(
+  'agent_identity',
+  {
+    issuer: text('issuer').notNull(),
+    subject: text('subject').notNull(),
+    agentId: uuid('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.issuer, t.subject] })],
+)
 
 /** A visitor: anonymous, then identified when the site signs who they are (D5). */
 export const contacts = chat.table(
@@ -122,7 +181,7 @@ export const conversations = chat.table(
       .notNull()
       .references(() => contacts.id, { onDelete: 'cascade' }),
     siteId: text('site_id').notNull(),
-    /** The site's name when the conversation started — the list shows it without basedb. */
+    /** The site's name when the conversation started — kept when the site is renamed or gone. */
     siteName: text('site_name').notNull(),
     status: conversationStatus('status').notNull().default('ai'),
     /**
@@ -377,7 +436,7 @@ export const aiFeedback = chat.table(
   (t) => [unique('ai_feedback_run_agent_key').on(t.aiRunId, t.agentId)],
 )
 
-/** Tags on a conversation. The label and colour come from basedb's « Étiquettes ». */
+/** Tags on a conversation. The label and colour come from « Étiquettes »: copied, kept. */
 export const conversationTags = chat.table(
   'conversation_tag',
   {
@@ -402,7 +461,7 @@ export const kbChunks = chat.table(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     source: chunkSource('source').notNull(),
-    /** The basedb row it was cut from. */
+    /** The article or promoted conversation it was cut from. */
     sourceId: text('source_id').notNull(),
     conversationId: uuid('conversation_id').references(() => conversations.id, {
       onDelete: 'cascade',
@@ -453,7 +512,7 @@ export const attachments = chat.table(
 )
 
 /**
- * The secret each site signs its visitors' identity with. Here, never in basedb, where
+ * The secret each site signs its visitors' identity with. Here, never in the settings, where
  * whoever reads the « Messagerie » base would read it too (D5).
  */
 export const siteSecrets = chat.table('site_secret', {
@@ -506,3 +565,250 @@ export const notifications = chat.table(
       .where(sql`${t.readAt} is null`),
   ],
 )
+
+// <settings-tables>
+// ── Settings (D19): the chat's own tables ──────────────────────────────────────────────
+// The screens edit them by field label, through `settings/catalog.ts`.
+
+/** A team of agents. */
+export const teams = chat.table('team', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  description: text('description'),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})
+
+/** A site the widget runs on: its look, its language, its AI, how long it keeps. */
+export const sites = chat.table('site', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  domains: text('domains'),
+  welcome: text('welcome'),
+  suggestions: text('suggestions'),
+  color: text('color'),
+  title: text('title'),
+  tagline: text('tagline'),
+  position: text('position'),
+  offsetX: integer('offset_x'),
+  offsetY: integer('offset_y'),
+  launcher: text('launcher'),
+  launcherLabel: text('launcher_label'),
+  font: text('font'),
+  customFont: text('custom_font'),
+  theme: text('theme'),
+  corners: text('corners'),
+  logo: text('logo'),
+  hideTeam: boolean('hide_team').notNull().default(false),
+  nudgeAfter: integer('nudge_after'),
+  hideOnMobile: boolean('hide_on_mobile').notNull().default(false),
+  hideWhenClosed: boolean('hide_when_closed').notNull().default(false),
+  hideBranding: boolean('hide_branding').notNull().default(false),
+  language: text('language'),
+  timeZone: text('time_zone'),
+  aiEnabled: boolean('ai_enabled').notNull().default(true),
+  aiThreshold: integer('ai_threshold'),
+  aiInstructions: text('ai_instructions'),
+  retentionDays: integer('retention_days'),
+  active: boolean('active').notNull().default(true),
+  inboxId: uuid('inbox_id').references(() => inboxes.id, { onDelete: 'set null' }),
+  defaultTeamId: uuid('default_team_id').references(() => teams.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})
+
+/** When the team answers: a slot of some weekdays, for a site or for all. */
+export const openingSlots = chat.table('opening_slot', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  label: text('label').notNull(),
+  days: text('days').array().notNull().default(sql`'{}'::text[]`),
+  opens: text('opens'),
+  closes: text('closes'),
+  siteId: uuid('site_id').references(() => sites.id, { onDelete: 'cascade' }),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})
+
+/** A day or days off: no one answers, the visitors are told. */
+export const closures = chat.table('closure', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  reason: text('reason').notNull(),
+  startsOn: date('starts_on', { mode: 'string' }),
+  endsOn: date('ends_on', { mode: 'string' }),
+  message: text('message'),
+  siteId: uuid('site_id').references(() => sites.id, { onDelete: 'cascade' }),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})
+
+/** Where conversations arrive, and the teams that answer there (D12). */
+export const inboxes = chat.table('inbox', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  description: text('description'),
+  color: text('color'),
+  icon: text('icon'),
+  image: text('image'),
+  active: boolean('active').notNull().default(true),
+  defaultTeamId: uuid('default_team_id').references(() => teams.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})
+
+/** A reply an agent inserts with « / » — for some teams, or for all. */
+export const cannedReplies = chat.table('canned_reply', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  title: text('title').notNull(),
+  shortcut: text('shortcut'),
+  body: text('body'),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})
+
+/** A tag the agents — and the AI, when it may — set on conversations. */
+export const tagDefinitions = chat.table('tag_definition', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  color: text('color'),
+  whenToApply: text('when_to_apply'),
+  byAi: boolean('by_ai').notNull().default(false),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})
+
+/** The knowledge base's shelves. */
+export const categories = chat.table('category', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  description: text('description'),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})
+
+/** What the AI answers from, once published — by site, or for all. */
+export const articles = chat.table('article', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  title: text('title').notNull(),
+  body: text('body'),
+  status: text('status'),
+  authorId: uuid('author_id').references(() => agents.id, { onDelete: 'set null' }),
+  reviewedOn: date('reviewed_on', { mode: 'string' }),
+  categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})
+
+/** A conversation turned into a question and its answer, for the AI. */
+export const promotedConversations = chat.table('promoted_conversation', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  question: text('question').notNull(),
+  answer: text('answer'),
+  status: text('status'),
+  origin: text('origin'),
+  conversationUrl: text('conversation_url'),
+  promotedBy: uuid('promoted_by').references(() => agents.id, { onDelete: 'set null' }),
+  reviewedBy: uuid('reviewed_by').references(() => agents.id, { onDelete: 'set null' }),
+  categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})
+
+/** A subject the AI never handles alone. */
+export const guardrails = chat.table('guardrail', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  subject: text('subject'),
+  action: text('action'),
+  message: text('message'),
+  active: boolean('active').notNull().default(true),
+  teamId: uuid('team_id').references(() => teams.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})
+
+/** A tool the AI and the copilot may call: an HTTP call, a reminder, the visitor's record. */
+export const aiTools = chat.table('ai_tool', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  description: text('description'),
+  kind: text('kind'),
+  target: text('target'),
+  method: text('method'),
+  tokenEnv: text('token_env'),
+  headers: text('headers'),
+  parameters: text('parameters'),
+  forAi: boolean('for_ai').notNull().default(false),
+  forCopilot: boolean('for_copilot').notNull().default(false),
+  active: boolean('active').notNull().default(true),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})
+
+/** An MCP server whose tools the AI may call. */
+export const mcpServers = chat.table('mcp_server', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  url: text('url'),
+  description: text('description'),
+  tokenEnv: text('token_env'),
+  headers: text('headers'),
+  allowedTools: text('allowed_tools'),
+  forAi: boolean('for_ai').notNull().default(false),
+  forCopilot: boolean('for_copilot').notNull().default(false),
+  active: boolean('active').notNull().default(true),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})
+
+export const inboxTeams = chat.table(
+  'inbox_team',
+  {
+    inboxId: uuid('inbox_id')
+      .notNull()
+      .references(() => inboxes.id, { onDelete: 'cascade' }),
+    teamId: uuid('team_id')
+      .notNull()
+      .references(() => teams.id, { onDelete: 'cascade' }),
+  },
+  (t) => [primaryKey({ columns: [t.inboxId, t.teamId] })],
+)
+
+export const agentTeams = chat.table(
+  'agent_team',
+  {
+    agentId: uuid('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
+    teamId: uuid('team_id')
+      .notNull()
+      .references(() => teams.id, { onDelete: 'cascade' }),
+  },
+  (t) => [primaryKey({ columns: [t.agentId, t.teamId] })],
+)
+
+export const cannedReplyTeams = chat.table(
+  'canned_reply_team',
+  {
+    cannedReplyId: uuid('canned_reply_id')
+      .notNull()
+      .references(() => cannedReplies.id, { onDelete: 'cascade' }),
+    teamId: uuid('team_id')
+      .notNull()
+      .references(() => teams.id, { onDelete: 'cascade' }),
+  },
+  (t) => [primaryKey({ columns: [t.cannedReplyId, t.teamId] })],
+)
+
+export const articleSites = chat.table(
+  'article_site',
+  {
+    articleId: uuid('article_id')
+      .notNull()
+      .references(() => articles.id, { onDelete: 'cascade' }),
+    siteId: uuid('site_id')
+      .notNull()
+      .references(() => sites.id, { onDelete: 'cascade' }),
+  },
+  (t) => [primaryKey({ columns: [t.articleId, t.siteId] })],
+)
+// </settings-tables>

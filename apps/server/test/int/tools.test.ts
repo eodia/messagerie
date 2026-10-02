@@ -55,7 +55,7 @@ afterAll(async () => {
 })
 
 const noSettings = new Settings({
-  kind: 'template',
+  kind: 'memory',
   rows: async (): Promise<LabeledRow[]> => [],
   follow: () => null,
   update: async () => {},
@@ -66,7 +66,6 @@ const noSettings = new Settings({
 const context = {
   db: null as unknown as Db,
   settings: noSettings,
-  basedb: null,
   mcp,
   conversationId: null,
   contact: null,

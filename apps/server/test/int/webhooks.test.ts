@@ -82,8 +82,8 @@ beforeAll(async () => {
   const [boss, colleague] = await db
     .insert(agents)
     .values([
-      { basedbUserId: 'test-supervisor', name: 'Marc', role: 'supervisor' },
-      { basedbUserId: 'test-agent', name: 'Julie', role: 'agent' },
+      { login: 'test-supervisor', name: 'Marc', role: 'supervisor' },
+      { login: 'test-agent', name: 'Julie', role: 'agent' },
     ])
     .returning()
   if (!boss || !colleague) throw new Error('agents not inserted')

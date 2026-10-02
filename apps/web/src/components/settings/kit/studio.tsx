@@ -15,7 +15,6 @@ import type { SettingsRow } from '@chat/contracts'
 import { Check, LoaderCircle, Plus, Search, Trash2 } from 'lucide-react'
 import { type ReactNode, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { type Choices, FieldInput } from '../field-input'
-import { ElevateDialog } from '../screens/account-dialog'
 import { FormSection } from './controls'
 import { type SettingsData, type Values, bool, nameOf } from './data'
 import { NEW, type RowEditor } from './editor'
@@ -216,21 +215,9 @@ export function Studio({
         )}
       </ScreenHeader>
 
-      {data.error === 'ELEVATION_REQUIRED' && (
-        <ElevateDialog
-          onClose={() => data.setError(null)}
-          onDone={() => {
-            data.setError(null)
-            void editor.save()
-          }}
-        />
-      )}
-
-      {((data.error && data.error !== 'ELEVATION_REQUIRED') ||
-        !data.persistent ||
-        (data.overview && !canEdit)) && (
+      {(data.error || (data.overview && !canEdit)) && (
         <div className="space-y-px">
-          {data.error && data.error !== 'ELEVATION_REQUIRED' && (
+          {data.error && (
             <div className="flex items-center gap-2 border-b border-destructive/30 bg-destructive/5 px-4 py-1.5 text-sm text-destructive">
               <span className="flex-1">{messageFor(data.error)}</span>
               <Button
@@ -242,13 +229,6 @@ export function Studio({
                 {$t('Fermer')}
               </Button>
             </div>
-          )}
-          {!data.persistent && (
-            <p className="border-b border-amber-500/30 bg-amber-500/5 px-4 py-2 text-xs text-amber-800 dark:text-amber-300">
-              {$t(
-                'Mode démonstration : sans basedb, les réglages viennent du modèle et ne sont gardés qu’en mémoire, jusqu’au redémarrage du serveur.',
-              )}
-            </p>
           )}
           {data.overview && !canEdit && (
             <p className="border-b bg-muted/50 px-4 py-2 text-xs text-muted-foreground">

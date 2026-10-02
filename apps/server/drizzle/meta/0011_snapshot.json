@@ -64,12 +64,8 @@
           "tableFrom": "access_log",
           "tableTo": "agent",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "agent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agent_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -78,12 +74,8 @@
           "tableFrom": "access_log",
           "tableTo": "conversation",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "conversation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["conversation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -152,9 +144,7 @@
         "agent_basedb_user_id_unique": {
           "name": "agent_basedb_user_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "basedb_user_id"
-          ]
+          "columns": ["basedb_user_id"]
         }
       },
       "policies": {},
@@ -212,12 +202,8 @@
           "tableFrom": "ai_feedback",
           "tableTo": "ai_run",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "ai_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ai_run_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -226,12 +212,8 @@
           "tableFrom": "ai_feedback",
           "tableTo": "agent",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "agent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agent_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -241,10 +223,7 @@
         "ai_feedback_run_agent_key": {
           "name": "ai_feedback_run_agent_key",
           "nullsNotDistinct": false,
-          "columns": [
-            "ai_run_id",
-            "agent_id"
-          ]
+          "columns": ["ai_run_id", "agent_id"]
         }
       },
       "policies": {},
@@ -350,12 +329,8 @@
           "tableFrom": "ai_run",
           "tableTo": "conversation",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "conversation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["conversation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -464,12 +439,8 @@
           "tableFrom": "api_token",
           "tableTo": "agent",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "agent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agent_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -478,12 +449,8 @@
           "tableFrom": "api_token",
           "tableTo": "agent",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -492,12 +459,8 @@
           "tableFrom": "api_token",
           "tableTo": "agent",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "revoked_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["revoked_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -507,9 +470,7 @@
         "api_token_token_hash_unique": {
           "name": "api_token_token_hash_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token_hash"
-          ]
+          "columns": ["token_hash"]
         }
       },
       "policies": {},
@@ -595,12 +556,8 @@
           "tableFrom": "attachment",
           "tableTo": "message",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "message_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["message_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -690,12 +647,8 @@
           "tableFrom": "change_event",
           "tableTo": "conversation",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "conversation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["conversation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -826,10 +779,7 @@
         "contact_site_external_key": {
           "name": "contact_site_external_key",
           "nullsNotDistinct": false,
-          "columns": [
-            "site_id",
-            "external_id"
-          ]
+          "columns": ["site_id", "external_id"]
         }
       },
       "policies": {},
@@ -880,12 +830,8 @@
           "tableFrom": "conversation_tag",
           "tableTo": "conversation",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "conversation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["conversation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -893,10 +839,7 @@
       "compositePrimaryKeys": {
         "conversation_tag_conversation_id_label_pk": {
           "name": "conversation_tag_conversation_id_label_pk",
-          "columns": [
-            "conversation_id",
-            "label"
-          ]
+          "columns": ["conversation_id", "label"]
         }
       },
       "uniqueConstraints": {},
@@ -1120,12 +1063,8 @@
           "tableFrom": "conversation",
           "tableTo": "contact",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["contact_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1134,12 +1073,8 @@
           "tableFrom": "conversation",
           "tableTo": "agent",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "assignee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["assignee_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1181,12 +1116,8 @@
           "tableFrom": "hidden_message",
           "tableTo": "message",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "message_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["message_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1195,12 +1126,8 @@
           "tableFrom": "hidden_message",
           "tableTo": "agent",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "agent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agent_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1208,10 +1135,7 @@
       "compositePrimaryKeys": {
         "hidden_message_message_id_agent_id_pk": {
           "name": "hidden_message_message_id_agent_id_pk",
-          "columns": [
-            "message_id",
-            "agent_id"
-          ]
+          "columns": ["message_id", "agent_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1334,12 +1258,8 @@
           "tableFrom": "kb_chunk",
           "tableTo": "conversation",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "conversation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["conversation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1457,12 +1377,8 @@
           "tableFrom": "message",
           "tableTo": "conversation",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "conversation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["conversation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1471,12 +1387,8 @@
           "tableFrom": "message",
           "tableTo": "agent",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "agent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agent_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1485,12 +1397,8 @@
           "tableFrom": "message",
           "tableTo": "ai_run",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "ai_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ai_run_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1499,12 +1407,8 @@
           "tableFrom": "message",
           "tableTo": "agent",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "deleted_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["deleted_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1622,12 +1526,8 @@
           "tableFrom": "notification",
           "tableTo": "agent",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "agent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agent_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1636,12 +1536,8 @@
           "tableFrom": "notification",
           "tableTo": "conversation",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "conversation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["conversation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1650,12 +1546,8 @@
           "tableFrom": "notification",
           "tableTo": "agent",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "by_agent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["by_agent_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1851,12 +1743,8 @@
           "tableFrom": "webhook_delivery",
           "tableTo": "webhook",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "webhook_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["webhook_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1865,12 +1753,8 @@
           "tableFrom": "webhook_delivery",
           "tableTo": "change_event",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1969,12 +1853,8 @@
           "tableFrom": "webhook",
           "tableTo": "agent",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1990,101 +1870,52 @@
     "chat.ai_run_kind": {
       "name": "ai_run_kind",
       "schema": "chat",
-      "values": [
-        "answer",
-        "suggestion",
-        "tag",
-        "summary",
-        "rephrase",
-        "attachment",
-        "speech"
-      ]
+      "values": ["answer", "suggestion", "tag", "summary", "rephrase", "attachment", "speech"]
     },
     "chat.alert_kind": {
       "name": "alert_kind",
       "schema": "chat",
-      "values": [
-        "visitor_message",
-        "handoff",
-        "assigned",
-        "transferred",
-        "woke"
-      ]
+      "values": ["visitor_message", "handoff", "assigned", "transferred", "woke"]
     },
     "chat.chunk_source": {
       "name": "chunk_source",
       "schema": "chat",
-      "values": [
-        "article",
-        "conversation"
-      ]
+      "values": ["article", "conversation"]
     },
     "chat.conversation_status": {
       "name": "conversation_status",
       "schema": "chat",
-      "values": [
-        "ai",
-        "open",
-        "pending",
-        "resolved"
-      ]
+      "values": ["ai", "open", "pending", "resolved"]
     },
     "chat.feedback_action": {
       "name": "feedback_action",
       "schema": "chat",
-      "values": [
-        "accepted",
-        "edited",
-        "rejected"
-      ]
+      "values": ["accepted", "edited", "rejected"]
     },
     "chat.message_author": {
       "name": "message_author",
       "schema": "chat",
-      "values": [
-        "contact",
-        "agent",
-        "ai",
-        "system"
-      ]
+      "values": ["contact", "agent", "ai", "system"]
     },
     "chat.message_kind": {
       "name": "message_kind",
       "schema": "chat",
-      "values": [
-        "text",
-        "note",
-        "event",
-        "handoff",
-        "file"
-      ]
+      "values": ["text", "note", "event", "handoff", "file"]
     },
     "chat.priority": {
       "name": "priority",
       "schema": "chat",
-      "values": [
-        "low",
-        "normal",
-        "high",
-        "urgent"
-      ]
+      "values": ["low", "normal", "high", "urgent"]
     },
     "chat.sentiment": {
       "name": "sentiment",
       "schema": "chat",
-      "values": [
-        "positive",
-        "neutral",
-        "negative"
-      ]
+      "values": ["positive", "neutral", "negative"]
     },
     "chat.tag_origin": {
       "name": "tag_origin",
       "schema": "chat",
-      "values": [
-        "agent",
-        "ai"
-      ]
+      "values": ["agent", "ai"]
     }
   },
   "schemas": {

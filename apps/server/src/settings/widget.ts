@@ -1,9 +1,9 @@
 import type { WidgetAppearance, WidgetSettings } from '@chat/contracts'
 
 /**
- * The widget's words and looks, as the row of a site in basedb holds them (« Sites ») and
+ * The widget's words and looks, as the row of a site holds them (« Sites ») and
  * as the widget editor sends them back. The same checks apply both ways: a value typed in
- * basedb that the widget could not use safely — a font name with CSS in it, an image that
+ * the settings that the widget could not use safely — a font name with CSS in it, an image that
  * is not https — is read as if empty.
  */
 
@@ -60,7 +60,7 @@ function isCode<T extends Record<string, string>>(map: T, value: unknown): value
 export const languageCode = (label: string): WidgetSettings['language'] =>
   code(LANGUAGES, label, 'fr')
 
-// ── Checks, the same for basedb's values and the editor's ─────────────────────────────
+// ── Checks, the same for the row's values and the editor's ─────────────────────────────
 
 const LIMITS = {
   name: 80,
@@ -109,7 +109,7 @@ export const suggestionsOf = (value: unknown): string[] =>
     .filter((q) => q !== '' && q.length <= LIMITS.suggestion)
     .slice(0, LIMITS.suggestions)
 
-// ── basedb's row → the widget ─────────────────────────────────────────────────────────
+// ── The site's row → the widget ─────────────────────────────────────────────────────────
 
 /** A site's looks from its row, by field label. */
 export function appearanceOf(values: Readonly<Record<string, unknown>>): WidgetAppearance {
@@ -136,7 +136,7 @@ export function appearanceOf(values: Readonly<Record<string, unknown>>): WidgetA
 export const titleOf = (value: unknown) => text(value, LIMITS.title)
 export const taglineOf = (value: unknown) => text(value, LIMITS.tagline)
 
-// ── The editor's settings → basedb's row ──────────────────────────────────────────────
+// ── The editor's settings → the site's row ──────────────────────────────────────────────
 
 const optional = (value: unknown, check: (v: unknown) => unknown): boolean =>
   value === null || check(value) !== null

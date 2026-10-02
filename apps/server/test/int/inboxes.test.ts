@@ -30,6 +30,10 @@ import { WidgetHub } from '../../src/widget/hub.js'
  * supervisor of Support, and an agent of Auto.
  */
 
+/** The agents' rows are their accounts (D19): one id for both. */
+const SUP_ID = '00000000-0000-4000-8000-000000000001'
+const AUTO_ID = '00000000-0000-4000-8000-000000000002'
+
 const ROWS: Readonly<Record<string, LabeledRow[]>> = {
   Sites: [
     {
@@ -72,20 +76,20 @@ const ROWS: Readonly<Record<string, LabeledRow[]>> = {
   ],
   Conseillers: [
     {
-      id: 'c1',
+      id: SUP_ID,
       values: {
         Nom: 'Sarah Superviseure',
-        'Compte basedb': 'sup',
+        'E-mail': 'sup',
         Rôle: 'Superviseur',
         Actif: true,
         Équipes: ['support'],
       },
     },
     {
-      id: 'c2',
+      id: AUTO_ID,
       values: {
         Nom: 'Alain Auto',
-        'Compte basedb': 'auto-agent',
+        'E-mail': 'auto-agent',
         Rôle: 'Conseiller',
         Actif: true,
         Équipes: ['auto'],
@@ -95,7 +99,7 @@ const ROWS: Readonly<Record<string, LabeledRow[]>> = {
 }
 
 const source: SettingsSource = {
-  kind: 'template',
+  kind: 'memory',
   rows: async (table) => ROWS[table] ?? [],
   follow: () => null,
   update: async () => {},
@@ -119,8 +123,8 @@ beforeAll(async () => {
   const rows = await db
     .insert(agents)
     .values([
-      { basedbUserId: 'sup', name: 'Sarah Superviseure', role: 'supervisor' },
-      { basedbUserId: 'auto-agent', name: 'Alain Auto', role: 'agent' },
+      { id: SUP_ID, login: 'sup', name: 'Sarah Superviseure', role: 'supervisor' },
+      { id: AUTO_ID, login: 'auto-agent', name: 'Alain Auto', role: 'agent' },
     ])
     .returning()
   supervisor = rows[0] as AgentRow
@@ -132,7 +136,8 @@ beforeAll(async () => {
     webOrigin: 'http://localhost:3210',
     production: false,
     devAgent: 'auto-agent',
-    basedb: null,
+    publicUrl: 'http://localhost:8810',
+    oidc: null,
     secret: 'a-secret-for-the-tests-of-the-chat-server',
     trustProxy: false,
     giphyKey: null,
@@ -141,7 +146,6 @@ beforeAll(async () => {
     db,
     hub: new InboxHub(),
     config,
-    basedb: null,
     settings,
     tickets: new TicketBook(),
     widgetHub: new WidgetHub(),
