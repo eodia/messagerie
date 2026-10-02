@@ -22,7 +22,8 @@ import { useInbox } from '@/lib/store/inbox'
 import { useTitle } from '@/lib/title'
 import { cn } from '@/lib/utils'
 import type { ApiToken, CreatedToken, TokenAccess, TokenSurface } from '@chat/contracts'
-import { Bot, Eye, KeyRound, LoaderCircle, PenLine, Plus, Terminal } from 'lucide-react'
+import { BookOpen, Bot, Eye, KeyRound, LoaderCircle, PenLine, Plus, Terminal } from 'lucide-react'
+import Link from 'next/link'
 import { type ReactNode, useEffect, useState } from 'react'
 import { CardChoice, Field, FormSection, ToggleField } from '../kit/controls'
 
@@ -79,12 +80,20 @@ export function TokensScreen() {
     <>
       <ScreenHeader
         tools={
-          allowed && (
-            <Button size="sm" onClick={() => setCreating(true)}>
-              <Plus />
-              {$t('Nouveau jeton')}
+          <>
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/documentation">
+                <BookOpen />
+                {$t('Documentation')}
+              </Link>
             </Button>
-          )
+            {allowed && (
+              <Button size="sm" onClick={() => setCreating(true)}>
+                <Plus />
+                {$t('Nouveau jeton')}
+              </Button>
+            )}
+          </>
         }
       >
         <span className="text-muted-foreground">{$t('Paramétrage')}</span>
@@ -101,12 +110,14 @@ export function TokensScreen() {
                 'Un programme, un script, une synchronisation : JSON, avec le jeton en en-tête.',
               )}
               address={`${server}/api/v1`}
+              docs="/documentation#presentation"
             />
             <Surface
               icon={<Bot className="size-4" />}
               title={$t('Serveur MCP')}
               text={$t('Un agent — Claude ou tout client MCP — lit les conversations et y répond.')}
               address={`${server}/mcp`}
+              docs="/documentation#mcp"
             />
           </div>
 
@@ -219,11 +230,14 @@ function Surface({
   title,
   text,
   address,
+  docs,
 }: {
   readonly icon: ReactNode
   readonly title: string
   readonly text: string
   readonly address: string
+  /** Its documentation. */
+  readonly docs: string
 }) {
   return (
     <div className="space-y-2 rounded-lg border bg-card p-4">
@@ -232,6 +246,13 @@ function Surface({
           {icon}
         </span>
         {title}
+        <Link
+          href={docs}
+          className="ml-auto inline-flex items-center gap-1 text-xs font-normal text-muted-foreground hover:text-foreground"
+        >
+          <BookOpen className="size-3.5" />
+          {$t('Documentation')}
+        </Link>
       </div>
       <p className="text-xs text-muted-foreground">{text}</p>
       <div className="flex items-center gap-1 rounded-md border bg-muted/40 py-1 pr-1 pl-2.5">

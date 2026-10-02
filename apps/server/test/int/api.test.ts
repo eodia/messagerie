@@ -7,6 +7,9 @@ import type { Hono } from 'hono'
 import type pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { McpConnections } from '../../src/ai/mcp.js'
+import { documentation } from '../../src/api/documentation.js'
+import { TOOLS } from '../../src/api/mcp.js'
+import { ENDPOINTS } from '../../src/api/reference.js'
 import { createToken, revokeToken } from '../../src/api/tokens.js'
 import { createApp } from '../../src/app.js'
 import { TicketBook } from '../../src/auth/tickets.js'
@@ -191,6 +194,33 @@ describe('the REST API', () => {
     const stored = rows.rows[0]?.token_hash ?? ''
     expect(stored).toMatch(/^[0-9a-f]{64}$/)
     expect(secret).not.toContain(stored)
+  })
+})
+
+describe('the documentation', () => {
+  it('documents every route and every tool, and serves the specification', async () => {
+    const pages = documentation('https://messagerie.example')
+    const all = pages.map((p) => p.markdown).join('\n')
+    for (const endpoint of ENDPOINTS) expect(all).toContain(`/api/v1${endpoint.path}`)
+    for (const tool of TOOLS) expect(all).toContain(`\`${tool.name}\``)
+
+    const { secret } = await token({ access: 'read' })
+    const spec = (await (await call('/openapi.json', secret)).json()) as {
+      openapi: string
+      paths: Record<string, unknown>
+    }
+    expect(spec.openapi).toBe('3.1.0')
+    expect(Object.keys(spec.paths)).toHaveLength(new Set(ENDPOINTS.map((e) => e.path)).size)
+  })
+
+  it('names the field a request got wrong', async () => {
+    const { secret } = await token({ access: 'read' })
+    const answer = await call('/conversations?status=nowhere', secret)
+    expect(answer.status).toBe(400)
+    expect(await answer.json()).toMatchObject({
+      code: 'INVALID_REQUEST',
+      details: { issues: [{ field: 'status' }] },
+    })
   })
 })
 

@@ -54,6 +54,20 @@
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
 
+  /* Code blocks of the documentation are dark in BOTH themes: a snippet reads as a snippet,
+     and one syntax palette serves the two. Only the depth of the surface follows the theme. */
+  --code: oklch(0.22 0.014 265);
+  --code-foreground: oklch(0.9 0.008 265);
+  --code-border: oklch(0.3 0.016 265);
+
+  /* Syntax colours, tuned for that dark surface — hence declared once, not per theme. */
+  --syn-keyword: oklch(0.78 0.12 305);
+  --syn-string: oklch(0.82 0.13 150);
+  --syn-number: oklch(0.8 0.12 60);
+  --syn-comment: oklch(0.63 0.02 265);
+  --syn-property: oklch(0.8 0.09 225);
+  --syn-function: oklch(0.87 0.1 95);
+
   /* An internal note: amber, so that nobody mistakes it for what the visitor reads. */
   --note: oklch(0.973 0.042 91);
   --note-border: oklch(0.905 0.09 91);
@@ -95,6 +109,11 @@
   --sidebar-accent-foreground: oklch(0.96 0.001 286.375);
   --sidebar-border: oklch(0.27 0.006 286.033);
 
+  /* Deeper than the page (0.15), so a code block sits IN it rather than on it. */
+  --code: oklch(0.11 0.006 285.8);
+  --code-foreground: oklch(0.9 0.006 285);
+  --code-border: oklch(0.29 0.008 286.033);
+
   --note: oklch(0.26 0.04 85);
   --note-border: oklch(0.38 0.07 85);
 }
@@ -120,6 +139,15 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-surface: var(--surface);
+  --color-code: var(--code);
+  --color-code-foreground: var(--code-foreground);
+  --color-code-border: var(--code-border);
+  --color-syn-keyword: var(--syn-keyword);
+  --color-syn-string: var(--syn-string);
+  --color-syn-number: var(--syn-number);
+  --color-syn-comment: var(--syn-comment);
+  --color-syn-property: var(--syn-property);
+  --color-syn-function: var(--syn-function);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-accent: var(--sidebar-accent);

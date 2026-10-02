@@ -1,10 +1,14 @@
-import { Hono } from 'hono'
+import { type Context, Hono } from 'hono'
+import type { z } from 'zod'
 import type { Db } from '../db/client.js'
 import type { Access } from '../inbox/access.js'
 import { Refusal } from '../refusal.js'
 import type { Settings } from '../settings/settings.js'
 import { RateLimiter } from '../widget/hub.js'
+import { openApi } from './documentation.js'
+import { ENDPOINTS, type Endpoint } from './reference.js'
 import {
+  type ServiceDeps,
   type StatusFilter,
   agentsList,
   assignTo,
@@ -23,50 +27,101 @@ import { type TokenContext, bearerToken, openToken } from './tokens.js'
 
 /**
  * The public REST API, under `/api/v1`: a program — a script, a synchronisation, Zapier —
- * with a token of the chat, `Authorization: Bearer msg_…` (D16). JSON in, `{ "data": … }`
+ * with a token of the chat, `Authorization: Bearer msg_…` (D16). Its routes are those of
+ * `reference.ts`, checked with its schemas, and documented from it: JSON in, `{ "data": … }`
  * out; a refusal is `{ "code", "details"? }` with its HTTP status, as everywhere in the chat.
- *
- *   GET    /me                              the token: its name, rights, inboxes
- *   GET    /inboxes                         the inboxes it reaches
- *   GET    /agents                          the agents, to assign to
- *   GET    /conversations                   ?status=unresolved|ai|open|pending|resolved|all
- *                                           &inbox=<id>&assignee=<id>|none&limit=50
- *   GET    /conversations/:id               a conversation, its messages
- *   POST   /conversations/:id/messages      { body, kind?: reply|note, resolve? }  (write)
- *   POST   /conversations/:id/assign        { assigneeId: id | null }              (write)
- *   POST   /conversations/:id/resolve                                              (write)
- *   POST   /conversations/:id/tags          { label }                              (write)
- *   DELETE /conversations/:id/tags/:label                                          (write)
- *   GET    /contacts                        ?q=
- *   GET    /contacts/:id
- *   GET    /search                          ?q=  the messages that say it
+ * `GET /openapi.json` gives the specification.
  */
 
 type TokenEnv = { Variables: { token: TokenContext } }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const STATUSES: readonly StatusFilter[] = ['unresolved', 'ai', 'open', 'pending', 'resolved', 'all']
-
-function id(value: string, code: 'CONVERSATION_NOT_FOUND' | 'CONTACT_NOT_FOUND'): string {
-  if (!UUID.test(value)) throw new Refusal(code, 404)
-  return value
+interface Input {
+  readonly params: Readonly<Record<string, string>>
+  readonly query: Readonly<Record<string, unknown>>
+  readonly body: Readonly<Record<string, unknown>>
 }
 
-async function json(request: Request): Promise<Record<string, unknown>> {
-  const body: unknown = await request.json().catch(() => null)
-  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
-    throw new Refusal('INVALID_REQUEST', 400)
+type Handler = (deps: ServiceDeps, token: TokenContext, input: Input) => unknown
+
+const text = (value: unknown) => (typeof value === 'string' ? value : '')
+
+/** What each route of the reference does — by its id. */
+const HANDLERS: Readonly<Record<string, Handler>> = {
+  me: (_deps, token) => whoami(token),
+  listConversations: (deps, token, { query }) =>
+    conversationList(deps, token, {
+      ...(query.status ? { status: query.status as StatusFilter } : {}),
+      ...(query.inbox ? { inbox: text(query.inbox) } : {}),
+      ...(query.assignee ? { assignee: text(query.assignee) } : {}),
+      ...(typeof query.limit === 'number' ? { limit: query.limit } : {}),
+    }),
+  getConversation: (deps, token, { params }) => conversation(deps, token, params.id ?? ''),
+  sendMessage: (deps, token, { params, body }) =>
+    reply(deps, token, params.id ?? '', text(body.body), {
+      note: body.kind === 'note',
+      resolve: body.resolve === true,
+    }),
+  assign: (deps, token, { params, body }) =>
+    assignTo(deps, token, params.id ?? '', (body.assigneeId as string | null) ?? null),
+  resolve: (deps, token, { params }) => close(deps, token, params.id ?? ''),
+  addTag: (deps, token, { params, body }) => tag(deps, token, params.id ?? '', text(body.label)),
+  removeTag: (deps, token, { params }) =>
+    tag(deps, token, params.id ?? '', params.label ?? '', true),
+  listContacts: (deps, token, { query }) => contactsList(deps, token, text(query.q)),
+  getContact: (deps, token, { params }) => contact(deps, token, params.id ?? ''),
+  search: (deps, token, { query }) => search(deps, token, text(query.q)),
+  inboxes: (deps, token) => inboxes(deps, token),
+  agents: (deps) => agentsList(deps),
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** A schema's verdict, or the refusal that names what is wrong. */
+function checked(schema: z.ZodObject | undefined, value: unknown): Record<string, unknown> {
+  if (!schema) return {}
+  const result = schema.safeParse(value)
+  if (result.success) return result.data as Record<string, unknown>
+  throw new Refusal('INVALID_REQUEST', 400, {
+    issues: result.error.issues.map((issue) => ({
+      field: issue.path.join('.'),
+      message: issue.message,
+    })),
+  })
+}
+
+async function input(c: Context, endpoint: Endpoint): Promise<Input> {
+  const params: Record<string, string> = {}
+  for (const [name, spec] of Object.entries(endpoint.params ?? {})) {
+    const raw = decodeURIComponent(c.req.param(name) ?? '')
+    if (name === 'id' && !UUID.test(raw)) throw new Refusal(spec.notFound, 404)
+    params[name] = raw
   }
-  return body as Record<string, unknown>
+  const query = checked(endpoint.query, c.req.query())
+  let body: Record<string, unknown> = {}
+  if (endpoint.body) {
+    const raw: unknown = await c.req.json().catch(() => null)
+    body = checked(endpoint.body, raw)
+  }
+  return { params, query, body }
+}
+
+/** Where the server answers, as the caller reached it — the specification's address. */
+export function publicAddress(c: Context, trustProxy: boolean): string {
+  const url = new URL(c.req.url)
+  if (!trustProxy) return url.origin
+  const proto =
+    c.req.header('x-forwarded-proto')?.split(',')[0]?.trim() || url.protocol.slice(0, -1)
+  const host = c.req.header('x-forwarded-host')?.split(',')[0]?.trim() || url.host
+  return `${proto}://${host}`
 }
 
 export function restRoutes(deps: {
   readonly db: Db
   readonly settings: Settings | null
   readonly access: Access
+  readonly trustProxy: boolean
 }): Hono<TokenEnv> {
   const api = new Hono<TokenEnv>()
-  // A program is not a page: no CORS, so that no browser carries a token across sites.
   const calls = new RateLimiter(240, 60_000)
   api.use('*', async (c, next) => {
     const context = await openToken(
@@ -80,112 +135,16 @@ export function restRoutes(deps: {
     await next()
   })
 
-  api.get('/me', (c) => c.json({ data: whoami(c.get('token')) }))
-  api.get('/inboxes', async (c) => c.json({ data: await inboxes(deps, c.get('token')) }))
-  api.get('/agents', async (c) => c.json({ data: await agentsList(deps) }))
+  api.get('/openapi.json', (c) => c.json(openApi(publicAddress(c, deps.trustProxy))))
 
-  api.get('/conversations', async (c) => {
-    const status = c.req.query('status')
-    if (status !== undefined && !STATUSES.includes(status as StatusFilter)) {
-      throw new Refusal('INVALID_REQUEST', 400, { field: 'status', expected: STATUSES })
-    }
-    const limit = c.req.query('limit')
-    return c.json({
-      data: await conversationList(deps, c.get('token'), {
-        ...(status ? { status: status as StatusFilter } : {}),
-        ...(c.req.query('inbox') ? { inbox: c.req.query('inbox') } : {}),
-        ...(c.req.query('assignee') ? { assignee: c.req.query('assignee') } : {}),
-        ...(limit ? { limit: Number(limit) || undefined } : {}),
-      }),
+  for (const endpoint of ENDPOINTS) {
+    const handler = HANDLERS[endpoint.id]
+    if (!handler) throw new Error(`no handler for ${endpoint.id}`)
+    const path = endpoint.path.replace(/\{(\w+)\}/g, ':$1')
+    api.on(endpoint.method, path, async (c) => {
+      const data = await handler(deps, c.get('token'), await input(c, endpoint))
+      return c.json({ data }, endpoint.status)
     })
-  })
-
-  api.get('/conversations/:id', async (c) =>
-    c.json({
-      data: await conversation(
-        deps,
-        c.get('token'),
-        id(c.req.param('id'), 'CONVERSATION_NOT_FOUND'),
-      ),
-    }),
-  )
-
-  api.post('/conversations/:id/messages', async (c) => {
-    const { body, kind, resolve } = await json(c.req.raw)
-    if (typeof body !== 'string' || (kind !== undefined && kind !== 'reply' && kind !== 'note')) {
-      throw new Refusal('INVALID_REQUEST', 400, {
-        expected: '{ body: string, kind?: reply|note, resolve?: boolean }',
-      })
-    }
-    return c.json(
-      {
-        data: await reply(
-          deps,
-          c.get('token'),
-          id(c.req.param('id'), 'CONVERSATION_NOT_FOUND'),
-          body,
-          { note: kind === 'note', resolve: resolve === true },
-        ),
-      },
-      201,
-    )
-  })
-
-  api.post('/conversations/:id/assign', async (c) => {
-    const { assigneeId } = await json(c.req.raw)
-    if (assigneeId !== null && (typeof assigneeId !== 'string' || !UUID.test(assigneeId))) {
-      throw new Refusal('INVALID_REQUEST', 400, { expected: '{ assigneeId: id | null }' })
-    }
-    return c.json({
-      data: await assignTo(
-        deps,
-        c.get('token'),
-        id(c.req.param('id'), 'CONVERSATION_NOT_FOUND'),
-        assigneeId,
-      ),
-    })
-  })
-
-  api.post('/conversations/:id/resolve', async (c) =>
-    c.json({
-      data: await close(deps, c.get('token'), id(c.req.param('id'), 'CONVERSATION_NOT_FOUND')),
-    }),
-  )
-
-  api.post('/conversations/:id/tags', async (c) => {
-    const { label } = await json(c.req.raw)
-    if (typeof label !== 'string') {
-      throw new Refusal('INVALID_REQUEST', 400, { expected: '{ label: string }' })
-    }
-    return c.json({
-      data: await tag(deps, c.get('token'), id(c.req.param('id'), 'CONVERSATION_NOT_FOUND'), label),
-    })
-  })
-
-  api.delete('/conversations/:id/tags/:label', async (c) =>
-    c.json({
-      data: await tag(
-        deps,
-        c.get('token'),
-        id(c.req.param('id'), 'CONVERSATION_NOT_FOUND'),
-        decodeURIComponent(c.req.param('label')),
-        true,
-      ),
-    }),
-  )
-
-  api.get('/contacts', async (c) =>
-    c.json({ data: await contactsList(deps, c.get('token'), c.req.query('q') ?? '') }),
-  )
-  api.get('/contacts/:id', async (c) =>
-    c.json({
-      data: await contact(deps, c.get('token'), id(c.req.param('id'), 'CONTACT_NOT_FOUND')),
-    }),
-  )
-
-  api.get('/search', async (c) =>
-    c.json({ data: await search(deps, c.get('token'), c.req.query('q') ?? '') }),
-  )
-
+  }
   return api
 }

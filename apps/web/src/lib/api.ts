@@ -1,5 +1,6 @@
 import type {
   Agent,
+  ApiDocumentation,
   ApiError,
   ApiToken,
   Attachment,
@@ -213,6 +214,8 @@ export const api = {
   gifFile: (id: string) =>
     request<Blob>('GET', `/gifs/${encodeURIComponent(id)}/file`, undefined, false, true),
   tokens: () => request<ApiToken[]>('GET', '/tokens'),
+  apiDocs: () => request<ApiDocumentation>('GET', '/api-docs'),
+  openApiSpec: () => request<Record<string, unknown>>('GET', '/api-docs/openapi.json'),
   createToken: (body: CreateTokenBody) => request<CreatedToken>('POST', '/tokens', body),
   revokeToken: (id: string) => request<void>('DELETE', `/tokens/${encodeURIComponent(id)}`),
   search: (query: string) => request<MessageHit[]>('GET', `/search?q=${encodeURIComponent(query)}`),

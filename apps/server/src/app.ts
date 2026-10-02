@@ -17,8 +17,9 @@ import { type Rewording, rephrase } from './ai/copilot.js'
 import type { AiJobs } from './ai/jobs.js'
 import type { McpConnections } from './ai/mcp.js'
 import { speakMessage } from './ai/speech.js'
+import { documentation, openApi } from './api/documentation.js'
 import { mcpRoutes } from './api/mcp.js'
-import { restRoutes } from './api/rest.js'
+import { publicAddress, restRoutes } from './api/rest.js'
 import { createToken, listTokens, readCreateBody, revokeToken } from './api/tokens.js'
 import { type AgentEnv, agentAuth } from './auth/agent.js'
 import type { TicketBook } from './auth/tickets.js'
@@ -635,6 +636,12 @@ export function createApp({
 
   // The tokens of the API and the MCP server (D16): supervisors make and revoke them, from
   // the inbox; a token never can — it does not reach `/api/inbox`.
+  // Their documentation, and the REST API's specification, for whoever is in the inbox.
+  inbox.get('/api-docs', (c) =>
+    c.json({ sections: documentation(publicAddress(c, config.trustProxy)) }),
+  )
+  inbox.get('/api-docs/openapi.json', (c) => c.json(openApi(publicAddress(c, config.trustProxy))))
+
   inbox.get('/tokens', async (c) => c.json(await listTokens(db, c.get('agent'))))
   inbox.post('/tokens', async (c) =>
     c.json(await createToken(db, c.get('agent'), readCreateBody(await jsonBody(c.req.raw))), 201),
@@ -649,7 +656,7 @@ export function createApp({
   app.route('/api/inbox', inbox)
 
   // The public API and the MCP server: programs and agents, with a token of the chat (D16).
-  app.route('/api/v1', restRoutes({ db, settings, access }))
+  app.route('/api/v1', restRoutes({ db, settings, access, trustProxy: config.trustProxy }))
   app.route('/mcp', mcpRoutes({ db, settings, access }))
 
   // The widget: its API, when there are settings to know the sites by, and its script.

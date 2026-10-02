@@ -34,14 +34,14 @@ import { type TokenContext, bearerToken, openToken } from './tokens.js'
  * takes an identity: a token is who it is.
  */
 
-const VERSION = '0.1.0'
+export const VERSION = '0.1.0'
 
-const INSTRUCTIONS = `Messagerie : la messagerie client d'un service — conversations avec des visiteurs, réponses d'une IA et de conseillers.
+export const INSTRUCTIONS = `Messagerie : la messagerie client d'un service — conversations avec des visiteurs, réponses d'une IA et de conseillers.
 Commencez par whoami pour connaître les droits du jeton, puis list_conversations (non résolues par défaut) et get_conversation.
 Une réponse envoyée par send_reply part au visiteur, signée du nom du jeton : relisez-la avant. add_note n'est vue que de l'équipe.`
 
 /** Refusals, as an agent reads them: a code, and what it means. */
-const MEANING: Readonly<Record<string, string>> = {
+export const MEANING: Readonly<Record<string, string>> = {
   CONVERSATION_NOT_FOUND: 'Cette conversation n’existe pas, ou ce jeton ne l’atteint pas.',
   CONTACT_NOT_FOUND: 'Ce contact n’existe pas, ou ce jeton ne l’atteint pas.',
   AGENT_NOT_FOUND: 'Ce conseiller n’existe pas ou n’est plus actif : voyez list_agents.',
@@ -152,214 +152,223 @@ function conversationView(c: Conversation) {
 
 const conversationId = z.string().uuid().describe('L’identifiant de la conversation.')
 
+/**
+ * A tool, described once: the server registers it from here, and the documentation tells
+ * it from here (`documentation.ts`).
+ */
+export interface Tool {
+  readonly name: string
+  readonly title: string
+  readonly description: string
+  readonly input?: z.ZodRawShape
+  /** Offered to a `write` token only. */
+  readonly write: boolean
+  /** Arguments as the documentation shows a call. */
+  readonly example?: Readonly<Record<string, unknown>>
+  readonly run: (deps: ServiceDeps, token: TokenContext, args: never) => unknown
+}
+
+/** A tool, its arguments typed by its schema. */
+function tool<S extends z.ZodRawShape>(definition: {
+  readonly name: string
+  readonly title: string
+  readonly description: string
+  readonly input?: S
+  readonly write?: boolean
+  readonly example?: Readonly<Record<string, unknown>>
+  readonly run: (deps: ServiceDeps, token: TokenContext, args: z.infer<z.ZodObject<S>>) => unknown
+}): Tool {
+  return { ...definition, write: definition.write ?? false } as Tool
+}
+
+const SAMPLE_CONVERSATION = '4f1c2e8a-7b3d-4c9e-a1f0-2d5e6b7c8a90'
+
+export const TOOLS: readonly Tool[] = [
+  tool({
+    name: 'whoami',
+    title: 'Qui suis-je',
+    description:
+      'Le jeton utilisé : son nom, ses droits (read ou write), les boîtes qu’il atteint.',
+    run: (_deps, token) => whoami(token),
+  }),
+  tool({
+    name: 'list_inboxes',
+    title: 'Boîtes de réception',
+    description: 'Les boîtes de réception que ce jeton atteint : leur identifiant et leur nom.',
+    run: (deps, token) => inboxes(deps, token),
+  }),
+  tool({
+    name: 'list_agents',
+    title: 'Conseillers',
+    description: 'Les conseillers actifs, à qui une conversation peut être affectée.',
+    run: async (deps) => (await agentsList(deps)).map(({ id, name, role }) => ({ id, name, role })),
+  }),
+  tool({
+    name: 'list_conversations',
+    title: 'Conversations',
+    description:
+      'Les conversations, les plus récentes d’abord : le contact, l’état, le conseiller, les étiquettes et le dernier message. Non résolues par défaut.',
+    input: {
+      status: z
+        .enum(['unresolved', 'ai', 'open', 'pending', 'resolved', 'all'])
+        .optional()
+        .describe('unresolved (par défaut), ai : l’IA répond, open, pending, resolved, all.'),
+      inbox_id: z.string().optional().describe('Une boîte de réception seulement (list_inboxes).'),
+      assignee_id: z
+        .string()
+        .optional()
+        .describe('Un conseiller (list_agents), ou « none » pour la file d’attente.'),
+      limit: z.number().int().min(1).max(200).optional().describe('50 par défaut.'),
+    },
+    example: { status: 'open', limit: 10 },
+    run: async (deps, token, args) =>
+      (
+        await conversationList(deps, token, {
+          ...(args.status ? { status: args.status } : {}),
+          ...(args.inbox_id ? { inbox: args.inbox_id } : {}),
+          ...(args.assignee_id ? { assignee: args.assignee_id } : {}),
+          ...(args.limit ? { limit: args.limit } : {}),
+        })
+      ).map(summaryView),
+  }),
+  tool({
+    name: 'get_conversation',
+    title: 'Une conversation',
+    description:
+      'Une conversation entière : le contact, l’état, le résumé de l’IA, les métadonnées et tous les messages — du visiteur, de l’IA, des conseillers, les notes internes et les événements.',
+    input: { conversation_id: conversationId },
+    example: { conversation_id: SAMPLE_CONVERSATION },
+    run: async (deps, token, args) =>
+      conversationView(await conversation(deps, token, args.conversation_id)),
+  }),
+  tool({
+    name: 'search_messages',
+    title: 'Chercher dans les messages',
+    description:
+      'Les messages qui contiennent tous ces mots, accents à part, les plus récents d’abord.',
+    input: { query: z.string().min(3).describe('Trois caractères au moins.') },
+    example: { query: 'remboursement délai' },
+    run: (deps, token, args) => search(deps, token, args.query),
+  }),
+  tool({
+    name: 'list_contacts',
+    title: 'Contacts',
+    description:
+      'Les contacts — visiteurs et clients —, cherchés par nom, e-mail ou identifiant client.',
+    input: { query: z.string().optional().describe('Tout le monde si absent.') },
+    example: { query: 'martin' },
+    run: (deps, token, args) => contactsList(deps, token, args.query ?? ''),
+  }),
+  tool({
+    name: 'get_contact',
+    title: 'Un contact',
+    description: 'Une fiche de contact et ses conversations.',
+    input: { contact_id: z.string().uuid().describe('L’identifiant du contact.') },
+    example: { contact_id: '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d' },
+    run: (deps, token, args) => contact(deps, token, args.contact_id),
+  }),
+  tool({
+    name: 'send_reply',
+    title: 'Répondre au visiteur',
+    description:
+      'Envoie une réponse au visiteur, signée du nom du jeton. Markdown léger accepté (gras, italique, listes, liens). La conversation quitte l’IA et reste dans la file.',
+    write: true,
+    input: {
+      conversation_id: conversationId,
+      text: z.string().min(1).describe('La réponse.'),
+      resolve: z.boolean().optional().describe('Résoudre la conversation avec cette réponse.'),
+    },
+    example: {
+      conversation_id: SAMPLE_CONVERSATION,
+      text: 'Votre dossier est **complet** : le virement part demain.',
+      resolve: true,
+    },
+    run: async (deps, token, args) =>
+      conversationView(
+        await reply(deps, token, args.conversation_id, args.text, { resolve: args.resolve }),
+      ),
+  }),
+  tool({
+    name: 'add_note',
+    title: 'Note interne',
+    description: 'Ajoute une note que seule l’équipe voit — jamais le visiteur.',
+    write: true,
+    input: { conversation_id: conversationId, text: z.string().min(1).describe('La note.') },
+    example: { conversation_id: SAMPLE_CONVERSATION, text: 'Client fidèle depuis 2019.' },
+    run: async (deps, token, args) =>
+      conversationView(await reply(deps, token, args.conversation_id, args.text, { note: true })),
+  }),
+  tool({
+    name: 'assign_conversation',
+    title: 'Affecter',
+    description:
+      'Confie la conversation à un conseiller (list_agents), ou la remet dans la file avec null.',
+    write: true,
+    input: {
+      conversation_id: conversationId,
+      agent_id: z.string().uuid().nullable().describe('Un conseiller, ou null pour la file.'),
+    },
+    example: { conversation_id: SAMPLE_CONVERSATION, agent_id: null },
+    run: async (deps, token, args) =>
+      conversationView(await assignTo(deps, token, args.conversation_id, args.agent_id)),
+  }),
+  tool({
+    name: 'resolve_conversation',
+    title: 'Résoudre',
+    description: 'Marque la conversation comme résolue.',
+    write: true,
+    input: { conversation_id: conversationId },
+    example: { conversation_id: SAMPLE_CONVERSATION },
+    run: async (deps, token, args) =>
+      conversationView(await close(deps, token, args.conversation_id)),
+  }),
+  tool({
+    name: 'add_tag',
+    title: 'Étiqueter',
+    description: 'Pose une étiquette sur la conversation.',
+    write: true,
+    input: {
+      conversation_id: conversationId,
+      label: z.string().min(1).max(60).describe('Le nom de l’étiquette.'),
+    },
+    example: { conversation_id: SAMPLE_CONVERSATION, label: 'Remboursement' },
+    run: async (deps, token, args) =>
+      conversationView(await tag(deps, token, args.conversation_id, args.label)),
+  }),
+  tool({
+    name: 'remove_tag',
+    title: 'Retirer une étiquette',
+    description: 'Retire une étiquette de la conversation.',
+    write: true,
+    input: {
+      conversation_id: conversationId,
+      label: z.string().min(1).describe('Le nom de l’étiquette.'),
+    },
+    example: { conversation_id: SAMPLE_CONVERSATION, label: 'Sinistre' },
+    run: async (deps, token, args) =>
+      conversationView(await tag(deps, token, args.conversation_id, args.label, true)),
+  }),
+]
+
 /** The server for one request, its tools bound to the token that asks. */
 function serverFor(deps: ServiceDeps, token: TokenContext): McpServer {
   const server = new McpServer(
     { name: 'messagerie', version: VERSION },
     { instructions: INSTRUCTIONS },
   )
-  const read = { readOnlyHint: true, openWorldHint: false }
-
-  server.registerTool(
-    'whoami',
-    {
-      title: 'Qui suis-je',
-      description:
-        'Le jeton utilisé : son nom, ses droits (read ou write), les boîtes qu’il atteint.',
-      annotations: read,
-    },
-    () => answer(() => whoami(token)),
-  )
-  server.registerTool(
-    'list_inboxes',
-    {
-      title: 'Boîtes de réception',
-      description: 'Les boîtes de réception que ce jeton atteint : leur identifiant et leur nom.',
-      annotations: read,
-    },
-    () => answer(() => inboxes(deps, token)),
-  )
-  server.registerTool(
-    'list_agents',
-    {
-      title: 'Conseillers',
-      description: 'Les conseillers actifs, à qui une conversation peut être affectée.',
-      annotations: read,
-    },
-    () =>
-      answer(async () =>
-        (await agentsList(deps)).map(({ id, name, role }) => ({ id, name, role })),
-      ),
-  )
-  server.registerTool(
-    'list_conversations',
-    {
-      title: 'Conversations',
-      description:
-        'Les conversations, les plus récentes d’abord : le contact, l’état, le conseiller, les étiquettes et le dernier message. Non résolues par défaut.',
-      inputSchema: {
-        status: z
-          .enum(['unresolved', 'ai', 'open', 'pending', 'resolved', 'all'])
-          .optional()
-          .describe('unresolved (par défaut), ai : l’IA répond, open, pending, resolved, all.'),
-        inbox_id: z
-          .string()
-          .optional()
-          .describe('Une boîte de réception seulement (list_inboxes).'),
-        assignee_id: z
-          .string()
-          .optional()
-          .describe('Un conseiller (list_agents), ou « none » pour la file d’attente.'),
-        limit: z.number().int().min(1).max(200).optional().describe('50 par défaut.'),
-      },
-      annotations: read,
-    },
-    (args) =>
-      answer(async () =>
-        (
-          await conversationList(deps, token, {
-            ...(args.status ? { status: args.status } : {}),
-            ...(args.inbox_id ? { inbox: args.inbox_id } : {}),
-            ...(args.assignee_id ? { assignee: args.assignee_id } : {}),
-            ...(args.limit ? { limit: args.limit } : {}),
-          })
-        ).map(summaryView),
-      ),
-  )
-  server.registerTool(
-    'get_conversation',
-    {
-      title: 'Une conversation',
-      description:
-        'Une conversation entière : le contact, l’état, le résumé de l’IA, les métadonnées et tous les messages — du visiteur, de l’IA, des conseillers, les notes internes et les événements.',
-      inputSchema: { conversation_id: conversationId },
-      annotations: read,
-    },
-    (args) =>
-      answer(async () => conversationView(await conversation(deps, token, args.conversation_id))),
-  )
-  server.registerTool(
-    'search_messages',
-    {
-      title: 'Chercher dans les messages',
-      description:
-        'Les messages qui contiennent tous ces mots, accents à part, les plus récents d’abord.',
-      inputSchema: { query: z.string().min(3).describe('Trois caractères au moins.') },
-      annotations: read,
-    },
-    (args) => answer(() => search(deps, token, args.query)),
-  )
-  server.registerTool(
-    'list_contacts',
-    {
-      title: 'Contacts',
-      description:
-        'Les contacts — visiteurs et clients —, cherchés par nom, e-mail ou identifiant client.',
-      inputSchema: { query: z.string().optional().describe('Tout le monde si absent.') },
-      annotations: read,
-    },
-    (args) => answer(() => contactsList(deps, token, args.query ?? '')),
-  )
-  server.registerTool(
-    'get_contact',
-    {
-      title: 'Un contact',
-      description: 'Une fiche de contact et ses conversations.',
-      inputSchema: { contact_id: z.string().uuid() },
-      annotations: read,
-    },
-    (args) => answer(() => contact(deps, token, args.contact_id)),
-  )
-
-  if (!token.write) return server
-  const write = { readOnlyHint: false, destructiveHint: false, openWorldHint: false }
-
-  server.registerTool(
-    'send_reply',
-    {
-      title: 'Répondre au visiteur',
-      description:
-        'Envoie une réponse au visiteur, signée du nom du jeton. Markdown léger accepté (gras, italique, listes, liens). La conversation quitte l’IA et reste dans la file.',
-      inputSchema: {
-        conversation_id: conversationId,
-        text: z.string().min(1),
-        resolve: z.boolean().optional().describe('Résoudre la conversation avec cette réponse.'),
-      },
-      annotations: write,
-    },
-    (args) =>
-      answer(async () =>
-        conversationView(
-          await reply(deps, token, args.conversation_id, args.text, { resolve: args.resolve }),
-        ),
-      ),
-  )
-  server.registerTool(
-    'add_note',
-    {
-      title: 'Note interne',
-      description: 'Ajoute une note que seule l’équipe voit — jamais le visiteur.',
-      inputSchema: { conversation_id: conversationId, text: z.string().min(1) },
-      annotations: write,
-    },
-    (args) =>
-      answer(async () =>
-        conversationView(await reply(deps, token, args.conversation_id, args.text, { note: true })),
-      ),
-  )
-  server.registerTool(
-    'assign_conversation',
-    {
-      title: 'Affecter',
-      description:
-        'Confie la conversation à un conseiller (list_agents), ou la remet dans la file avec null.',
-      inputSchema: {
-        conversation_id: conversationId,
-        agent_id: z.string().uuid().nullable(),
-      },
-      annotations: write,
-    },
-    (args) =>
-      answer(async () =>
-        conversationView(await assignTo(deps, token, args.conversation_id, args.agent_id)),
-      ),
-  )
-  server.registerTool(
-    'resolve_conversation',
-    {
-      title: 'Résoudre',
-      description: 'Marque la conversation comme résolue.',
-      inputSchema: { conversation_id: conversationId },
-      annotations: write,
-    },
-    (args) => answer(async () => conversationView(await close(deps, token, args.conversation_id))),
-  )
-  server.registerTool(
-    'add_tag',
-    {
-      title: 'Étiqueter',
-      description: 'Pose une étiquette sur la conversation.',
-      inputSchema: { conversation_id: conversationId, label: z.string().min(1).max(60) },
-      annotations: write,
-    },
-    (args) =>
-      answer(async () =>
-        conversationView(await tag(deps, token, args.conversation_id, args.label)),
-      ),
-  )
-  server.registerTool(
-    'remove_tag',
-    {
-      title: 'Retirer une étiquette',
-      description: 'Retire une étiquette de la conversation.',
-      inputSchema: { conversation_id: conversationId, label: z.string().min(1) },
-      annotations: write,
-    },
-    (args) =>
-      answer(async () =>
-        conversationView(await tag(deps, token, args.conversation_id, args.label, true)),
-      ),
-  )
+  for (const t of TOOLS) {
+    if (t.write && !token.write) continue
+    const meta = {
+      title: t.title,
+      description: t.description,
+      annotations: t.write
+        ? { readOnlyHint: false, destructiveHint: false, openWorldHint: false }
+        : { readOnlyHint: true, openWorldHint: false },
+    }
+    const run = (args: unknown) => answer(() => t.run(deps, token, args as never))
+    if (t.input) server.registerTool(t.name, { ...meta, inputSchema: t.input }, (args) => run(args))
+    else server.registerTool(t.name, meta, () => run({}))
+  }
   return server
 }
 

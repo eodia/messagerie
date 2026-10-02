@@ -568,3 +568,15 @@ export interface CreatedToken {
   readonly token: ApiToken
   readonly secret: string
 }
+
+/** A page of the API's documentation: Markdown in basedb's subset, under a group. */
+export interface DocSection {
+  readonly id: string
+  readonly title: string
+  readonly group: string
+  readonly markdown: string
+}
+
+export interface ApiDocumentation {
+  readonly sections: readonly DocSection[]
+}
