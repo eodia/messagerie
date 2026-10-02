@@ -1,4 +1,5 @@
 import type {
+  PageSnapshot,
   VisitorConversation,
   WidgetAvailability,
   WidgetMessage,
@@ -19,6 +20,7 @@ import {
   patchContact,
   patchConversationData,
 } from '../inbox/metadata.js'
+import { keepSnapshot } from '../page/actions.js'
 import { isZonePoint, knownZone, placeOfZone } from '../places/place.js'
 import { signalChange, signalTyping } from '../realtime/signals.js'
 import { Refusal } from '../refusal.js'
@@ -42,6 +44,8 @@ export interface WidgetDeps {
   readonly files: FileStore
   /** Told of each visitor message — the AI's cue to answer. */
   readonly onVisitorMessage?: (conversationId: string) => void
+  /** The visitor answered an action the AI asked of their page: the AI goes on (D21). */
+  readonly onPageAnswered?: (conversationId: string) => void
 }
 
 /** A conversation resolved more than a day ago is over: the visitor starts a new one. */
@@ -240,18 +244,22 @@ export async function visitorConversation(
   const conversation = await currentConversation(db, contactId)
   if (!conversation) return null
   const rows = await db
-    .select({ message: messages, agent: agents.name })
+    .select({ message: messages, agent: agents.name, login: agents.login })
     .from(messages)
     .leftJoin(agents, eq(agents.id, messages.agentId))
     .where(eq(messages.conversationId, conversation.id))
     .orderBy(asc(messages.createdAt))
+  const [contact] = await db
+    .select({ email: contacts.email })
+    .from(contacts)
+    .where(eq(contacts.id, contactId))
 
   const files = await attachmentsOf(
     db,
     rows.map(({ message }) => message.id),
   )
   const shown: WidgetMessage[] = []
-  for (const { message, agent } of rows) {
+  for (const { message, agent, login } of rows) {
     const base = {
       id: message.id,
       at: message.createdAt.toISOString(),
@@ -264,7 +272,10 @@ export async function visitorConversation(
       if (message.author === 'contact') {
         shown.push({ ...base, from: 'visitor', body: message.body, ...withFiles })
       } else if (message.author === 'ai') shown.push({ ...base, from: 'ai', body: message.body })
-      else if (message.author === 'agent') {
+      // An automation speaks for the site (D20).
+      else if (message.author === 'agent' && login?.startsWith('automation:')) {
+        shown.push({ ...base, from: 'site', body: message.body })
+      } else if (message.author === 'agent') {
         shown.push({
           ...base,
           from: 'agent',
@@ -282,6 +293,18 @@ export async function visitorConversation(
         shown.push({ ...base, from: 'event', event: 'joined', author: firstName(event.agent) })
       } else if (event?.type === 'resolved') {
         shown.push({ ...base, from: 'event', event: 'resolved', author: null })
+      } else if (event?.type === 'page_action') {
+        shown.push({
+          ...base,
+          from: 'action',
+          call: event.call,
+          name: event.name,
+          label: event.label,
+          args: event.args,
+          status: event.status,
+        })
+      } else if (event?.type === 'email_requested') {
+        shown.push({ ...base, from: 'email', text: event.text, email: contact?.email ?? null })
       }
     }
   }
@@ -303,6 +326,7 @@ export async function postVisitorMessage(
   body: string,
   data: MetadataPatch | null = null,
   uploads: readonly Upload[] = [],
+  page: PageSnapshot | null = null,
 ): Promise<VisitorConversation> {
   const text = body.trim()
   if (text === '' && uploads.length === 0) throw new Refusal('EMPTY_MESSAGE', 400)
@@ -317,6 +341,7 @@ export async function postVisitorMessage(
       await deps.settings.routeOf(visitor.site),
     ))
   if (data && Object.keys(data).length > 0) await patchConversationData(deps.db, id, data)
+  if (page) await keepSnapshot(deps.db, id, visitor.site.id, page)
   await keeping(deps.files, id, uploads, (attach) =>
     receiveVisitorMessage(deps.db, id, text, attach),
   )
@@ -371,6 +396,45 @@ export async function updateVisitorContact(
     profile: change.profile,
     ...(change.data ? { data: change.data } : {}),
   })
+}
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/**
+ * The visitor leaves their address in the e-mail card: it goes on their record — unless the
+ * site signed another —, and the thread says so to the agents.
+ */
+export async function leaveEmail(
+  deps: WidgetDeps,
+  visitor: VisitorClaims,
+  raw: unknown,
+): Promise<void> {
+  const email = typeof raw === 'string' ? raw.trim().toLowerCase() : ''
+  if (email.length > 254 || !EMAIL.test(email)) {
+    throw new Refusal('INVALID_REQUEST', 400, { field: 'email' })
+  }
+  const current = await currentConversation(deps.db, visitor.contactId)
+  if (!current) throw new Refusal('CONVERSATION_NOT_FOUND', 404)
+  await deps.db.transaction(async (tx) => {
+    await tx
+      .update(contacts)
+      .set({ email, updatedAt: new Date() })
+      .where(and(eq(contacts.id, visitor.contactId), eq(contacts.identified, false)))
+    await tx.insert(messages).values({
+      conversationId: current.id,
+      author: 'system',
+      kind: 'event',
+      meta: { event: { type: 'email_given', email } },
+    })
+    await signalChange(tx, current.id)
+  })
+}
+
+/** The visitor's current conversation — its page's calls are theirs to answer (D21). */
+export async function currentConversationId(db: Db, contactId: string): Promise<string> {
+  const current = await currentConversation(db, contactId)
+  if (!current) throw new Refusal('CONVERSATION_NOT_FOUND', 404)
+  return current.id
 }
 
 /** The metadata of the visitor's current conversation; none yet, nothing to attach to. */

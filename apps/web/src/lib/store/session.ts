@@ -1,80 +1,67 @@
 'use client'
 
+import type { Agent } from '@chat/contracts'
 import { create } from 'zustand'
-import {
-  SignedOut,
-  accessToken,
-  changePassword,
-  mustChangePassword,
-  signIn,
-  signOut,
-  usesBasedb,
-} from '../basedb-session'
+import { AuthFailure, authState, setUp, signIn, signOut } from '../session'
 
 /**
- * Whether someone is signed in — to basedb, whose session the inbox shares (D4). Without
- * basedb, in development, the chat server's development identity always is.
+ * Whether someone is signed in (D19) — the chat server says, from its session cookie.
+ * Without a session, in development, the server's development identity answers the
+ * inbox's requests: the inbox then works without signing in.
  */
 
 interface SessionState {
-  /** `must-change`: signed in with a temporary password, which basedb wants replaced. */
-  readonly status: 'checking' | 'signed-in' | 'signed-out' | 'must-change'
-  /** The temporary password must be typed again: the page was reloaded since the sign-in. */
-  readonly needsCurrent: boolean
-  /** Asks basedb's session for a token: there is one, or there is none. */
+  readonly status: 'checking' | 'signed-in' | 'signed-out'
+  /** Nobody can sign in yet: the sign-in screen creates the first supervisor. */
+  readonly setup: boolean
+  /** The identity provider's name, when the server has one. */
+  readonly sso: string | null
+  /** The agent the session is — null in development without one. */
+  readonly agent: Agent | null
   check: () => Promise<void>
   /** `beforeEntering`: what the screen shows of the success before the inbox replaces it. */
   signIn: (email: string, password: string, beforeEntering?: () => Promise<void>) => Promise<void>
-  /** Replaces the temporary password — typed at sign-in, or given again as `current`. */
-  choosePassword: (next: string, current?: string) => Promise<void>
+  setUp: (name: string, email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
   /** The API found no session any more: back to the sign-in. */
   signedOut: () => void
 }
 
-/** The temporary password, between the sign-in and its replacement — in memory only. */
-let temporary: string | null = null
-
 export const useSession = create<SessionState>((set, get) => ({
   status: 'checking',
-  needsCurrent: false,
+  setup: false,
+  sso: null,
+  agent: null,
 
   check: async () => {
-    if (!usesBasedb()) {
-      set({ status: 'signed-in' })
-      return
-    }
     try {
-      await accessToken()
-      // A temporary password still in force, the page reloaded since the sign-in.
-      if (await mustChangePassword())
-        set({ status: 'must-change', needsCurrent: temporary === null })
-      else set({ status: 'signed-in' })
+      const state = await authState()
+      set({ setup: state.setup, sso: state.sso, agent: state.agent })
+      if (state.agent) {
+        set({ status: 'signed-in' })
+        return
+      }
+      // No session: in development the server may stand in — the inbox's own answer says.
+      set({ status: 'signed-in' })
     } catch (error) {
-      if (!(error instanceof SignedOut)) throw error
+      if (!(error instanceof AuthFailure)) throw error
       set({ status: 'signed-out' })
     }
   },
 
   signIn: async (email, password, beforeEntering) => {
-    await signIn(email, password)
-    if (await mustChangePassword()) {
-      temporary = password
-      set({ status: 'must-change', needsCurrent: false })
-      return
-    }
+    await signIn({ email, password })
     await beforeEntering?.()
     await get().check()
   },
 
-  choosePassword: async (next, current) => {
-    await changePassword(current ?? temporary ?? '', next)
-    temporary = null
+  setUp: async (name, email, password) => {
+    await setUp({ name, email, password })
     await get().check()
   },
 
   signOut: async () => {
-    await signOut()
+    await signOut().catch(() => {})
     // A clean page: nothing of the last agent's inbox stays in memory.
     window.location.assign('/')
   },

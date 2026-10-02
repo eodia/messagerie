@@ -3,7 +3,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { type McpServerDefinition, resolveHeaders } from '../settings/settings.js'
 
 /**
- * The MCP servers basedb declares (« Serveurs MCP »): the chat is their client, over
+ * The MCP servers the settings declare (« Serveurs MCP »): the chat is their client, over
  * Streamable HTTP, and offers their tools to the AI next to its own. A server that does
  * not answer costs its tools, never the conversation: the AI answers without them.
  *

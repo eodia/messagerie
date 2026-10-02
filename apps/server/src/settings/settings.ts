@@ -3,12 +3,11 @@ import type { LabeledRow, SettingsSource } from './source.js'
 import { appearanceOf, colorOf, suggestionsOf, taglineOf, titleOf } from './widget.js'
 
 /**
- * The chat's settings, typed — read from the « Messagerie » base through a source (D1).
+ * The chat's settings, typed — read from its own tables through a source (D19).
  *
- * A table read is kept until it changes. The tables whose change must show at once are
- * followed live (basedb's stream, B3): the agents, the sites, and what the AI answers from.
- * basedb opens ten streams at most per token; the others are read again after a minute.
- * A failed read is not kept: the next request tries again.
+ * A table read is kept until it changes: every write tells every process of the chat
+ * (`NOTIFY`), which forgets that table. A failed read is not kept: the next request tries
+ * again.
  */
 
 export const TABLES = {
@@ -29,21 +28,11 @@ export const TABLES = {
 
 type TableLabel = (typeof TABLES)[keyof typeof TABLES]
 
-const LIVE: readonly TableLabel[] = [
-  TABLES.agents,
-  TABLES.sites,
-  TABLES.inboxes,
-  TABLES.teams,
-  TABLES.articles,
-  TABLES.promoted,
-]
-const KEEP_MS = 60_000
-
 // ── The shapes ────────────────────────────────────────────────────────────────────────
 
 export interface AgentEntry {
-  /** The basedb account — introspection's `sub`. */
-  readonly basedbUserId: string
+  /** The agent's row — `chat.agent`. */
+  readonly id: string
   readonly name: string
   readonly role: 'agent' | 'supervisor'
   readonly active: boolean
@@ -161,7 +150,8 @@ export interface ToolDefinition {
   readonly id: string
   readonly name: string
   readonly description: string
-  readonly type: 'basedb' | 'http' | 'callback'
+  /** `contact`: the visitor's record, as their site signed it. */
+  readonly type: 'contact' | 'http' | 'callback'
   readonly target: string | null
   /** For an HTTP call: POST sends the parameters as JSON, GET puts them in the address. */
   readonly method: 'GET' | 'POST'
@@ -216,7 +206,7 @@ const iconOf = (value: unknown): string | null => {
 
 /**
  * A picture the inbox may draw: an https address, or a raster data URL — never a script,
- * whatever the row says. The size is basedb's ceiling for a look.
+ * whatever the row says.
  */
 const imageOf = (value: unknown): string | null => {
   const url = text(value)
@@ -306,18 +296,16 @@ export function resolveHeaders(
 // ── The settings ──────────────────────────────────────────────────────────────────────
 
 export class Settings {
-  private readonly cache = new Map<string, { rows: Promise<LabeledRow[]>; until: number }>()
+  private readonly cache = new Map<string, { rows: Promise<LabeledRow[]> }>()
   private readonly listeners = new Set<(table: string) => void>()
 
   constructor(readonly source: SettingsSource) {}
 
   private table(label: TableLabel): Promise<LabeledRow[]> {
-    const now = Date.now()
     const hit = this.cache.get(label)
-    if (hit && hit.until > now) return hit.rows
+    if (hit) return hit.rows
     const rows = this.source.rows(label)
-    const live = this.source.kind === 'template' || LIVE.includes(label)
-    this.cache.set(label, { rows, until: live ? Number.POSITIVE_INFINITY : now + KEEP_MS })
+    this.cache.set(label, { rows })
     rows.catch(() => {
       if (this.cache.get(label)?.rows === rows) this.cache.delete(label)
     })
@@ -342,9 +330,9 @@ export class Settings {
     return () => this.listeners.delete(listener)
   }
 
-  /** Follows the live tables in basedb. Returns what stops it. */
+  /** Follows every table's changes, from every process. Returns what stops it. */
   follow(onError: (error: unknown) => void): () => void {
-    const stops = LIVE.map((label) =>
+    const stops = Object.values(TABLES).map((label) =>
       this.source.follow(label, () => this.invalidate(label), onError),
     )
     return () => {
@@ -352,11 +340,11 @@ export class Settings {
     }
   }
 
-  async agent(basedbUserId: string): Promise<AgentEntry | null> {
-    for (const { values } of await this.table(TABLES.agents)) {
-      if (one(values['Compte basedb']) !== basedbUserId) continue
+  async agent(id: string): Promise<AgentEntry | null> {
+    for (const { id: rowId, values } of await this.table(TABLES.agents)) {
+      if (rowId !== id) continue
       return {
-        basedbUserId,
+        id,
         name: text(values.Nom) ?? '',
         role: values.Rôle === 'Superviseur' ? 'supervisor' : 'agent',
         active: bool(values.Actif),
@@ -368,20 +356,13 @@ export class Settings {
 
   /** Every agent of « Conseillers ». */
   async agents(): Promise<AgentEntry[]> {
-    return (await this.table(TABLES.agents)).flatMap(({ values }) => {
-      const basedbUserId = one(values['Compte basedb'])
-      return basedbUserId
-        ? [
-            {
-              basedbUserId,
-              name: text(values.Nom) ?? '',
-              role: values.Rôle === 'Superviseur' ? ('supervisor' as const) : ('agent' as const),
-              active: bool(values.Actif),
-              teamIds: many(values.Équipes),
-            },
-          ]
-        : []
-    })
+    return (await this.table(TABLES.agents)).map(({ id, values }) => ({
+      id,
+      name: text(values.Nom) ?? '',
+      role: values.Rôle === 'Superviseur' ? ('supervisor' as const) : ('agent' as const),
+      active: bool(values.Actif),
+      teamIds: many(values.Équipes),
+    }))
   }
 
   /** The first names of the active agents — the team the widget shows behind the AI. */
@@ -446,16 +427,9 @@ export class Settings {
     return (await this.sites()).find((s) => s.id === id) ?? null
   }
 
-  /**
-   * Changes a site's row — values by field label — as the person whose basedb token is
-   * given, and reads the sites again.
-   */
-  async updateSite(
-    id: string,
-    values: Readonly<Record<string, unknown>>,
-    token: string | null,
-  ): Promise<void> {
-    await this.source.update(TABLES.sites, id, values, token)
+  /** Changes a site's row — values by field label — and reads the sites again. */
+  async updateSite(id: string, values: Readonly<Record<string, unknown>>): Promise<void> {
+    await this.source.update(TABLES.sites, id, values)
     this.invalidate(TABLES.sites)
   }
 
@@ -587,7 +561,7 @@ export class Settings {
               ? 'http'
               : values.Type === 'Rappel'
                 ? 'callback'
-                : 'basedb',
+                : 'contact',
           target: text(values.Cible),
           method: values.Méthode === 'GET' ? 'GET' : 'POST',
           tokenEnv: text(values["Jeton (variable d'environnement)"]),

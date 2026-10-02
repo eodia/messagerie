@@ -1,7 +1,7 @@
 {
   // Démarrer la messagerie depuis VS Code (Exécuter et déboguer, F5).
   //
-  // « Messagerie » lance tout : PostgreSQL et basedb dans Docker (tâche préalable), le
+  // « Messagerie » lance tout : PostgreSQL dans Docker (tâche préalable), le
   // serveur, l'inbox, la reconstruction du widget et le serveur MCP de démonstration — et
   // ouvre l'inbox. Chaque partie se lance aussi seule ; les points d'arrêt marchent dans le
   // serveur et dans l'inbox. Les sorties sont dans la Console de débogage, une par partie.
@@ -11,8 +11,9 @@
   // (Une fenêtre « WSL » en bas à gauche lance tout dans WSL : rouvrez le dossier sous
   // Windows — voir le README.)
   //
-  // Première fois : tâches « Installer les dépendances », puis « basedb : créer la base et
-  // relier la messagerie » et « Données de démonstration » (Terminal › Exécuter la tâche).
+  // Première fois : tâche « Installer les dépendances » (Terminal › Exécuter la tâche). Le
+  // serveur écrit la démonstration au premier démarrage ; « Données de démonstration » y
+  // ajoute les conversations.
   "version": "0.2.0",
   "configurations": [
     {
@@ -67,7 +68,7 @@
     {
       "name": "Messagerie",
       "configurations": ["Serveur", "Inbox", "Widget (reconstruction)", "Serveur MCP de démo"],
-      "preLaunchTask": "Docker : PostgreSQL et basedb",
+      "preLaunchTask": "Docker : PostgreSQL",
       "stopAll": true
     }
   ]

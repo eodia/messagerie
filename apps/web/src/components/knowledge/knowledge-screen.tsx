@@ -1,6 +1,5 @@
 'use client'
 
-import { useBasedbUrl } from '@/components/app/app-shell'
 import { Chip, type Tint } from '@/components/app/chip'
 import { ScreenHeader, Slash } from '@/components/app/screen-header'
 import { Button } from '@/components/ui/button'
@@ -13,7 +12,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Textarea } from '@/components/ui/textarea'
 import { Hint } from '@/components/ui/tooltip'
 import { addressOf, idOfWord, wordOf, wordsAfter } from '@/lib/address'
 import { api } from '@/lib/api'
@@ -31,7 +32,6 @@ import {
   Check,
   ChevronDown,
   Ellipsis,
-  ExternalLink,
   FileText,
   Folder,
   FolderOpen,
@@ -52,7 +52,7 @@ import { ArticleEditor } from './article-editor'
 /**
  * The knowledge the AI answers from, written in place: the
  * categories, their articles, and an editor that saves as one types. The articles stay in
- * basedb (« Articles », « Catégories »); the published ones are indexed for the AI, which
+ * the settings (« Articles », « Catégories », D19); the published ones are indexed for the AI, which
  * cites them. Writing is a supervisor's; agents read.
  */
 
@@ -125,7 +125,6 @@ const codeOf = (failure: unknown) => (failure as { code?: string }).code ?? 'INT
 const BASE = '/connaissance'
 
 export function KnowledgeScreen() {
-  const basedbUrl = useBasedbUrl()
   // The site chosen at the top of the sidebar: its articles, and those of every site.
   const site = useInbox((s) => s.site)
   const [overview, setOverview] = useState<SettingsOverview | null>(null)
@@ -200,7 +199,7 @@ export function KnowledgeScreen() {
     } else follow()
   }, [articles, overview])
 
-  // ── Saving as one types: after a pause, the changed fields go to basedb ─────────────
+  // ── Saving as one types: after a pause, the changed fields are written ──────────────
   const pending = useRef<{ id: string; values: Record<string, unknown> } | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -375,12 +374,6 @@ export function KnowledgeScreen() {
                 </Button>
               </Hint>
             )}
-            <Button variant="outline" size="sm" asChild className="h-8 gap-1.5 text-xs">
-              <a href={basedbUrl} target="_blank" rel="noreferrer">
-                <ExternalLink className="size-3.5" />
-                {$t('Ouvrir dans basedb')}
-              </a>
-            </Button>
           </>
         }
       >
@@ -487,7 +480,7 @@ export function KnowledgeScreen() {
                 )}
               </div>
               {shelf.kind === 'promoted' ? (
-                <PromotedList items={promoted} basedbUrl={basedbUrl} />
+                <PromotedList items={promoted} canEdit={canEdit} />
               ) : (
                 <>
                   <div className="space-y-2.5 border-b px-3 pt-3">
@@ -766,47 +759,186 @@ function ArticleRow({
   )
 }
 
+const REVIEW = ['À relire', 'Publiée', 'Rejetée'] as const
+type Review = (typeof REVIEW)[number]
+
+const reviewTint = (status: unknown) =>
+  status === 'Publiée' ? 'emerald' : status === 'Rejetée' ? 'zinc' : 'amber'
+
+/**
+ * The conversations promoted from their menu ⋯: each a question and its answer, drafted
+ * without personal data, that a supervisor reads, corrects, then publishes — the AI
+ * answers from it once published — or rejects. « À relire » first.
+ */
 function PromotedList({
   items,
-  basedbUrl,
+  canEdit,
 }: {
   readonly items: readonly KnowledgeItem[]
-  readonly basedbUrl: string
+  readonly canEdit: boolean
 }) {
+  const [rows, setRows] = useState<SettingsRow[] | null>(null)
+  const [open, setOpen] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const load = useCallback(() => {
+    api
+      .settingsRows('conversations_promues')
+      .then((list) => {
+        const rank = (r: SettingsRow) => REVIEW.indexOf(r.values.Statut as Review)
+        setRows([...list].sort((a, b) => rank(a) - rank(b)))
+      })
+      .catch((failure) => setError(codeOf(failure)))
+  }, [])
+  useEffect(() => load(), [load])
+
+  async function save(id: string, values: Record<string, unknown>) {
+    try {
+      await api.updateRow('conversations_promues', id, values)
+      load()
+    } catch (failure) {
+      setError(codeOf(failure))
+    }
+  }
+
+  const passagesOf = (id: string) => items.find((i) => i.id === id)?.passages ?? 0
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <p className="border-b px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
         {$t(
-          'Des conversations bien résolues, promues depuis leur menu ⋯ puis relues : l’IA s’en sert comme d’exemples.',
+          'Des conversations bien résolues, promues depuis leur menu ⋯ : relisez-les, puis publiez-les — l’IA s’en sert comme d’exemples.',
         )}
       </p>
+      {error && <p className="border-b px-3 py-2 text-xs text-destructive">{messageFor(error)}</p>}
       <ul className="flex-1 overflow-y-auto scroll-discret">
-        {items.map((item) => (
-          <li key={item.id} className="border-b px-3 py-3">
-            <div className="truncate text-sm">{item.title}</div>
-            <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
-              <Sparkles className="size-3 text-violet-600 dark:text-violet-300" />
-              {$tp(item.passages, '{count} passage', '{count} passages')}
-              {item.indexedAt && <span>, {dayLabel(item.indexedAt)}</span>}
-            </div>
+        {rows === null && (
+          <li className="flex justify-center p-8">
+            <LoaderCircle className="size-4 animate-spin text-muted-foreground" />
           </li>
+        )}
+        {rows?.map((row) => (
+          <PromotedRow
+            key={row.id}
+            row={row}
+            open={open === row.id}
+            onToggle={() => setOpen((was) => (was === row.id ? null : row.id))}
+            canEdit={canEdit}
+            passages={passagesOf(row.id)}
+            onSave={(values) => void save(row.id, values)}
+          />
         ))}
-        {items.length === 0 && (
+        {rows?.length === 0 && (
           <li className="px-6 py-12 text-center text-sm text-muted-foreground">
-            {$t('Aucune conversation promue n’est encore indexée.')}
+            {$t('Aucune conversation promue : promouvez-en une depuis son menu ⋯.')}
           </li>
         )}
       </ul>
-      <a
-        href={basedbUrl}
-        target="_blank"
-        rel="noreferrer"
-        className="flex items-center gap-1.5 border-t px-3 py-2.5 text-xs text-muted-foreground hover:text-foreground"
-      >
-        <ExternalLink className="size-3.5" />
-        {$t('Relire les conversations promues dans basedb')}
-      </a>
     </div>
+  )
+}
+
+function PromotedRow({
+  row,
+  open,
+  onToggle,
+  canEdit,
+  passages,
+  onSave,
+}: {
+  readonly row: SettingsRow
+  readonly open: boolean
+  readonly onToggle: () => void
+  readonly canEdit: boolean
+  readonly passages: number
+  readonly onSave: (values: Record<string, unknown>) => void
+}) {
+  const [question, setQuestion] = useState(String(row.values.Question ?? ''))
+  const [answer, setAnswer] = useState(String(row.values.Réponse ?? ''))
+  const status = String(row.values.Statut ?? 'À relire')
+  const link = typeof row.values.Conversation === 'string' ? row.values.Conversation : null
+  const changed = question !== row.values.Question || answer !== (row.values.Réponse ?? '')
+  return (
+    <li className="border-b">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className={cn('w-full px-3 py-3 text-left hover:bg-muted/50', open && 'bg-muted/40')}
+      >
+        <span className="flex items-start gap-2">
+          <span className="min-w-0 flex-1 truncate text-sm">{question || '—'}</span>
+          <Chip tint={reviewTint(status)} className="shrink-0">
+            {status}
+          </Chip>
+        </span>
+        {status === 'Publiée' && (
+          <span className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+            <Sparkles className="size-3 text-violet-600 dark:text-violet-300" />
+            {$tp(passages, '{count} passage', '{count} passages')}
+          </span>
+        )}
+      </button>
+      {open && (
+        <div className="space-y-2.5 px-3 pb-3">
+          <Input
+            value={question}
+            readOnly={!canEdit}
+            onChange={(event) => setQuestion(event.target.value)}
+            aria-label={$t('Question')}
+            className="h-8 text-sm"
+          />
+          <Textarea
+            value={answer}
+            readOnly={!canEdit}
+            onChange={(event) => setAnswer(event.target.value)}
+            aria-label={$t('Réponse')}
+            rows={5}
+            className="text-sm"
+          />
+          <div className="flex flex-wrap items-center gap-1.5">
+            {link && (
+              <a
+                href={link}
+                className="mr-auto text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              >
+                {$t('Voir la conversation')}
+              </a>
+            )}
+            {canEdit && changed && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={() => onSave({ Question: question, Réponse: answer })}
+              >
+                {$t('Enregistrer')}
+              </Button>
+            )}
+            {canEdit && status !== 'Rejetée' && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs"
+                onClick={() => onSave({ Question: question, Réponse: answer, Statut: 'Rejetée' })}
+              >
+                {$t('Rejeter')}
+              </Button>
+            )}
+            {canEdit && status !== 'Publiée' && (
+              <Button
+                size="sm"
+                className="h-7 text-xs"
+                disabled={question.trim() === '' || answer.trim() === ''}
+                onClick={() => onSave({ Question: question, Réponse: answer, Statut: 'Publiée' })}
+              >
+                {$t('Publier')}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+    </li>
   )
 }
 

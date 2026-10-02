@@ -10,8 +10,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { $t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import type { WidgetAppearance, WidgetEditorSite, WidgetSettings } from '@chat/contracts'
-import { Check, Copy, ExternalLink, Plus, X } from 'lucide-react'
+import { ArrowUpRight, Check, Copy, ExternalLink, Plus, X } from 'lucide-react'
+import Link from 'next/link'
 import { type ReactNode, useId, useState } from 'react'
+import { PageActions } from './page-actions'
 import { type Problems, contrastOn } from './settings'
 
 /**
@@ -47,6 +49,26 @@ const API_EXAMPLE = [
   '// événements : ready, open, close, message:sent, message:received, reset',
 ].join('\n')
 
+/** An action of the page (D21), as a site's developer copies it. */
+const ACTION_EXAMPLE = [
+  "MessagerieChat.registerAction('tarifer', {",
+  "  label: 'Calculer un tarif',",
+  "  description: 'Le prix mensuel et annuel pour la valeur d’achat d’un appareil',",
+  "  parameters: { type: 'object', properties: { valeur: { type: 'number' } }, required: ['valeur'] },",
+  "  kind: 'read',          // 'read' : cherche ; 'do' : change la page",
+  '  confirm: false,        // true : le visiteur accepte d’abord',
+  '  handler: ({ valeur }) => tarifer(valeur),   // ce que renvoie la page, l’IA le lit',
+  '})',
+  "MessagerieChat.unregisterAction('tarifer')",
+].join('\n')
+
+const CONTEXT_EXAMPLE = [
+  'MessagerieChat.setPageContext(() => ({',
+  "  etape: 'souscription',",
+  '  panier: panier.map((a) => ({ modele: a.modele, valeur: a.valeur })),',
+  '}))',
+].join('\n')
+
 const QUEUE_EXAMPLE = [
   'window.MessagerieChat = window.MessagerieChat || []',
   "MessagerieChat.push(['setConversationData', { Page: location.pathname }])",
@@ -59,7 +81,6 @@ export function WidgetForm({
   problems,
   onChange,
   server,
-  basedbUrl,
 }: {
   readonly site: WidgetEditorSite
   readonly draft: WidgetSettings
@@ -68,7 +89,6 @@ export function WidgetForm({
   readonly onChange: (update: (draft: WidgetSettings) => WidgetSettings) => void
   /** The chat server's address, for the installation snippet. */
   readonly server: string
-  readonly basedbUrl: string
 }) {
   const look = draft.appearance
   const set = (patch: Partial<WidgetSettings>) => onChange((d) => ({ ...d, ...patch }))
@@ -83,6 +103,7 @@ export function WidgetForm({
         <TabsTrigger value="words">{$t('Textes')}</TabsTrigger>
         <TabsTrigger value="display">{$t('Affichage')}</TabsTrigger>
         <TabsTrigger value="install">{$t('Installation')}</TabsTrigger>
+        <TabsTrigger value="actions">{$t('Actions')}</TabsTrigger>
       </TabsList>
 
       <TabsContent value="look" className="space-y-7 px-5 py-5">
@@ -503,7 +524,9 @@ export function WidgetForm({
           <div className="text-sm font-medium">{$t('Domaines autorisés')}</div>
           {site.domains.length === 0 ? (
             <p className="text-xs text-muted-foreground">
-              {$t('Aucun : le widget ne s’affiche nulle part. Ajoutez-les dans basedb.')}
+              {$t(
+                'Aucun : le widget ne s’affiche nulle part. Ajoutez-les dans « Sites et horaires ».',
+              )}
             </p>
           ) : (
             <ul className="flex flex-wrap gap-1.5">
@@ -514,15 +537,13 @@ export function WidgetForm({
               ))}
             </ul>
           )}
-          <a
-            href={basedbUrl}
-            target="_blank"
-            rel="noreferrer"
+          <Link
+            href="/parametrage/sites"
             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
           >
-            <ExternalLink className="size-3" />
-            {$t('Modifier dans basedb, table « Sites »')}
-          </a>
+            <ArrowUpRight className="size-3" />
+            {$t('Modifier dans « Sites et horaires »')}
+          </Link>
         </div>
 
         <Snippet
@@ -545,6 +566,24 @@ export function WidgetForm({
           title={$t('Avant le chargement du script')}
           hint={$t('Les appels attendent dans une file, puis s’exécutent dans l’ordre.')}
           code={QUEUE_EXAMPLE}
+        />
+      </TabsContent>
+
+      <TabsContent value="actions" className="space-y-7 px-5 py-5">
+        <PageActions siteId={site.id} />
+        <Snippet
+          title={$t('Déclarer une action')}
+          hint={$t(
+            'La page dit ce qu’elle sait faire ; l’IA le lui demande quand le visiteur en a besoin, une fois l’action autorisée ici. « read » cherche sans rien changer ; « do » change la page.',
+          )}
+          code={ACTION_EXAMPLE}
+        />
+        <Snippet
+          title={$t('Dire où en est la page')}
+          hint={$t(
+            'Lu à chaque message du visiteur : l’étape, le panier, le formulaire. L’IA le reçoit comme une donnée non vérifiée.',
+          )}
+          code={CONTEXT_EXAMPLE}
         />
       </TabsContent>
     </Tabs>

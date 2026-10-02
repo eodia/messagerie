@@ -82,7 +82,7 @@ const PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const
 
 /**
  * What the conversation is about, as each visitor message makes it clearer: its intent,
- * the tags basedb lets the AI set, the visitor's mood and a priority. The agents' own tags
+ * the tags the AI may set, the visitor's mood and a priority. The agents' own tags
  * are never touched.
  *
  * It reads the whole conversation, answered or not: the AI answers within a second or two,

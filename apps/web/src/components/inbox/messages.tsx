@@ -3,7 +3,7 @@
 import { Chip } from '@/components/app/chip'
 import { CopyButton } from '@/components/app/copy-button'
 import { Button } from '@/components/ui/button'
-import { $t, $tp, intlLocale } from '@/lib/i18n'
+import { $t, $tp, intlLocale, msg } from '@/lib/i18n'
 import { useSpeech } from '@/lib/speech'
 import { clockTime } from '@/lib/time'
 import { cn } from '@/lib/utils'
@@ -23,15 +23,19 @@ import {
   AlarmClock,
   AlarmClockOff,
   ArrowRightLeft,
+  AtSign,
   Ban,
   Bot,
   Check,
   ChevronRight,
   CircleCheck,
   FileText,
+  Flag,
   Forward,
   Hand,
+  Inbox,
   MessagesSquare,
+  MousePointerClick,
   Pencil,
   RotateCcw,
   Square,
@@ -185,7 +189,21 @@ const EVENT_ICONS = {
   snoozed: AlarmClock,
   woke: AlarmClockOff,
   restarted: RotateCcw,
+  queued: Inbox,
+  priority: Flag,
+  email_requested: AtSign,
+  email_given: AtSign,
+  page_action: MousePointerClick,
 } as const
+
+const PRIORITIES = {
+  low: msg('basse'),
+  normal: msg('normale'),
+  high: msg('haute'),
+  urgent: msg('urgente'),
+} as const
+
+const priorityLabel = (priority: keyof typeof PRIORITIES) => $t(PRIORITIES[priority])
 
 /** An event, said in the reader's language: the server stores what happened, not words. */
 function eventText(event: ConversationEvent): string {
@@ -239,6 +257,39 @@ function eventText(event: ConversationEvent): string {
         : $t('{agent} a sorti la conversation de l’attente.', { agent: event.agent })
     case 'restarted':
       return $t('Le visiteur a commencé une nouvelle conversation depuis la page.')
+    case 'queued':
+      return $t('« {by} » a confié la conversation aux conseillers.', { by: event.by })
+    case 'priority':
+      return $t('« {by} » a passé la priorité à « {priority} ».', {
+        by: event.by,
+        priority: priorityLabel(event.priority),
+      })
+    case 'email_requested':
+      return event.by === null
+        ? $t('Le widget a proposé au visiteur de laisser son e-mail : personne n’est disponible.')
+        : $t('« {by} » a proposé au visiteur de laisser son e-mail.', { by: event.by })
+    case 'email_given':
+      return $t('Le visiteur a laissé son e-mail : {email}.', { email: event.email })
+    case 'page_action': {
+      const label = event.label
+      switch (event.status) {
+        case 'done':
+          return $t('L’IA a fait « {label} » sur la page du visiteur.', { label })
+        case 'confirming':
+          return $t('L’IA propose « {label} » : le visiteur doit l’accepter.', { label })
+        case 'refused':
+          return $t('Le visiteur a refusé « {label} ».', { label })
+        case 'failed':
+          return $t('« {label} » a échoué sur la page : {error}', {
+            label,
+            error: event.error ?? '—',
+          })
+        case 'expired':
+          return $t('« {label} » : la page du visiteur n’a pas répondu.', { label })
+        default:
+          return $t('L’IA demande « {label} » à la page du visiteur…', { label })
+      }
+    }
   }
 }
 

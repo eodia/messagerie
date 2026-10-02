@@ -61,7 +61,7 @@ export const WIDGET_FIELDS = [
 export const VIEWS: Readonly<Record<string, TableView>> = {
   boites: { columns: ['Nom', 'Équipes', 'Équipe par défaut', 'Actif'] },
   equipes: { columns: ['Nom', 'Description'] },
-  conseillers: { columns: ['Nom', 'Rôle', 'Équipes', 'Compte basedb', 'Actif'] },
+  conseillers: { columns: ['Nom', 'Rôle', 'Équipes', 'E-mail', 'Actif'] },
   sites: {
     columns: ['Nom', 'Domaines autorisés', 'Boîte de réception', 'Agent IA actif', 'Actif'],
     hidden: WIDGET_FIELDS,

@@ -3,7 +3,6 @@ import type { ToolTestBody, ToolTestResult, ToolsOverview } from '@chat/contract
 import { eq } from 'drizzle-orm'
 import type { McpConnections } from '../ai/mcp.js'
 import { ToolBox } from '../ai/tools.js'
-import type { BasedbClient } from '../basedb/client.js'
 import type { Db } from '../db/client.js'
 import { contacts, conversations } from '../db/schema.js'
 import { Refusal } from '../refusal.js'
@@ -11,7 +10,7 @@ import type { Settings } from '../settings/settings.js'
 import type { AgentRow } from './read.js'
 
 /**
- * The tools screen: what basedb declares — « Outils IA » and « Serveurs MCP » — whether
+ * The tools screen: what the settings declare — « Outils IA » and « Serveurs MCP » — whether
  * each server answers and what it offers; and a tool tried by a supervisor, outside any
  * conversation, to check a configuration before the AI relies on it.
  */
@@ -61,7 +60,6 @@ export async function testTool(
   deps: {
     readonly db: Db
     readonly settings: Settings | null
-    readonly basedb: BasedbClient | null
     readonly mcp: McpConnections
   },
   agent: AgentRow,
@@ -73,7 +71,6 @@ export async function testTool(
   const context = {
     db: deps.db,
     settings,
-    basedb: deps.basedb,
     mcp: deps.mcp,
     conversationId: null,
     contact: null,
@@ -110,7 +107,6 @@ export async function runInConversation(
   deps: {
     readonly db: Db
     readonly settings: Settings | null
-    readonly basedb: BasedbClient | null
     readonly mcp: McpConnections
   },
   conversationId: string,
@@ -127,7 +123,6 @@ export async function runInConversation(
   const context = {
     db,
     settings,
-    basedb: deps.basedb,
     mcp: deps.mcp,
     conversationId,
     contact: row.contact,

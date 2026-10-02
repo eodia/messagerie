@@ -1,13 +1,13 @@
 import type { Redactor, ToolCall, ToolSpec } from '@chat/ai'
-import type { BasedbClient } from '../basedb/client.js'
 import type { Db } from '../db/client.js'
 import { type contacts, conversationTags, messages } from '../db/schema.js'
+import { type PageTool, callPage } from '../page/actions.js'
 import { signalChange } from '../realtime/signals.js'
 import { type Settings, type ToolDefinition, resolveHeaders } from '../settings/settings.js'
 import type { McpConnections, McpTool } from './mcp.js'
 
 /**
- * The only actions the AI may take: basedb's « Outils IA », and the tools of its « Serveurs
+ * The only actions the AI may take: the « Outils IA », and the tools of the « Serveurs
  * MCP » — « un outil qui n'est pas ici n'existe pas pour elle ». Each call leaves an event
  * in the conversation, which the agents see and the visitor does not (D9).
  */
@@ -15,12 +15,13 @@ import type { McpConnections, McpTool } from './mcp.js'
 export interface ToolContext {
   readonly db: Db
   readonly settings: Settings
-  readonly basedb: BasedbClient | null
   readonly mcp: McpConnections
   /** Null outside a conversation — a test from the tools screen: nothing is traced. */
   readonly conversationId: string | null
   readonly contact: typeof contacts.$inferSelect | null
   readonly redactor: Redactor
+  /** What the visitor's page can do, and a supervisor allows (D21) — the AI's alone. */
+  readonly pageTools?: readonly PageTool[]
 }
 
 /** What the model may call a tool: letters, digits, underscores, 64 at most. */
@@ -39,6 +40,7 @@ const fold = (text: string) => slug(text, 200).replace(/_/g, '')
 type Entry =
   | { readonly kind: 'own'; readonly definition: ToolDefinition }
   | { readonly kind: 'mcp'; readonly tool: McpTool }
+  | { readonly kind: 'page'; readonly tool: PageTool }
 
 export interface ToolRun {
   /** What the model reads back — masked like everything it reads. */
@@ -46,6 +48,10 @@ export interface ToolRun {
   /** The tool as the agents read it: « Météo », « Agences Acme › trouver_agence ». */
   readonly tool: string
   readonly detail: string
+  /** The visitor's page answered, or was asked (D21). */
+  readonly page?: true
+  /** An action now waits for the visitor's accord: its label. */
+  readonly awaiting?: string
 }
 
 /** The tools for the AI in the first line, or for the copilot — own and MCP, as allowed. */
@@ -56,7 +62,12 @@ export async function toolBoxFor(
   const own = (await context.settings.tools()).filter((t) => t[audience])
   const servers = (await context.settings.mcpServers()).filter((s) => s[audience])
   const discovered = await Promise.all(servers.map((server) => context.mcp.tools(server)))
-  return new ToolBox(own, discovered.flat(), context)
+  return new ToolBox(
+    own,
+    discovered.flat(),
+    context,
+    audience === 'agent' ? (context.pageTools ?? []) : [],
+  )
 }
 
 export class ToolBox {
@@ -66,6 +77,7 @@ export class ToolBox {
     own: readonly ToolDefinition[],
     mcp: readonly McpTool[],
     private readonly context: ToolContext,
+    page: readonly PageTool[] = [],
   ) {
     own.forEach((definition, index) => {
       this.entries.set(`${slug(definition.name, 48) || 'outil'}_${index + 1}`, {
@@ -77,21 +89,40 @@ export class ToolBox {
       const name = `mcp_${slug(tool.server.name, 20)}_${slug(tool.name, 30)}_${index + 1}`
       this.entries.set(name.slice(0, 64), { kind: 'mcp', tool })
     })
+    page.forEach((tool, index) => {
+      this.entries.set(`page_${slug(tool.name, 48) || 'action'}_${index + 1}`, {
+        kind: 'page',
+        tool,
+      })
+    })
+  }
+
+  /** Whether the visitor's page offers actions. */
+  get pageActions(): boolean {
+    return [...this.entries.values()].some((e) => e.kind === 'page')
   }
 
   specs(): ToolSpec[] {
     return [...this.entries].map(([name, entry]) =>
-      entry.kind === 'own'
+      entry.kind === 'page'
         ? {
             name,
-            description: entry.definition.description,
-            parameters: entry.definition.parameters,
+            description: `[Action sur la page du visiteur — ${
+              entry.tool.kind === 'read' ? 'lecture, ne change rien' : 'change la page'
+            }${entry.tool.confirm ? ', le visiteur l’accepte d’abord' : ''}] ${entry.tool.description}`,
+            parameters: entry.tool.parameters,
           }
-        : {
-            name,
-            description: `${entry.tool.description} (${entry.tool.server.name}${entry.tool.server.description ? ` — ${entry.tool.server.description}` : ''})`,
-            parameters: entry.tool.inputSchema,
-          },
+        : entry.kind === 'own'
+          ? {
+              name,
+              description: entry.definition.description,
+              parameters: entry.definition.parameters,
+            }
+          : {
+              name,
+              description: `${entry.tool.description} (${entry.tool.server.name}${entry.tool.server.description ? ` — ${entry.tool.server.description}` : ''})`,
+              parameters: entry.tool.inputSchema,
+            },
     )
   }
 
@@ -113,6 +144,21 @@ export class ToolBox {
         typeof v === 'string' ? this.context.redactor.unmask(v) : v,
       ]),
     )
+    // The page's own: its event in the thread tells how it went, nothing else is traced.
+    if (entry.kind === 'page') {
+      const { conversationId } = this.context
+      if (conversationId === null) {
+        return { content: 'Pas de page à qui demander.', tool: entry.tool.label, detail: '' }
+      }
+      const answer = await callPage(this.context.db, conversationId, entry.tool, values)
+      return {
+        content: this.context.redactor.mask(answer.content),
+        tool: entry.tool.label,
+        detail: answer.detail,
+        page: true,
+        ...(entry.tool.confirm ? { awaiting: entry.tool.label } : {}),
+      }
+    }
     const tool =
       entry.kind === 'own'
         ? entry.definition.name
@@ -132,7 +178,7 @@ export class ToolBox {
             ? await this.http(definition, values)
             : definition.type === 'callback'
               ? await this.callback(values)
-              : await this.read(definition, values)
+              : this.read()
       }
     } catch (error) {
       outcome = {
@@ -158,51 +204,19 @@ export class ToolBox {
     })
   }
 
-  /** A reading: the customer's record as the site signed it, or rows of a basedb table. */
-  private async read(
-    definition: ToolDefinition,
-    values: Record<string, unknown>,
-  ): Promise<{ content: string; detail: string }> {
-    const target = definition.target ?? 'Fiche du visiteur'
-    const { contact, basedb } = this.context
-    if (fold(target) === fold('Fiche du visiteur')) {
-      if (!contact?.identified) {
-        return {
-          content: 'Visiteur anonyme : aucune fiche.',
-          detail: 'fiche du client — visiteur anonyme',
-        }
-      }
-      const lines = contact.attributes.map((a) => `${a.label} : ${a.value}`)
+  /** A reading: the customer's record, as their site signed it. */
+  private read(): { content: string; detail: string } {
+    const { contact } = this.context
+    if (!contact?.identified) {
       return {
-        content: lines.length > 0 ? lines.join('\n') : 'Aucune information transmise par le site.',
-        detail: `fiche du client ${contact.externalId ?? contact.name}`,
+        content: 'Visiteur anonyme : aucune fiche.',
+        detail: 'fiche du client — visiteur anonyme',
       }
     }
-    if (!basedb) return { content: 'Données indisponibles.', detail: `${target} — basedb absent` }
-    const base = await basedb.describe()
-    const table = base.tables.find((t) => fold(t.label) === fold(target))
-    if (!table) {
-      return { content: 'Données indisponibles.', detail: `${target} — table introuvable` }
-    }
-    // Each parameter filters the field of the same name: « numero » → « Numéro ».
-    const filters = Object.entries(values).flatMap(([key, value]) => {
-      const field = table.fields.find(
-        (f) => fold(f.label) === fold(key) || fold(f.name) === fold(key),
-      )
-      return field && (typeof value === 'string' || typeof value === 'number')
-        ? [`${field.name} eq ${JSON.stringify(String(value))}`]
-        : []
-    })
-    const rows = (await basedb.rows(table.name, filters.join(' and ') || undefined)).slice(0, 5)
-    const readable = rows.map((row) =>
-      table.fields
-        .filter((f) => row[f.name] !== null && row[f.name] !== undefined && !f.name.startsWith('_'))
-        .map((f) => `${f.label} : ${JSON.stringify(row[f.name])}`)
-        .join('\n'),
-    )
+    const lines = contact.attributes.map((a) => `${a.label} : ${a.value}`)
     return {
-      content: readable.length > 0 ? readable.join('\n---\n') : 'Aucune ligne ne correspond.',
-      detail: `${table.label} — ${rows.length} ligne(s)`,
+      content: lines.length > 0 ? lines.join('\n') : 'Aucune information transmise par le site.',
+      detail: `fiche du client ${contact.externalId ?? contact.name}`,
     }
   }
 

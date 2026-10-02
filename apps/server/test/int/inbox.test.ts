@@ -59,7 +59,7 @@ beforeAll(async () => {
   await migrateDatabase(db)
   const [row] = await db
     .insert(agents)
-    .values({ basedbUserId: 'test-agent', name: 'Agent de test' })
+    .values({ login: 'test-agent', name: 'Agent de test' })
     .returning()
   if (!row) throw new Error('agent not inserted')
   agent = row
@@ -182,7 +182,7 @@ describe('deleting a message', () => {
   async function anotherAgent(role: 'agent' | 'supervisor'): Promise<AgentRow> {
     const [row] = await db
       .insert(agents)
-      .values({ basedbUserId: `test-${role}-${Math.random()}`, name: `Autre ${role}`, role })
+      .values({ login: `test-${role}-${Math.random()}`, name: `Autre ${role}`, role })
       .returning()
     if (!row) throw new Error('agent not inserted')
     return row
@@ -409,7 +409,7 @@ describe('alerts and notifications', () => {
   beforeAll(async () => {
     const [row] = await db
       .insert(agents)
-      .values({ basedbUserId: 'test-colleague', name: 'Collègue' })
+      .values({ login: 'test-colleague', name: 'Collègue' })
       .returning()
     if (!row) throw new Error('colleague not inserted')
     colleague = row

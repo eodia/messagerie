@@ -11,11 +11,26 @@ import { createApp } from '../../src/app.js'
 import { TicketBook } from '../../src/auth/tickets.js'
 import type { Config } from '../../src/config.js'
 import { type Db, connect, migrateDatabase } from '../../src/db/client.js'
-import { agents, contacts, conversations, messages, siteSecrets } from '../../src/db/schema.js'
+import {
+  agents,
+  contacts,
+  conversations,
+  messages,
+  pageCalls,
+  siteSecrets,
+} from '../../src/db/schema.js'
+import { requestEmail } from '../../src/inbox/email-request.js'
 import { sendMessage } from '../../src/inbox/write.js'
+import {
+  type PageTool,
+  callPage,
+  listPageActions,
+  pageToolsFor,
+  setPageAction,
+} from '../../src/page/actions.js'
 import { InboxHub } from '../../src/realtime/hub.js'
+import { MemorySource } from '../../src/settings/demo.js'
 import { Settings } from '../../src/settings/settings.js'
-import { TemplateSource } from '../../src/settings/source.js'
 import { WidgetHub } from '../../src/widget/hub.js'
 import { signIdentity, verifyVisitor } from '../../src/widget/tokens.js'
 
@@ -29,6 +44,7 @@ let pool: pg.Pool
 let db: Db
 let app: Hono
 const told: string[] = []
+const answered: string[] = []
 const SECRET = 'site-secret-of-acme-for-the-tests-only'
 
 beforeAll(async () => {
@@ -43,7 +59,8 @@ beforeAll(async () => {
     webOrigin: 'http://localhost:3210',
     production: true,
     devAgent: null,
-    basedb: null,
+    publicUrl: 'http://localhost:8810',
+    oidc: null,
     secret: 'a-secret-for-the-tests-of-the-chat-server',
     trustProxy: false,
     giphyKey: null,
@@ -52,8 +69,7 @@ beforeAll(async () => {
     db,
     hub: new InboxHub(),
     config,
-    basedb: null,
-    settings: new Settings(new TemplateSource(null, true)),
+    settings: new Settings(new MemorySource(null)),
     tickets: new TicketBook(),
     widgetHub: new WidgetHub(),
     mcp: new McpConnections(),
@@ -73,6 +89,7 @@ beforeAll(async () => {
         resolved: () => {},
         suggest: () => {},
         knowledgeChanged: () => {},
+        pageAnswered: (id: string) => answered.push(id),
       },
     },
   }))
@@ -148,7 +165,7 @@ describe('a session', () => {
     })
     const signed = await session({ visitor: anonymous.visitor, identity })
     expect(signed.contact).toEqual({ name: 'Camille Test', identified: true })
-    expect(signed.conversation?.messages.map((m) => ('body' in m ? m.body : m.event))).toEqual([
+    expect(signed.conversation?.messages.map((m) => ('body' in m ? m.body : m.from))).toEqual([
       'Question avant connexion',
     ])
   })
@@ -215,7 +232,7 @@ describe('a visitor who writes', () => {
     ).json()) as VisitorConversation
     const [agent] = await db
       .insert(agents)
-      .values({ basedbUserId: 'w-agent', name: 'Nadia Benali' })
+      .values({ login: 'w-agent', name: 'Nadia Benali' })
       .returning()
     if (!agent) throw new Error('agent not inserted')
     await sendMessage(db, agent, id, { body: 'Note pour l’équipe', kind: 'note' })
@@ -226,6 +243,47 @@ describe('a visitor who writes', () => {
     expect(seen.messages.map((m) => m.from)).toEqual(['visitor', 'agent'])
     expect(seen.messages[1]).toMatchObject({ author: 'Nadia', body: 'Bonjour, je suis là.' })
     expect(seen.answeredBy).toBe('team')
+  })
+
+  it('asks for an address when nobody can answer, once, and keeps the one left', async () => {
+    const { visitor } = await session()
+    const { id } = (await (
+      await call('/messages', { body: { body: 'Il y a quelqu’un ?' }, token: visitor })
+    ).json()) as VisitorConversation
+    expect(await db.transaction((tx) => requestEmail(tx, id, null, null))).toBe(true)
+    expect(await db.transaction((tx) => requestEmail(tx, id, 'Relance', null))).toBe(false)
+    let seen = (await (
+      await call('/conversation', { token: visitor })
+    ).json()) as VisitorConversation
+    expect(seen.messages.at(-1)).toMatchObject({ from: 'email', text: null, email: null })
+
+    expect(
+      (await call('/email', { body: { email: 'pas une adresse' }, token: visitor })).status,
+    ).toBe(400)
+    expect(
+      (await call('/email', { body: { email: ' Lea@Exemple.FR ' }, token: visitor })).status,
+    ).toBe(204)
+    seen = (await (await call('/conversation', { token: visitor })).json()) as VisitorConversation
+    expect(seen.messages.find((m) => m.from === 'email')).toMatchObject({ email: 'lea@exemple.fr' })
+    const thread = await db.select().from(messages).where(eq(messages.conversationId, id))
+    expect(
+      thread.some((m) => (m.meta as { event?: { type?: string } }).event?.type === 'email_given'),
+    ).toBe(true)
+
+    // An automation's reply speaks for the site, not as an agent.
+    const [robot] = await db
+      .insert(agents)
+      .values({ login: 'automation:test', name: 'Relance automatique', active: false })
+      .returning()
+    if (!robot) throw new Error('agent not inserted')
+    await db.insert(messages).values({
+      conversationId: id,
+      author: 'agent',
+      agentId: robot.id,
+      body: 'Nous revenons vers vous.',
+    })
+    seen = (await (await call('/conversation', { token: visitor })).json()) as VisitorConversation
+    expect(seen.messages.at(-1)).toMatchObject({ from: 'site', body: 'Nous revenons vers vous.' })
   })
 
   it('begins anew on reset(): the conversation left for the team, the next one new', async () => {
@@ -252,7 +310,7 @@ describe('a visitor who writes', () => {
     // An agent's conversation stays theirs: left, never resolved behind their back.
     const [agent] = await db
       .insert(agents)
-      .values({ basedbUserId: 'w-reset-agent', name: 'Paul Martin' })
+      .values({ login: 'w-reset-agent', name: 'Paul Martin' })
       .returning()
     if (!agent) throw new Error('agent not inserted')
     await sendMessage(db, agent, second.id, { body: 'Je regarde.', kind: 'reply' })
@@ -293,5 +351,127 @@ describe('a visitor who writes', () => {
     }
     expect(statuses.at(-1)).toBe(429)
     expect(statuses.slice(0, 20).every((s) => s === 200)).toBe(true)
+  })
+})
+
+describe('the page’s actions (D21)', () => {
+  const page = {
+    url: 'http://localhost:8080/devis',
+    title: 'Devis auto',
+    context: { etape: 2, vehicule: 'Clio' },
+    actions: [
+      {
+        name: 'tarifer',
+        label: 'Calculer un tarif',
+        description: 'Le prix mensuel pour une valeur de véhicule',
+        parameters: { type: 'object', properties: { valeur: { type: 'number' } } },
+        kind: 'read',
+        confirm: false,
+      },
+      {
+        name: 'preremplirDevis',
+        label: 'Pré-remplir le devis',
+        description: 'Remplit le formulaire de devis',
+        parameters: { type: 'object', properties: {} },
+        kind: 'do',
+        confirm: false,
+      },
+      { name: '1 mauvais nom', label: 'x', description: '', parameters: {}, kind: 'read' },
+    ],
+  }
+
+  /** A tab of the visitor: runs what is pending, as the widget does. */
+  async function tab(visitor: string, answer: (args: Record<string, unknown>) => unknown) {
+    for (let i = 0; i < 40; i++) {
+      const seen = (await (
+        await call('/conversation', { token: visitor })
+      ).json()) as VisitorConversation
+      const pending = seen.messages.find((m) => m.from === 'action' && m.status === 'pending')
+      if (pending && pending.from === 'action') {
+        const claimed = await call(`/actions/${pending.call}/claim`, {
+          body: { tab: 'A' },
+          token: visitor,
+        })
+        expect(await claimed.json()).toEqual({ taken: true })
+        // Another tab comes too late.
+        const second = await call(`/actions/${pending.call}/claim`, {
+          body: { tab: 'B' },
+          token: visitor,
+        })
+        expect(await second.json()).toEqual({ taken: false })
+        await call(`/actions/${pending.call}/result`, {
+          body: { tab: 'A', ok: true, result: answer(pending.args) },
+          token: visitor,
+        })
+        return
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    }
+    throw new Error('nothing pending')
+  }
+
+  it('knows what a page declares, offers the AI only what a supervisor allows, and gets its answer', async () => {
+    const { visitor } = await session()
+    const { id } = (await (
+      await call('/messages', { body: { body: 'Combien pour ma Clio ?', page }, token: visitor })
+    ).json()) as VisitorConversation
+    const [conversation] = await db.select().from(conversations).where(eq(conversations.id, id))
+    expect(conversation?.page?.actions.map((a) => a.name)).toEqual(['tarifer', 'preremplirDevis'])
+    expect(conversation?.page?.context).toEqual({ etape: 2, vehicule: 'Clio' })
+
+    const [boss] = await db
+      .insert(agents)
+      .values({ login: 'w-boss', name: 'Marc', role: 'supervisor' })
+      .returning()
+    if (!boss) throw new Error('agent not inserted')
+    const known = await listPageActions(db, boss, 'acme')
+    expect(known.map((a) => [a.name, a.enabled, a.confirm])).toEqual([
+      ['preremplirDevis', false, true],
+      ['tarifer', false, false],
+    ])
+    expect(await pageToolsFor(db, 'acme', conversation?.page ?? null)).toEqual([])
+    for (const action of known) await setPageAction(db, boss, action.id, { enabled: true })
+    const tools = await pageToolsFor(db, 'acme', conversation?.page ?? null)
+    expect(tools.map((t) => [t.name, t.confirm])).toEqual([
+      ['tarifer', false],
+      ['preremplirDevis', true],
+    ])
+
+    // A read: the AI waits, a tab answers.
+    const [priced] = await Promise.all([
+      callPage(db, id, tools[0] as PageTool, { valeur: 12000 }),
+      tab(visitor, (args) => ({ mensuel: Number(args.valeur) / 1000 })),
+    ])
+    expect(JSON.parse(priced.content)).toEqual({ ok: true, result: { mensuel: 12 } })
+
+    // An action to accept: asked, the turn ends; accepted and done, the AI goes on.
+    const asked = await callPage(db, id, tools[1] as PageTool, {})
+    expect(JSON.parse(asked.content).ok).toBeNull()
+    let seen = (await (
+      await call('/conversation', { token: visitor })
+    ).json()) as VisitorConversation
+    const confirming = seen.messages.find((m) => m.from === 'action' && m.status === 'confirming')
+    if (confirming?.from !== 'action') throw new Error('nothing to accept')
+    await call(`/actions/${confirming.call}/claim`, { body: { tab: 'A' }, token: visitor })
+    await call(`/actions/${confirming.call}/result`, {
+      body: { tab: 'A', ok: true, result: { rempli: true } },
+      token: visitor,
+    })
+    expect(answered).toContain(id)
+    seen = (await (await call('/conversation', { token: visitor })).json()) as VisitorConversation
+    expect(
+      seen.messages.filter((m) => m.from === 'action').map((m) => 'status' in m && m.status),
+    ).toEqual(['done', 'done'])
+
+    // Declined: the AI hears it too.
+    answered.length = 0
+    await callPage(db, id, tools[1] as PageTool, {})
+    seen = (await (await call('/conversation', { token: visitor })).json()) as VisitorConversation
+    const again = seen.messages.findLast((m) => m.from === 'action')
+    if (again?.from !== 'action') throw new Error('no call')
+    await call(`/actions/${again.call}/refuse`, { body: {}, token: visitor })
+    expect(answered).toEqual([id])
+    const [stored] = await db.select().from(pageCalls).where(eq(pageCalls.id, again.call))
+    expect(stored?.status).toBe('refused')
   })
 })

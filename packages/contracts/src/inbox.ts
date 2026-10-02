@@ -1,4 +1,4 @@
-import type { WidgetAppearance } from './widget.js'
+import type { PageCallStatus, WidgetAppearance } from './widget.js'
 
 /**
  * The inbox's model — the `chat` schema as the server hands it over to the agents
@@ -62,7 +62,7 @@ export interface Source {
   readonly title: string
   readonly origin: 'article' | 'conversation'
   readonly detail: string
-  /** A promoted conversation that an editor reviewed in basedb. */
+  /** A promoted conversation that a supervisor reviewed. */
   readonly validated?: boolean
 }
 
@@ -146,7 +146,7 @@ export type ConversationEvent =
   | { readonly type: 'reopened'; readonly agent: string }
   /** `agent` has it now, given by `by`; `agent` is null when it was taken back to the queue. */
   | { readonly type: 'assigned'; readonly agent: string | null; readonly by: string }
-  /** The AI called one of basedb's « Outils IA »; `detail` is what it looked at. */
+  /** The AI called one of the « Outils IA »; `detail` is what it looked at. */
   | { readonly type: 'tool'; readonly tool: string; readonly detail: string }
   /**
    * Moved to another inbox, or another team, by `by` — the names as they were then. A
@@ -167,6 +167,31 @@ export type ConversationEvent =
    * the AI alone held is resolved by it.
    */
   | { readonly type: 'restarted' }
+  /**
+   * The widget asked the visitor for their e-mail — nobody could answer soon. `by`: the
+   * automation that asked; null when the AI handed over while the agents were away.
+   */
+  | { readonly type: 'email_requested'; readonly by: string | null; readonly text: string | null }
+  /** The visitor left their e-mail in the widget's card. */
+  | { readonly type: 'email_given'; readonly email: string }
+  /** The AI asked the visitor's page to act (D21) — and how it went. */
+  | {
+      readonly type: 'page_action'
+      readonly call: string
+      readonly name: string
+      readonly label: string
+      readonly args: Readonly<Record<string, unknown>>
+      readonly status: PageCallStatus
+      readonly result?: unknown
+      readonly error?: string
+    }
+  /** Taken out of the AI's hands and given to the agents' queue — by an automation (D20). */
+  | { readonly type: 'queued'; readonly by: string }
+  | {
+      readonly type: 'priority'
+      readonly priority: 'low' | 'normal' | 'high' | 'urgent'
+      readonly by: string
+    }
 
 /** Something that happened, told in one line: a tool called, an agent taking over. */
 export interface EventMessage extends MessageBase {
@@ -227,7 +252,7 @@ export interface Conversation {
   readonly messages: readonly Message[]
 }
 
-/** An agent — a basedb account listed in the « Conseillers » table (D4). */
+/** An agent — a row of « Conseillers », and their account (D19). */
 export interface Agent {
   readonly id: string
   readonly name: string
@@ -295,7 +320,14 @@ export interface SnoozeBody {
  * Why a conversation calls for an agent's attention: a visitor wrote, the AI handed it
  * over, or someone gave it to them. What rings, what shows in the bell.
  */
-export type AlertKind = 'visitor_message' | 'handoff' | 'assigned' | 'transferred' | 'woke'
+export type AlertKind =
+  | 'visitor_message'
+  | 'handoff'
+  | 'assigned'
+  | 'transferred'
+  | 'woke'
+  /** An automation's « Prévenir » step: `text` says why, `by` is the automation. */
+  | 'automation'
 
 /** One entry of an agent's bell. Kept by the server, so that a reload loses none. */
 export interface Notification {
@@ -303,8 +335,9 @@ export interface Notification {
   readonly kind: AlertKind
   readonly conversationId: string
   readonly contactName: string
-  /** Who assigned the conversation, for `assigned`. */
+  /** Who assigned the conversation, for `assigned`; the automation, for `automation`. */
   readonly by: string | null
+  readonly text: string | null
   readonly at: string
   readonly read: boolean
 }
@@ -315,7 +348,7 @@ export interface NotificationList {
   readonly items: readonly Notification[]
 }
 
-/** A canned reply of basedb's « Réponses types », offered after « / » in the composer. */
+/** A canned reply of « Réponses types », offered after « / » in the composer. */
 export interface CannedReply {
   readonly id: string
   readonly title: string
@@ -350,7 +383,7 @@ export interface ContactDetail {
   }[]
 }
 
-/** The simple counters of the framing's MVP — full dashboards are basedb's. */
+/** The simple counters of the statistics screen. */
 export interface InboxStats {
   /** The last seven days, today included. */
   readonly conversations: number
@@ -381,13 +414,14 @@ export interface KnowledgeItem {
   readonly indexedAt: string
 }
 
-/** The AI's tools, as the tools screen shows them — declared in basedb. */
+/** The AI's tools, as the tools screen shows them. */
 export interface ToolsOverview {
   readonly tools: readonly {
     readonly id: string
     readonly name: string
     readonly description: string
-    readonly type: 'basedb' | 'http' | 'callback'
+    /** `contact`: the visitor's record, as their site signed it. */
+    readonly type: 'contact' | 'http' | 'callback'
     readonly target: string | null
     readonly method: 'GET' | 'POST'
     readonly agent: boolean
@@ -430,7 +464,7 @@ export interface WidgetSettings {
 
 export interface WidgetEditorSite {
   readonly id: string
-  /** Where the widget may show, from basedb. */
+  /** Where the widget may show, from « Sites ». */
   readonly domains: readonly string[]
   /** The AI answers first on this site. */
   readonly ai: boolean
@@ -441,8 +475,6 @@ export interface WidgetEditorSite {
 
 export interface WidgetEditor {
   readonly sites: readonly WidgetEditorSite[]
-  /** False: settings from the template, changed in memory only — lost at restart. */
-  readonly persistent: boolean
   /** A supervisor may save. */
   readonly canEdit: boolean
 }
@@ -541,19 +573,17 @@ export interface SettingsRow {
 
 export interface SettingsOverview {
   readonly tables: readonly SettingsTable[]
-  /** The basedb accounts a « Personne » field may name. */
+  /** The agents a « Personne » field may name. */
   readonly users: readonly {
     readonly id: string
     readonly name: string
     readonly email: string | null
   }[]
-  /** False: the template's rows, changed in memory only. */
-  readonly persistent: boolean
   /** A supervisor may change the settings. */
   readonly canEdit: boolean
 }
 
-/** Someone a supervisor invites as an agent: their basedb account is created with it. */
+/** Someone a supervisor invites as an agent. */
 export interface InviteBody {
   readonly name: string
   readonly email: string
@@ -564,12 +594,48 @@ export interface InviteBody {
 export interface Invited {
   /** Their row in « Conseillers ». */
   readonly row: SettingsRow
-  /** Shown once, to hand over; null when the address already had an account. */
-  readonly temporaryPassword: string | null
+  /** The link to hand over — they choose their password there. Shown once, seven days good. */
+  readonly link: string
 }
 
+/** A link to choose a new password, for an agent: shown once, seven days good. */
 export interface PasswordReset {
-  readonly temporaryPassword: string
+  readonly link: string
+}
+
+// ── Signing in (D19) ────────────────────────────────────────────────────────────────────
+
+export interface AuthState {
+  /** The agent signed in; null: the sign-in screen. */
+  readonly agent: Agent | null
+  /** Nobody can sign in yet: the first supervisor is created from the sign-in screen. */
+  readonly setup: boolean
+  /** The identity provider's name, when one is configured: « Se connecter avec {sso} ». */
+  readonly sso: string | null
+}
+
+export interface SignInBody {
+  readonly email: string
+  readonly password: string
+}
+
+/** The first supervisor, at the first start. */
+export interface SetupBody {
+  readonly name: string
+  readonly email: string
+  readonly password: string
+}
+
+/** What a link a supervisor handed over is for. */
+export interface LinkInfo {
+  readonly name: string
+  readonly email: string | null
+  readonly purpose: 'invite' | 'reset'
+}
+
+export interface ChangePasswordBody {
+  readonly current: string
+  readonly next: string
 }
 
 /** A tag « Étiquettes » offers, to put on a conversation. */
@@ -684,4 +750,20 @@ export interface WebhookDelivery {
   readonly createdAt: string
   readonly deliveredAt: string | null
   readonly nextAttemptAt: string | null
+}
+
+/** An action pages of a site declared (D21), and what the supervisors allow of it. */
+export interface PageAction {
+  readonly id: string
+  readonly siteId: string
+  readonly name: string
+  readonly label: string
+  readonly description: string
+  readonly kind: 'read' | 'do'
+  readonly parameters: Readonly<Record<string, unknown>>
+  /** The AI may call it. Off until a supervisor allows it. */
+  readonly enabled: boolean
+  /** The visitor accepts it first. */
+  readonly confirm: boolean
+  readonly lastSeenAt: string
 }

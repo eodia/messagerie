@@ -349,9 +349,12 @@ export const useInbox = create<InboxState>((set, get) => {
   function raise(summary: ConversationSummary, alert: AlertKind): void {
     const { me, selectedId } = get()
     const concerns =
-      alert === 'assigned' || alert === 'woke'
-        ? summary.assigneeId === me?.id
-        : concernsMe(summary, me)
+      // An automation's alert comes only to those it told.
+      alert === 'automation'
+        ? true
+        : alert === 'assigned' || alert === 'woke'
+          ? summary.assigneeId === me?.id
+          : concernsMe(summary, me)
     if (!concerns) return
     // Looking at it already: it is read, no need to call.
     if (summary.id === selectedId && inView()) {
@@ -365,9 +368,11 @@ export const useInbox = create<InboxState>((set, get) => {
         ? name
         : alert === 'handoff'
           ? $t('L’IA transfère {name}', { name })
-          : alert === 'woke'
-            ? $t('De retour de l’attente : {name}', { name })
-            : $t('Conversation confiée : {name}', { name })
+          : alert === 'automation'
+            ? $t('À voir : {name}', { name })
+            : alert === 'woke'
+              ? $t('De retour de l’attente : {name}', { name })
+              : $t('Conversation confiée : {name}', { name })
     notifyDesktop(title, summary.preview, summary.id, () => get().open(summary.id))
   }
 

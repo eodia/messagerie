@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import { MemorySource } from '../../src/settings/demo.js'
 import { availability } from '../../src/settings/hours.js'
 import { type OpeningSlot, Settings, minutesOf } from '../../src/settings/settings.js'
-import { TemplateSource } from '../../src/settings/source.js'
 
 /** The settings as the demonstration gives them, and the hours computed from them. */
 
-const demo = new Settings(new TemplateSource('dev-marc', true))
+const demo = new Settings(new MemorySource('dev-marc'))
 
 describe('the demonstration settings', () => {
   it('give Acme Assurances, its domains and its threshold', async () => {
@@ -38,7 +38,7 @@ describe('the demonstration settings', () => {
     // Two of the three promoted conversations are published; the third waits for review.
     expect(await demo.promotedConversations()).toHaveLength(2)
     expect((await demo.guardrails()).every((g) => g.action === 'handoff')).toBe(true)
-    expect((await demo.tools()).map((t) => t.type)).toEqual(['basedb', 'callback', 'http'])
+    expect((await demo.tools()).map((t) => t.type)).toEqual(['contact', 'callback', 'http'])
   })
 
   it('read the weather tool as a GET with its headers, and the MCP server', async () => {

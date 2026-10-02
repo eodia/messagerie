@@ -48,6 +48,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { DesktopInvite } from './desktop-invite'
 import { ContactAvatar, StateChip } from './labels'
 import { ActiveFilters, FiltersButton } from './list-filters'
 import { TypingDots } from './messages'
@@ -344,6 +345,7 @@ export function ConversationList({
           </div>
         )}
       </div>
+      <DesktopInvite />
     </ResizablePanel>
   )
 }

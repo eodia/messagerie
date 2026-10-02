@@ -29,7 +29,7 @@ export type ChatMessage =
       readonly content: string
     }
 
-/** A function the model may call — one of basedb's « Outils IA », to the model. */
+/** A function the model may call — one of the « Outils IA », to the model. */
 export interface ToolSpec {
   readonly name: string
   readonly description: string

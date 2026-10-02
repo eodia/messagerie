@@ -14,7 +14,7 @@ import { WidgetHub } from './widget/hub.js'
  * Starts the chat server: what `boot` starts, the change listener, then the HTTP and
  * WebSocket server. Stops cleanly on Ctrl+C and `docker stop`.
  */
-const { config, db, basedb, settings, settingsKind, ai, mcp, stop: stopBoot } = await boot('server')
+const { config, db, pool, settings, ai, mcp, automations, stop: stopBoot } = await boot('server')
 
 const hub = new InboxHub()
 const widgetHub = new WidgetHub()
@@ -79,7 +79,13 @@ const stopListening = listenForChanges(
       .then(async ([summary]) => {
         if (!summary) return
         const audience = new Set(await access.audience(db, summary.inboxId))
-        hub.sendWhere({ type: 'conversation', summary, alert }, (agent) => audience.has(agent))
+        // An automation's alert is for those it told (D20); the others see the change.
+        const told = new Set(alert === 'automation' ? (notify ?? []) : audience)
+        hub.sendWhere({ type: 'conversation', summary, alert }, (agent) => told.has(agent))
+        hub.sendWhere(
+          { type: 'conversation', summary },
+          (agent) => audience.has(agent) && !told.has(agent),
+        )
       })
       .catch(failed)
   },
@@ -92,27 +98,20 @@ const { app, injectWebSocket } = createApp({
   db,
   hub,
   config,
-  basedb,
   settings,
   tickets: new TicketBook(),
   widgetHub,
   ai,
   mcp,
+  automations,
+  pool,
 })
 const server = serve({ fetch: app.fetch, port: config.port }, ({ port }) => {
   console.log(`chat : à l’écoute sur http://localhost:${port}`)
-  if (settingsKind === 'template') {
-    console.log('chat : paramétrage de démonstration (Acme Assurances), sans basedb')
+  if (config.devAgent) {
+    console.log(`chat : sans session, l’inbox agit comme ${config.devAgent} (développement)`)
   }
-  if (config.basedb) {
-    console.log(
-      `chat : paramétrage lu dans basedb ${config.basedb.url}, base ${config.basedb.base}`,
-    )
-  }
-  if (config.devAgent) console.log(`chat : identité de développement ${config.devAgent} sans jeton`)
-  if (!config.basedb && !config.devAgent) {
-    console.warn('chat : ni basedb ni identité de développement — toute requête est refusée')
-  }
+  if (config.oidc) console.log(`chat : connexion par ${config.oidc.name} (${config.oidc.issuer})`)
 })
 injectWebSocket(server)
 

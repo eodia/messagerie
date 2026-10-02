@@ -6,7 +6,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Separator } from '@/components/ui/separator'
@@ -19,7 +18,7 @@ import {
   BookOpen,
   ChartColumn,
   ChevronDown,
-  ExternalLink,
+  ChevronsUpDown,
   Globe,
   Headset,
   Inbox,
@@ -32,6 +31,7 @@ import {
   Settings,
   ShieldAlert,
   UsersRound,
+  Workflow,
   Wrench,
 } from 'lucide-react'
 import Link, { useLinkStatus } from 'next/link'
@@ -51,13 +51,12 @@ interface Screen {
 const SCREENS: readonly Screen[] = [
   { href: '/contacts', label: msg('Contacts'), icon: UsersRound },
   { href: '/connaissance', label: msg('Connaissances'), icon: BookOpen },
-  { href: '/statistiques', label: msg('Statistiques'), icon: ChartColumn },
+  { href: '/tableaux-de-bord', label: msg('Tableaux de bord'), icon: ChartColumn },
 ]
 
 /**
  * What a supervisor sets up — « Administration », folded at the foot of the sidebar, shown
- * to supervisors alone. The data lives in basedb, base « Messagerie » (D1, D10): these
- * screens read and write it there.
+ * to supervisors alone. The data lives in the chat's own tables (D19).
  */
 const SETTINGS: readonly Screen[] = [
   { href: '/parametrage/boites', label: msg('Boîtes de réception'), icon: Inbox },
@@ -70,11 +69,12 @@ const SETTINGS: readonly Screen[] = [
   },
   { href: '/parametrage/garde-fous', label: msg('Garde-fous'), icon: ShieldAlert },
   { href: '/outils', label: msg('Outils IA'), icon: Wrench },
+  { href: '/automatisations', label: msg('Automatisations'), icon: Workflow },
   { href: '/widget', label: msg('Widget'), icon: Palette },
   { href: '/parametrage/api', label: msg('API et MCP'), icon: KeyRound },
 ]
 
-export function Sidebar({ basedbUrl }: { readonly basedbUrl: string }) {
+export function Sidebar() {
   const collapsed = useSidebar((s) => s.collapsed)
   const pathname = usePathname()
   const waiting = useInbox(waitingHere)
@@ -136,10 +136,10 @@ export function Sidebar({ basedbUrl }: { readonly basedbUrl: string }) {
         </div>
       </nav>
 
-      <Administration basedbUrl={basedbUrl} collapsed={collapsed} pathname={pathname} />
+      <Administration collapsed={collapsed} pathname={pathname} />
       <Separator />
       <div className="p-2">
-        <UserMenu collapsed={collapsed} basedbUrl={basedbUrl} />
+        <UserMenu collapsed={collapsed} />
       </div>
     </aside>
   )
@@ -152,11 +152,9 @@ export function Sidebar({ basedbUrl }: { readonly basedbUrl: string }) {
  * writes, and the reading of its tables.
  */
 function Administration({
-  basedbUrl,
   collapsed,
   pathname,
 }: {
-  readonly basedbUrl: string
   readonly collapsed: boolean
   readonly pathname: string
 }) {
@@ -203,13 +201,6 @@ function Administration({
                 </Link>
               </DropdownMenuItem>
             ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <a href={basedbUrl} target="_blank" rel="noreferrer">
-                <ExternalLink />
-                {$t('Ouvrir la base dans basedb')}
-              </a>
-            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -259,15 +250,6 @@ function Administration({
                 collapsed={false}
               />
             ))}
-            <a
-              href={basedbUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="flex h-7 items-center gap-2.5 rounded-lg px-2 text-xs text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
-            >
-              <ExternalLink className="size-4 shrink-0" />
-              {$t('Ouvrir la base dans basedb')}
-            </a>
           </div>
         </div>
       </div>

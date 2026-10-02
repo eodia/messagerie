@@ -12,18 +12,48 @@ import { createNodeWebSocket } from '@hono/node-ws'
 import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import type pg from 'pg'
 import { analyzeAttachment } from './ai/attachments.js'
 import { type Rewording, rephrase } from './ai/copilot.js'
 import type { AiJobs } from './ai/jobs.js'
 import type { McpConnections } from './ai/mcp.js'
 import { speakMessage } from './ai/speech.js'
+import { SOURCES } from './analytics/catalog.js'
+import {
+  type AnalyticsDeps,
+  assistQuestion,
+  createDashboard,
+  deleteDashboard,
+  getDashboard,
+  listDashboards,
+  runCard,
+  runDraft,
+  saveDashboard,
+} from './analytics/dashboards.js'
 import { documentation, openApi } from './api/documentation.js'
 import { mcpRoutes } from './api/mcp.js'
 import { publicAddress, restRoutes } from './api/rest.js'
 import { createToken, listTokens, readCreateBody, revokeToken } from './api/tokens.js'
-import { type AgentEnv, agentAuth } from './auth/agent.js'
+import { type AgentEnv, REQUEST_HEADER, agentAuth } from './auth/agent.js'
+import { authRoutes } from './auth/routes.js'
 import type { TicketBook } from './auth/tickets.js'
-import type { BasedbClient } from './basedb/client.js'
+import {
+  type ManageDeps,
+  automationChoices,
+  automationRunList,
+  buttonsFor,
+  createAutomation,
+  deleteAutomation,
+  getAutomation,
+  hookCalled,
+  listAutomations,
+  pressButton,
+  renewAutomationKey,
+  setAutomationActive,
+  stopRun,
+  tryAutomation,
+  updateAutomation,
+} from './automations/manage.js'
 import type { Config } from './config.js'
 import type { Db } from './db/client.js'
 import { conversations } from './db/schema.js'
@@ -33,7 +63,7 @@ import { DiskStore, type FileStore } from './files/store.js'
 import { gifFile, searchGifs } from './gifs.js'
 import { homePage } from './home-page.js'
 import { Access, canSee, inboxDirectory } from './inbox/access.js'
-import { followRole, inviteAgent, resetAgentPassword } from './inbox/accounts.js'
+import { inviteAgent, resetAgentPassword } from './inbox/accounts.js'
 import {
   cannedReplies,
   contactByTail,
@@ -70,6 +100,7 @@ import {
   transfer,
   wake,
 } from './inbox/write.js'
+import { listPageActions, setPageAction } from './page/actions.js'
 import type { InboxHub } from './realtime/hub.js'
 import { signalTyping } from './realtime/signals.js'
 import { Refusal } from './refusal.js'
@@ -139,19 +170,19 @@ export function createApp({
   db,
   hub,
   config,
-  basedb,
   settings,
   tickets,
   widgetHub,
   ai,
   mcp,
   files,
+  automations,
+  pool,
 }: {
   db: Db
   hub: InboxHub
   config: Config
-  basedb: BasedbClient | null
-  settings: Settings | null
+  settings: Settings
   tickets: TicketBook
   widgetHub: WidgetHub
   /** The model and its queues; null without AI — conversations then go to the agents. */
@@ -159,6 +190,10 @@ export function createApp({
   mcp: McpConnections
   /** Where the files sent in conversations are kept: `config.filesDir` unless given. */
   files?: FileStore
+  /** The automations' engine, when it runs in this process: hurried by a button. */
+  automations?: { poke(): void } | null
+  /** The database's pool: the dashboards' questions run on a client of their own (D22). */
+  pool?: pg.Pool
 }) {
   const app = new Hono()
   const store = files ?? new DiskStore(config.filesDir)
@@ -167,15 +202,20 @@ export function createApp({
 
   // CORS for the inbox's origin — not on a WebSocket upgrade, whose response headers are
   // not the middleware's to touch.
+  // With credentials: the session is a cookie (D19).
   const withCors = cors({
     origin: config.webOrigin,
+    credentials: true,
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-    allowHeaders: ['content-type', 'authorization'],
+    allowHeaders: ['content-type', REQUEST_HEADER],
     maxAge: 600,
   })
-  app.use('/api/*', (c, next) =>
+  app.use('/api/inbox/*', (c, next) =>
     c.req.header('upgrade')?.toLowerCase() === 'websocket' ? next() : withCors(c, next),
   )
+
+  // Signing in: the session, the first supervisor, links, an identity provider.
+  app.route('/api/auth', authRoutes({ db, config, settings }))
 
   app.get('/health', (c) => c.json({ ok: true }))
 
@@ -214,7 +254,7 @@ export function createApp({
   )
 
   const inbox = new Hono<AgentEnv>()
-  inbox.use(agentAuth(db, config, basedb, settings))
+  inbox.use(agentAuth(db, config))
   const access = new Access(settings)
 
   // An agent reaches the conversations of the inboxes they see; another inbox's
@@ -231,67 +271,39 @@ export function createApp({
     await next()
   })
 
-  // The settings screens: the « Messagerie » base's tables, read by all, written by a
-  // supervisor — with their own basedb token.
-  const configured = () => {
-    if (!settings) throw new Refusal('BASEDB_UNREACHABLE', 503)
-    return settings
-  }
-  inbox.get('/settings', async (c) =>
-    c.json(await settingsOverview(configured(), basedb, c.get('agent'), c.get('basedbToken'))),
-  )
+  // The settings screens (D19): the knowledge base read by all, the administration's
+  // tables read and written by supervisors.
+  inbox.get('/settings', async (c) => c.json(await settingsOverview(db, c.get('agent'))))
   inbox.get('/settings/:table', async (c) =>
-    c.json(await settingsRows(configured(), c.get('agent'), c.req.param('table'))),
+    c.json(await settingsRows(settings, c.get('agent'), c.req.param('table'))),
   )
   inbox.post('/settings/:table', async (c) => {
     const { values } = await jsonBody(c.req.raw)
-    const agent = c.get('agent')
-    if (c.req.param('table') === 'conseillers') {
-      await followRole(configured(), basedb, agent, c.get('basedbToken'), null, values)
-    }
-    return c.json(
-      await createRow(configured(), agent, c.get('basedbToken'), c.req.param('table'), values),
-      201,
-    )
+    return c.json(await createRow(settings, c.get('agent'), c.req.param('table'), values), 201)
   })
   inbox.patch('/settings/:table/:id', async (c) => {
     const { values } = await jsonBody(c.req.raw)
     const { table, id } = c.req.param()
-    if (table === 'conseillers') {
-      await followRole(configured(), basedb, c.get('agent'), c.get('basedbToken'), id, values)
-    }
-    await updateRow(configured(), c.get('agent'), c.get('basedbToken'), table, id, values)
+    await updateRow(settings, c.get('agent'), table, id, values)
     return c.body(null, 204)
   })
   inbox.delete('/settings/:table/:id', async (c) => {
     const { table, id } = c.req.param()
-    await deleteRow(configured(), c.get('agent'), c.get('basedbToken'), table, id)
+    await deleteRow(settings, c.get('agent'), table, id)
     return c.body(null, 204)
   })
-  // Agents' accounts, created and reset from the inbox — by a basedb administrator.
+  // Agents' accounts, from the inbox: an invitation, a new password — each a link.
   inbox.post('/agents/invite', async (c) =>
     c.json(
-      await inviteAgent(
-        configured(),
-        basedb,
-        c.get('agent'),
-        c.get('basedbToken'),
-        await jsonBody(c.req.raw),
-      ),
+      await inviteAgent(db, settings, config.webOrigin, c.get('agent'), await jsonBody(c.req.raw)),
       201,
     ),
   )
-  inbox.post('/agents/:id/password', async (c) =>
-    c.json(
-      await resetAgentPassword(
-        configured(),
-        basedb,
-        c.get('agent'),
-        c.get('basedbToken'),
-        c.req.param('id'),
-      ),
-    ),
-  )
+  inbox.post('/agents/:id/password', async (c) => {
+    const id = c.req.param('id')
+    if (!UUID.test(id)) throw new Refusal('ROW_NOT_FOUND', 404)
+    return c.json(await resetAgentPassword(db, config.webOrigin, c.get('agent'), id))
+  })
 
   inbox.get('/tags', async (c) => c.json(await tagOptions(settings)))
 
@@ -390,20 +402,14 @@ export function createApp({
   inbox.get('/tools', async (c) => c.json(await toolsOverview(settings, mcp)))
 
   inbox.get('/widget', async (c) =>
-    c.json(
-      settings
-        ? await widgetEditor(settings, c.get('agent'), ai !== null)
-        : { sites: [], persistent: false, canEdit: false },
-    ),
+    c.json(await widgetEditor(settings, c.get('agent'), ai !== null)),
   )
 
-  /** A supervisor saves a site's widget — into its row of basedb, as themselves. */
+  /** A supervisor saves a site's widget — into its row of « Sites ». */
   inbox.put('/widget/:site', async (c) => {
-    if (!settings) throw new Refusal('SITE_NOT_FOUND', 404)
     const saved = await saveWidget(
       settings,
       c.get('agent'),
-      c.get('basedbToken'),
       c.req.param('site'),
       await jsonBody(c.req.raw),
       ai !== null,
@@ -423,7 +429,7 @@ export function createApp({
         : {}
     const id = uuidParam(c.req.param('id'))
     return c.json(
-      await runInConversation({ db, settings, basedb, mcp }, id, {
+      await runInConversation({ db, settings, mcp }, id, {
         tool,
         ...(server ? { server } : {}),
         arguments: values,
@@ -442,7 +448,7 @@ export function createApp({
         ? (args as Record<string, unknown>)
         : {}
     return c.json(
-      await testTool({ db, settings, basedb, mcp }, c.get('agent'), {
+      await testTool({ db, settings, mcp }, c.get('agent'), {
         tool,
         ...(server ? { server } : {}),
         arguments: values,
@@ -456,7 +462,6 @@ export function createApp({
 
   /** To another inbox, another team, or both. */
   inbox.post('/conversations/:id/transfer', async (c) => {
-    if (!settings) throw new Refusal('INBOX_NOT_FOUND', 404)
     const { inboxId, teamId, note } = await jsonBody(c.req.raw)
     if (
       (inboxId !== undefined && typeof inboxId !== 'string') ||
@@ -491,11 +496,11 @@ export function createApp({
     return c.body(null, 204)
   })
 
-  /** Into basedb's « Conversations promues », « À relire ». */
+  /** Into « Conversations promues », « À relire »: a source for the AI once reviewed. */
   inbox.post('/conversations/:id/promote', async (c) => {
     const id = uuidParam(c.req.param('id'))
     await promote(
-      { db, basedb, llm: ai?.llm ?? null, webOrigin: config.webOrigin },
+      { db, settings, llm: ai?.llm ?? null, webOrigin: config.webOrigin },
       c.get('agent'),
       id,
     )
@@ -729,7 +734,151 @@ export function createApp({
     return c.body(null, 202)
   })
 
+  // The dashboards (D22): supervisors write them and their questions; agents run the
+  // cards of the shared ones, as saved.
+  const analytics: AnalyticsDeps = { db, pool: pool ?? null, llm: ai?.llm ?? null }
+  inbox.get('/analytics/sources', (c) => c.json(SOURCES))
+  inbox.post('/analytics/run', async (c) =>
+    c.json(await runDraft(analytics, c.get('agent'), await jsonBody(c.req.raw))),
+  )
+  inbox.post('/analytics/assist', async (c) =>
+    c.json(await assistQuestion(analytics, c.get('agent'), await jsonBody(c.req.raw))),
+  )
+  inbox.get('/dashboards', async (c) => c.json(await listDashboards(db, c.get('agent'))))
+  inbox.post('/dashboards', async (c) =>
+    c.json(await createDashboard(db, c.get('agent'), await jsonBody(c.req.raw)), 201),
+  )
+  inbox.get('/dashboards/:id', async (c) =>
+    c.json(await getDashboard(db, c.get('agent'), c.req.param('id'))),
+  )
+  inbox.put('/dashboards/:id', async (c) =>
+    c.json(await saveDashboard(db, c.get('agent'), c.req.param('id'), await jsonBody(c.req.raw))),
+  )
+  inbox.delete('/dashboards/:id', async (c) => {
+    await deleteDashboard(db, c.get('agent'), c.req.param('id'))
+    return c.body(null, 204)
+  })
+  inbox.post('/dashboards/:id/cards/:card/run', async (c) => {
+    const { timeZone } = await jsonBody(c.req.raw)
+    return c.json(
+      await runCard(analytics, c.get('agent'), c.req.param('id'), c.req.param('card'), timeZone),
+    )
+  })
+
+  // The page's actions (D21): what a site's pages declared, and what supervisors allow.
+  inbox.get('/sites/:site/page-actions', async (c) =>
+    c.json(await listPageActions(db, c.get('agent'), c.req.param('site'))),
+  )
+  inbox.patch('/page-actions/:id', async (c) => {
+    const id = c.req.param('id')
+    if (!UUID.test(id)) throw new Refusal('ROW_NOT_FOUND', 404)
+    return c.json(await setPageAction(db, c.get('agent'), id, await jsonBody(c.req.raw)))
+  })
+
+  // The automations (D20): supervisors write, switch on, try and read them;
+  // `automations/engine.ts` runs them. Agents start the « button » ones from a conversation.
+  const automating: ManageDeps = {
+    db,
+    settings,
+    secret: config.secret,
+    publicUrl: config.publicUrl,
+    poke: automations?.poke ?? (() => {}),
+  }
+  const automationParam = (value: string) => {
+    if (!UUID.test(value)) throw new Refusal('AUTOMATION_NOT_FOUND', 404)
+    return value
+  }
+  inbox.get('/automations', async (c) => c.json(await listAutomations(automating, c.get('agent'))))
+  inbox.get('/automations/choices', async (c) =>
+    c.json(await automationChoices(automating, c.get('agent'), ai !== null)),
+  )
+  inbox.post('/automations', async (c) =>
+    c.json(await createAutomation(automating, c.get('agent'), await jsonBody(c.req.raw)), 201),
+  )
+  inbox.get('/automations/:id', async (c) =>
+    c.json(await getAutomation(automating, c.get('agent'), automationParam(c.req.param('id')))),
+  )
+  inbox.put('/automations/:id', async (c) =>
+    c.json(
+      await updateAutomation(
+        automating,
+        c.get('agent'),
+        automationParam(c.req.param('id')),
+        await jsonBody(c.req.raw),
+      ),
+    ),
+  )
+  inbox.patch('/automations/:id', async (c) => {
+    const { active } = await jsonBody(c.req.raw)
+    if (typeof active !== 'boolean') throw new Refusal('INVALID_REQUEST', 400, { field: 'active' })
+    return c.json(
+      await setAutomationActive(
+        automating,
+        c.get('agent'),
+        automationParam(c.req.param('id')),
+        active,
+      ),
+    )
+  })
+  inbox.post('/automations/:id/key', async (c) =>
+    c.json(
+      await renewAutomationKey(automating, c.get('agent'), automationParam(c.req.param('id'))),
+    ),
+  )
+  inbox.delete('/automations/:id', async (c) => {
+    await deleteAutomation(automating, c.get('agent'), automationParam(c.req.param('id')))
+    return c.body(null, 204)
+  })
+  inbox.get('/automations/:id/runs', async (c) =>
+    c.json(await automationRunList(automating, c.get('agent'), automationParam(c.req.param('id')))),
+  )
+  inbox.post('/automations/:id/try', async (c) => {
+    const { conversationId } = await jsonBody(c.req.raw)
+    const target =
+      conversationId === null || conversationId === undefined
+        ? null
+        : uuidParam(String(conversationId))
+    return c.json(
+      await tryAutomation(automating, c.get('agent'), automationParam(c.req.param('id')), target),
+      202,
+    )
+  })
+  inbox.post('/automation-runs/:id/stop', async (c) => {
+    await stopRun(automating, c.get('agent'), automationParam(c.req.param('id')))
+    return c.body(null, 204)
+  })
+  inbox.get('/conversations/:id/automations', async (c) =>
+    c.json(await buttonsFor(automating, uuidParam(c.req.param('id')))),
+  )
+  inbox.post('/conversations/:id/automations/:automation', async (c) =>
+    c.json(
+      await pressButton(
+        automating,
+        c.get('agent'),
+        uuidParam(c.req.param('id')),
+        automationParam(c.req.param('automation')),
+      ),
+      202,
+    ),
+  )
+
   app.route('/api/inbox', inbox)
+
+  // A « webhook » automation's address: another system calls it, with its key (D20).
+  app.post('/api/automations/:id/hook', async (c) => {
+    const key = c.req.header('x-messagerie-key') ?? c.req.query('key') ?? ''
+    const text = await c.req.text()
+    if (text.length > 64_000) throw new Refusal('INVALID_REQUEST', 413)
+    let body: unknown = {}
+    if (text.trim() !== '') {
+      try {
+        body = JSON.parse(text)
+      } catch {
+        throw new Refusal('INVALID_REQUEST', 400, { expected: 'JSON' })
+      }
+    }
+    return c.json(await hookCalled(automating, c.req.param('id'), key, body), 202)
+  })
 
   // The public API and the MCP server: programs and agents, with a token of the chat (D16).
   app.route('/api/v1', restRoutes({ db, settings, access, trustProxy: config.trustProxy }))
@@ -747,6 +896,7 @@ export function createApp({
           aiAvailable: ai !== null,
           files: store,
           onVisitorMessage: (id) => ai?.jobs.visitorMessage(id),
+          onPageAnswered: (id) => ai?.jobs.pageAnswered(id),
         },
         widgetHub,
         tickets,

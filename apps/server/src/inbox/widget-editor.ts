@@ -1,15 +1,13 @@
 import type { WidgetEditor, WidgetEditorSite, WidgetSettings } from '@chat/contracts'
-import { BasedbFailure } from '../basedb/client.js'
 import { Refusal } from '../refusal.js'
 import type { Settings, Site } from '../settings/settings.js'
+import { SettingsFailure } from '../settings/source.js'
 import { languageCode, readWidgetSettings, widgetValues } from '../settings/widget.js'
 import type { AgentRow } from './read.js'
 
 /**
  * The widget editor: a site's words and looks, previewed live in the inbox and saved into
- * its row of « Sites » in basedb — which stays where the settings live (D10). Saving is a
- * supervisor's, and happens with their own basedb token: basedb applies their rights, and
- * its history keeps their name.
+ * its row of « Sites » (D19). Saving is a supervisor's alone.
  */
 
 function settingsOf(site: Site): WidgetSettings {
@@ -47,7 +45,6 @@ export async function widgetEditor(
   const sites = await settings.sites()
   return {
     sites: await Promise.all(sites.map((site) => editorSite(settings, site, aiAvailable))),
-    persistent: settings.source.kind === 'basedb',
     canEdit: agent.role === 'supervisor',
   }
 }
@@ -55,7 +52,6 @@ export async function widgetEditor(
 export async function saveWidget(
   settings: Settings,
   agent: AgentRow,
-  token: string | null,
   siteId: string,
   body: unknown,
   aiAvailable: boolean,
@@ -65,17 +61,11 @@ export async function saveWidget(
   const next = readWidgetSettings(body)
   if (!next) throw new Refusal('INVALID_REQUEST', 400)
   try {
-    await settings.updateSite(siteId, widgetValues(next), token)
+    await settings.updateSite(siteId, widgetValues(next))
   } catch (error) {
-    if (error instanceof BasedbFailure) {
-      if (error.status === 401 || error.status === 403)
-        throw new Refusal('SETTINGS_WRITE_REFUSED', 403)
-      if (error.code.startsWith('TEMPLATE_MISMATCH'))
-        throw new Refusal('SETTINGS_MISMATCH', 409, { missing: error.code.slice(19) })
-      if (error.status === 404) throw new Refusal('SITE_NOT_FOUND', 404)
-      throw new Refusal('BASEDB_UNREACHABLE', 502)
-    }
-    throw error
+    if (!(error instanceof SettingsFailure)) throw error
+    if (error.code === 'ROW_NOT_FOUND') throw new Refusal('SITE_NOT_FOUND', 404)
+    throw new Refusal('INVALID_REQUEST', 400, error.field ? { field: error.field } : undefined)
   }
   const saved = await settings.site(siteId)
   if (!saved) throw new Refusal('SITE_NOT_FOUND', 404)

@@ -43,7 +43,7 @@ import { PreviewCard, Studio, StudioTabs } from '../kit/studio'
 type Tab = 'tools' | 'mcp'
 
 const TYPES = {
-  basedb: 'Lecture dans basedb',
+  contact: 'Fiche du visiteur',
   http: 'Appel HTTP',
   callback: 'Rappel',
 } as const
@@ -336,7 +336,7 @@ function HeadersField({
       {secret && (
         <p className="text-xs text-destructive">
           {$t(
-            'Cela ressemble à un secret écrit en clair : il serait lisible dans basedb. Écrivez ${NOM} et mettez la valeur dans l’environnement du serveur.',
+            'Cela ressemble à un secret écrit en clair : il serait lisible par tous les superviseurs. Écrivez ${NOM} et mettez la valeur dans l’environnement du serveur.',
           )}
         </p>
       )}
@@ -673,7 +673,7 @@ export function ToolsStudio() {
         ]}
         item={(_row, values) => {
           const Icon =
-            values.Type === TYPES.basedb
+            values.Type === TYPES.contact
               ? FileText
               : values.Type === TYPES.callback
                 ? CalendarClock
@@ -742,9 +742,9 @@ export function ToolsStudio() {
                     icon: <Globe />,
                   },
                   {
-                    value: TYPES.basedb,
-                    label: $t('Lecture'),
-                    hint: $t('Une table de basedb, ou la fiche du visiteur.'),
+                    value: TYPES.contact,
+                    label: $t('Fiche du visiteur'),
+                    hint: $t('Ce que le site a transmis du client connecté.'),
                     icon: <FileText />,
                   },
                   {
@@ -806,21 +806,6 @@ export function ToolsStudio() {
                     )}
                   </Field>
                 </>
-              )}
-              {values.Type === TYPES.basedb && (
-                <Field
-                  label={$t('Table lue')}
-                  hint={$t('« Fiche du visiteur » : ce que le site a transmis du client connecté.')}
-                >
-                  {(id) => (
-                    <Input
-                      id={id}
-                      value={text(values.Cible)}
-                      onChange={(e) => tools.set('Cible', e.target.value)}
-                      placeholder={$t('Fiche du visiteur')}
-                    />
-                  )}
-                </Field>
               )}
             </FormSection>
             <FormSection

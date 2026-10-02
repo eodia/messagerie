@@ -41,8 +41,8 @@ const TOUCH_MS = 5 * 60_000
 
 /** The marker of a token's agent row. */
 const INTEGRATION = 'token:'
-export const isIntegration = (agent: Pick<AgentRow, 'basedbUserId'>): boolean =>
-  agent.basedbUserId.startsWith(INTEGRATION)
+export const isIntegration = (agent: Pick<AgentRow, 'login'>): boolean =>
+  agent.login.startsWith(INTEGRATION)
 
 function base62(bytes: Uint8Array): string {
   let value = BigInt(`0x${Buffer.from(bytes).toString('hex')}`)
@@ -152,7 +152,7 @@ export async function createToken(
     const [actor] = await tx
       .insert(agents)
       .values({
-        basedbUserId: `${INTEGRATION}${made.prefix}`,
+        login: `${INTEGRATION}${made.prefix}`,
         name: body.label,
         role: 'agent',
         // Never active: listed nowhere, rung for nothing.

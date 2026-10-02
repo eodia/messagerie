@@ -16,8 +16,8 @@ import { type Db, connect, migrateDatabase } from '../../src/db/client.js'
 import { agents, aiRuns, conversations } from '../../src/db/schema.js'
 import { MemoryStore } from '../../src/files/store.js'
 import { InboxHub } from '../../src/realtime/hub.js'
+import { MemorySource } from '../../src/settings/demo.js'
 import { Settings } from '../../src/settings/settings.js'
-import { TemplateSource } from '../../src/settings/source.js'
 import { WidgetHub } from '../../src/widget/hub.js'
 
 /**
@@ -31,7 +31,7 @@ let pool: pg.Pool
 let db: Db
 let app: Hono
 const store = new MemoryStore()
-const settings = new Settings(new TemplateSource('dev-marc', true))
+const settings = new Settings(new MemorySource('dev-marc'))
 const requests: CompletionRequest[] = []
 
 /** A model that looks at anything, and says so in two lines. */
@@ -63,9 +63,7 @@ beforeAll(async () => {
   container = await new PostgreSqlContainer('pgvector/pgvector:pg16').start()
   ;({ pool, db } = connect(container.getConnectionUri()))
   await migrateDatabase(db)
-  await db
-    .insert(agents)
-    .values({ basedbUserId: 'dev-marc', name: 'Marc JAMAIN', role: 'supervisor' })
+  await db.insert(agents).values({ login: 'dev-marc', name: 'Marc JAMAIN', role: 'supervisor' })
   const config: Config = {
     filesDir: join(tmpdir(), 'chat-test-files'),
     port: 0,
@@ -73,7 +71,8 @@ beforeAll(async () => {
     webOrigin: 'http://localhost:3210',
     production: false,
     devAgent: 'dev-marc',
-    basedb: null,
+    publicUrl: 'http://localhost:8810',
+    oidc: null,
     secret: 'a-secret-for-the-tests-of-the-chat-server',
     trustProxy: false,
     giphyKey: null,
@@ -82,7 +81,6 @@ beforeAll(async () => {
     db,
     hub: new InboxHub(),
     config,
-    basedb: null,
     settings,
     tickets: new TicketBook(),
     widgetHub: new WidgetHub(),
@@ -97,6 +95,7 @@ beforeAll(async () => {
         resolved: () => {},
         suggest: () => {},
         knowledgeChanged: () => {},
+        pageAnswered: () => {},
       },
     },
   }))

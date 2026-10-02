@@ -70,7 +70,7 @@ function proofreadingOn(): boolean {
 
 type Mode = 'reply' | 'note'
 
-/** basedb's « Réponses types », read once per page: they change seldom. */
+/** The « Réponses types », read once per page: they change seldom. */
 let cannedOnce: Promise<CannedReply[]> | null = null
 function loadCanned(): Promise<CannedReply[]> {
   cannedOnce ??= api.canned().catch(() => {
@@ -475,7 +475,7 @@ export function Composer({
               <div className="px-3 py-4 text-sm text-muted-foreground">
                 {canned.length === 0
                   ? $t(
-                      'Aucune réponse type : elles se rédigent dans basedb, table « Réponses types ».',
+                      'Aucune réponse type : elles se rédigent dans « Réponses types et étiquettes ».',
                     )
                   : $t('Aucune réponse type ne correspond.')}
               </div>

@@ -21,8 +21,8 @@ import {
   notifications,
 } from '../../src/db/schema.js'
 import { createConversation, receiveVisitorMessage } from '../../src/inbox/incoming.js'
+import { MemorySource } from '../../src/settings/demo.js'
 import { Settings } from '../../src/settings/settings.js'
-import { TemplateSource } from '../../src/settings/source.js'
 
 /**
  * The AI's decisions, against a real PostgreSQL and a scripted model: what it answers,
@@ -64,22 +64,19 @@ let pool: pg.Pool
 let db: Db
 let deps: AiDeps
 const llm = new ScriptedLlm()
-const settings = new Settings(new TemplateSource('dev-marc', true))
+const settings = new Settings(new MemorySource('dev-marc'))
 
 beforeAll(async () => {
   container = await new PostgreSqlContainer('pgvector/pgvector:pg16').start()
   ;({ pool, db } = connect(container.getConnectionUri()))
   await migrateDatabase(db)
-  await db
-    .insert(agents)
-    .values({ basedbUserId: 'dev-marc', name: 'Marc JAMAIN', role: 'supervisor' })
+  await db.insert(agents).values({ login: 'dev-marc', name: 'Marc JAMAIN', role: 'supervisor' })
   deps = {
     db,
     settings,
     knowledge: new Knowledge(db, settings, llm),
     llm,
     redact: true,
-    basedb: null,
     mcp: new McpConnections(),
     files: null,
   }
@@ -178,13 +175,15 @@ describe('the AI in the first line', () => {
     })
     const id = await visitorAsks('Et pour les bateaux ?')
     await answerVisitor(deps, id)
-    const kinds = (await thread(id)).map((m) => `${m.author}:${m.kind}`)
+    // Outside the site's hours, the widget's request for an address follows: not said here.
+    const spoken = async () => (await thread(id)).filter((m) => m.kind !== 'event')
+    const kinds = (await spoken()).map((m) => `${m.author}:${m.kind}`)
     expect(kinds.slice(-2)).toEqual(['ai:text', 'ai:handoff'])
-    const said = (await thread(id)).at(-2)?.body ?? ''
+    const said = (await spoken()).at(-2)?.body ?? ''
     expect(said).not.toContain('Peut-être')
     expect(said).toMatch(/conseiller/)
     expect(await statusOf(id)).toBe('open')
-    const handoff = (await thread(id)).at(-1)?.meta.handoff
+    const handoff = (await spoken()).at(-1)?.meta.handoff
     expect(handoff?.reason).toMatch(/Confiance insuffisante \(40 % < 70 %\)/)
     // Nobody in particular has it: every active agent is told.
     expect(
@@ -201,7 +200,7 @@ describe('the AI in the first line', () => {
     })
     const id = await visitorAsks('Je vais porter plainte !')
     await answerVisitor(deps, id)
-    const [said, handoff] = (await thread(id)).slice(-2)
+    const [said, handoff] = (await thread(id)).filter((m) => m.kind !== 'event').slice(-2)
     expect(said?.body).toBe(
       'Je transmets votre demande à un conseiller, qui la reprend personnellement.',
     )
@@ -275,7 +274,7 @@ describe('the copilot', () => {
     expect(run?.output).toMatchObject({ suggestions: ['Bonjour, je regarde.', 'Un instant.'] })
   })
 
-  it('tags with the tags basedb allows it, and leaves the agents’ own', async () => {
+  it('tags with the tags the AI may set, and leaves the agents’ own', async () => {
     llm.script = decide({
       intent: 'Suivi de remboursement',
       tags: ['Remboursement', 'Inventée'],

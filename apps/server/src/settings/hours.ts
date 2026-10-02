@@ -24,7 +24,7 @@ const WEEKDAY: Readonly<Record<string, number>> = {
   Sun: 7,
 }
 
-interface LocalTime {
+export interface LocalTime {
   /** `YYYY-MM-DD` */
   readonly date: string
   readonly weekday: number
@@ -50,7 +50,7 @@ function formatIn(timezone: string): Intl.DateTimeFormat {
   return format
 }
 
-function localTime(at: Date, timezone: string): LocalTime {
+export function localTime(at: Date, timezone: string): LocalTime {
   const parts = Object.fromEntries(
     formatIn(timezone)
       .formatToParts(at)
@@ -64,7 +64,7 @@ function localTime(at: Date, timezone: string): LocalTime {
 }
 
 /** The instant a wall-clock time of `timezone` names — right across a change of hour. */
-function instantOf(date: string, minutes: number, timezone: string): Date {
+export function instantOf(date: string, minutes: number, timezone: string): Date {
   const [year, month, day] = date.split('-').map(Number)
   const wall = Date.UTC(year ?? 1970, (month ?? 1) - 1, day ?? 1, 0, minutes)
   let guess = wall
@@ -77,7 +77,7 @@ function instantOf(date: string, minutes: number, timezone: string): Date {
   return new Date(guess)
 }
 
-function addDays(date: string, days: number): string {
+export function addDays(date: string, days: number): string {
   const [year, month, day] = date.split('-').map(Number)
   return new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, (day ?? 1) + days))
     .toISOString()

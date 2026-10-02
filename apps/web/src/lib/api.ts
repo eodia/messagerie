@@ -1,9 +1,15 @@
 import type {
   Agent,
+  AnalyticsSource,
   ApiDocumentation,
   ApiError,
   ApiToken,
   Attachment,
+  Automation,
+  AutomationButton,
+  AutomationChoices,
+  AutomationDefinition,
+  AutomationRunList,
   CannedReply,
   ContactDetail,
   ContactListItem,
@@ -13,6 +19,8 @@ import type {
   CreateWebhookBody,
   CreatedToken,
   CreatedWebhook,
+  Dashboard,
+  DashboardBody,
   ErrorCode,
   FeedbackBody,
   GifHit,
@@ -25,7 +33,11 @@ import type {
   Metadata,
   MetadataValue,
   NotificationList,
+  PageAction,
   PasswordReset,
+  QueryResult,
+  Question,
+  QuestionDraft,
   Rewording,
   SendMessageBody,
   SettingsOverview,
@@ -42,19 +54,20 @@ import type {
   WidgetEditorSite,
   WidgetSettings,
 } from '@chat/contracts'
-import { SignedOut, accessToken, forgetToken } from './basedb-session'
+import { REQUEST_HEADER, configureSession } from './session'
 import { useSession } from './store/session'
 
 /**
  * The one module that talks to the chat server. The address is handed over at run time
  * by the layout (`CHAT_API_URL`), never frozen into the bundle at build time. Every
- * request carries the agent's basedb access token, when the inbox runs with basedb.
+ * request carries the session cookie the server set at sign-in.
  */
 
 let base = 'http://localhost:8810'
 
 export function configureApi(url: string): void {
   base = url.replace(/\/+$/, '')
+  configureSession(base)
 }
 
 export const apiAddress = (): string => base
@@ -74,40 +87,26 @@ export class ApiFailure extends Error {
   constructor(
     readonly code: ErrorCode | 'UNREACHABLE' | 'SIGNED_OUT',
     readonly status: number,
+    /** What the server said of it: the field, the problem. */
+    readonly details: Readonly<Record<string, unknown>> = {},
   ) {
     super(code)
   }
 }
 
-async function request<T>(
-  method: string,
-  path: string,
-  body?: unknown,
-  retried = false,
-  bytes = false,
-): Promise<T> {
-  let token: string | null
-  try {
-    token = await accessToken()
-  } catch (error) {
-    if (error instanceof SignedOut) {
-      // No basedb session (any more): the sign-in screen takes over.
-      useSession.getState().signedOut()
-      throw new ApiFailure('SIGNED_OUT', 401)
-    }
-    throw error
-  }
+async function request<T>(method: string, path: string, body?: unknown, bytes = false): Promise<T> {
   const form = body instanceof FormData
-  const headers: Record<string, string> = {}
+  // The session is a cookie (D19); the header says the request comes from the inbox.
+  const headers: Record<string, string> = { [REQUEST_HEADER]: '1' }
   // A form says its own type, with the boundary of its parts.
   if (body !== undefined && !form) headers['content-type'] = 'application/json'
-  if (token !== null) headers.authorization = `Bearer ${token}`
 
   let response: Response
   try {
     response = await fetch(`${base}/api/inbox${path}`, {
       method,
       headers,
+      credentials: 'include',
       body: body === undefined ? undefined : form ? body : JSON.stringify(body),
     })
   } catch {
@@ -118,17 +117,17 @@ async function request<T>(
   const data: unknown = await response.json().catch(() => null)
   if (!response.ok) {
     const code = (data as ApiError | null)?.code ?? 'INTERNAL_ERROR'
-    // A token basedb no longer vouches for — signed out elsewhere, expired: one new one.
-    if (code === 'SESSION_INVALID' && token !== null && !retried) {
-      forgetToken()
-      return request<T>(method, path, body, true, bytes)
-    }
-    throw new ApiFailure(code, response.status)
+    // No session (any more): the sign-in screen takes over.
+    if (code === 'SESSION_INVALID') useSession.getState().signedOut()
+    throw new ApiFailure(code, response.status, (data as ApiError | null)?.details ?? {})
   }
   return data as T
 }
 
 const conversation = (id: string) => `/conversations/${encodeURIComponent(id)}`
+
+/** The reader's time zone: a day of the dashboards is theirs. */
+const zone = () => Intl.DateTimeFormat().resolvedOptions().timeZone
 
 export const api = {
   me: () => request<Agent>('GET', '/me'),
@@ -140,13 +139,7 @@ export const api = {
   typing: (id: string) => request<void>('POST', `${conversation(id)}/typing`),
   /** A message read aloud by the server's AI voice, as an MP3. */
   speech: (messageId: string) =>
-    request<Blob>(
-      'GET',
-      `/messages/${encodeURIComponent(messageId)}/speech`,
-      undefined,
-      false,
-      true,
-    ),
+    request<Blob>('GET', `/messages/${encodeURIComponent(messageId)}/speech`, undefined, true),
   send: (id: string, body: SendMessageBody) =>
     request<Conversation>('POST', `${conversation(id)}/messages`, body),
   takeOver: (id: string) => request<Conversation>('POST', `${conversation(id)}/takeover`),
@@ -224,7 +217,7 @@ export const api = {
   gifs: (query: string, offset = 0) =>
     request<GifHit[]>('GET', `/gifs?q=${encodeURIComponent(query)}&offset=${offset}`),
   gifFile: (id: string) =>
-    request<Blob>('GET', `/gifs/${encodeURIComponent(id)}/file`, undefined, false, true),
+    request<Blob>('GET', `/gifs/${encodeURIComponent(id)}/file`, undefined, true),
   tokens: () => request<ApiToken[]>('GET', '/tokens'),
   apiDocs: () => request<ApiDocumentation>('GET', '/api-docs'),
   openApiSpec: () => request<Record<string, unknown>>('GET', '/api-docs/openapi.json'),
@@ -238,6 +231,54 @@ export const api = {
   webhookDeliveries: (id: string) =>
     request<WebhookDelivery[]>('GET', `/webhooks/${encodeURIComponent(id)}/deliveries`),
   testWebhook: (id: string) => request<void>('POST', `/webhooks/${encodeURIComponent(id)}/test`),
+  analyticsSources: () => request<AnalyticsSource[]>('GET', '/analytics/sources'),
+  runQuestion: (question: Question) =>
+    request<QueryResult>('POST', '/analytics/run', { question, timeZone: zone() }),
+  assistQuestion: (text: string) =>
+    request<QuestionDraft>('POST', '/analytics/assist', { request: text, timeZone: zone() }),
+  dashboards: () => request<Dashboard[]>('GET', '/dashboards'),
+  dashboard: (id: string) => request<Dashboard>('GET', `/dashboards/${encodeURIComponent(id)}`),
+  createDashboard: (body: DashboardBody) => request<Dashboard>('POST', '/dashboards', body),
+  saveDashboard: (id: string, body: DashboardBody) =>
+    request<Dashboard>('PUT', `/dashboards/${encodeURIComponent(id)}`, body),
+  deleteDashboard: (id: string) => request<void>('DELETE', `/dashboards/${encodeURIComponent(id)}`),
+  runCard: (id: string, card: string) =>
+    request<QueryResult>(
+      'POST',
+      `/dashboards/${encodeURIComponent(id)}/cards/${encodeURIComponent(card)}/run`,
+      { timeZone: zone() },
+    ),
+  pageActions: (siteId: string) =>
+    request<PageAction[]>('GET', `/sites/${encodeURIComponent(siteId)}/page-actions`),
+  setPageAction: (id: string, patch: { enabled?: boolean; confirm?: boolean }) =>
+    request<PageAction>('PATCH', `/page-actions/${encodeURIComponent(id)}`, patch),
+  automations: () => request<Automation[]>('GET', '/automations'),
+  automationChoices: () => request<AutomationChoices>('GET', '/automations/choices'),
+  createAutomation: (body: AutomationDefinition) =>
+    request<Automation>('POST', '/automations', body),
+  saveAutomation: (id: string, body: AutomationDefinition) =>
+    request<Automation>('PUT', `/automations/${encodeURIComponent(id)}`, body),
+  setAutomationActive: (id: string, active: boolean) =>
+    request<Automation>('PATCH', `/automations/${encodeURIComponent(id)}`, { active }),
+  renewAutomationKey: (id: string) =>
+    request<Automation>('POST', `/automations/${encodeURIComponent(id)}/key`),
+  deleteAutomation: (id: string) =>
+    request<void>('DELETE', `/automations/${encodeURIComponent(id)}`),
+  automationRuns: (id: string) =>
+    request<AutomationRunList>('GET', `/automations/${encodeURIComponent(id)}/runs`),
+  tryAutomation: (id: string, conversationId: string | null) =>
+    request<{ runId: string }>('POST', `/automations/${encodeURIComponent(id)}/try`, {
+      conversationId,
+    }),
+  stopAutomationRun: (runId: string) =>
+    request<void>('POST', `/automation-runs/${encodeURIComponent(runId)}/stop`),
+  conversationAutomations: (id: string) =>
+    request<AutomationButton[]>('GET', `${conversation(id)}/automations`),
+  runConversationAutomation: (id: string, automationId: string) =>
+    request<{ runId: string }>(
+      'POST',
+      `${conversation(id)}/automations/${encodeURIComponent(automationId)}`,
+    ),
   search: (query: string) => request<MessageHit[]>('GET', `/search?q=${encodeURIComponent(query)}`),
   analyzeAttachment: (id: string) =>
     request<Attachment>('POST', `/attachments/${encodeURIComponent(id)}/analysis`),

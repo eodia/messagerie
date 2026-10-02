@@ -8,10 +8,13 @@ import type { TicketBook } from '../auth/tickets.js'
 import { filesOf, readUploads } from '../files/attachments.js'
 import { uploadLimit } from '../files/routes.js'
 import { readPatch, readProfile } from '../inbox/metadata.js'
+import { answerCall, claimCall, readSnapshot, refuseCall } from '../page/actions.js'
 import { Refusal } from '../refusal.js'
 import { RateLimiter, type WidgetHub } from './hub.js'
 import {
   type WidgetDeps,
+  currentConversationId,
+  leaveEmail,
   openSession,
   postVisitorMessage,
   resetVisitorConversation,
@@ -101,11 +104,49 @@ export function widgetRoutes(
   widget.post('/messages', async (c) => {
     const visitor = await visitorFrom(deps, bearer(c), c.req.header('origin'))
     if (!posts.allow(visitor.contactId)) throw new Refusal('RATE_LIMITED', 429)
-    const { body, data } = (await jsonOf(c)) as Partial<WidgetMessageBody>
+    const { body, data, page } = (await jsonOf(c)) as Partial<WidgetMessageBody>
     if (typeof body !== 'string') throw new Refusal('INVALID_REQUEST', 400, { field: 'body' })
     return c.json(
-      await postVisitorMessage(deps, visitor, body, data === undefined ? null : readPatch(data)),
+      await postVisitorMessage(
+        deps,
+        visitor,
+        body,
+        data === undefined ? null : readPatch(data),
+        [],
+        readSnapshot(page),
+      ),
     )
+  })
+
+  // The page's actions (D21): one tab takes a call, runs it, answers — or the visitor
+  // declines it. `tab` tells the visitor's tabs apart.
+  const calls = new RateLimiter(60, 60_000)
+  const callOf = async (c: Context) => {
+    const visitor = await visitorFrom(deps, bearer(c), c.req.header('origin'))
+    if (!calls.allow(visitor.contactId)) throw new Refusal('RATE_LIMITED', 429)
+    const id = c.req.param('id') ?? ''
+    if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Refusal('ROW_NOT_FOUND', 404)
+    return { conversationId: await currentConversationId(deps.db, visitor.contactId), id }
+  }
+  const tabOf = (raw: Record<string, unknown>) =>
+    typeof raw.tab === 'string' && raw.tab !== '' ? raw.tab : 'tab'
+  widget.post('/actions/:id/claim', async (c) => {
+    const { conversationId, id } = await callOf(c)
+    const taken = await claimCall(deps.db, conversationId, id, tabOf(await jsonOf(c)))
+    return c.json({ taken })
+  })
+  widget.post('/actions/:id/result', async (c) => {
+    const { conversationId, id } = await callOf(c)
+    const raw = await jsonOf(c)
+    if (await answerCall(deps.db, conversationId, id, tabOf(raw), raw)) {
+      deps.onPageAnswered?.(conversationId)
+    }
+    return c.body(null, 204)
+  })
+  widget.post('/actions/:id/refuse', async (c) => {
+    const { conversationId, id } = await callOf(c)
+    if (await refuseCall(deps.db, conversationId, id)) deps.onPageAnswered?.(conversationId)
+    return c.body(null, 204)
   })
 
   // Files, with or without words: multipart, `file` once per file, and `body`.
@@ -128,6 +169,14 @@ export function widgetRoutes(
       profile: readProfile(raw),
       data: raw.data === undefined ? null : readPatch(raw.data),
     })
+    return c.body(null, 204)
+  })
+
+  /** The address left in the e-mail card. */
+  widget.post('/email', async (c) => {
+    const visitor = await visitorFrom(deps, bearer(c), c.req.header('origin'))
+    if (!edits.allow(visitor.contactId)) throw new Refusal('RATE_LIMITED', 429)
+    await leaveEmail(deps, visitor, (await jsonOf(c)).email)
     return c.body(null, 204)
   })
 

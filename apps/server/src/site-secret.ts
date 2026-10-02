@@ -6,12 +6,12 @@ import { newSecret } from './widget/tokens.js'
 
 /**
  * The secret a site signs its customers' identity with (D5) — kept by the chat, never in
- * basedb. Shows it, creating it if the site has none; `--rotate` replaces it, and the
+ * the settings. Shows it, creating it if the site has none; `--rotate` replaces it, and the
  * identities signed with the old one stop being accepted at once.
  *
  *   pnpm --filter @chat/server site-secret <site id> [--rotate]
  *
- * The site id is the `_id` of the site's row in basedb's « Sites ».
+ * The site id is the id of the site's row in « Sites ».
  */
 let config: ReturnType<typeof readConfig>
 try {

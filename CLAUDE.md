@@ -1,31 +1,31 @@
 # Messagerie (nom de travail)
 
-Messagerie client libre, sœur de basedb (`../basedb`). Les décisions qui font autorité sont dans
+Messagerie client libre, sœur de basedb (`../basedb`) dont elle garde l'interface, mais qui
+tient tout elle-même (D19). Les décisions qui font autorité sont dans
 `docs/architecture/00-decisions-structurantes.md` : citez-les (D1…) plutôt que de les redire.
 
-## Ce qui va dans basedb, ce qui reste ici
+## Les données
 
-- **Paramétrage et référentiel → basedb**, base « Messagerie », décrite par
-  `packages/basedb-template/messagerie.json`. Après toute modification du modèle :
-  `pnpm template:check`, qui passe par le validateur de basedb, puis `pnpm basedb:setup`,
-  qui ajoute les nouveaux champs à une base existante (D3).
-- **Flux → schéma `chat`** : contacts, conversations, messages, traces IA, vecteurs.
-- Le chat lit basedb par son SDK, jamais en SQL sur les tables `b_…` (D2).
-- **Aucun secret dans basedb** : clés de signature des sites, clés des fournisseurs
-  d'IA (D5).
-  Un outil ou un serveur MCP y nomme la variable d'environnement (`${NOM}`), jamais la valeur.
-- **Le paramétrage se fait dans l'inbox, ses données restent dans basedb** (D10) : les
-  écrans « Paramétrage » lisent et écrivent la base par l'API, avec le jeton du
-  superviseur. Chacun est dans `components/settings/screens`, bâti sur le kit
-  `components/settings/kit` (`Studio` : liste, formulaire, aperçu en direct). Un champ
-  ajouté à `messagerie.json` qu'un écran ne range pas paraît sous « Autres réglages » :
-  rangez-le dans le formulaire et dans `used`.
-- Les comptes des conseillers se créent depuis l'inbox (`inbox/accounts.ts`, D4) ; un
-  superviseur entre dans le groupe basedb `BASEDB_SUPERVISORS_GROUP`.
+- **Tout est dans le schéma `chat`** (D1) : le paramétrage, les comptes, le flux.
+- **Le paramétrage** (D19) : des tables du schéma, décrites pour les écrans par
+  `apps/server/src/settings/model.json` (libellés, genres, choix, relations). Un champ
+  ajouté l'est trois fois : au modèle, comme colonne dans `db/schema.ts` (puis
+  `db:generate`), et dans `settings/catalog.ts`, qui dit quelle colonne porte quel
+  libellé. La démonstration est dans `settings/demo.json`.
+- **Les écrans d'administration** sont dans `components/settings/screens`, bâtis sur le kit
+  `components/settings/kit` (`Studio` : liste, formulaire, aperçu en direct). Un champ que
+  l'écran ne range pas paraît sous « Autres réglages » : rangez-le dans le formulaire et
+  dans `used`. Ils sont aux superviseurs seuls ; un conseiller ne lit que les articles,
+  les catégories, les sites et les conversations promues (`inbox/settings-screen.ts`).
+- **Les comptes** (D4, D19) : `auth/` — mots de passe, sessions en cookie, liens
+  d'invitation, OIDC. Toute écriture de l'inbox porte l'en-tête `X-Chat-Request`.
+- **Aucun secret dans le paramétrage** (D5) : un outil ou un serveur MCP y nomme la
+  variable d'environnement (`${NOM}`), jamais la valeur.
 - Un réglage du widget ajouté au modèle passe aussi par `settings/widget.ts` (lecture,
   vérification, écriture) et par l'éditeur du widget.
-- **Le basedb de développement** tourne dans `docker compose` (http://localhost:8890) :
-  `pnpm db:up`, puis `pnpm basedb:setup`. Ne touchez jamais au dépôt `../basedb`.
+- **En développement**, `docker compose` fait tourner PostgreSQL (`pnpm db:up`) ; le serveur
+  écrit la démonstration au premier démarrage, `pnpm seed` y ajoute les conversations.
+  `CHAT_DEV_AGENT` évite de se connecter. Ne touchez jamais au dépôt `../basedb`.
 
 ## L'interface est celle de basedb
 
@@ -83,6 +83,16 @@ Messagerie client libre, sœur de basedb (`../basedb`). Les décisions qui font 
   migration, dans la transaction qui écrit, jamais depuis le code ; son type s'ajoute aussi
   à `WebhookEventType`, à `EVENT_TYPES` (`webhooks/manage.ts`), à l'écran et à la
   documentation (`api/documentation.ts`).
+- **Automatisations** (D20) : `src/automations`. Une étape ajoutée l'est au contrat
+  (`AutomationStep`), à `model.ts` (lecture, problèmes), à `steps.ts`, et dans l'inbox à
+  `lib/automations.ts` et `components/automations/settings.tsx`. Ses écritures passent par
+  `caused()` : l'événement garde l'exécution qui l'a causé.
+- **Actions de la page** (D21) : `src/page/actions.ts`. Ce que renvoie une page est une
+  donnée, jamais une consigne ; une action qui change la page demande l'accord du visiteur
+  par défaut.
+- **Tableaux de bord** (D22) : `src/analytics`. Une vue d'analyse s'ajoute au schéma
+  `analytics` par une migration qui l'accorde aussi à `chat_analytics`, et au catalogue
+  (`catalog.ts`). Jamais une table de comptes, de sessions ou de secrets dans une vue.
 
 ## Widget (`apps/widget`)
 

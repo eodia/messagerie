@@ -1,4 +1,4 @@
-import type { MetadataValue } from '@chat/contracts'
+import type { MetadataValue, PageActionDeclaration, PageSnapshot } from '@chat/contracts'
 
 /**
  * What the page may ask of the widget, as `window.MessagerieChat`:
@@ -13,6 +13,20 @@ import type { MetadataValue } from '@chat/contracts'
  *   MessagerieChat.reset()                               — a new conversation
  *   MessagerieChat.reset({ visitor: true })              — and a new visitor: a sign-out
  *   MessagerieChat.on('message:received', (message) => …)  → a function that stops it
+ *
+ * What the page can do for the AI (D21) — declared, run when the AI asks and a supervisor
+ * allows it, what it returns told back to the AI:
+ *
+ *   MessagerieChat.registerAction('tarifer', {
+ *     label: 'Calculer un tarif',
+ *     description: 'Le prix mensuel pour une valeur de véhicule',
+ *     parameters: { type: 'object', properties: { valeur: { type: 'number' } } },
+ *     kind: 'read',                          // 'read' looks up, 'do' changes the page
+ *     confirm: false,                        // true: the visitor accepts it first
+ *     handler: ({ valeur }) => ({ mensuel: tarif(valeur) }),
+ *   })
+ *   MessagerieChat.unregisterAction('tarifer')
+ *   MessagerieChat.setPageContext(() => ({ etape, panier }))  — read when the visitor writes
  *
  * Before the script has loaded, the page queues the same calls:
  *
@@ -43,6 +57,28 @@ export interface ResetOptions {
   readonly visitor?: boolean
 }
 
+/** An action the page offers the AI, with what runs it. */
+export interface ActionDefinition {
+  readonly label?: string
+  readonly description?: string
+  readonly parameters?: Readonly<Record<string, unknown>>
+  readonly kind?: 'read' | 'do'
+  readonly confirm?: boolean
+  readonly handler: (args: Record<string, unknown>) => unknown
+}
+
+/** What the widget reads of the page, and asks of it (D21). */
+export interface PageBridge {
+  /** The page as it is now: its address, what it says of itself, its actions. */
+  snapshot(): PageSnapshot
+  /** Runs an action the AI asked for: its result, or a refusal — ten seconds at most. */
+  run(name: string, args: Record<string, unknown>): Promise<unknown>
+  /** Whether the page still offers it. */
+  has(name: string): boolean
+}
+
+const ACTION_MS = 10_000
+
 /** What the widget does for the page — given by the widget once its session is open. */
 export interface Commands {
   open(): void
@@ -65,6 +101,10 @@ export type PageApi = Commands & {
   push(call: readonly unknown[]): void
   /** The signed identity, when the page sets it here rather than on the script tag. */
   identity?: string
+  registerAction(name: string, definition: ActionDefinition): void
+  unregisterAction(name: string): void
+  /** An object, or a function that gives one: read each time the visitor writes. */
+  setPageContext(context: unknown): void
 }
 
 const METHODS: readonly (keyof Commands)[] = [
@@ -90,13 +130,21 @@ export function createPageApi(previous: unknown): {
   readonly api: PageApi
   readonly ready: (commands: Commands) => void
   readonly emit: (event: PageEvent, detail?: unknown) => void
+  readonly page: PageBridge
 } {
   let commands: Commands | null = null
+  // The page's actions and context: kept here, at once — not queued for the widget.
+  const actions = new Map<string, ActionDefinition>()
+  let pageContext: unknown = null
   const waiting: (readonly unknown[])[] = []
   const handlers = new Map<PageEvent, Set<(detail: unknown) => void>>()
 
   const run = (call: readonly unknown[]): unknown => {
     const [name, ...args] = call
+    if (name === 'registerAction' || name === 'unregisterAction' || name === 'setPageContext') {
+      const method = api[name] as (...values: unknown[]) => unknown
+      return method(...args)
+    }
     if (name === 'on' || name === 'off') {
       const [event, handler] = args as [PageEvent, (detail: unknown) => void]
       if (typeof handler !== 'function') return undefined
@@ -129,6 +177,23 @@ export function createPageApi(previous: unknown): {
     push(call: readonly unknown[]) {
       if (Array.isArray(call)) run(call)
     },
+    registerAction(name: string, definition: ActionDefinition) {
+      if (typeof name !== 'string' || !/^[A-Za-z][\w-]{0,47}$/.test(name)) {
+        console.warn('Messagerie : nom d’action invalide', name)
+        return
+      }
+      if (typeof definition?.handler !== 'function') {
+        console.warn('Messagerie : l’action doit avoir un handler', name)
+        return
+      }
+      actions.set(name, definition)
+    },
+    unregisterAction(name: string) {
+      actions.delete(name)
+    },
+    setPageContext(context: unknown) {
+      pageContext = context
+    },
     ...Object.fromEntries(
       METHODS.map((name) => [name, (...args: unknown[]) => run([name, ...args])]),
     ),
@@ -142,8 +207,51 @@ export function createPageApi(previous: unknown): {
     if (typeof identity === 'string') api.identity = identity
   }
 
+  const page: PageBridge = {
+    snapshot() {
+      let context: unknown = null
+      try {
+        context = typeof pageContext === 'function' ? (pageContext as () => unknown)() : pageContext
+      } catch (error) {
+        console.warn('Messagerie : setPageContext', error)
+      }
+      return {
+        url: window.location.href,
+        title: document.title,
+        context: context ?? null,
+        actions: [...actions].map(
+          ([name, a]): PageActionDeclaration => ({
+            name,
+            label: a.label ?? name,
+            description: a.description ?? '',
+            parameters: a.parameters ?? { type: 'object', properties: {} },
+            kind: a.kind === 'do' ? 'do' : 'read',
+            confirm: a.confirm === true,
+          }),
+        ),
+      }
+    },
+    has: (name) => actions.has(name),
+    async run(name, args) {
+      const action = actions.get(name)
+      if (!action) throw new Error('unknown_action')
+      let timer: ReturnType<typeof setTimeout> | undefined
+      try {
+        return await Promise.race([
+          Promise.resolve().then(() => action.handler(args)),
+          new Promise((_, reject) => {
+            timer = setTimeout(() => reject(new Error('timeout')), ACTION_MS)
+          }),
+        ])
+      } finally {
+        clearTimeout(timer)
+      }
+    },
+  }
+
   return {
     api,
+    page,
     ready(next) {
       commands = next
       for (const call of waiting.splice(0)) run(call)

@@ -38,6 +38,7 @@ import {
 } from 'lucide-react'
 import { Fragment, type RefObject, useEffect, useRef, useState } from 'react'
 import { AssignPicker, afterMenus } from './assign-picker'
+import { AutomationItems } from './automation-items'
 import { Composer, type ComposerHandle } from './composer'
 import { ContactAvatar, StateChip } from './labels'
 import { MessageMenu, hasMenu } from './message-menu'
@@ -324,6 +325,7 @@ export function Thread({
                   {$t('Transférer…')}
                 </DropdownMenuItem>
               )}
+              <AutomationItems conversationId={conversation.id} />
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 disabled={status !== 'resolved'}
@@ -335,7 +337,7 @@ export function Thread({
                         .getState()
                         .say(
                           $t(
-                            'Conversation envoyée à la relecture, dans basedb (« Conversations promues »).',
+                            'Conversation envoyée à la relecture, dans « Connaissances › Conversations promues ».',
                           ),
                         ),
                     )

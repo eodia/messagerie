@@ -1,4 +1,5 @@
 import type {
+  PageCallStatus,
   VisitorConversation,
   WidgetAppearance,
   WidgetAttachment,
@@ -15,13 +16,15 @@ import {
   ChevronDownIcon,
   CloseIcon,
   FileIcon,
+  MailIcon,
   Orb,
   PaperclipIcon,
   SendIcon,
   SmileIcon,
+  SparkIcon,
 } from './icons'
 import { Markdown } from './markdown'
-import type { Commands, Data, PageEvent } from './page-api'
+import type { Commands, Data, PageBridge, PageEvent } from './page-api'
 import type { Scene } from './preview'
 
 /** Black or white words on the site's colour, whichever reads. */
@@ -114,6 +117,21 @@ type Item =
       readonly lines: Line[]
     }
   | { readonly kind: 'event'; readonly key: string; readonly text: string }
+  | {
+      readonly kind: 'action'
+      readonly key: string
+      readonly call: string
+      readonly name: string
+      readonly label: string
+      readonly args: Readonly<Record<string, unknown>>
+      readonly status: PageCallStatus
+    }
+  | {
+      readonly kind: 'email'
+      readonly key: string
+      readonly text: string | null
+      readonly email: string | null
+    }
 
 function eventText(message: Extract<WidgetMessage, { from: 'event' }>): string {
   if (message.event === 'joined')
@@ -132,6 +150,22 @@ function itemsOf(welcome: Line & { from: Speaker }, messages: readonly WidgetMes
   for (const message of messages) {
     if (message.from === 'event') {
       items.push({ kind: 'event', key: message.id, text: eventText(message) })
+      continue
+    }
+    if (message.from === 'action') {
+      items.push({
+        kind: 'action',
+        key: message.id,
+        call: message.call,
+        name: message.name,
+        label: message.label,
+        args: message.args,
+        status: message.status,
+      })
+      continue
+    }
+    if (message.from === 'email') {
+      items.push({ kind: 'email', key: message.id, text: message.text, email: message.email })
       continue
     }
     const author = message.from === 'agent' ? message.author : null
@@ -174,6 +208,7 @@ export function App({
   bind,
   emit,
   watch,
+  page,
 }: {
   readonly api: Backend
   readonly identity: string | null
@@ -186,6 +221,8 @@ export function App({
   readonly emit: (event: PageEvent, detail?: unknown) => void
   /** In the inbox's editor: the site as it is edited, and the scene to show. */
   readonly watch?: (onChange: (session: WidgetSession, scene: Scene) => void) => () => void
+  /** The page's actions and context (D21) — none in the editor. */
+  readonly page?: PageBridge
 }) {
   const inEditor = watch !== undefined
   const [session, setSession] = useState<WidgetSession | null>(null)
@@ -238,7 +275,7 @@ export function App({
     for (const message of next.messages) {
       if (seen.current.has(message.id)) continue
       seen.current.add(message.id)
-      if (message.from === 'ai' || message.from === 'agent') {
+      if (message.from === 'ai' || message.from === 'agent' || message.from === 'site') {
         count++
         fresh = {
           from: message.from,
@@ -408,6 +445,42 @@ export function App({
     })
   }
 
+  // ── The page's actions (D21) ──────────────────────────────────────────────
+  /** This tab, among the visitor's: the one that takes a call runs it. */
+  const tab = useRef(Math.random().toString(36).slice(2, 12))
+  /** Calls this tab has taken up already. */
+  const handled = useRef(new Set<string>())
+
+  /** Takes the call, runs it on the page, says how it went. */
+  async function runAction(call: string, name: string, args: Readonly<Record<string, unknown>>) {
+    if (!page || handled.current.has(call)) return
+    handled.current.add(call)
+    try {
+      if (!(await api.claimAction(call, tab.current))) return
+      let answer: { ok: boolean; result?: unknown; error?: string }
+      try {
+        answer = { ok: true, result: (await page.run(name, { ...args })) ?? null }
+      } catch (failure) {
+        answer = { ok: false, error: failure instanceof Error ? failure.message : String(failure) }
+      }
+      await api.answerAction(call, tab.current, answer)
+      apply(await api.conversation())
+    } catch (failure) {
+      console.warn('Messagerie : action de la page', failure)
+    }
+  }
+
+  // What the AI asked of the page and needs no accord: run at once, by one tab.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs on what the thread says
+  useEffect(() => {
+    if (!page || inEditor) return
+    for (const message of conversation?.messages ?? []) {
+      if (message.from === 'action' && message.status === 'pending' && page.has(message.name)) {
+        void runAction(message.call, message.name, message.args)
+      }
+    }
+  }, [conversation])
+
   async function send(text = draft) {
     const body = text.trim()
     const sendingFiles = text === draft ? files : []
@@ -419,7 +492,7 @@ export function App({
       const next =
         sendingFiles.length > 0
           ? await api.sendFiles(sendingFiles, body)
-          : await api.send(body, Object.keys(data).length > 0 ? data : undefined)
+          : await api.send(body, Object.keys(data).length > 0 ? data : undefined, page?.snapshot())
       if (sendingFiles.length === 0) pendingData.current = {}
       emit('message:sent', { body })
       setDraft('')
@@ -598,6 +671,30 @@ export function App({
                 <div key={item.key} class="event">
                   {item.text}
                 </div>
+              ) : item.kind === 'action' ? (
+                <ActionLine
+                  key={item.key}
+                  label={item.label}
+                  args={item.args}
+                  status={item.status}
+                  onAccept={() => void runAction(item.call, item.name, item.args)}
+                  onDecline={() =>
+                    void api.refuseAction(item.call).then(
+                      async () => apply(await api.conversation()),
+                      () => undefined,
+                    )
+                  }
+                />
+              ) : item.kind === 'email' ? (
+                <EmailCard
+                  key={item.key}
+                  text={item.text}
+                  email={item.email}
+                  onLeave={async (email) => {
+                    await api.leaveEmail(email)
+                    apply(await api.conversation())
+                  }}
+                />
               ) : (
                 <Group
                   key={item.key}
@@ -882,6 +979,158 @@ function Files({
         ),
       )}
     </div>
+  )
+}
+
+const SHOWN_ARGS = 4
+
+/** An action the AI asked of the page: a line once done, a card to accept or decline before. */
+function ActionLine({
+  label,
+  args,
+  status,
+  onAccept,
+  onDecline,
+}: {
+  readonly label: string
+  readonly args: Readonly<Record<string, unknown>>
+  readonly status: PageCallStatus
+  readonly onAccept: () => void
+  readonly onDecline: () => void
+}) {
+  const [busy, setBusy] = useState(false)
+  if (status === 'confirming') {
+    const shown = Object.entries(args)
+      .filter(([, v]) => v !== null && v !== undefined && v !== '')
+      .slice(0, SHOWN_ARGS)
+    return (
+      <div class="action-card">
+        <p class="action-ask">
+          <SparkIcon />
+          <span>{t('L’assistant propose : {label}', { label })}</span>
+        </p>
+        {shown.length > 0 && (
+          <dl class="action-args">
+            {shown.map(([key, value]) => (
+              <Fragment key={key}>
+                <dt>{key}</dt>
+                <dd>{typeof value === 'object' ? JSON.stringify(value) : String(value)}</dd>
+              </Fragment>
+            ))}
+          </dl>
+        )}
+        <div class="action-buttons">
+          <button
+            type="button"
+            class="action-no"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true)
+              onDecline()
+            }}
+          >
+            {t('Non merci')}
+          </button>
+          <button
+            type="button"
+            class="action-yes"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true)
+              onAccept()
+            }}
+          >
+            {t('Accepter')}
+          </button>
+        </div>
+      </div>
+    )
+  }
+  const text =
+    status === 'done'
+      ? t('{label} : fait', { label })
+      : status === 'refused'
+        ? t('{label} : refusé', { label })
+        : status === 'failed' || status === 'expired'
+          ? t('{label} : n’a pas pu être fait', { label })
+          : t('{label}…', { label })
+  return <div class={`action-line ${status}`}>{text}</div>
+}
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/**
+ * « Laissez-nous votre e-mail »: nobody can answer soon — the visitor leaves an address to
+ * be answered later, and is thanked once it is kept.
+ */
+function EmailCard({
+  text,
+  email,
+  onLeave,
+}: {
+  readonly text: string | null
+  readonly email: string | null
+  readonly onLeave: (email: string) => Promise<void>
+}) {
+  const [typed, setTyped] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [wrong, setWrong] = useState(false)
+  if (email !== null) {
+    return (
+      <output class="email-card done">
+        <MailIcon />
+        <p>{t('Merci ! Nous vous répondrons à {email}.', { email })}</p>
+      </output>
+    )
+  }
+  const submit = async (event: Event) => {
+    event.preventDefault()
+    const value = typed.trim()
+    if (!EMAIL.test(value)) {
+      setWrong(true)
+      return
+    }
+    setBusy(true)
+    try {
+      await onLeave(value)
+    } catch {
+      setWrong(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <form class="email-card" onSubmit={(e) => void submit(e)}>
+      <p class="email-why">
+        <MailIcon />
+        <span>
+          {text ??
+            t(
+              'Personne ne peut vous répondre tout de suite. Laissez votre e-mail : nous vous répondrons dès que possible.',
+            )}
+        </span>
+      </p>
+      <div class="email-row">
+        <input
+          type="email"
+          autocomplete="email"
+          inputMode="email"
+          required
+          value={typed}
+          placeholder={t('votre@adresse.fr')}
+          aria-label={t('Votre adresse e-mail')}
+          aria-invalid={wrong}
+          onInput={(e) => {
+            setTyped((e.target as HTMLInputElement).value)
+            setWrong(false)
+          }}
+        />
+        <button type="submit" disabled={busy || typed.trim() === ''}>
+          {t('Envoyer')}
+        </button>
+      </div>
+      {wrong && <p class="email-wrong">{t('Cette adresse ne semble pas valable.')}</p>}
+    </form>
   )
 }
 

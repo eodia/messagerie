@@ -7,7 +7,6 @@ import type {
   TransferBody,
 } from '@chat/contracts'
 import { and, asc, eq, isNull } from 'drizzle-orm'
-import { isIntegration } from '../api/tokens.js'
 import type { Db } from '../db/client.js'
 import {
   accessLog,
@@ -21,6 +20,7 @@ import {
 } from '../db/schema.js'
 import type { AttachRows } from '../files/attachments.js'
 import type { FileStore } from '../files/store.js'
+import { isProgram } from '../programs.js'
 import { signalChange } from '../realtime/signals.js'
 import { Refusal } from '../refusal.js'
 import type { Settings } from '../settings/settings.js'
@@ -148,7 +148,7 @@ export async function sendMessage(
       }
       // An agent who writes to the visitor while the AI has the conversation takes it — a
       // program writing through a token does not: the conversation stays in the queue.
-      const taking = (row.status === 'ai' || row.assigneeId === null) && !isIntegration(agent)
+      const taking = (row.status === 'ai' || row.assigneeId === null) && !isProgram(agent)
       await tx
         .update(conversations)
         .set({
@@ -385,8 +385,8 @@ export async function listAgents(db: Db, settings: Settings | null = null): Prom
     .orderBy(asc(agents.name))
   // Their teams, from « Conseillers »: whom to suggest for a conversation of a team.
   const entries = settings ? await settings.agents().catch(() => []) : []
-  const teams = new Map(entries.map((e) => [e.basedbUserId, e.teamIds]))
-  return rows.map((row) => ({ ...toAgent(row), teamIds: teams.get(row.basedbUserId) ?? [] }))
+  const teams = new Map(entries.map((e) => [e.id, e.teamIds]))
+  return rows.map((row) => ({ ...toAgent(row), teamIds: teams.get(row.id) ?? [] }))
 }
 
 /**

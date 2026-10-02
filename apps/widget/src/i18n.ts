@@ -1,5 +1,5 @@
 /**
- * The widget's words, in the site's language (the « Langue » of its row in basedb). French
+ * The widget's words, in the site's language (the « Langue » of its row of « Sites »). French
  * is the source and the key, as in the inbox; a sentence without a translation reads in
  * French.
  */
@@ -47,6 +47,19 @@ const EN: Readonly<Record<string, string>> = {
   'aujourd’hui à {time}': 'today at {time}',
   'demain à {time}': 'tomorrow at {time}',
   '{day} à {time}': '{day} at {time}',
+  'Personne ne peut vous répondre tout de suite. Laissez votre e-mail : nous vous répondrons dès que possible.':
+    'Nobody can answer you right now. Leave your e-mail: we will get back to you as soon as possible.',
+  'votre@adresse.fr': 'you@example.com',
+  'Votre adresse e-mail': 'Your e-mail address',
+  'Cette adresse ne semble pas valable.': 'This address does not look valid.',
+  'Merci ! Nous vous répondrons à {email}.': 'Thank you! We will answer you at {email}.',
+  'L’assistant propose : {label}': 'The assistant suggests: {label}',
+  'Non merci': 'No thanks',
+  Accepter: 'Accept',
+  '{label} : fait': '{label}: done',
+  '{label} : refusé': '{label}: declined',
+  '{label} : n’a pas pu être fait': '{label}: could not be done',
+  '{label}…': '{label}…',
 }
 
 let language = 'fr'

@@ -1,0 +1,41 @@
+/*
+ * An automation's flow in the product's own tokens: the canvas on the ground the grid
+ * sits on, its dots and edges in the border's colour, the way a run took in the accent —
+ * rather than in React Flow's defaults.
+ */
+
+.automation-flow {
+  --xy-background-color: var(--surface);
+  --xy-background-pattern-color: var(--border);
+  --xy-edge-stroke: var(--muted-foreground);
+}
+
+.automation-flow .automation-flow__link {
+  stroke: color-mix(in oklch, var(--muted-foreground) 55%, transparent);
+  stroke-width: 1.5;
+  transition: opacity 150ms, stroke 150ms;
+}
+
+.automation-flow .automation-flow__link--taken {
+  stroke: var(--primary);
+  stroke-width: 2;
+}
+
+/*
+ * The cards are buttons of their own. React Flow turns the pointer off on a node that is
+ * neither selectable nor draggable — both are off here, the tree lays itself out — so it
+ * is turned back on for the buttons to be clicked.
+ */
+.automation-flow .react-flow__node {
+  cursor: default;
+  pointer-events: all !important;
+}
+
+/* The library's credit, kept, on the canvas's own ground in both themes. */
+.automation-flow .react-flow__attribution {
+  background: transparent;
+}
+
+.automation-flow .react-flow__attribution a {
+  color: var(--muted-foreground);
+}

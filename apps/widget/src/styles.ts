@@ -2,7 +2,7 @@
  * The widget's styles, inside its shadow root: the page's CSS cannot reach them, and they
  * reach nothing of the page.
  *
- * What the site chooses in its row of basedb arrives as custom properties and classes on
+ * What the site chooses in its row of « Sites » arrives as custom properties and classes on
  * `.root`: its colour (`--accent`), its distances to the page's edges (`--x`, `--y`), its
  * font (`--font`: the page's own by default — a widget loads no font on someone else's
  * page), its corners (`.soft`, `.square`), its side (`.left`) and its theme (`.light`,
@@ -229,6 +229,54 @@ img.person-avatar { object-fit: cover; background: #fff; }
   margin: 14px 0 4px; font-size: 12.5px; color: var(--muted); text-align: center;
 }
 .event::before, .event::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+/* What the AI asked of the page: a quiet line once done, a card to accept before. */
+.action-line {
+  align-self: center; margin: 8px 0 2px; padding: 4px 10px; border-radius: var(--r-pill);
+  font-size: 12.5px; color: var(--muted); background: color-mix(in srgb, var(--ai) 7%, transparent);
+}
+.action-line.done { color: color-mix(in oklab, var(--ai) 75%, var(--ink)); }
+.action-line.failed, .action-line.expired { color: #b91c1c; background: color-mix(in srgb, #dc2626 8%, transparent); }
+.action-card {
+  margin: 10px 0 4px 36px; padding: 12px; border-radius: 14px; background: var(--bubble);
+  border: 1px solid var(--line); border-left: 3px solid var(--ai);
+  display: flex; flex-direction: column; gap: 10px; font-size: 14px; color: var(--ink);
+}
+.action-ask { margin: 0; display: flex; gap: 8px; align-items: flex-start; line-height: 1.45; font-weight: 550; }
+.action-ask svg { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--ai); }
+.action-args { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: 13px; }
+.action-args dt { color: var(--muted); }
+.action-args dd { margin: 0; overflow-wrap: anywhere; }
+.action-buttons { display: flex; justify-content: flex-end; gap: 6px; }
+.action-buttons button {
+  height: 34px; padding: 0 14px; border-radius: 10px; font: inherit; font-weight: 600; cursor: pointer;
+}
+.action-no { border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.action-yes { border: 0; background: var(--accent); color: var(--accent-ink); }
+.action-buttons button:disabled { opacity: .5; cursor: default; }
+
+/* « Laissez-nous votre e-mail »: a card in the thread, the accent on its edge. */
+.email-card {
+  margin: 10px 0 4px 36px; padding: 12px; border-radius: 14px; background: var(--bubble);
+  border: 1px solid var(--line); border-left: 3px solid var(--accent);
+  display: flex; flex-direction: column; gap: 10px; font-size: 14px; color: var(--ink);
+}
+.email-card p { margin: 0; }
+.email-why, .email-card.done { display: flex; flex-direction: row; gap: 8px; align-items: flex-start; line-height: 1.45; }
+.email-card svg { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--accent); }
+.email-row { display: flex; gap: 6px; }
+.email-row input {
+  flex: 1; min-width: 0; height: 36px; padding: 0 10px; border-radius: 10px; font: inherit;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink); outline: none;
+}
+.email-row input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.email-row input[aria-invalid="true"] { border-color: #dc2626; }
+.email-row button {
+  height: 36px; padding: 0 14px; border-radius: 10px; border: 0; font: inherit; font-weight: 600;
+  background: var(--accent); color: var(--accent-ink); cursor: pointer;
+}
+.email-row button:disabled { opacity: .5; cursor: default; }
+.email-wrong { font-size: 12.5px; color: #dc2626; }
 
 /* What the visitor might say, where they would say it: one tap sends it. */
 .replies { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; margin: 12px 0 4px 36px; }

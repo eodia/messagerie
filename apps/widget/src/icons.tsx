@@ -16,6 +16,19 @@ export const ChatIcon = () => (
   </svg>
 )
 
+export const SparkIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
+    <path d="M9.94 14.06 4 20M14 4l1.5 3.5L19 9l-3.5 1.5L14 14l-1.5-3.5L9 9l3.5-1.5Z" />
+  </svg>
+)
+
+export const MailIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
+    <rect width="20" height="16" x="2" y="4" rx="2" />
+    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+  </svg>
+)
+
 export const ChevronDownIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
     <path d="m6 9 6 6 6-6" />

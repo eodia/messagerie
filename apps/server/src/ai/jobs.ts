@@ -20,8 +20,10 @@ export interface AiJobs {
   resolved(conversationId: string): void
   /** The agent asks for new suggestions. */
   suggest(conversationId: string): void
-  /** basedb's articles or promoted conversations changed. */
+  /** The articles or promoted conversations changed. */
   knowledgeChanged(): void
+  /** The visitor answered an action the AI asked of their page (D21): the AI goes on. */
+  pageAnswered(conversationId: string): void
 }
 
 const QUEUES = {
@@ -36,6 +38,7 @@ const QUEUES = {
 interface ConversationJob {
   readonly conversationId: string
   readonly closing?: boolean
+  readonly continuing?: boolean
 }
 
 export async function startJobs(
@@ -79,7 +82,9 @@ export async function startJobs(
     await boss.work<ConversationJob>(
       QUEUES.answer,
       { localConcurrency: 4 },
-      each(({ conversationId }) => answerVisitor(deps, conversationId)),
+      each(({ conversationId, continuing }) =>
+        answerVisitor(deps, conversationId, continuing === true),
+      ),
     )
     await boss.work<ConversationJob>(
       QUEUES.enrich,
@@ -129,8 +134,10 @@ export async function startJobs(
       send(QUEUES.summary, { conversationId, closing: true }, conversationId, 2),
     suggest: (conversationId) => send(QUEUES.suggest, { conversationId }, conversationId),
     knowledgeChanged: () => send(QUEUES.knowledge, {}, 'all', 2),
+    pageAnswered: (conversationId) =>
+      send(QUEUES.answer, { conversationId, continuing: true }, conversationId),
   }
-  // What is indexed may lag behind basedb since the last start.
+  // What is indexed may lag behind the articles since the last start.
   jobs.knowledgeChanged()
   return { jobs, stop: () => boss.stop({ graceful: true, timeout: 10_000 }) }
 }

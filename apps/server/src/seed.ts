@@ -1,6 +1,6 @@
 import type { ContactAttribute, ConversationEvent, Source } from '@chat/contracts'
-import { sql } from 'drizzle-orm'
-import { BasedbClient } from './basedb/client.js'
+import { eq, sql } from 'drizzle-orm'
+import { installDefaultAutomations } from './automations/defaults.js'
 import { readConfig } from './config.js'
 import { connect, migrateDatabase } from './db/client.js'
 import {
@@ -11,16 +11,19 @@ import {
   conversationTags,
   conversations,
   messages,
+  pageActions,
 } from './db/schema.js'
-import { Settings } from './settings/settings.js'
-import { sourceFor } from './settings/source.js'
+import { DatabaseSource } from './settings/database.js'
+import { loadDemoSettings } from './settings/demo.js'
+import { type Inbox, Settings } from './settings/settings.js'
 
 /**
  * Development data: the conversations of the mockup, in the `chat` schema.
  *
  *   pnpm --filter @chat/server seed
  *
- * It EMPTIES the schema first, and refuses to run in production. The mockup's times are
+ * It EMPTIES the schema first — the settings too, written again from the demonstration —,
+ * and refuses to run in production. The mockup's times are
  * kept relative to one another and moved to now, so that « il y a 5 minutes » stays true
  * whatever day it runs.
  */
@@ -34,23 +37,14 @@ const MOCKUP_NOW = new Date('2026-09-30T10:30:00').getTime()
 const shift = Date.now() - MOCKUP_NOW
 const at = (mockupTime: string) => new Date(new Date(mockupTime).getTime() + shift)
 
-/**
- * The demonstration site, Acme Assurances: the first active site of the settings — of the
- * chat's basedb, or of the template's demonstration rows.
- */
-const source = sourceFor(
-  config.basedb ? new BasedbClient(config.basedb) : null,
-  false,
-  config.devAgent,
-)
-const found = source ? (await new Settings(source).sites()).find((s) => s.active) : undefined
-const SITE = { id: found?.id ?? 'acme', name: found?.name ?? 'Acme Assurances' }
+/** The demonstration site, Acme Assurances — read once the settings are written. */
+let SITE = { id: 'acme', name: 'Acme Assurances' }
 
 /**
  * The demonstration's inboxes, by name: a claim goes to « Sinistres », an unhappy customer
  * to « Réclamations », the rest to « Service client » — with its inbox's default team.
  */
-const inboxes = source ? await new Settings(source).inboxes() : []
+let inboxes: Inbox[] = []
 const inboxNamed = (name: string) => inboxes.find((i) => i.name === name) ?? inboxes[0] ?? null
 function routeOf(demo: {
   readonly tags: readonly { label: string }[]
@@ -64,8 +58,8 @@ function routeOf(demo: {
         : inboxNamed('Service client')
   return { inboxId: inbox?.id ?? null, teamId: inbox?.defaultTeamId ?? null }
 }
-/** The person running the demonstration: `CHAT_DEV_AGENT`, basedb's administrator once linked. */
-const ME_ACCOUNT = config.devAgent ?? 'dev-marc'
+/** The demonstration's supervisor — `CHAT_DEV_AGENT` on a developer's machine. */
+const ME_LOGIN = 'marc.jamain@exemple.fr'
 const MODEL = 'demo'
 
 const TAGS = {
@@ -430,19 +424,34 @@ const SOPHIE_HISTORY = [
 const { pool, db } = connect(config.databaseUrl)
 await migrateDatabase(db)
 
-await db.transaction(async (tx) => {
-  await tx.execute(
-    sql`truncate chat.access_log, chat.attachment, chat.ai_feedback, chat.conversation_tag, chat.message, chat.ai_run, chat.kb_chunk, chat.conversation, chat.contact, chat.agent, chat.site_secret cascade`,
-  )
+// Every table of the schema emptied — its migrations' journal aside —, then the settings
+// written again: the demonstration's.
+await db.execute(sql`
+  do $$ declare t text; begin
+    for t in select tablename from pg_tables where schemaname = 'chat' and tablename <> 'migration'
+    loop execute format('truncate chat.%I cascade', t); end loop;
+  end $$`)
+await loadDemoSettings(db)
+const settings = new Settings(new DatabaseSource(db))
+const found = (await settings.sites()).find((s) => s.active)
+if (found) SITE = { id: found.id, name: found.name }
+inboxes = await settings.inboxes()
 
-  const agentRows = await tx
-    .insert(agents)
-    .values([
-      { basedbUserId: ME_ACCOUNT, name: ME, email: 'marc.jamain@exemple.fr', role: 'supervisor' },
-      { basedbUserId: 'dev-mdupuis', name: 'Marc Dupuis', email: 'marc.dupuis@exemple.fr' },
-      { basedbUserId: 'dev-nbenali', name: 'Nadia Benali', email: 'nadia.benali@exemple.fr' },
-    ])
-    .returning()
+await db.transaction(async (tx) => {
+  const agentRows = [
+    ...(await tx.select().from(agents)),
+    ...(await tx
+      .insert(agents)
+      .values([
+        { login: 'marc.dupuis@exemple.fr', name: 'Marc Dupuis', email: 'marc.dupuis@exemple.fr' },
+        {
+          login: 'nadia.benali@exemple.fr',
+          name: 'Nadia Benali',
+          email: 'nadia.benali@exemple.fr',
+        },
+      ])
+      .returning()),
+  ]
   const agentId = new Map(agentRows.map((a) => [a.name, a.id]))
   const idOf = (name: string) => {
     const id = agentId.get(name)
@@ -629,12 +638,53 @@ await db.transaction(async (tx) => {
   }
 })
 
+// The automation every messaging starts with — on from now: the demonstration's past is not
+// its business.
+const [boss] = await db
+  .select({ id: agents.id })
+  .from(agents)
+  .where(eq(agents.role, 'supervisor'))
+  .limit(1)
+if (boss) await installDefaultAutomations(db, boss.id)
+
+// What the demonstration page declares (D21), allowed already: the AI can price, fill the
+// quote — with the visitor's accord — and show a section.
+await db.insert(pageActions).values([
+  {
+    siteId: SITE.id,
+    name: 'tarifer',
+    label: 'Calculer un tarif auto',
+    description: 'Le prix annuel et mensuel d’une assurance auto Acme.',
+    kind: 'read',
+    enabled: true,
+    confirm: false,
+  },
+  {
+    siteId: SITE.id,
+    name: 'preremplirDevis',
+    label: 'Pré-remplir le devis auto',
+    description: 'Remplit le formulaire de devis de la page.',
+    kind: 'do',
+    enabled: true,
+    confirm: true,
+  },
+  {
+    siteId: SITE.id,
+    name: 'montrerSection',
+    label: 'Montrer une section de la page',
+    description: 'Fait défiler la page jusqu’à une section.',
+    kind: 'do',
+    enabled: true,
+    confirm: false,
+  },
+])
+
 const [counts] = (
   await db.execute<{ conversations: number; messages: number }>(
     sql`select (select count(*) from chat.conversation)::int as conversations, (select count(*) from chat.message)::int as messages`,
   )
 ).rows
 console.log(
-  `seed: ${counts?.conversations} conversations, ${counts?.messages} messages — agent de développement : ${ME_ACCOUNT}`,
+  `seed: ${counts?.conversations} conversations, ${counts?.messages} messages — superviseur de la démonstration : ${ME_LOGIN}`,
 )
 await pool.end()

@@ -1,5 +1,7 @@
 import type {
   ApiError,
+  PageActionResultBody,
+  PageSnapshot,
   Ticket,
   VisitorConversation,
   WidgetEvent,
@@ -16,8 +18,8 @@ import type { Data, Profile } from './page-api'
 export interface Backend {
   session(identity: string | null): Promise<WidgetSession>
   conversation(): Promise<VisitorConversation | null>
-  /** With the metadata the page set for the conversation before it began. */
-  send(body: string, data?: Data): Promise<VisitorConversation>
+  /** With the metadata the page set for the conversation before it began, and the page. */
+  send(body: string, data?: Data, page?: PageSnapshot): Promise<VisitorConversation>
   /** Files, with or without words. */
   sendFiles(files: readonly File[], body: string): Promise<VisitorConversation>
   /** A file's address, from the path the server signed. */
@@ -33,6 +35,13 @@ export interface Backend {
   resetConversation(): Promise<void>
   /** `reset({ visitor: true })`: the visitor's token forgotten — the next session, a stranger's. */
   forgetVisitor(): void
+  /** The address left in the « Laissez-nous votre e-mail » card. */
+  leaveEmail(email: string): Promise<void>
+  /** Takes an action the AI asked of the page, to run it here — `false`: another tab did. */
+  claimAction(id: string, tab: string): Promise<boolean>
+  answerAction(id: string, tab: string, answer: PageActionResultBody): Promise<void>
+  /** The visitor declines an action to accept. */
+  refuseAction(id: string): Promise<void>
 }
 
 export class WidgetFailure extends Error {
@@ -129,8 +138,25 @@ export class WidgetApi implements Backend {
     return this.call('GET', '/conversation')
   }
 
-  send(body: string, data?: Data): Promise<VisitorConversation> {
-    return this.call('POST', '/messages', data ? { body, data } : { body })
+  send(body: string, data?: Data, page?: PageSnapshot): Promise<VisitorConversation> {
+    return this.call('POST', '/messages', {
+      body,
+      ...(data ? { data } : {}),
+      ...(page ? { page } : {}),
+    })
+  }
+
+  async claimAction(id: string, tab: string): Promise<boolean> {
+    const { taken } = await this.call<{ taken: boolean }>('POST', `/actions/${id}/claim`, { tab })
+    return taken
+  }
+
+  async answerAction(id: string, tab: string, answer: PageActionResultBody): Promise<void> {
+    await this.call('POST', `/actions/${id}/result`, { tab, ...answer })
+  }
+
+  async refuseAction(id: string): Promise<void> {
+    await this.call('POST', `/actions/${id}/refuse`, {})
   }
 
   sendFiles(files: readonly File[], body: string): Promise<VisitorConversation> {
@@ -158,6 +184,10 @@ export class WidgetApi implements Backend {
 
   forgetVisitor(): void {
     this.keep(null)
+  }
+
+  async leaveEmail(email: string): Promise<void> {
+    await this.call('POST', '/email', { email })
   }
 
   /**

@@ -18,6 +18,7 @@ export async function recordRun(
       | 'rephrase'
       | 'attachment'
       | 'speech'
+      | 'automation'
     readonly completion: Pick<Completion, 'model' | 'usage' | 'latencyMs'>
     readonly input: unknown
     readonly output: Record<string, unknown>
