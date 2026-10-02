@@ -19,6 +19,7 @@ import {
   pauseOnSuccess,
   revealAt,
 } from './auth-layout'
+import { PasswordStrength } from './password-strength'
 
 /**
  * The inbox's sign-in (D19): an e-mail and a password, or the identity provider the
@@ -26,7 +27,7 @@ import {
  * the first supervisor.
  */
 
-export const PASSWORD_MIN = 10
+export const PASSWORD_MIN = 8
 
 export function sentence(code: string): string {
   switch (code) {
@@ -37,7 +38,12 @@ export function sentence(code: string): string {
     case 'UNREACHABLE':
       return $t('Le serveur de la messagerie ne répond pas.')
     case 'PASSWORD_WEAK':
-      return $t('Ce mot de passe ne convient pas : 10 caractères au moins, et pas votre adresse.')
+      return $t(
+        'Ce mot de passe ne convient pas : {count} caractères au moins, et pas votre adresse.',
+        {
+          count: PASSWORD_MIN,
+        },
+      )
     case 'LINK_INVALID':
       return $t('Ce lien ne vaut plus : il a servi, ou il a expiré. Demandez-en un autre.')
     case 'SETUP_DONE':
@@ -331,6 +337,7 @@ export function ChoosePassword({
           required
           className="h-10"
         />
+        <PasswordStrength password={next} min={PASSWORD_MIN} />
         <p
           className={cn(
             'text-xs',

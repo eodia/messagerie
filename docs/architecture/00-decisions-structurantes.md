@@ -463,7 +463,7 @@ quelle liaison porte chaque libellé. Une écriture prévient tous les processus
 
 **Les comptes :**
 
-- un mot de passe gardé en scrypt ; dix caractères au moins, pas l'adresse ;
+- un mot de passe gardé en scrypt ; huit caractères au moins, pas l'adresse ;
 - une session dans un cookie `httpOnly`, `SameSite=Lax`, dont la base ne garde que le
   SHA-256 ; trente jours depuis son dernier usage ; la déconnexion la supprime, un
   nouveau mot de passe ferme toutes les autres ;

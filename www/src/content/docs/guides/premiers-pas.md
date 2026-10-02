@@ -11,7 +11,7 @@ répondre, il faut aussi une clé, `CHAT_AI_API_KEY`.
 
 Ouvrez l’inbox, http://localhost:3210. Au premier lancement, personne ne peut encore se
 connecter : l’écran s’ouvre sur **Bienvenue dans la messagerie**. Entrez un **Nom**, une
-**Adresse e-mail** et un **Mot de passe** — 10 caractères au moins, pas votre adresse —, deux
+**Adresse e-mail** et un **Mot de passe** — 8 caractères au moins, pas votre adresse —, deux
 fois, puis **Créer le compte**. Vous voilà superviseur, et connecté.
 
 Avec la démonstration, entrez l’adresse de son superviseur, `marc.jamain@exemple.fr` : son

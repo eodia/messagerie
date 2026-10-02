@@ -19,7 +19,7 @@ au-delà : « Trop d’essais : patientez un quart d’heure avant de recommenc
 La session tient dans un cookie, trente jours depuis son dernier usage ; **Se déconnecter**, dans
 le menu du compte, la ferme. Le même menu offre **Changer mon mot de passe** : le mot de passe
 actuel, puis le nouveau, deux fois ; les autres sessions sont alors fermées. Un mot de passe a
-dix caractères au moins, et n’est pas l’adresse e-mail.
+huit caractères au moins, et n’est pas l’adresse e-mail.
 
 Sous le formulaire, **Première connexion, mot de passe oublié ?** rappelle la règle : c’est un
 superviseur qui donne un lien ([inviter un conseiller](#inviter-un-conseiller)).

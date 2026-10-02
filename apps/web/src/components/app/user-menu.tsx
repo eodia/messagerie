@@ -46,6 +46,7 @@ import {
   Volume2,
 } from 'lucide-react'
 import { useState } from 'react'
+import { PasswordStrength } from './password-strength'
 import { PASSWORD_MIN, sentence } from './sign-in'
 
 type Presence = 'available' | 'away'
@@ -263,6 +264,7 @@ function PasswordDialog({
               value={next}
               onChange={(event) => setNext(event.target.value)}
             />
+            <PasswordStrength password={next} min={PASSWORD_MIN} />
             <Input
               type="password"
               autoComplete="new-password"

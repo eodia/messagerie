@@ -51,7 +51,7 @@ avec son adresse et son mot de passe, ou par le fournisseur d’identité de l�
 - **Inviter** se fait dans l’inbox : la fiche est créée, et un lien s’affiche une fois, valable
   sept jours, une seule fois ; la personne y choisit son mot de passe. Un mot de passe oublié se
   remplace par un lien de même sorte.
-- **Le mot de passe** est gardé en scrypt ; dix caractères au moins, pas l’adresse.
+- **Le mot de passe** est gardé en scrypt ; huit caractères au moins, pas l’adresse.
 - **La session** est un cookie `httpOnly` du serveur, dont la base ne garde que l’empreinte ;
   elle vit trente jours depuis son dernier usage. Chaque écriture de l’inbox porte un en-tête
   qu’une page d’un autre site ne peut pas envoyer. Conséquence : **l’inbox et le serveur

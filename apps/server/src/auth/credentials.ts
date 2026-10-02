@@ -16,7 +16,7 @@ const N = 16_384
 const R = 8
 const P = 1
 const KEY_LENGTH = 64
-export const PASSWORD_MIN = 10
+export const PASSWORD_MIN = 8
 
 function derive(password: string, salt: Buffer, n: number, r: number, p: number): Promise<Buffer> {
   return new Promise((done, fail) =>
@@ -54,7 +54,7 @@ export async function verifyPassword(password: string, stored: string | null): P
   return actual.length === expected.length && timingSafeEqual(actual, expected)
 }
 
-/** A password one may choose: ten characters at least, not the e-mail. */
+/** A password one may choose: eight characters at least, not the e-mail. */
 export function weakPassword(password: string, email: string | null): boolean {
   return (
     password.length < PASSWORD_MIN ||

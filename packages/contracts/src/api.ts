@@ -18,7 +18,7 @@ export type ErrorCode =
   | 'TICKET_INVALID'
   /** A wrong e-mail or password — never said which. */
   | 'SIGN_IN_FAILED'
-  /** Ten characters at least, and not the e-mail. */
+  /** Eight characters at least, and not the e-mail. */
   | 'PASSWORD_WEAK'
   /** A link that does not exist, was used, or expired. */
   | 'LINK_INVALID'

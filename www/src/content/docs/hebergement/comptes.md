@@ -74,11 +74,15 @@ fournisseur d’identité — en obtient un par un lien.
 
 ## Les règles du mot de passe
 
-- **Dix caractères au moins**, deux cents au plus.
+- **Huit caractères au moins**, deux cents au plus.
 - **Pas l’adresse e-mail** du compte.
 
+Pendant la saisie, une jauge dit sa force — **Faible**, **Correct**, **Fort** — d’après sa
+longueur et ce qu’il mêle : minuscules, majuscules, chiffres, autres signes. C’est un conseil :
+le serveur ne refuse que ce qui est trop court, ou l’adresse.
+
 Le serveur le garde en **scrypt**, jamais en clair. Un refus le dit : « Ce mot de passe ne
-convient pas : 10 caractères au moins, et pas votre adresse. »
+convient pas : 8 caractères au moins, et pas votre adresse. »
 
 ## Les sessions
 

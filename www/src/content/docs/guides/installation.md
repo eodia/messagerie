@@ -59,7 +59,7 @@ Ce que fait chaque étape :
 
 Ouvrez l’inbox. Personne n’a encore de mot de passe : l’écran de connexion s’ouvre sur
 **Bienvenue dans la messagerie** et crée le premier superviseur — **Nom**, **Adresse e-mail**,
-**Mot de passe** deux fois, puis **Créer le compte**. Le mot de passe compte 10 caractères au
+**Mot de passe** deux fois, puis **Créer le compte**. Le mot de passe compte 8 caractères au
 moins, et ne peut pas être l’adresse.
 
 La démonstration a déjà son superviseur, **Marc JAMAIN**, sans mot de passe. Entrez son adresse,
