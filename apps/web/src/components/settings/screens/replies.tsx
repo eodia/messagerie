@@ -71,7 +71,7 @@ export function RepliesScreen() {
     return (
       <Studio
         base={tabBase}
-        section={$t('Réponses types')}
+        section={$t('Réponses types et étiquettes')}
         data={data}
         editor={tags}
         tabs={tabs}
@@ -150,7 +150,7 @@ export function RepliesScreen() {
   return (
     <Studio
       base={tabBase}
-      section={$t('Réponses types')}
+      section={$t('Réponses types et étiquettes')}
       data={data}
       editor={replies}
       tabs={tabs}

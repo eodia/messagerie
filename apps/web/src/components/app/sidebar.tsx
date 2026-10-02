@@ -52,7 +52,11 @@ const SETTINGS: readonly Screen[] = [
   { href: '/parametrage/boites', label: msg('Boîtes de réception'), icon: Inbox },
   { href: '/parametrage/equipes', label: msg('Équipes et conseillers'), icon: Headset },
   { href: '/parametrage/sites', label: msg('Sites et horaires'), icon: Globe },
-  { href: '/parametrage/reponses', label: msg('Réponses types'), icon: MessageSquareText },
+  {
+    href: '/parametrage/reponses',
+    label: msg('Réponses types et étiquettes'),
+    icon: MessageSquareText,
+  },
   { href: '/parametrage/garde-fous', label: msg('Garde-fous'), icon: ShieldAlert },
   { href: '/outils', label: msg('Outils IA'), icon: Wrench },
   { href: '/widget', label: msg('Widget'), icon: Palette },

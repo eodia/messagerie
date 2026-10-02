@@ -16,7 +16,10 @@ export const GROUPS: Readonly<Record<string, Group>> = {
   boites: { title: msg('Boîtes de réception'), tables: ['boites'] },
   equipes: { title: msg('Équipes et conseillers'), tables: ['equipes', 'conseillers'] },
   sites: { title: msg('Sites et horaires'), tables: ['sites', 'horaires', 'fermetures'] },
-  reponses: { title: msg('Réponses types'), tables: ['reponses_types', 'etiquettes'] },
+  reponses: {
+    title: msg('Réponses types et étiquettes'),
+    tables: ['reponses_types', 'etiquettes'],
+  },
   'garde-fous': { title: msg('Garde-fous'), tables: ['garde_fous'] },
   outils: { title: msg('Outils IA'), tables: ['outils_ia', 'serveurs_mcp'] },
   connaissance: { title: msg('Connaissance'), tables: ['articles', 'categories'] },
