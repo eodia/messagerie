@@ -27,6 +27,7 @@ export const TRIGGER_KINDS: readonly AutomationTriggerKind[] = [
   'transferred',
   'resolved',
   'reopened',
+  'sentiment_changed',
   'no_reply',
   'schedule',
   'button',
@@ -43,6 +44,7 @@ export const EVENT_TRIGGERS: Readonly<Record<string, AutomationTriggerKind>> = {
   'conversation.transferred': 'transferred',
   'conversation.resolved': 'resolved',
   'conversation.reopened': 'reopened',
+  'conversation.sentiment': 'sentiment_changed',
 }
 
 const FIELDS: Readonly<Record<ConditionField, readonly ConditionOperator[]>> = {

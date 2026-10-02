@@ -21,6 +21,7 @@ import {
   type LucideIcon,
   MessageCircle,
   UserRoundPlus,
+  Workflow,
 } from 'lucide-react'
 
 const KINDS: Record<AlertKind, { readonly icon: LucideIcon; readonly tint: string }> = {
@@ -44,6 +45,10 @@ const KINDS: Record<AlertKind, { readonly icon: LucideIcon; readonly tint: strin
     icon: AlarmClock,
     tint: 'bg-amber-500/15 text-amber-800 dark:text-amber-300',
   },
+  automation: {
+    icon: Workflow,
+    tint: 'bg-sky-500/15 text-sky-800 dark:text-sky-300',
+  },
 }
 
 function sentence(notification: Notification): string {
@@ -65,6 +70,14 @@ function sentence(notification: Notification): string {
       })
     case 'woke':
       return $t('La conversation de {name} revient de l’attente', { name })
+    case 'automation':
+      return (
+        notification.text ??
+        $t('« {by} » vous signale la conversation de {name}', {
+          by: notification.by ?? '—',
+          name,
+        })
+      )
   }
 }
 

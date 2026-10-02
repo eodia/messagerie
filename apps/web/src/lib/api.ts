@@ -4,6 +4,11 @@ import type {
   ApiError,
   ApiToken,
   Attachment,
+  Automation,
+  AutomationButton,
+  AutomationChoices,
+  AutomationDefinition,
+  AutomationRunList,
   CannedReply,
   ContactDetail,
   ContactListItem,
@@ -75,6 +80,8 @@ export class ApiFailure extends Error {
   constructor(
     readonly code: ErrorCode | 'UNREACHABLE' | 'SIGNED_OUT',
     readonly status: number,
+    /** What the server said of it: the field, the problem. */
+    readonly details: Readonly<Record<string, unknown>> = {},
   ) {
     super(code)
   }
@@ -105,7 +112,7 @@ async function request<T>(method: string, path: string, body?: unknown, bytes = 
     const code = (data as ApiError | null)?.code ?? 'INTERNAL_ERROR'
     // No session (any more): the sign-in screen takes over.
     if (code === 'SESSION_INVALID') useSession.getState().signedOut()
-    throw new ApiFailure(code, response.status)
+    throw new ApiFailure(code, response.status, (data as ApiError | null)?.details ?? {})
   }
   return data as T
 }
@@ -209,6 +216,33 @@ export const api = {
   webhookDeliveries: (id: string) =>
     request<WebhookDelivery[]>('GET', `/webhooks/${encodeURIComponent(id)}/deliveries`),
   testWebhook: (id: string) => request<void>('POST', `/webhooks/${encodeURIComponent(id)}/test`),
+  automations: () => request<Automation[]>('GET', '/automations'),
+  automationChoices: () => request<AutomationChoices>('GET', '/automations/choices'),
+  createAutomation: (body: AutomationDefinition) =>
+    request<Automation>('POST', '/automations', body),
+  saveAutomation: (id: string, body: AutomationDefinition) =>
+    request<Automation>('PUT', `/automations/${encodeURIComponent(id)}`, body),
+  setAutomationActive: (id: string, active: boolean) =>
+    request<Automation>('PATCH', `/automations/${encodeURIComponent(id)}`, { active }),
+  renewAutomationKey: (id: string) =>
+    request<Automation>('POST', `/automations/${encodeURIComponent(id)}/key`),
+  deleteAutomation: (id: string) =>
+    request<void>('DELETE', `/automations/${encodeURIComponent(id)}`),
+  automationRuns: (id: string) =>
+    request<AutomationRunList>('GET', `/automations/${encodeURIComponent(id)}/runs`),
+  tryAutomation: (id: string, conversationId: string | null) =>
+    request<{ runId: string }>('POST', `/automations/${encodeURIComponent(id)}/try`, {
+      conversationId,
+    }),
+  stopAutomationRun: (runId: string) =>
+    request<void>('POST', `/automation-runs/${encodeURIComponent(runId)}/stop`),
+  conversationAutomations: (id: string) =>
+    request<AutomationButton[]>('GET', `${conversation(id)}/automations`),
+  runConversationAutomation: (id: string, automationId: string) =>
+    request<{ runId: string }>(
+      'POST',
+      `${conversation(id)}/automations/${encodeURIComponent(automationId)}`,
+    ),
   search: (query: string) => request<MessageHit[]>('GET', `/search?q=${encodeURIComponent(query)}`),
   analyzeAttachment: (id: string) =>
     request<Attachment>('POST', `/attachments/${encodeURIComponent(id)}/analysis`),

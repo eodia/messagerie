@@ -16,6 +16,8 @@ export type AutomationTriggerKind =
   | 'transferred'
   | 'resolved'
   | 'reopened'
+  /** The AI read the visitor's mood anew — after the message, not with it. */
+  | 'sentiment_changed'
   /** The visitor's last message has waited `minutes` for an answer. */
   | 'no_reply'
   /** At set times — once, or for each conversation the condition keeps. */

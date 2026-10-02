@@ -478,6 +478,24 @@ describe('an automation', () => {
     ).rejects.toMatchObject({ code: 'AUTOMATION_INVALID', details: { problem: 'no_steps' } })
   })
 
+  it('hears the mood the AI reads after the message', async () => {
+    const made = await automation({
+      name: 'Mécontents',
+      trigger: { kind: 'sentiment_changed' },
+      condition: { match: 'all', rules: [{ field: 'sentiment', op: 'is', values: ['negative'] }] },
+      steps: [{ id: 's1', kind: 'priority', priority: 'urgent' }],
+    })
+    const calm = await conversation()
+    const upset = await conversation()
+    await db.update(conversations).set({ sentiment: 'neutral' }).where(eq(conversations.id, calm))
+    await db.update(conversations).set({ sentiment: 'negative' }).where(eq(conversations.id, upset))
+    await automationPass(engine)
+    const runs = await runsOf(made.id)
+    expect(runs.map((r) => r.conversationId)).toEqual([upset])
+    const [row] = await db.select().from(conversations).where(eq(conversations.id, upset))
+    expect(row?.priority).toBe('urgent')
+  })
+
   it('fails a run on a step that fails, and says why', async () => {
     const made = await automation({
       trigger: { kind: 'conversation_created' },

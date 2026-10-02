@@ -28,6 +28,12 @@ export function messageFor(code: string): string {
       return $t('Aucune voix d’IA sur ce serveur : celle du navigateur lit les messages.')
     case 'MESSAGE_NOT_DELETABLE':
       return $t('Ce message ne se supprime pas.')
+    case 'AUTOMATION_NOT_FOUND':
+      return $t('Cette automatisation n’existe plus.')
+    case 'AUTOMATION_INVALID':
+      return $t('L’automatisation ne peut pas tourner telle quelle : corrigez l’étape signalée.')
+    case 'AUTOMATION_KEY_INVALID':
+      return $t('Clé de l’automatisation invalide, ou automatisation arrêtée.')
     case 'WEBHOOK_NOT_FOUND':
       return $t('Ce webhook n’existe plus.')
     case 'WEBHOOK_TARGET_REJECTED':

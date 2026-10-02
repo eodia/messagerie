@@ -32,6 +32,7 @@ import {
   Settings,
   ShieldAlert,
   UsersRound,
+  Workflow,
   Wrench,
 } from 'lucide-react'
 import Link, { useLinkStatus } from 'next/link'
@@ -68,6 +69,7 @@ const SETTINGS: readonly Screen[] = [
   },
   { href: '/parametrage/garde-fous', label: msg('Garde-fous'), icon: ShieldAlert },
   { href: '/outils', label: msg('Outils IA'), icon: Wrench },
+  { href: '/automatisations', label: msg('Automatisations'), icon: Workflow },
   { href: '/widget', label: msg('Widget'), icon: Palette },
   { href: '/parametrage/api', label: msg('API et MCP'), icon: KeyRound },
 ]

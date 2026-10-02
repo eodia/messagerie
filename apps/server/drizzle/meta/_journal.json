@@ -120,6 +120,13 @@
       "when": 1790969670892,
       "tag": "0016_automations",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790971227742,
+      "tag": "0017_sentiment_event",
+      "breakpoints": true
     }
   ]
 }

@@ -3,7 +3,7 @@
 import { Chip } from '@/components/app/chip'
 import { CopyButton } from '@/components/app/copy-button'
 import { Button } from '@/components/ui/button'
-import { $t, $tp, intlLocale } from '@/lib/i18n'
+import { $t, $tp, intlLocale, msg } from '@/lib/i18n'
 import { useSpeech } from '@/lib/speech'
 import { clockTime } from '@/lib/time'
 import { cn } from '@/lib/utils'
@@ -23,14 +23,17 @@ import {
   AlarmClock,
   AlarmClockOff,
   ArrowRightLeft,
+  AtSign,
   Ban,
   Bot,
   Check,
   ChevronRight,
   CircleCheck,
   FileText,
+  Flag,
   Forward,
   Hand,
+  Inbox,
   MessagesSquare,
   Pencil,
   RotateCcw,
@@ -185,7 +188,20 @@ const EVENT_ICONS = {
   snoozed: AlarmClock,
   woke: AlarmClockOff,
   restarted: RotateCcw,
+  queued: Inbox,
+  priority: Flag,
+  email_requested: AtSign,
+  email_given: AtSign,
 } as const
+
+const PRIORITIES = {
+  low: msg('basse'),
+  normal: msg('normale'),
+  high: msg('haute'),
+  urgent: msg('urgente'),
+} as const
+
+const priorityLabel = (priority: keyof typeof PRIORITIES) => $t(PRIORITIES[priority])
 
 /** An event, said in the reader's language: the server stores what happened, not words. */
 function eventText(event: ConversationEvent): string {
@@ -239,6 +255,19 @@ function eventText(event: ConversationEvent): string {
         : $t('{agent} a sorti la conversation de l’attente.', { agent: event.agent })
     case 'restarted':
       return $t('Le visiteur a commencé une nouvelle conversation depuis la page.')
+    case 'queued':
+      return $t('« {by} » a confié la conversation aux conseillers.', { by: event.by })
+    case 'priority':
+      return $t('« {by} » a passé la priorité à « {priority} ».', {
+        by: event.by,
+        priority: priorityLabel(event.priority),
+      })
+    case 'email_requested':
+      return event.by === null
+        ? $t('Le widget a proposé au visiteur de laisser son e-mail : personne n’est disponible.')
+        : $t('« {by} » a proposé au visiteur de laisser son e-mail.', { by: event.by })
+    case 'email_given':
+      return $t('Le visiteur a laissé son e-mail : {email}.', { email: event.email })
   }
 }
 

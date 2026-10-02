@@ -79,7 +79,13 @@ const stopListening = listenForChanges(
       .then(async ([summary]) => {
         if (!summary) return
         const audience = new Set(await access.audience(db, summary.inboxId))
-        hub.sendWhere({ type: 'conversation', summary, alert }, (agent) => audience.has(agent))
+        // An automation's alert is for those it told (D20); the others see the change.
+        const told = new Set(alert === 'automation' ? (notify ?? []) : audience)
+        hub.sendWhere({ type: 'conversation', summary, alert }, (agent) => told.has(agent))
+        hub.sendWhere(
+          { type: 'conversation', summary },
+          (agent) => audience.has(agent) && !told.has(agent),
+        )
       })
       .catch(failed)
   },
