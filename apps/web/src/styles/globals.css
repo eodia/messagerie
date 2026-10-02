@@ -619,3 +619,13 @@
     animation: none;
   }
 }
+
+/* A sidebar link on its way: its spinner appears only past a short wait. */
+.nav-pending {
+  animation: nav-pending-in 160ms ease-out 250ms both;
+}
+@keyframes nav-pending-in {
+  from {
+    opacity: 0;
+  }
+}

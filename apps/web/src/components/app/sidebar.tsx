@@ -17,6 +17,7 @@ import {
   Headset,
   Inbox,
   KeyRound,
+  LoaderCircle,
   type LucideIcon,
   MessageSquareText,
   MessagesSquare,
@@ -25,9 +26,8 @@ import {
   UsersRound,
   Wrench,
 } from 'lucide-react'
-import Link from 'next/link'
+import Link, { useLinkStatus } from 'next/link'
 import { usePathname } from 'next/navigation'
-import type { ReactNode } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { UserMenu } from './user-menu'
 
@@ -198,6 +198,50 @@ function Count({
   )
 }
 
+/**
+ * A row's insides. Inside a link, it shows the click taken at once — the row selected, a
+ * spinner once it lasts — while the screen is on its way: in development, a screen being
+ * compiled takes seconds, and a click that shows nothing is a click made again.
+ */
+function NavContent({
+  label,
+  icon: Icon,
+  active,
+  collapsed,
+  count,
+}: {
+  readonly label: string
+  readonly icon: LucideIcon
+  readonly active: boolean
+  readonly collapsed: boolean
+  readonly count: number
+}) {
+  const { pending } = useLinkStatus()
+  return (
+    <>
+      {pending && <span aria-hidden className="absolute inset-0 rounded-lg bg-sidebar-accent" />}
+      <Icon
+        className={cn(
+          'relative size-4 shrink-0',
+          active || pending ? 'text-foreground' : 'text-muted-foreground',
+        )}
+      />
+      {!collapsed && (
+        <span className={cn('relative min-w-0 flex-1 truncate', pending && 'font-medium')}>
+          {label}
+        </span>
+      )}
+      {pending && !collapsed ? (
+        <span aria-hidden className="nav-pending relative">
+          <LoaderCircle className="size-3.5 animate-spin text-muted-foreground" />
+        </span>
+      ) : (
+        <Count value={count} collapsed={collapsed} />
+      )}
+    </>
+  )
+}
+
 function NavRow({
   href,
   onClick,
@@ -220,22 +264,13 @@ function NavRow({
     active && 'bg-sidebar-accent font-medium',
     collapsed && 'h-9 justify-center px-0',
   )
-  const content: ReactNode = (
-    <>
-      <Icon
-        className={cn('size-4 shrink-0', active ? 'text-foreground' : 'text-muted-foreground')}
-      />
-      {!collapsed && <span className="min-w-0 flex-1 truncate">{label}</span>}
-      <Count value={count} collapsed={collapsed} />
-    </>
-  )
   const row = href ? (
     <Link href={href} className={className}>
-      {content}
+      <NavContent label={label} icon={Icon} active={active} collapsed={collapsed} count={count} />
     </Link>
   ) : (
     <button type="button" onClick={onClick} className={className}>
-      {content}
+      <NavContent label={label} icon={Icon} active={active} collapsed={collapsed} count={count} />
     </button>
   )
   return collapsed ? (
