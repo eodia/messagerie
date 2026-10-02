@@ -599,8 +599,8 @@ function Composer({
         <span className="text-muted-foreground">{$t('Note interne')}</span>
       </div>
       {suggestions && (
-        <div className="animate-in fade-in slide-in-from-bottom-1 px-5 pb-2 duration-300">
-          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-violet-700 uppercase dark:text-violet-300">
+        <div className="animate-in fade-in slide-in-from-bottom-1 px-5 pt-3 pb-2 duration-300">
+          <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-violet-700 uppercase dark:text-violet-300">
             <WandSparkles className="size-3.5" />
             {$t('Suggestions du copilote')}
           </div>

@@ -708,11 +708,14 @@ export function Composer({
                     {checking ? $t('Relecture…') : $t('Aucune faute')}
                   </span>
                 ) : (
-                  <span className="hidden items-center gap-1 @3xl:flex">
+                  // The whole hint where there is room, « ↵ envoyer » where there is less.
+                  <span className="hidden items-center gap-1 @2xl:flex">
                     <Kbd>↵</Kbd> {$t('envoyer')}
-                    <span className="mx-1 text-muted-foreground/50">·</span>
-                    <Kbd>Maj</Kbd>
-                    <Kbd>↵</Kbd> {$t('à la ligne')}
+                    <span className="hidden items-center gap-1 @3xl:flex">
+                      <span className="mx-1 text-muted-foreground/50">·</span>
+                      <Kbd>Maj</Kbd>
+                      <Kbd>↵</Kbd> {$t('à la ligne')}
+                    </span>
                   </span>
                 )}
               </span>
