@@ -10,6 +10,7 @@ import { type Db, connect, migrateDatabase } from './db/client.js'
 import { DiskStore } from './files/store.js'
 import { Access } from './inbox/access.js'
 import { startWaking } from './inbox/snooze.js'
+import { expireCalls } from './page/actions.js'
 import { DatabaseSource, settingsEmpty } from './settings/database.js'
 import { loadDemoSettings } from './settings/demo.js'
 import { Settings, TABLES } from './settings/settings.js'
@@ -103,6 +104,10 @@ export async function boot(role: 'server' | 'worker'): Promise<Booted> {
   const clockwork = role === 'worker' || process.env.CHAT_WORKER !== 'separate'
   const postman = clockwork ? startWebhooks(db, config.secret) : null
   const waking = clockwork ? startWaking(db) : null
+  // A request to the visitor left unanswered half an hour: no widget asks it any more (D21).
+  const expiring = clockwork
+    ? setInterval(() => void expireCalls(db).catch((e) => console.error('chat : page', e)), 300_000)
+    : null
   const automations = clockwork
     ? startAutomations({
         db,
@@ -127,6 +132,7 @@ export async function boot(role: 'server' | 'worker'): Promise<Booted> {
       await source.close()
       await postman?.stop()
       await waking?.stop()
+      if (expiring) clearInterval(expiring)
       await automations?.stop()
       await stopJobs()
       await mcp.close()

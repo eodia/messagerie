@@ -11,6 +11,7 @@ import {
   conversationTags,
   conversations,
   messages,
+  pageActions,
 } from './db/schema.js'
 import { DatabaseSource } from './settings/database.js'
 import { loadDemoSettings } from './settings/demo.js'
@@ -645,6 +646,38 @@ const [boss] = await db
   .where(eq(agents.role, 'supervisor'))
   .limit(1)
 if (boss) await installDefaultAutomations(db, boss.id)
+
+// What the demonstration page declares (D21), allowed already: the AI can price, fill the
+// quote — with the visitor's accord — and show a section.
+await db.insert(pageActions).values([
+  {
+    siteId: SITE.id,
+    name: 'tarifer',
+    label: 'Calculer un tarif auto',
+    description: 'Le prix annuel et mensuel d’une assurance auto Acme.',
+    kind: 'read',
+    enabled: true,
+    confirm: false,
+  },
+  {
+    siteId: SITE.id,
+    name: 'preremplirDevis',
+    label: 'Pré-remplir le devis auto',
+    description: 'Remplit le formulaire de devis de la page.',
+    kind: 'do',
+    enabled: true,
+    confirm: true,
+  },
+  {
+    siteId: SITE.id,
+    name: 'montrerSection',
+    label: 'Montrer une section de la page',
+    description: 'Fait défiler la page jusqu’à une section.',
+    kind: 'do',
+    enabled: true,
+    confirm: false,
+  },
+])
 
 const [counts] = (
   await db.execute<{ conversations: number; messages: number }>(

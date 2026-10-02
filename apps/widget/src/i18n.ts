@@ -53,6 +53,13 @@ const EN: Readonly<Record<string, string>> = {
   'Votre adresse e-mail': 'Your e-mail address',
   'Cette adresse ne semble pas valable.': 'This address does not look valid.',
   'Merci ! Nous vous répondrons à {email}.': 'Thank you! We will answer you at {email}.',
+  'L’assistant propose : {label}': 'The assistant suggests: {label}',
+  'Non merci': 'No thanks',
+  Accepter: 'Accept',
+  '{label} : fait': '{label}: done',
+  '{label} : refusé': '{label}: declined',
+  '{label} : n’a pas pu être fait': '{label}: could not be done',
+  '{label}…': '{label}…',
 }
 
 let language = 'fr'

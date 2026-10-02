@@ -230,6 +230,31 @@ img.person-avatar { object-fit: cover; background: #fff; }
 }
 .event::before, .event::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 
+/* What the AI asked of the page: a quiet line once done, a card to accept before. */
+.action-line {
+  align-self: center; margin: 8px 0 2px; padding: 4px 10px; border-radius: var(--r-pill);
+  font-size: 12.5px; color: var(--muted); background: color-mix(in srgb, var(--ai) 7%, transparent);
+}
+.action-line.done { color: color-mix(in oklab, var(--ai) 75%, var(--ink)); }
+.action-line.failed, .action-line.expired { color: #b91c1c; background: color-mix(in srgb, #dc2626 8%, transparent); }
+.action-card {
+  margin: 10px 0 4px 36px; padding: 12px; border-radius: 14px; background: var(--bubble);
+  border: 1px solid var(--line); border-left: 3px solid var(--ai);
+  display: flex; flex-direction: column; gap: 10px; font-size: 14px; color: var(--ink);
+}
+.action-ask { margin: 0; display: flex; gap: 8px; align-items: flex-start; line-height: 1.45; font-weight: 550; }
+.action-ask svg { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--ai); }
+.action-args { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: 13px; }
+.action-args dt { color: var(--muted); }
+.action-args dd { margin: 0; overflow-wrap: anywhere; }
+.action-buttons { display: flex; justify-content: flex-end; gap: 6px; }
+.action-buttons button {
+  height: 34px; padding: 0 14px; border-radius: 10px; font: inherit; font-weight: 600; cursor: pointer;
+}
+.action-no { border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.action-yes { border: 0; background: var(--accent); color: var(--accent-ink); }
+.action-buttons button:disabled { opacity: .5; cursor: default; }
+
 /* « Laissez-nous votre e-mail »: a card in the thread, the accent on its edge. */
 .email-card {
   margin: 10px 0 4px 36px; padding: 12px; border-radius: 14px; background: var(--bubble);

@@ -54,6 +54,20 @@ export type WidgetMessage =
       readonly deleted?: true
     }
   /**
+   * The AI asks the page to act (D21). `pending`: the widget runs it, once, in one tab;
+   * `confirming`: the visitor accepts or declines first.
+   */
+  | {
+      readonly id: string
+      readonly at: string
+      readonly from: 'action'
+      readonly call: string
+      readonly name: string
+      readonly label: string
+      readonly args: Readonly<Record<string, unknown>>
+      readonly status: PageCallStatus
+    }
+  /**
    * « Laissez-nous votre e-mail »: nobody can answer soon. `email` is the address the
    * contact has now — none, and the card asks for it.
    */
@@ -156,6 +170,40 @@ export interface WidgetMessageBody {
   readonly body: string
   /** Metadata the page set for the conversation before it began: attached with it. */
   readonly data?: Readonly<Record<string, MetadataValue | null>>
+  /** Where the visitor is, and what the page can do — read again with each message (D21). */
+  readonly page?: PageSnapshot
+}
+
+/**
+ * An action the page offers the AI (`MessagerieChat.registerAction`, D21): what it does, in
+ * words for the model, and its parameters as a JSON schema. `read` looks something up — a
+ * price, a stock — and changes nothing; `do` changes the page — a form filled, a step
+ * opened. `confirm`: the visitor accepts it first.
+ */
+export interface PageActionDeclaration {
+  readonly name: string
+  /** For people: « Pré-remplir le devis ». */
+  readonly label: string
+  readonly description: string
+  readonly parameters: Readonly<Record<string, unknown>>
+  readonly kind: 'read' | 'do'
+  readonly confirm: boolean
+}
+
+/** The page, as the widget sees it when the visitor writes. */
+export interface PageSnapshot {
+  readonly url: string
+  readonly title: string
+  /** `MessagerieChat.setPageContext`: what the page says of itself — a step, a cart. */
+  readonly context: unknown
+  readonly actions: readonly PageActionDeclaration[]
+}
+
+/** What the page's handler gave back — or why it could not. */
+export interface PageActionResultBody {
+  readonly ok: boolean
+  readonly result?: unknown
+  readonly error?: string
 }
 
 /**
@@ -175,6 +223,15 @@ export interface WidgetConversationBody {
 }
 
 /** The widget's WebSocket: the conversation changed (read it again), or someone is typing. */
+export type PageCallStatus =
+  | 'pending'
+  | 'confirming'
+  | 'running'
+  | 'done'
+  | 'failed'
+  | 'refused'
+  | 'expired'
+
 export type WidgetEvent =
   | { readonly type: 'conversation' }
   | {

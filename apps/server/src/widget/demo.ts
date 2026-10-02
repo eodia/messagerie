@@ -78,6 +78,14 @@ export async function demoPage(db: Db, settings: Settings, signedIn: boolean): P
   .api button:hover { background: #eef2f7; }
   .api code { font-size: 12px; }
   .api ol { margin: 14px 0 0; padding-left: 18px; font-size: 12.5px; color: #475569; max-height: 140px; overflow: auto; }
+  .quote { margin-top: 32px; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px; max-width: 640px; transition: box-shadow .4s; }
+  .quote.lit { box-shadow: 0 0 0 3px #93c5fd; }
+  .quote h2 { font-size: 15px; margin: 0 0 4px; }
+  .quote p { font-size: 13px; color: #64748b; margin: 0 0 14px; }
+  .quote form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .quote label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #334155; }
+  .quote input, .quote select { font: inherit; font-size: 14px; padding: 7px 10px; border-radius: 8px; border: 1px solid #cbd5e1; }
+  .quote .price { grid-column: 1 / -1; font-size: 15px; font-weight: 600; color: #1d4ed8; min-height: 22px; }
 </style>
 </head>
 <body>
@@ -101,6 +109,17 @@ export async function demoPage(db: Db, settings: Settings, signedIn: boolean): P
       ? 'Page de démonstration : le site a signé l’identité de Sophie Leroy (JWT HS256) avec le secret du site.'
       : 'Page de démonstration : visiteur anonyme — le widget se souvient de lui par un jeton qu’il garde.'
   }</p>
+  <section class="quote" id="devis">
+    <h2>Devis auto</h2>
+    <p>La page déclare trois actions à l’assistant (<code>registerAction</code>) : tarifer, pré-remplir ce devis — avec l’accord du visiteur —, montrer une section. Demandez-lui « Combien pour une Clio de 15 000 € en tous risques ? ».</p>
+    <form id="quote" onsubmit="return false">
+      <label>Valeur du véhicule (€)<input name="valeur" type="number" min="1000" step="500"></label>
+      <label>Formule<select name="formule"><option value="tiers">Tiers</option><option value="tiers-etendu">Tiers étendu</option><option value="tous-risques">Tous risques</option></select></label>
+      <label>Âge du conducteur<input name="age" type="number" min="18" max="99"></label>
+      <label>Code postal<input name="codePostal" inputmode="numeric" maxlength="5"></label>
+      <div class="price" id="price"></div>
+    </form>
+  </section>
   <section class="api">
     <h2>L’API JavaScript du widget</h2>
     <p>Ce que la page du site peut faire avec <code>window.MessagerieChat</code> — chaque bouton appelle une fonction, et ce que le widget raconte s’inscrit dessous.</p>
@@ -130,6 +149,78 @@ export async function demoPage(db: Db, settings: Settings, signedIn: boolean): P
   for (const event of ['ready', 'open', 'close', 'message:sent', 'message:received', 'reset']) {
     MessagerieChat.push(['on', event, told(event)])
   }
+
+  // The page's actions (D21): the price is the page's own — the AI asks it, never copies it.
+  const RATES = { 'tiers': 0.018, 'tiers-etendu': 0.026, 'tous-risques': 0.041 }
+  const NAMES = { 'tiers': 'Tiers', 'tiers-etendu': 'Tiers étendu', 'tous-risques': 'Tous risques' }
+  function tarif(valeur, formule, age) {
+    const young = age && age < 25 ? 1.35 : 1
+    const annuel = Math.round(Math.max(180, valeur * RATES[formule] * young))
+    return { formule: NAMES[formule], annuel: annuel, mensuel: Math.round(annuel / 12 * 100) / 100 }
+  }
+  const form = document.getElementById('quote')
+  function showPrice() {
+    const valeur = Number(form.valeur.value)
+    document.getElementById('price').textContent = valeur
+      ? 'Votre tarif : ' + tarif(valeur, form.formule.value, Number(form.age.value)).mensuel + ' € par mois'
+      : ''
+  }
+  form.addEventListener('input', showPrice)
+  MessagerieChat.push(['registerAction', 'tarifer', {
+    label: 'Calculer un tarif auto',
+    description: 'Le prix annuel et mensuel d’une assurance auto Acme, pour la valeur du véhicule, une formule (tiers, tiers-etendu, tous-risques) et l’âge du conducteur. Sans formule : les trois.',
+    parameters: { type: 'object', properties: {
+      valeur: { type: 'number', description: 'Valeur du véhicule en euros' },
+      formule: { type: 'string', enum: ['tiers', 'tiers-etendu', 'tous-risques'] },
+      age: { type: 'number', description: 'Âge du conducteur principal' },
+    }, required: ['valeur'] },
+    kind: 'read',
+    handler: function (args) {
+      const formules = args.formule ? [args.formule] : Object.keys(RATES)
+      return formules.map(function (f) { return tarif(Number(args.valeur), f, Number(args.age) || null) })
+    },
+  }])
+  MessagerieChat.push(['registerAction', 'preremplirDevis', {
+    label: 'Pré-remplir le devis auto',
+    description: 'Remplit le formulaire de devis de la page avec les valeurs que le visiteur a données.',
+    parameters: { type: 'object', properties: {
+      valeur: { type: 'number' },
+      formule: { type: 'string', enum: ['tiers', 'tiers-etendu', 'tous-risques'] },
+      age: { type: 'number' },
+      codePostal: { type: 'string' },
+    } },
+    kind: 'do',
+    confirm: true,
+    handler: function (args) {
+      for (const key of ['valeur', 'formule', 'age', 'codePostal']) {
+        if (args[key] !== undefined && args[key] !== null) form[key].value = String(args[key])
+      }
+      showPrice()
+      const section = document.getElementById('devis')
+      section.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      section.classList.add('lit')
+      setTimeout(function () { section.classList.remove('lit') }, 1600)
+      return { rempli: true, tarif: document.getElementById('price').textContent }
+    },
+  }])
+  MessagerieChat.push(['registerAction', 'montrerSection', {
+    label: 'Montrer une section de la page',
+    description: 'Fait défiler la page jusqu’à une section : devis (le formulaire de devis auto) ou api.',
+    parameters: { type: 'object', properties: { section: { type: 'string', enum: ['devis', 'api'] } }, required: ['section'] },
+    kind: 'do',
+    handler: function (args) {
+      const target = args.section === 'api' ? document.querySelector('.api') : document.getElementById('devis')
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return { montre: args.section }
+    },
+  }])
+  MessagerieChat.push(['setPageContext', function () {
+    return {
+      page: 'Accueil Acme Assurances, avec un devis auto',
+      devis: { valeur: form.valeur.value || null, formule: form.formule.value, age: form.age.value || null, codePostal: form.codePostal.value || null },
+      tarifAffiche: document.getElementById('price').textContent || null,
+    }
+  }])
 </script>
 <script src="/widget.js" data-site="${htmlEscape(site)}"${identity ? ` data-identity="${htmlEscape(identity)}"` : ''} async></script>
 </body>

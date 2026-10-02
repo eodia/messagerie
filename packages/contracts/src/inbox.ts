@@ -1,4 +1,4 @@
-import type { WidgetAppearance } from './widget.js'
+import type { PageCallStatus, WidgetAppearance } from './widget.js'
 
 /**
  * The inbox's model — the `chat` schema as the server hands it over to the agents
@@ -174,6 +174,17 @@ export type ConversationEvent =
   | { readonly type: 'email_requested'; readonly by: string | null; readonly text: string | null }
   /** The visitor left their e-mail in the widget's card. */
   | { readonly type: 'email_given'; readonly email: string }
+  /** The AI asked the visitor's page to act (D21) — and how it went. */
+  | {
+      readonly type: 'page_action'
+      readonly call: string
+      readonly name: string
+      readonly label: string
+      readonly args: Readonly<Record<string, unknown>>
+      readonly status: PageCallStatus
+      readonly result?: unknown
+      readonly error?: string
+    }
   /** Taken out of the AI's hands and given to the agents' queue — by an automation (D20). */
   | { readonly type: 'queued'; readonly by: string }
   | {
@@ -723,4 +734,20 @@ export interface WebhookDelivery {
   readonly createdAt: string
   readonly deliveredAt: string | null
   readonly nextAttemptAt: string | null
+}
+
+/** An action pages of a site declared (D21), and what the supervisors allow of it. */
+export interface PageAction {
+  readonly id: string
+  readonly siteId: string
+  readonly name: string
+  readonly label: string
+  readonly description: string
+  readonly kind: 'read' | 'do'
+  readonly parameters: Readonly<Record<string, unknown>>
+  /** The AI may call it. Off until a supervisor allows it. */
+  readonly enabled: boolean
+  /** The visitor accepts it first. */
+  readonly confirm: boolean
+  readonly lastSeenAt: string
 }

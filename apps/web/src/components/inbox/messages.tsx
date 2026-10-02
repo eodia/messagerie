@@ -35,6 +35,7 @@ import {
   Hand,
   Inbox,
   MessagesSquare,
+  MousePointerClick,
   Pencil,
   RotateCcw,
   Square,
@@ -192,6 +193,7 @@ const EVENT_ICONS = {
   priority: Flag,
   email_requested: AtSign,
   email_given: AtSign,
+  page_action: MousePointerClick,
 } as const
 
 const PRIORITIES = {
@@ -268,6 +270,26 @@ function eventText(event: ConversationEvent): string {
         : $t('« {by} » a proposé au visiteur de laisser son e-mail.', { by: event.by })
     case 'email_given':
       return $t('Le visiteur a laissé son e-mail : {email}.', { email: event.email })
+    case 'page_action': {
+      const label = event.label
+      switch (event.status) {
+        case 'done':
+          return $t('L’IA a fait « {label} » sur la page du visiteur.', { label })
+        case 'confirming':
+          return $t('L’IA propose « {label} » : le visiteur doit l’accepter.', { label })
+        case 'refused':
+          return $t('Le visiteur a refusé « {label} ».', { label })
+        case 'failed':
+          return $t('« {label} » a échoué sur la page : {error}', {
+            label,
+            error: event.error ?? '—',
+          })
+        case 'expired':
+          return $t('« {label} » : la page du visiteur n’a pas répondu.', { label })
+        default:
+          return $t('L’IA demande « {label} » à la page du visiteur…', { label })
+      }
+    }
   }
 }
 

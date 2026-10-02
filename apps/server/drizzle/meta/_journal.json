@@ -134,6 +134,13 @@
       "when": 1790971526556,
       "tag": "0018_automation_activated",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790971992300,
+      "tag": "0019_page_actions",
+      "breakpoints": true
     }
   ]
 }

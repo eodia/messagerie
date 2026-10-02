@@ -1,4 +1,5 @@
 import type {
+  PageSnapshot,
   VisitorConversation,
   WidgetAvailability,
   WidgetMessage,
@@ -19,6 +20,7 @@ import {
   patchContact,
   patchConversationData,
 } from '../inbox/metadata.js'
+import { keepSnapshot } from '../page/actions.js'
 import { isZonePoint, knownZone, placeOfZone } from '../places/place.js'
 import { signalChange, signalTyping } from '../realtime/signals.js'
 import { Refusal } from '../refusal.js'
@@ -42,6 +44,8 @@ export interface WidgetDeps {
   readonly files: FileStore
   /** Told of each visitor message — the AI's cue to answer. */
   readonly onVisitorMessage?: (conversationId: string) => void
+  /** The visitor answered an action the AI asked of their page: the AI goes on (D21). */
+  readonly onPageAnswered?: (conversationId: string) => void
 }
 
 /** A conversation resolved more than a day ago is over: the visitor starts a new one. */
@@ -289,6 +293,16 @@ export async function visitorConversation(
         shown.push({ ...base, from: 'event', event: 'joined', author: firstName(event.agent) })
       } else if (event?.type === 'resolved') {
         shown.push({ ...base, from: 'event', event: 'resolved', author: null })
+      } else if (event?.type === 'page_action') {
+        shown.push({
+          ...base,
+          from: 'action',
+          call: event.call,
+          name: event.name,
+          label: event.label,
+          args: event.args,
+          status: event.status,
+        })
       } else if (event?.type === 'email_requested') {
         shown.push({ ...base, from: 'email', text: event.text, email: contact?.email ?? null })
       }
@@ -312,6 +326,7 @@ export async function postVisitorMessage(
   body: string,
   data: MetadataPatch | null = null,
   uploads: readonly Upload[] = [],
+  page: PageSnapshot | null = null,
 ): Promise<VisitorConversation> {
   const text = body.trim()
   if (text === '' && uploads.length === 0) throw new Refusal('EMPTY_MESSAGE', 400)
@@ -326,6 +341,7 @@ export async function postVisitorMessage(
       await deps.settings.routeOf(visitor.site),
     ))
   if (data && Object.keys(data).length > 0) await patchConversationData(deps.db, id, data)
+  if (page) await keepSnapshot(deps.db, id, visitor.site.id, page)
   await keeping(deps.files, id, uploads, (attach) =>
     receiveVisitorMessage(deps.db, id, text, attach),
   )
@@ -412,6 +428,13 @@ export async function leaveEmail(
     })
     await signalChange(tx, current.id)
   })
+}
+
+/** The visitor's current conversation — its page's calls are theirs to answer (D21). */
+export async function currentConversationId(db: Db, contactId: string): Promise<string> {
+  const current = await currentConversation(db, contactId)
+  if (!current) throw new Refusal('CONVERSATION_NOT_FOUND', 404)
+  return current.id
 }
 
 /** The metadata of the visitor's current conversation; none yet, nothing to attach to. */

@@ -5,6 +5,8 @@ import type {
   ContactAttribute,
   ConversationEvent,
   Metadata,
+  PageCallStatus,
+  PageSnapshot,
   RunStepRecord,
   Source,
 } from '@chat/contracts'
@@ -213,6 +215,8 @@ export const conversations = chat.table(
     teamId: text('team_id'),
     /** What the page or an agent attached to it: an order, a page, a cart. */
     data: jsonb('data').$type<Metadata>().notNull().default({}),
+    /** The visitor's page when they last wrote: its address, its context, its actions (D21). */
+    page: jsonb('page').$type<PageSnapshot>(),
     priority: priority('priority').notNull().default('normal'),
     sentiment: sentiment('sentiment'),
     intent: text('intent'),
@@ -498,6 +502,57 @@ export const automationRuns = chat.table(
       .on(t.automationId, t.dedupKey)
       .where(sql`dedup_key is not null`),
   ],
+)
+
+/**
+ * The actions a site's pages declared (D21): what the AI may ask of them, once a supervisor
+ * allows it. Kept as last declared; never removed by a page that stops declaring one.
+ */
+export const pageActions = chat.table(
+  'page_action',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    siteId: text('site_id').notNull(),
+    name: text('name').notNull(),
+    label: text('label').notNull(),
+    description: text('description').notNull(),
+    kind: text('kind', { enum: ['read', 'do'] }).notNull(),
+    parameters: jsonb('parameters').$type<Record<string, unknown>>().notNull().default({}),
+    enabled: boolean('enabled').notNull().default(false),
+    confirm: boolean('confirm').notNull().default(false),
+    createdAt: createdAt(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique('page_action_site_name_key').on(t.siteId, t.name)],
+)
+
+/**
+ * An action the AI asked of the visitor's page, and how it went: claimed by one tab of the
+ * visitor, run there, answered. Its event in the thread says the same.
+ */
+export const pageCalls = chat.table(
+  'page_call',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    conversationId: uuid('conversation_id')
+      .notNull()
+      .references(() => conversations.id, { onDelete: 'cascade' }),
+    /** Its event in the thread. */
+    messageId: uuid('message_id').references(() => messages.id, { onDelete: 'set null' }),
+    name: text('name').notNull(),
+    label: text('label').notNull(),
+    args: jsonb('args').$type<Record<string, unknown>>().notNull().default({}),
+    confirm: boolean('confirm').notNull().default(false),
+    /** `pending`, `confirming`, `running`, `done`, `failed`, `refused`, `expired`. */
+    status: text('status').$type<PageCallStatus>().notNull(),
+    result: jsonb('result').$type<unknown>(),
+    error: text('error'),
+    /** The visitor's tab that runs it. */
+    claimedBy: text('claimed_by'),
+    createdAt: createdAt(),
+    answeredAt: timestamp('answered_at', { withTimezone: true }),
+  },
+  (t) => [index('page_call_conversation_idx').on(t.conversationId, t.createdAt)],
 )
 
 /** A message an agent took out of their own view of the thread — « Supprimer pour moi ». */

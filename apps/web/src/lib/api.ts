@@ -30,6 +30,7 @@ import type {
   Metadata,
   MetadataValue,
   NotificationList,
+  PageAction,
   PasswordReset,
   Rewording,
   SendMessageBody,
@@ -216,6 +217,10 @@ export const api = {
   webhookDeliveries: (id: string) =>
     request<WebhookDelivery[]>('GET', `/webhooks/${encodeURIComponent(id)}/deliveries`),
   testWebhook: (id: string) => request<void>('POST', `/webhooks/${encodeURIComponent(id)}/test`),
+  pageActions: (siteId: string) =>
+    request<PageAction[]>('GET', `/sites/${encodeURIComponent(siteId)}/page-actions`),
+  setPageAction: (id: string, patch: { enabled?: boolean; confirm?: boolean }) =>
+    request<PageAction>('PATCH', `/page-actions/${encodeURIComponent(id)}`, patch),
   automations: () => request<Automation[]>('GET', '/automations'),
   automationChoices: () => request<AutomationChoices>('GET', '/automations/choices'),
   createAutomation: (body: AutomationDefinition) =>

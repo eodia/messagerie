@@ -87,6 +87,7 @@ function start(): void {
       pageFont={pageFont}
       bind={page.ready}
       emit={page.emit}
+      page={page.page}
     />,
     mount,
   )

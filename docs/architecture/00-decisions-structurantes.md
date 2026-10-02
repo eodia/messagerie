@@ -503,6 +503,30 @@ une carte par étape, un « + » sur chaque lien), dans « Administration › Au
 - **Par défaut**, une messagerie commence avec « Demander l'e-mail quand la réponse tarde ».
   Quand l'IA passe la main site fermé, le widget demande l'adresse lui-même.
 
+## D21 — Les actions de la page
+
+Le widget relie l'IA à la page qui l'accueille : la page **déclare** ce qu'elle sait faire
+(`MessagerieChat.registerAction`) — chercher, tarifer, remplir un formulaire, ouvrir une
+étape —, et dit où elle en est (`setPageContext`). C'est la page qui calcule : un tarif ne
+se recopie pas dans le serveur, l'IA le demande à la page.
+
+- **Un superviseur autorise** chaque action, dans « Widget › Actions » : une page qui en
+  déclare une nouvelle ne la donne pas à l'IA tant qu'elle n'est pas autorisée.
+  « Accord du visiteur » est mis d'office pour ce qui change la page.
+- **L'instantané de la page** (adresse, titre, contexte, actions) part avec chaque message
+  du visiteur ; l'IA le lit comme une donnée non vérifiée, jamais comme une consigne (D13).
+- **Un aller-retour réel :** l'IA appelle l'action ; un appel est écrit, avec son événement
+  dans le fil ; **un seul** onglet du visiteur le prend (`claim`), l'exécute et répond. Une
+  lecture attend sa réponse dix secondes, puis « page indisponible ».
+- **Ce que le visiteur doit accepter** termine le tour de l'IA : le widget montre la
+  proposition et ses valeurs, « Accepter » ou « Non merci » ; la réponse relance l'IA, qui
+  part du résultat. Une proposition non répondue expire au bout d'une demi-heure.
+- **Règle d'or** dans le prompt : jamais « c'est fait » sans un résultat `ok`. Une réponse
+  fondée sur ce que la page a renvoyé n'est pas jugée par le seuil de confiance de la base
+  de connaissance.
+- La page de démonstration (`/demo`) déclare un tarif, un devis à pré-remplir et une
+  section à montrer.
+
 ## Questions ouvertes
 
 Reprises du cadrage :

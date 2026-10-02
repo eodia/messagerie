@@ -1,6 +1,7 @@
 import type { Redactor, ToolCall, ToolSpec } from '@chat/ai'
 import type { Db } from '../db/client.js'
 import { type contacts, conversationTags, messages } from '../db/schema.js'
+import { type PageTool, callPage } from '../page/actions.js'
 import { signalChange } from '../realtime/signals.js'
 import { type Settings, type ToolDefinition, resolveHeaders } from '../settings/settings.js'
 import type { McpConnections, McpTool } from './mcp.js'
@@ -19,6 +20,8 @@ export interface ToolContext {
   readonly conversationId: string | null
   readonly contact: typeof contacts.$inferSelect | null
   readonly redactor: Redactor
+  /** What the visitor's page can do, and a supervisor allows (D21) — the AI's alone. */
+  readonly pageTools?: readonly PageTool[]
 }
 
 /** What the model may call a tool: letters, digits, underscores, 64 at most. */
@@ -37,6 +40,7 @@ const fold = (text: string) => slug(text, 200).replace(/_/g, '')
 type Entry =
   | { readonly kind: 'own'; readonly definition: ToolDefinition }
   | { readonly kind: 'mcp'; readonly tool: McpTool }
+  | { readonly kind: 'page'; readonly tool: PageTool }
 
 export interface ToolRun {
   /** What the model reads back — masked like everything it reads. */
@@ -44,6 +48,10 @@ export interface ToolRun {
   /** The tool as the agents read it: « Météo », « Agences Acme › trouver_agence ». */
   readonly tool: string
   readonly detail: string
+  /** The visitor's page answered, or was asked (D21). */
+  readonly page?: true
+  /** An action now waits for the visitor's accord: its label. */
+  readonly awaiting?: string
 }
 
 /** The tools for the AI in the first line, or for the copilot — own and MCP, as allowed. */
@@ -54,7 +62,12 @@ export async function toolBoxFor(
   const own = (await context.settings.tools()).filter((t) => t[audience])
   const servers = (await context.settings.mcpServers()).filter((s) => s[audience])
   const discovered = await Promise.all(servers.map((server) => context.mcp.tools(server)))
-  return new ToolBox(own, discovered.flat(), context)
+  return new ToolBox(
+    own,
+    discovered.flat(),
+    context,
+    audience === 'agent' ? (context.pageTools ?? []) : [],
+  )
 }
 
 export class ToolBox {
@@ -64,6 +77,7 @@ export class ToolBox {
     own: readonly ToolDefinition[],
     mcp: readonly McpTool[],
     private readonly context: ToolContext,
+    page: readonly PageTool[] = [],
   ) {
     own.forEach((definition, index) => {
       this.entries.set(`${slug(definition.name, 48) || 'outil'}_${index + 1}`, {
@@ -75,21 +89,40 @@ export class ToolBox {
       const name = `mcp_${slug(tool.server.name, 20)}_${slug(tool.name, 30)}_${index + 1}`
       this.entries.set(name.slice(0, 64), { kind: 'mcp', tool })
     })
+    page.forEach((tool, index) => {
+      this.entries.set(`page_${slug(tool.name, 48) || 'action'}_${index + 1}`, {
+        kind: 'page',
+        tool,
+      })
+    })
+  }
+
+  /** Whether the visitor's page offers actions. */
+  get pageActions(): boolean {
+    return [...this.entries.values()].some((e) => e.kind === 'page')
   }
 
   specs(): ToolSpec[] {
     return [...this.entries].map(([name, entry]) =>
-      entry.kind === 'own'
+      entry.kind === 'page'
         ? {
             name,
-            description: entry.definition.description,
-            parameters: entry.definition.parameters,
+            description: `[Action sur la page du visiteur — ${
+              entry.tool.kind === 'read' ? 'lecture, ne change rien' : 'change la page'
+            }${entry.tool.confirm ? ', le visiteur l’accepte d’abord' : ''}] ${entry.tool.description}`,
+            parameters: entry.tool.parameters,
           }
-        : {
-            name,
-            description: `${entry.tool.description} (${entry.tool.server.name}${entry.tool.server.description ? ` — ${entry.tool.server.description}` : ''})`,
-            parameters: entry.tool.inputSchema,
-          },
+        : entry.kind === 'own'
+          ? {
+              name,
+              description: entry.definition.description,
+              parameters: entry.definition.parameters,
+            }
+          : {
+              name,
+              description: `${entry.tool.description} (${entry.tool.server.name}${entry.tool.server.description ? ` — ${entry.tool.server.description}` : ''})`,
+              parameters: entry.tool.inputSchema,
+            },
     )
   }
 
@@ -111,6 +144,21 @@ export class ToolBox {
         typeof v === 'string' ? this.context.redactor.unmask(v) : v,
       ]),
     )
+    // The page's own: its event in the thread tells how it went, nothing else is traced.
+    if (entry.kind === 'page') {
+      const { conversationId } = this.context
+      if (conversationId === null) {
+        return { content: 'Pas de page à qui demander.', tool: entry.tool.label, detail: '' }
+      }
+      const answer = await callPage(this.context.db, conversationId, entry.tool, values)
+      return {
+        content: this.context.redactor.mask(answer.content),
+        tool: entry.tool.label,
+        detail: answer.detail,
+        page: true,
+        ...(entry.tool.confirm ? { awaiting: entry.tool.label } : {}),
+      }
+    }
     const tool =
       entry.kind === 'own'
         ? entry.definition.name

@@ -87,6 +87,7 @@ import {
   transfer,
   wake,
 } from './inbox/write.js'
+import { listPageActions, setPageAction } from './page/actions.js'
 import type { InboxHub } from './realtime/hub.js'
 import { signalTyping } from './realtime/signals.js'
 import { Refusal } from './refusal.js'
@@ -700,6 +701,16 @@ export function createApp({
     return c.body(null, 202)
   })
 
+  // The page's actions (D21): what a site's pages declared, and what supervisors allow.
+  inbox.get('/sites/:site/page-actions', async (c) =>
+    c.json(await listPageActions(db, c.get('agent'), c.req.param('site'))),
+  )
+  inbox.patch('/page-actions/:id', async (c) => {
+    const id = c.req.param('id')
+    if (!UUID.test(id)) throw new Refusal('ROW_NOT_FOUND', 404)
+    return c.json(await setPageAction(db, c.get('agent'), id, await jsonBody(c.req.raw)))
+  })
+
   // The automations (D20): supervisors write, switch on, try and read them;
   // `automations/engine.ts` runs them. Agents start the « button » ones from a conversation.
   const automating: ManageDeps = {
@@ -821,6 +832,7 @@ export function createApp({
           aiAvailable: ai !== null,
           files: store,
           onVisitorMessage: (id) => ai?.jobs.visitorMessage(id),
+          onPageAnswered: (id) => ai?.jobs.pageAnswered(id),
         },
         widgetHub,
         tickets,

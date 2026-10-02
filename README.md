@@ -35,6 +35,7 @@ Les décisions qui expliquent le reste sont dans
 | API et MCP | API REST `/api/v1` et serveur MCP `/mcp` pour les programmes et les agents, avec des jetons (`msg_…`, lecture ou écriture, par boîte), gérés dans « Administration › API et MCP » (D16) |
 | Webhooks | Un autre système prévenu de ce qui se passe dans les conversations : appels signés, retentés, dans l'ordre par conversation, gérés dans « Administration › API et MCP » (D17) |
 | Automatisations | Un déclencheur (message, transfert, délai sans réponse, heure fixe, bouton, appel d'un autre système), des conditions et des étapes — attribuer, étiqueter, répondre, prévenir, appeler une adresse, demander à l'IA, attendre —, sur un flux comme celui de basedb, avec ses modèles et le journal de ses exécutions (D20) |
+| Actions de la page | La page déclare ce qu'elle sait faire (`registerAction`) et où elle en est (`setPageContext`) ; l'IA tarifie, remplit un formulaire, ouvre une étape — avec l'accord du visiteur quand la page change —, une fois l'action autorisée dans « Widget › Actions » (D21) |
 | Contacts | Drapeau, heure locale et carte OpenStreetMap de chaque contact, tirés du fuseau horaire de son navigateur — sans géolocalisation par IP (D18) |
 
 ## Développer

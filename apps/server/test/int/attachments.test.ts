@@ -95,6 +95,7 @@ beforeAll(async () => {
         resolved: () => {},
         suggest: () => {},
         knowledgeChanged: () => {},
+        pageAnswered: () => {},
       },
     },
   }))
