@@ -42,17 +42,22 @@ Un visiteur qui écrit trois fois de suite reçoit une seule réponse, qui lit l
 - **les vingt derniers messages** du fil, pièces jointes nommées, avec ce qu’en a dit l’IA
   quand un conseiller lui a demandé de les lire ([pièces jointes](/messagerie/fonctionnalites/pieces-jointes/)) ;
 - **les horaires d’ouverture**, pour savoir si un conseiller peut reprendre tout de suite ;
+- **la page du visiteur**, telle qu’elle s’est décrite à son dernier message — son adresse, son
+  titre, son contexte —, comme une donnée non vérifiée
+  ([actions de la page](/messagerie/integrations/actions-de-page/)) ;
 - **les sources** : les cinq passages de la base de connaissance les plus proches de ce que le
   visiteur vient d’écrire.
 
 Elle peut ensuite appeler les outils que la table « Outils IA » et les serveurs MCP lui ouvrent,
-en trois tours au plus, puis rend sa décision : répondre ou transférer, sa confiance (de 0 à
+et les actions de la page qu’un superviseur a autorisées, en cinq tours au plus, puis rend sa décision : répondre ou transférer, sa confiance (de 0 à
 100 %), les sources qu’elle a utilisées, et un résumé de la demande pour le conseiller.
 
 Ses règles : répondre à partir des sources, de la fiche et des outils, et répondre dès que les
 sources contiennent la réponse, même en partie ; donner une règle générale (un délai habituel,
 une démarche) telle quelle, mais ne jamais promettre ce qui touche le dossier particulier du
-client ; ne rien inventer. Elle répond dans la langue du visiteur, celle du site à défaut.
+client ; ne rien inventer. Sur la page du visiteur, elle n’agit que s’il le demande ou
+l’accepte, avec les valeurs qu’il a données, et ne dit jamais qu’une action est faite sans un
+résultat `ok` de la page. Elle répond dans la langue du visiteur, celle du site à défaut.
 
 ### Les sources
 
@@ -105,8 +110,12 @@ Alors :
    l’IA** (la demande en deux phrases, à copier d’un clic), la **Confiance**, et à qui la
    conversation est **Affectée à**.
 
+Si le site est fermé, le widget propose aussi au visiteur de laisser son e-mail, pour lui
+répondre plus tard ([widget](/messagerie/fonctionnalites/widget/#laissez-nous-votre-e-mail)).
+
 Un [webhook](/messagerie/integrations/webhooks/) peut en être prévenu : c’est l’événement
-`conversation.handed_off`.
+`conversation.handed_off`. Une [automatisation](/messagerie/fonctionnalites/automatisations/)
+aussi, par son déclencheur **L’IA passe la main**.
 
 ### Le seuil de confiance
 
@@ -250,7 +259,7 @@ conseillers ».
 :::caution[Les tâches de fond aussi]
 Sans IA, la file des tâches de fond ne démarre pas. Avec elle s’arrête la purge de nuit qui
 applique la conservation des sites. Les webhooks et le réveil des conversations en attente,
-eux, continuent.
+eux, continuent, comme les automatisations — sauf leurs étapes **Demander à l’IA**.
 :::
 
 ## Les tâches de fond
@@ -278,4 +287,5 @@ Par défaut, le serveur travaille lui-même ses files. Avec `CHAT_WORKER=separat
 CHAT_WORKER=separate pnpm --filter @chat/server worker
 ```
 
-Le worker porte alors aussi l’envoi des webhooks et le réveil des conversations en attente.
+Le worker porte alors aussi l’envoi des webhooks, les automatisations et le réveil des
+conversations en attente.

@@ -30,7 +30,7 @@ développement, avec le `docker compose` du dépôt.
 | `CHAT_PUBLIC_URL` | `http://localhost:` suivi de `CHAT_PORT` | l’adresse publique du serveur, sans `/` final. Le fournisseur d’identité y renvoie (`/api/auth/oidc/callback`), et le cookie de session n’est `Secure` que si elle commence par `https:` |
 | `CHAT_WEB_ORIGIN` | `http://localhost:3210` | l’origine de l’inbox, seule admise : CORS, ouverture du WebSocket, cadre de l’aperçu du widget. Les liens d’invitation la prennent pour adresse, et le retour du fournisseur d’identité y ramène |
 | `CHAT_TRUST_PROXY` | — | `1` derrière une passerelle : l’adresse du visiteur et celle de qui se connecte sont lues dans `X-Forwarded-For`, l’adresse publique dans `X-Forwarded-Proto` et `X-Forwarded-Host`. Sans passerelle, laissez-la vide : ces en-têtes seraient à qui veut les écrire |
-| `CHAT_WORKER` | — | `separate` : les tâches de fond (IA, webhooks, réveil des conversations en attente) quittent le serveur pour le worker, qu’il faut alors lancer |
+| `CHAT_WORKER` | — | `separate` : les tâches de fond (IA, webhooks, automatisations, réveil des conversations en attente) quittent le serveur pour le worker, qu’il faut alors lancer |
 
 L’inbox et le serveur doivent partager un site — deux sous-domaines du même domaine, ou le même
 nom : le cookie de session est celui du serveur. Voir
@@ -53,7 +53,7 @@ de connexion ne paraît que si `CHAT_OIDC_ISSUER` et `CHAT_OIDC_CLIENT_ID` sont 
 
 | Variable | Défaut | Rôle |
 |---|---|---|
-| `DATABASE_URL` | `postgres://chat:chat@127.0.0.1:55440/chat` | PostgreSQL 16 avec l’extension pgvector. Le serveur y crée et migre le schéma `chat` à chaque démarrage : paramétrage, comptes, conversations. La file des tâches (pg-boss, schéma `pgboss`) et le temps réel (`LISTEN/NOTIFY`) y passent aussi. Le rôle doit pouvoir créer l’extension `vector` |
+| `DATABASE_URL` | `postgres://chat:chat@127.0.0.1:55440/chat` | PostgreSQL 16 avec l’extension pgvector. Le serveur y crée et migre le schéma `chat` à chaque démarrage : paramétrage, comptes, conversations. La file des tâches (pg-boss, schéma `pgboss`) et le temps réel (`LISTEN/NOTIFY`) y passent aussi. Le rôle doit pouvoir créer l’extension `vector` ; pour les questions en SQL des tableaux de bord, il doit aussi pouvoir créer le rôle `chat_analytics`, qui lit le schéma `analytics` et rien d’autre — sans lui, seules les questions assistées fonctionnent ([tableaux de bord](/messagerie/fonctionnalites/tableaux-de-bord/#quand-le-sql-est-indisponible)) |
 
 ## Inbox
 
@@ -100,7 +100,9 @@ vont aux conseillers`.
 | `CHAT_WEBHOOK_ALLOW` | — | des destinataires du réseau interne, séparés par des virgules : un nom (`crm.interne.example`), un domaine et ses sous-domaines (`*.interne.example`), une plage (`10.20.0.0/16`). Sans elle, un webhook n’appelle qu’une adresse publique, en HTTPS sur le port 443 |
 | `CHAT_WEBHOOK_DEV` | — | `1` : HTTP et adresses locales permis, pour essayer un récepteur sur sa machine. À réserver au développement |
 
-Voir [Webhooks](/messagerie/integrations/webhooks/).
+Elles valent aussi pour l’étape **Appeler une adresse** des
+[automatisations](/messagerie/fonctionnalites/automatisations/#appeler-une-adresse). Voir
+[Webhooks](/messagerie/integrations/webhooks/).
 
 ## Les secrets des outils de l’IA
 

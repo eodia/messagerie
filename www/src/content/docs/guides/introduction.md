@@ -13,8 +13,8 @@ reste se règle dans l’inbox.
 | Partie | Pour qui | Ce que c’est |
 |---|---|---|
 | **Le widget** | les visiteurs d’un site | un script à coller dans la page, une bulle qui ouvre la conversation |
-| **L’inbox** | les conseillers | une application web : boîtes de réception, conversations, contacts, base de connaissance, statistiques |
-| **L’administration** | les superviseurs | les écrans **Administration** de l’inbox : boîtes, équipes et conseillers, sites et horaires, widget, outils de l’IA, API |
+| **L’inbox** | les conseillers | une application web : boîtes de réception, conversations, contacts, base de connaissance, tableaux de bord |
+| **L’administration** | les superviseurs | les écrans **Administration** de l’inbox : boîtes, équipes et conseillers, sites et horaires, widget, outils de l’IA, automatisations, API |
 
 Derrière, **le serveur** de la messagerie porte l’API, le temps réel (WebSocket), l’IA et les
 tâches de fond. Il crée et met à jour son schéma PostgreSQL à chaque démarrage.
@@ -72,11 +72,14 @@ Entra, Google, Keycloak… — y ajoute la connexion par **OpenID Connect**. Voi
   d’un conseiller.
 - Les [contacts](/messagerie/fonctionnalites/contacts/), avec leur pays et leur heure locale.
 - Les [alertes](/messagerie/fonctionnalites/alertes/) : son, notifications du bureau, cloche.
-- Les [statistiques](/messagerie/fonctionnalites/statistiques/).
+- Les [tableaux de bord](/messagerie/fonctionnalites/tableaux-de-bord/) : des questions posées
+  aux conversations, assistées ou en SQL, dessinées en nombres et en graphiques.
+- Les [automatisations](/messagerie/fonctionnalites/automatisations/) : un déclencheur, une
+  condition, des étapes — attribuer, étiqueter, répondre, prévenir, appeler un autre système.
 - Le [paramétrage](/messagerie/fonctionnalites/parametrage/), et les
   [conseillers et leurs droits](/messagerie/fonctionnalites/conseillers-et-droits/).
 - Pour les intégrations : l’[API JavaScript](/messagerie/integrations/api-javascript/) du widget,
-  l’[identité signée](/messagerie/integrations/identite-signee/) des clients connectés,
+  les [actions de la page](/messagerie/integrations/actions-de-page/) que l’IA demande, l’[identité signée](/messagerie/integrations/identite-signee/) des clients connectés,
   l’[API REST](/messagerie/integrations/api-rest/), le [serveur MCP](/messagerie/integrations/mcp/)
   et les [webhooks](/messagerie/integrations/webhooks/).
 
@@ -89,8 +92,8 @@ façon d’écrire l’adresse de chaque écran. Elle n’en a pas besoin pour f
 ## État du projet
 
 La Messagerie est en développement actif chez [Eodia](https://eodia.com/fr/). « Messagerie »
-est un nom de travail. Le serveur, l’inbox, le widget, l’IA, les comptes, l’API, le serveur MCP
-et les webhooks fonctionnent ; le serveur est couvert par des tests unitaires et des tests
+est un nom de travail. Le serveur, l’inbox, le widget, l’IA, les comptes, les automatisations, les
+tableaux de bord, l’API, le serveur MCP et les webhooks fonctionnent ; le serveur est couvert par des tests unitaires et des tests
 d’intégration sur un vrai PostgreSQL.
 
 Les décisions qui commandent l’ensemble sont écrites dans le dépôt, dans

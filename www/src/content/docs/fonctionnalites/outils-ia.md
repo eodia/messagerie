@@ -8,9 +8,13 @@ outil d’un serveur de la table « Serveurs MCP ». Un outil qui n’y est pa
 elle (D9). Chaque appel laisse un événement dans le fil de la conversation, que les conseillers
 voient et le visiteur non.
 
+S’y ajoutent les [actions de la page](/messagerie/integrations/actions-de-page/) : ce que la page
+du visiteur déclare savoir faire, et qu’un superviseur autorise dans **Widget › Actions**. Elles
+s’exécutent dans le navigateur du visiteur, pas sur le serveur.
+
 Un outil sert à deux publics, chacun par sa case :
 
-- **L’agent IA** (« Agent IA ») : l’IA qui répond aux visiteurs peut l’appeler seule, en trois
+- **L’agent IA** (« Agent IA ») : l’IA qui répond aux visiteurs peut l’appeler seule, en cinq
   tours au plus avant de répondre ([agent IA](/messagerie/fonctionnalites/agent-ia/)) ;
 - **Le copilote** (« Copilote ») : il est proposé aux conseillers, dans la section **Outils IA**
   du panneau de la conversation, qui le lancent pour le client ([copilote](/messagerie/fonctionnalites/copilote/#les-outils-depuis-le-panneau)).

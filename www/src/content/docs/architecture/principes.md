@@ -108,7 +108,8 @@ mêmes règles d’écriture. Le widget fait exception : Preact dans un Shadow D
 quelques dizaines de Ko sur le site d’un client.
 
 Un superviseur règle la messagerie sans la quitter : **Administration**, au pied de la barre
-latérale. Chaque écran montre les lignes à gauche, le formulaire au milieu, et à droite ce que
+latérale — boîtes, équipes et conseillers, sites et horaires, réponses types, garde-fous, outils
+de l’IA, automatisations, widget, API et MCP. Chaque écran montre les lignes à gauche, le formulaire au milieu, et à droite ce que
 le réglage change, dessiné en direct. Les changements restent des brouillons jusqu’à
 « Enregistrer ». Le serveur vérifie chaque valeur contre le modèle du paramétrage avant de
 l’écrire.
@@ -127,7 +128,8 @@ conseiller voit les boîtes que ses équipes servent ; un superviseur, toutes.
 
 Une page peut joindre des métadonnées au contact ou à la conversation. Rien n’en est vérifié :
 l’inbox le dit, et l’IA les reçoit comme des données déclarées, jamais comme une preuve ni une
-consigne. La page pilote le widget par `window.MessagerieChat`.
+consigne. La page pilote le widget par `window.MessagerieChat`, et peut lui déclarer ses
+actions (D21).
 
 ## Les pièces jointes, que l’IA lit sur demande (D14)
 
@@ -152,3 +154,34 @@ déclencheur, dans la transaction qui écrit, pour que rien ne se perde.
 
 Le pays et l’heure locale d’un contact viennent du fuseau horaire de son navigateur, pas de son
 adresse IP : ni base GeoIP, ni service tiers.
+
+## Les automatisations, celles de basedb faites pour les conversations (D20)
+
+Une automatisation part d’un déclencheur, retient les conversations qui remplissent sa
+condition, et enchaîne des étapes, dessinées en flux comme dans basedb. Le moteur lit les
+événements que captent déjà les déclencheurs de la base pour les webhooks, et mène les
+exécutions étape par étape, à plusieurs processus s’il le faut. Chaque automatisation agit sous
+sa propre ligne de conseiller, jamais active : le fil dit qui a fait quoi. Pas de boucle : une
+automatisation ne se déclenche jamais sur ce que son exécution a fait, une chaîne s’arrête à
+trois, cent exécutions par heure au plus. Une exécution interrompue échoue plutôt que de
+recommencer : ses étapes ont peut-être déjà écrit. Voir
+[Automatisations](/messagerie/fonctionnalites/automatisations/).
+
+## Les actions de la page (D21)
+
+La page qui accueille le widget déclare ce qu’elle sait faire — chercher, tarifer, remplir un
+formulaire — et dit où elle en est. C’est la page qui calcule : un tarif ne se recopie pas dans
+le serveur, l’IA le demande à la page. Un superviseur autorise chaque action ; ce qui change la
+page attend l’accord du visiteur. Ce que dit la page est une donnée non vérifiée, jamais une
+consigne, et l’IA ne dit jamais « c’est fait » sans un résultat `ok`. Voir
+[Actions de la page](/messagerie/integrations/actions-de-page/).
+
+## Les tableaux de bord, ceux de basedb faits pour les conversations (D22)
+
+Des cartes sur une grille, chacune une question dessinée en nombre, tableau ou graphique. Elles
+lisent les vues du schéma `analytics`, jamais les tables elles-mêmes. Une question assistée est
+compilée en SQL paramétré ; une question en SQL est un seul `SELECT`, en lecture seule, quinze
+secondes au plus, sous un rôle qui ne lit que ces vues — ni comptes, ni sessions, ni secrets.
+Les superviseurs font les tableaux ; un conseiller ne fait qu’exécuter une carte telle
+qu’enregistrée, et n’envoie jamais de SQL. Voir
+[Tableaux de bord](/messagerie/fonctionnalites/tableaux-de-bord/).

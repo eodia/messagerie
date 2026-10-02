@@ -109,7 +109,10 @@ toutes.** La règle vaut partout, côté serveur :
 - les signaux en direct, et donc le son et les notifications ;
 - la cloche ;
 - les contacts — ceux qui ont écrit dans ces boîtes — et leurs conversations ;
-- les statistiques et les compteurs.
+- les compteurs.
+
+Les [tableaux de bord](/messagerie/fonctionnalites/tableaux-de-bord/) font exception : un tableau
+visible des conseillers montre à chacun les mêmes chiffres, toutes boîtes confondues.
 
 Une conversation d’avant les boîtes, qui n’en a pas, est à tous. Un conseiller sans équipe, ou
 dont les équipes ne servent aucune boîte, ne voit que ces conversations sans boîte : sa fiche
@@ -127,7 +130,7 @@ alors quitter la vue de celui qui l’a transférée (voir
 - **Voir toutes les boîtes**, et tous les sites.
 - **Régler la Messagerie** : la section **Administration** de la barre latérale — boîtes de
   réception, équipes et conseillers, sites et horaires, réponses types et étiquettes,
-  garde-fous, outils de l’IA, widget, API et MCP (voir
+  garde-fous, outils de l’IA, automatisations, widget, API et MCP (voir
   [Paramétrage](/messagerie/fonctionnalites/parametrage/)). Un conseiller qui arrive sur l’un
   de ces écrans par son adresse lit **Réservé aux superviseurs** ; le serveur lui refuse de
   toute façon l’écriture, et la lecture de ces tables — sauf les sites, les articles, leurs
@@ -136,6 +139,8 @@ alors quitter la vue de celui qui l’a transférée (voir
   conversations promues ([base de connaissance](/messagerie/fonctionnalites/base-de-connaissance/)).
 - **Inviter des conseillers**, leur donner un lien pour un nouveau mot de passe, changer leur
   rôle, les désactiver.
+- **Faire les tableaux de bord** : les créer, y poser des questions — en SQL comprises —,
+  choisir ceux que voient les conseillers ([tableaux de bord](/messagerie/fonctionnalites/tableaux-de-bord/)).
 - **Créer les jetons de l’API et du MCP**, et les **webhooks** (voir
   [API REST](/messagerie/integrations/api-rest/) et [Webhooks](/messagerie/integrations/webhooks/)).
 - **Supprimer n’importe quel message pour tout le monde** — un conseiller ne supprime ainsi que
@@ -153,3 +158,10 @@ Un programme qui passe par l’[API REST](/messagerie/integrations/api-rest/) ou
 ce qu’il écrit de son nom, mais ne figure dans aucune liste de conseillers, ne reçoit aucune
 alerte, ne se connecte pas à l’inbox, et ne prend pas de conversation : une réponse envoyée par
 un jeton la laisse dans la file (D16).
+
+## Une automatisation non plus
+
+Une [automatisation](/messagerie/fonctionnalites/automatisations/) agit sous sa propre ligne de
+conseiller, jamais active : le fil signe de son nom ce qu’elle fait, mais elle ne figure dans
+aucune liste, ne reçoit aucune alerte et ne se connecte pas. Le visiteur lit ses réponses au nom
+du site (D20).

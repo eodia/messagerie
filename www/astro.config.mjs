@@ -50,7 +50,8 @@ export default defineConfig({
 						{ slug: 'fonctionnalites/pieces-jointes' },
 						{ slug: 'fonctionnalites/contacts' },
 						{ slug: 'fonctionnalites/alertes' },
-						{ slug: 'fonctionnalites/statistiques' },
+						{ slug: 'fonctionnalites/tableaux-de-bord' },
+						{ slug: 'fonctionnalites/automatisations' },
 						{ slug: 'fonctionnalites/parametrage' },
 						{ slug: 'fonctionnalites/conseillers-et-droits' },
 					],
@@ -59,6 +60,7 @@ export default defineConfig({
 					label: 'Intégrations',
 					items: [
 						{ slug: 'integrations/api-javascript' },
+						{ slug: 'integrations/actions-de-page' },
 						{ slug: 'integrations/identite-signee' },
 						{ slug: 'integrations/api-rest' },
 						{ slug: 'integrations/mcp' },

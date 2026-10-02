@@ -50,7 +50,7 @@ lien**. Voir [Conseillers et droits](/messagerie/fonctionnalites/conseillers-et-
 La barre latérale range ce qu’un conseiller utilise :
 
 - **Conversations**, et sous elles chaque boîte de réception, avec ce qui y attend ;
-- **Contacts**, **Connaissances** et **Statistiques** ;
+- **Contacts**, **Connaissances** et **Tableaux de bord** ;
 - en bas, **Administration**, pour les superviseurs seuls ;
 - tout en bas, le menu du compte : disponibilité, alertes, apparence.
 
@@ -58,6 +58,10 @@ La liste des conversations se filtre en un clic — **Toutes**, **IA**, **Ouvert
 assignées** — et se cherche (`/` pour y aller, `#étiquette`, `@conseiller`). À droite, le fil de
 la conversation choisie, puis le panneau du contact. **Ctrl+K** ouvre la palette : conversations,
 contacts, mots des messages et commandes. Voir [L’inbox](/messagerie/fonctionnalites/inbox/).
+
+Au pied de la liste, l’inbox propose une fois d’**Activer les notifications** du bureau : pour
+être prévenu quand un visiteur écrit, même dans un autre onglet. Voir
+[Les alertes](/messagerie/fonctionnalites/alertes/).
 
 ## 4. Régler un site
 
@@ -76,8 +80,8 @@ jusqu’à **Enregistrer** (ou Ctrl+S). Voir [Le paramétrage](/messagerie/fonct
 
 ## 5. Régler le widget
 
-**Administration › Widget** ouvre l’éditeur du widget. À gauche, ses réglages en quatre
-onglets — **Apparence**, **Textes**, **Affichage**, **Installation** ; à droite, le vrai widget,
+**Administration › Widget** ouvre l’éditeur du widget. À gauche, ses réglages en cinq
+onglets — **Apparence**, **Textes**, **Affichage**, **Installation**, **Actions** ; à droite, le vrai widget,
 en aperçu, qui suit chaque changement. Choisissez une couleur, un message d’accueil, des
 questions suggérées, puis **Enregistrer**. Voir [Le widget](/messagerie/fonctionnalites/widget/).
 
@@ -118,6 +122,11 @@ conseillers concernés sont alors prévenus : un son, une notification du bureau
 Sous chaque réponse de l’IA, **Votre avis** : **Accepter**, **Modifier** ou **Rejeter**. Ces avis
 forment le jeu d’évaluation de l’IA.
 
+Quand personne ne peut répondre tout de suite, le widget propose au visiteur de laisser son
+e-mail : de lui-même si l’IA passe la main alors que le site est fermé, et après cinq minutes
+sans réponse par l’automatisation **Demander l’e-mail quand la réponse tarde**, active dès le
+départ (voir [Les automatisations](/messagerie/fonctionnalites/automatisations/)).
+
 ## 9. Reprendre la main
 
 Un conseiller n’attend pas le transfert : **Reprendre la main**, en tête du fil, retire la
@@ -131,6 +140,12 @@ l’équipe seulement. Une fois la question réglée, **Résoudre**. Voir
 
 ## Et ensuite ?
 
+- [Les automatisations](/messagerie/fonctionnalites/automatisations/) : faire faire à la
+  messagerie ce que l’équipe refait à la main.
+- [Les tableaux de bord](/messagerie/fonctionnalites/tableaux-de-bord/) : commencer par **Vue
+  d’ensemble**.
+- [Les actions de la page](/messagerie/integrations/actions-de-page/) : laisser l’IA tarifer ou
+  remplir un formulaire sur la page du visiteur — essayez-les sur http://localhost:8810/demo.
 - [La base de connaissance](/messagerie/fonctionnalites/base-de-connaissance/) : écrire et
   publier les articles où l’IA puise.
 - [L’identité signée](/messagerie/integrations/identite-signee/) : reconnaître les clients

@@ -27,7 +27,9 @@ faite, avec l’adresse du serveur et l’identifiant du site : il n’y a qu’
 Une seule balise par page : le widget ne s’installe qu’une fois, et une seconde balise
 priverait la page de ses commandes. La page le pilote
 ensuite par `window.MessagerieChat` — ouvrir, préremplir, dire qui est le visiteur, joindre des
-données — : voir l’[API JavaScript](/messagerie/integrations/api-javascript/).
+données — : voir l’[API JavaScript](/messagerie/integrations/api-javascript/). Elle peut aussi
+déclarer ce qu’elle sait faire, pour que l’IA le lui demande : voir les
+[actions de la page](/messagerie/integrations/actions-de-page/).
 
 ## Domaines autorisés
 
@@ -87,6 +89,34 @@ lundi à 09:00 »…
   listes, citations, liens — sans qu’un message puisse jamais devenir du code dans la page.
 - Un message supprimé par un conseiller laisse « Ce message a été supprimé ».
 
+### Laissez-nous votre e-mail
+
+Quand personne ne peut répondre tout de suite, le fil montre une carte : « Personne ne peut
+vous répondre tout de suite. Laissez votre e-mail : nous vous répondrons dès que possible. »
+Le visiteur y tape son adresse, puis **Envoyer** ; la carte le remercie : « Merci ! Nous vous
+répondrons à … » L’adresse va sur son contact, et le fil des conseillers le dit.
+
+La carte paraît dans deux cas :
+
+- l’IA passe la main alors que le site est fermé ;
+- une automatisation le demande, par l’étape **Demander l’e-mail du visiteur** — avec son propre
+  texte, si elle en a un. Celle qui est là dès le départ, **Demander l’e-mail quand la réponse
+  tarde**, le fait après cinq minutes sans réponse (voir
+  [Automatisations](/messagerie/fonctionnalites/automatisations/#demander-le-mail-du-visiteur)).
+
+Elle ne paraît qu’une fois par conversation, et jamais pour un contact dont l’adresse est déjà
+connue. Un client que le site a signé garde l’adresse de sa signature.
+
+### Ce que l’IA propose de faire sur la page
+
+Quand la page a déclaré des [actions](/messagerie/integrations/actions-de-page/) et qu’un
+superviseur les a autorisées, l’IA peut les demander. Une action qui change la page s’affiche
+d’abord dans le fil — « L’assistant propose : Pré-remplir le devis auto », avec ses valeurs —,
+et ne s’exécute que si le visiteur choisit **Accepter** ; **Non merci** la refuse. Une ligne
+garde ensuite ce qu’il en est : fait, refusé, ou n’a pas pu être fait.
+
+### Fichiers et emoji
+
 Le visiteur joint des fichiers (trombone, glisser-déposer, image collée) et choisit parmi une
 cinquantaine d’emoji, que le système dessine : voir [Pièces jointes](/messagerie/fonctionnalites/pieces-jointes/).
 Entrée envoie, Maj+Entrée va à la ligne, Échap ferme le panneau.
@@ -125,7 +155,8 @@ sans IA — sauf pour un visiteur qui a déjà une conversation en cours.
 ## L’éditeur du widget
 
 **Administration › Widget** règle l’apparence et les textes du widget, site par site, à côté du
-vrai widget qui tourne en aperçu. Les réglages sont ceux de la ligne du site, dans le
+vrai widget qui tourne en aperçu, en cinq onglets : **Apparence**, **Textes**, **Affichage**,
+**Installation** et **Actions**. Les réglages sont ceux de la ligne du site, dans le
 paramétrage de la Messagerie : l’éditeur les lit, et seul un superviseur les enregistre.
 
 ### Apparence
@@ -166,6 +197,13 @@ paramétrage de la Messagerie : l’éditeur les lit, et seul un superviseur les
 
 L’onglet **Installation** donne la balise à coller, celle d’un client connecté, les domaines
 autorisés du site et un aide-mémoire de l’API JavaScript.
+
+### Actions
+
+L’onglet **Actions** liste **Ce que les pages du site savent faire** : les actions qu’elles ont
+déclarées avec `registerAction`. Chacune s’y autorise, et peut demander l’**Accord du visiteur
+avant d’agir**. L’onglet rappelle aussi comment déclarer une action et dire où en est la page.
+Voir [Actions de la page](/messagerie/integrations/actions-de-page/#autoriser-une-action).
 
 ### L’aperçu en direct
 

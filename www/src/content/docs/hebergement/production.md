@@ -25,7 +25,7 @@ Les images assemblées :
 |---|---|---|
 | `postgres` | `pgvector/pgvector:pg16` | PostgreSQL 16 avec pgvector : le schéma `chat` |
 | `messagerie` | `eodia/messagerie:0.1.0` | le serveur et l’inbox |
-| `worker` (option) | `eodia/messagerie:0.1.0` | l’IA et les webhooks, dans un processus à part |
+| `worker` (option) | `eodia/messagerie:0.1.0` | l’IA, les webhooks et les automatisations, dans un processus à part |
 | `caddy` | `caddy:2-alpine` | la passerelle HTTPS, certificats Let’s Encrypt |
 
 ## L’image
@@ -35,7 +35,7 @@ Elle tourne sur Node 22 et sert deux ports :
 | Port | Processus | Chemins |
 |---|---|---|
 | 3210 | l’**inbox** (Next.js) | toute l’application des conseillers, l’écran de connexion, les liens d’invitation (`/invitation/…`) |
-| 8810 | le **serveur** | la connexion `/api/auth`, `/api/inbox` et son WebSocket, `/api/widget`, `/widget.js`, `/widget/preview`, `/files/…`, l’API REST `/api/v1`, le serveur MCP `/mcp`, `/health` |
+| 8810 | le **serveur** | la connexion `/api/auth`, `/api/inbox` et son WebSocket, `/api/widget`, `/widget.js`, `/widget/preview`, `/files/…`, l’API REST `/api/v1`, le serveur MCP `/mcp`, les adresses des automatisations `/api/automations/…/hook`, `/health` |
 
 Au démarrage, le serveur applique les migrations du schéma `chat` (l’extension `vector`
 comprise) : sur une base vide, il le crée ; ensuite, il n’ajoute que ce qui manque. Lancée avec
@@ -241,7 +241,8 @@ METEO_TOKEN=…
 2. **Créez le premier superviseur.** Ouvrez https://support.exemple.fr. Tant que personne ne
    peut se connecter, l’écran de connexion devient **Bienvenue dans la messagerie** : donnez un
    **Nom**, une **Adresse e-mail** et un mot de passe, puis **Créer le compte**. Vous voilà
-   connecté, superviseur.
+   connecté, superviseur. La messagerie commence avec une automatisation, **Demander l’e-mail
+   quand la réponse tarde**, et un tableau de bord, **Vue d’ensemble**.
 
 3. **Réglez l’essentiel**, dans **Administration** :
    - **Équipes et conseillers** : une équipe ;
@@ -270,9 +271,9 @@ démarrage — ou n’ouvrez le port 443 qu’ensuite.
 
 Par défaut, le serveur fait tout : le temps réel, et les tâches de fond — réponses et
 suggestions de l’IA, étiquettes, résumés, indexation de la base de connaissance, purges de
-conservation, envoi des webhooks, réveil des conversations mises en attente. Pour qu’un modèle
-lent ou un destinataire de webhook lent ne ralentisse jamais le WebSocket, confiez-les au
-worker :
+conservation, envoi des webhooks, automatisations, réveil des conversations mises en attente.
+Pour qu’un modèle lent ou un destinataire de webhook lent ne ralentisse jamais le WebSocket,
+confiez-les au worker :
 
 ```bash
 # dans .env
@@ -335,8 +336,21 @@ docker run --rm -v messagerie_files:/files -v "$PWD":/sauvegarde alpine \
 
 La base de ce déploiement ne sert qu’à la messagerie : la sauvegarder entière garde aussi
 l’extension `vector`. Si la messagerie partage un PostgreSQL avec d’autres applications,
-`pg_dump -n chat` ne prend que son schéma ; l’extension `vector` est alors à recréer
-(`CREATE EXTENSION vector`) avant de restaurer.
+`pg_dump -n chat -n analytics` ne prend que ses schémas — `analytics` porte les vues des
+tableaux de bord ; l’extension `vector` est alors à recréer (`CREATE EXTENSION vector`) avant de
+restaurer.
+
+Le rôle `chat_analytics`, qui lit ces vues pour les questions en SQL des
+[tableaux de bord](/messagerie/fonctionnalites/tableaux-de-bord/), appartient à l’instance
+PostgreSQL, pas à la base : `pg_dump` ne l’emporte pas. Sur une nouvelle instance, recréez-le
+avant de restaurer :
+
+```sql
+CREATE ROLE chat_analytics NOLOGIN;
+GRANT chat_analytics TO messagerie;
+```
+
+Sans lui, les questions en SQL sont refusées ; les questions assistées fonctionnent toujours.
 
 :::caution[Les clés vont avec la base]
 `CHAT_SECRET` signe les jetons des visiteurs, les liens des fichiers et l’aller-retour chez le

@@ -38,7 +38,8 @@ Ce que fait chaque étape :
   `127.0.0.1:55440` seulement. Le serveur le trouve sans configuration.
 - **`seed`** **vide** le schéma `chat` — paramétrage et comptes compris —, puis y écrit la
   démonstration : le paramétrage d’**Acme Assurances** (son site, ses boîtes de réception, ses
-  équipes, ses articles…) et des conversations. Il refuse de tourner en production.
+  équipes, ses articles…), des conversations, et l’automatisation de départ, **Demander l’e-mail
+  quand la réponse tarde**. Il refuse de tourner en production.
 - **`@chat/ai build`** compile le paquet de l’IA : le serveur ne démarre pas sans lui, même sans
   clé d’IA. À refaire après chaque modification de `packages/ai`.
 - Le **serveur** applique ses migrations à chaque démarrage. Sur une base dont le paramétrage est
@@ -50,7 +51,7 @@ Ce que fait chaque étape :
 | http://localhost:3210 | l’inbox |
 | http://localhost:3210/widget | l’éditeur du widget, avec son aperçu |
 | http://localhost:3210/parametrage/boites | l’administration |
-| http://localhost:8810/demo | une page d’Acme Assurances avec le widget, et un panneau qui essaie son API JavaScript |
+| http://localhost:8810/demo | une page d’Acme Assurances avec le widget, un panneau qui essaie son API JavaScript, et trois [actions de la page](/messagerie/integrations/actions-de-page/) — un tarif, un devis, une section |
 | http://localhost:8810/demo?client=sophie | la même, en cliente connectée (identité signée par le site) |
 | `127.0.0.1:55440` | PostgreSQL (`chat` / `chat`) |
 
@@ -120,7 +121,13 @@ commencer :
   hôte : la session du conseiller est un cookie du serveur.
 - **Rien n’est écrit d’avance** : en production, le serveur crée son schéma, mais pas la
   démonstration. Le premier superviseur se crée à l’écran de connexion, puis il invite les
-  autres et règle le reste dans **Administration**.
+  autres et règle le reste dans **Administration**. La messagerie commence avec une
+  automatisation, **Demander l’e-mail quand la réponse tarde**, et un tableau de bord, **Vue
+  d’ensemble**.
+- **Les questions en SQL des tableaux de bord** demandent que l’utilisateur de la base puisse
+  créer un rôle, `chat_analytics` : c’est le cas avec le `docker compose` de la mise en
+  production. Sans lui, seules les questions assistées fonctionnent (voir
+  [Tableaux de bord](/messagerie/fonctionnalites/tableaux-de-bord/#quand-le-sql-est-indisponible)).
 
 Le déploiement est détaillé dans [Mise en production](/messagerie/hebergement/production/) ; la
 connexion des conseillers, mot de passe et fournisseur d’identité (OpenID Connect), dans

@@ -6,7 +6,7 @@ description: Piloter le widget depuis la page du site avec window.MessagerieChat
 La page qui porte le [widget](/messagerie/fonctionnalites/widget/) lui parle par un objet global,
 **`window.MessagerieChat`** : ouvrir ou cacher le widget, préremplir ou envoyer un message, dire
 qui est le visiteur, joindre des données au contact ou à la conversation, écouter ce qui se
-passe.
+passe — et déclarer ce que la page sait faire, pour que l’IA le lui demande.
 
 ```js
 MessagerieChat.setConversationData({ Commande: 'A-1042', 'Panier (€)': 89.9 })
@@ -54,6 +54,9 @@ une identité refusée —, ses commandes ne s’exécutent jamais, et `ready` n
 | `reset(options)` | ouvre une nouvelle conversation ; `{ visitor: true }` : un nouveau visiteur |
 | `on(event, handler)` | écoute un événement ; rend la fonction qui arrête d’écouter |
 | `off(event, handler)` | arrête d’écouter |
+| `registerAction(name, definition)` | déclare une action que l’IA peut demander à la page |
+| `unregisterAction(name)` | la retire |
+| `setPageContext(context)` | dit où en est la page : un objet, ou une fonction relue à chaque message |
 | `push([commande, ...arguments])` | la même chose, sous forme de liste — la file d’avant le chargement |
 
 Une commande inconnue ne fait rien, sinon un avertissement dans la console
@@ -182,6 +185,25 @@ stop()
 gestionnaire donné. Une erreur levée par un gestionnaire est écrite dans la console, sans gêner
 les autres.
 
+### `registerAction`, `unregisterAction`, `setPageContext`
+
+```js
+MessagerieChat.registerAction('tarifer', {
+  label: 'Calculer un tarif',
+  description: 'Le prix mensuel et annuel pour la valeur d’achat d’un appareil',
+  parameters: { type: 'object', properties: { valeur: { type: 'number' } }, required: ['valeur'] },
+  kind: 'read',
+  handler: ({ valeur }) => tarifer(valeur),
+})
+MessagerieChat.setPageContext(() => ({ etape: 'souscription' }))
+```
+
+La page déclare ce qu’elle sait faire — chercher, tarifer, remplir un formulaire, ouvrir une
+étape — et dit où elle en est. Une action ne sert à l’IA qu’une fois qu’un superviseur l’a
+autorisée, dans **Administration › Widget**, onglet **Actions** ; une action qui change la page
+attend l’accord du visiteur. Ces trois commandes valent dès leur appel, sans attendre `ready`.
+Tout est détaillé dans [Actions de la page](/messagerie/integrations/actions-de-page/).
+
 ## Événements
 
 | Événement | Quand | Argument |
@@ -271,4 +293,5 @@ client connecté, voir [Identité signée](/messagerie/integrations/identite-sig
 
 Le serveur de développement sert une page de démonstration, `/demo` (par exemple
 http://localhost:8810/demo), avec le widget et un bouton par commande. Chaque événement s’y inscrit
-sous les boutons.
+sous les boutons. La page déclare aussi trois actions — un tarif, un devis à pré-remplir, une
+section à montrer — : voir l’[exemple](/messagerie/integrations/actions-de-page/#lexemple-de-la-démonstration).

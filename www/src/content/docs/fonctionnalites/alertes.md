@@ -11,7 +11,7 @@ La règle tient en une phrase : **le serveur dit pourquoi, l’inbox décide pou
 
 ## Ce qui appelle un conseiller
 
-Cinq écritures appellent un conseiller. Chacune le dit au serveur, qui écrit dans la même
+Six écritures appellent un conseiller. Chacune le dit au serveur, qui écrit dans la même
 transaction une ligne dans la cloche de chaque conseiller concerné :
 
 | Cause | Qui la trouve dans sa cloche |
@@ -21,6 +21,7 @@ transaction une ligne dans la cloche de chaque conseiller concerné :
 | **Une conversation est confiée** | celui qui la reçoit, sauf s’il se l’est donnée lui-même |
 | **Une conversation est transférée** | les conseillers de la boîte ou de l’équipe qui la reçoit, et les superviseurs, sauf l’auteur du transfert |
 | **Une attente prend fin** | le conseiller qui l’avait, quand l’heure est venue |
+| **Une automatisation prévient** | ceux que nomme son étape **Prévenir** : le conseiller de la conversation, une équipe, les superviseurs ou des personnes choisies ([automatisations](/messagerie/fonctionnalites/automatisations/)) |
 
 Le son et la notification du bureau suivent une règle à part, décidée par l’inbox (voir
 plus bas). Les deux respectent la visibilité par boîte (D12) : on n’est jamais prévenu d’une
@@ -30,8 +31,8 @@ conversation qu’on ne peut pas ouvrir.
 
 En haut à droite de chaque écran. Elle garde, conseiller par conseiller, ce qui l’a appelé :
 « Léa Martin vous a écrit », « L’IA a transféré la conversation de… », « Julie vous a confié
-la conversation de… », « … a transféré à votre équipe… », « … revient de l’attente ». Son
-compteur dit ce qui n’est pas lu.
+la conversation de… », « … a transféré à votre équipe… », « … revient de l’attente », ou le texte
+qu’une automatisation y écrit. Son compteur dit ce qui n’est pas lu.
 
 - Une seule ligne non lue par conversation et par cause : un visiteur qui écrit cinq fois sonne
   cinq fois, mais ne laisse qu’une ligne, remontée en tête.
@@ -60,8 +61,9 @@ Quand une alerte concerne le lecteur, l’inbox :
 - **ne fait rien** si le lecteur a déjà la conversation sous les yeux : elle est marquée lue.
 
 Une alerte concerne le lecteur si la conversation est la sienne, ou si elle attend dans la file
-sans conseiller. Une conversation confiée ou sortie de l’attente ne sonne que pour son
-conseiller ; une conversation en attente ne sonne pour personne.
+sans conseiller. Celle d’une automatisation ne va qu’à ceux qu’elle prévient. Une conversation
+confiée ou sortie de l’attente ne sonne que pour son conseiller ; une conversation en attente ne
+sonne pour personne.
 
 :::note[Le premier clic]
 Les navigateurs taisent une page tant qu’on n’y a pas cliqué ni tapé. Le son ne joue donc qu’après
@@ -92,6 +94,12 @@ Dans le menu du compte, en bas de la barre latérale, sous **Alertes** :
 | **Son à chaque nouveau message** | activé |
 | **Notifications du bureau** | désactivé ; l’activer demande la permission au navigateur |
 | **Mode audio** | désactivé ; voir [l’inbox](/messagerie/fonctionnalites/inbox/#mode-audio--lecture-et-dictée) |
+
+Les notifications du bureau sont aussi proposées une fois, au pied de la liste des
+conversations : « Être prévenu par Windows ou macOS quand un visiteur écrit, même dans un autre
+onglet. » **Activer les notifications** demande la permission au navigateur ; la croix la
+ferme. Dans les deux cas, elle ne revient plus dans ce navigateur : le réglage reste dans le menu
+du compte.
 
 Ces réglages valent **pour ce navigateur** : un poste partagé n’est pas un ordinateur
 personnel. Si le navigateur a refusé les notifications, l’entrée devient **Notifications

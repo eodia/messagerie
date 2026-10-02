@@ -1,0 +1,165 @@
+---
+title: Tableaux de bord
+description: Des cartes sur une grille — nombres, tableaux, graphiques —, chacune une question posée aux conversations, assistée ou en SQL, avec « Vue d’ensemble » pour commencer.
+---
+
+L’écran **Tableaux de bord** remplace les anciennes statistiques (D22). Un tableau de bord est
+une grille de cartes ; chaque carte est une **question** posée aux conversations, dessinée en
+nombre, en tableau ou en graphique. C’est le principe des tableaux de bord de basedb, fait pour
+les conversations.
+
+Il s’ouvre depuis la barre latérale, sous **Connaissances**, ou par la palette (Ctrl+K). Son
+adresse est `/tableaux-de-bord`, suivie du nom du tableau ouvert ; l’ancienne adresse
+`/statistiques` y mène.
+
+## Qui voit quoi
+
+| | Conseiller | Superviseur |
+|---|---|---|
+| Ouvrir un tableau **visible des conseillers** | oui | oui |
+| Ouvrir un tableau privé | non | oui |
+| Créer, modifier, supprimer un tableau | non | oui |
+| Écrire une question, assistée ou en SQL | non | oui |
+
+Un conseiller n’envoie jamais de question : il demande une carte, et le serveur l’exécute telle
+qu’elle a été enregistrée. Dans le menu des tableaux, un tableau privé porte la mention
+**privé**.
+
+:::note[Toutes les conversations]
+Une carte compte toutes les conversations, quelles que soient les boîtes du lecteur et le site
+choisi dans le [menu des sites](/messagerie/fonctionnalites/inbox/#le-menu-des-sites). Pour
+une carte limitée à une boîte ou à un site, ajoutez le filtre à sa question.
+:::
+
+## Vue d’ensemble
+
+La première fois qu’on ouvre l’écran, la messagerie crée **Vue d’ensemble**, visible des
+conseillers — « Ce qui se passe dans les conversations : volume, IA, délais, humeur, équipe. » :
+
+- sur les sept derniers jours : les conversations, la part que l’IA a résolue seule parmi
+  celles où elle a répondu, la médiane de la première réponse, et les conversations transférées
+  par l’IA ;
+- les conversations par jour, et par boîte de réception ;
+- l’humeur des visiteurs ;
+- les étiquettes les plus posées ;
+- l’avis des conseillers sur l’IA ;
+- les conversations par conseiller ;
+- les heures où les visiteurs écrivent.
+
+C’est un tableau comme les autres : un superviseur le modifie ou le supprime. S’il ne reste plus
+aucun tableau, l’écran le recrée à sa prochaine ouverture.
+
+## Les cartes
+
+Sur une grille de douze colonnes, chaque carte a sa place et sa taille. Une carte montre :
+
+| Graphique | Pour |
+|---|---|
+| **Nombre** | une seule valeur |
+| **Tableau** | des lignes telles quelles |
+| **Barres**, **Barres horizontales** | comparer, classer ; empilées si la question a deux regroupements |
+| **Courbe**, **Aire** | une évolution dans le temps |
+| **Camembert** | une répartition en quelques parts |
+
+Les couleurs suivent une palette fixe, claire ou sombre selon le thème. Une humeur ou un avis
+garde la couleur de son sens : négative ou rejeté en rouge, positive ou accepté en vert.
+
+Le bouton **Voir les chiffres** d’une carte montre son résultat en tableau, **Voir le
+graphique** y revient. Une carte montre 2 000 lignes au plus, et le dit : « Les 2 000 premières
+lignes seulement. » **Actualiser**, en haut de l’écran, relit toutes les cartes ; elles ne
+bougent pas seules.
+
+Une carte **Texte** porte un titre de section ou une explication, sans question.
+
+## Modifier un tableau
+
+Un superviseur clique sur **Modifier** :
+
+- les cartes se déplacent et se redimensionnent à la souris ;
+- **Question** ouvre l’éditeur de question, **Texte** ajoute une carte de texte ;
+- le menu d’une carte la modifie (**Modifier la question**), la duplique (**Dupliquer**) ou la
+  retire (**Retirer la carte**) ;
+- le tableau prend un nom ; **Visible des conseillers** l’ouvre à tous ;
+- **Enregistrer** garde le tout, **Annuler** y renonce ; **Supprimer le tableau de bord** est
+  sous **Autres actions**.
+
+**Nouveau tableau de bord** est dans le menu qui choisit le tableau, en haut de l’écran. Un
+tableau compte quarante cartes au plus.
+
+## Une question assistée
+
+L’onglet **Assistée** compose une question sans écrire de SQL, en cinq parties :
+
+| Partie | Ce qu’on y choisit |
+|---|---|
+| **Données** | la source : conversations, messages, appels à l’IA, avis sur l’IA, étiquettes, contacts, exécutions d’automatisations |
+| **Filtrer** | des conditions sur les colonnes : est, n’est pas, contient, est vide ; après, avant, entre ; **dans les derniers** N jours, semaines ou mois ; oui ou non |
+| **Compter** | un ou plusieurs calculs : nombre de lignes, nombre de valeurs distinctes, somme, moyenne, médiane, minimum, maximum, part des « oui » (%) |
+| **Par** | un ou deux regroupements ; une date se groupe par heure, jour, semaine, mois, année, jour de la semaine ou heure de la journée |
+| **Trier et limiter** | l’ordre, croissant ou décroissant, et le nombre de lignes |
+
+Une nouvelle question part des trente derniers jours, comptés jour par jour : un graphique
+s’affiche aussitôt, et suit chaque changement. Les dates se lisent au fuseau horaire du
+lecteur.
+
+La question est traduite en SQL par le serveur, chaque nom de colonne pris dans la liste des
+sources, chaque valeur passée en paramètre : rien de ce qu’on choisit ne devient du code.
+
+### Les sources
+
+Chaque source est une vue du schéma `analytics`, jamais une table de la messagerie. Ses colonnes
+ont un libellé en français.
+
+| Source | Une ligne par… | Quelques colonnes |
+|---|---|---|
+| **Conversations** | conversation | commencée le, statut, boîte, équipe, site, priorité, humeur, conseiller, client identifié, pays, l’IA a répondu, transférée par l’IA, résolue par l’IA, première réponse (s), messages |
+| **Messages** | message | envoyé le, auteur (visiteur, IA, conseiller, système), type (message, note, fichier, transfert), conseiller, boîte, supprimé |
+| **Appels à l’IA** | appel au modèle | le, raison (réponse, suggestion, étiquettes, résumé, reformulation, pièce jointe, voix, automatisation), modèle, confiance, durée, jetons lus et écrits |
+| **Avis sur l’IA** | avis d’un conseiller | le, avis (acceptée, modifiée, rejetée), conseiller, sur |
+| **Étiquettes** | étiquette posée | étiquette, posée par (conseiller, IA), posée le, boîte |
+| **Contacts** | contact | venu le, client identifié, pays, segment, a laissé son e-mail |
+| **Exécutions d’automatisations** | exécution | le, automatisation, déclencheur, statut, durée |
+
+**Résolue par l’IA** : l’IA a répondu, sans transfert, et sans qu’un conseiller écrive au
+visiteur. **Première réponse** : le délai entre le premier message du visiteur et la première
+réponse, de l’IA ou d’un conseiller.
+
+## Une question en SQL
+
+L’onglet **SQL** prend une requête écrite à la main :
+
+```sql
+select date_trunc('week', created_at) as semaine,
+       avg(first_response_seconds) as premiere_reponse
+from conversations
+where created_at > now() - interval '90 days'
+group by 1
+order by 1
+```
+
+- **Un seul `SELECT`**, sur les vues du schéma `analytics` — les noms des vues suffisent. **Les
+  colonnes des vues**, à côté de la requête, les rappellent.
+- **En lecture seule**, dans une transaction qui ne peut rien écrire, quinze secondes au plus :
+  « La question a pris plus de quinze secondes : resserrez-la. »
+- **Sous le rôle `chat_analytics`**, qui lit ces vues et rien d’autre : ni les comptes, ni les
+  sessions, ni les secrets, ni les tables de la messagerie.
+- **Une seule instruction** : une requête qui en enchaîne deux est refusée avant de s’exécuter.
+
+### Demander à l’IA
+
+**Demander à l’IA** écrit la requête d’une phrase — « les conversations transférées par
+semaine, par boîte » —, choisit le graphique et le titre, puis **l’essaie avant de la
+proposer** : si elle échoue, l’IA la corrige une fois. La requête proposée se relit et se
+modifie comme une autre. Il faut un modèle d’IA sur le serveur (`CHAT_AI_API_KEY`).
+
+### Quand le SQL est indisponible
+
+Le serveur crée le rôle `chat_analytics` à sa migration. Si l’utilisateur de la base n’a pas le
+droit de créer un rôle — une base hébergée aux droits restreints, par exemple —, les questions
+en SQL sont refusées : « Les questions en SQL sont
+indisponibles : la base refuse le rôle de lecture (chat_analytics). » Les questions assistées,
+elles, fonctionnent toujours.
+
+Avec le `docker compose` du dépôt et celui de la
+[mise en production](/messagerie/hebergement/production/), l’utilisateur de la base peut créer
+le rôle : rien à faire.

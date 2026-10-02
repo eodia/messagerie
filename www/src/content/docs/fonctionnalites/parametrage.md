@@ -1,6 +1,6 @@
 ---
 title: Paramétrage
-description: Les écrans où un superviseur règle la messagerie sans quitter l’inbox — boîtes, équipes, conseillers, sites, horaires, réponses types, étiquettes, garde-fous, outils de l’IA, widget, API — et dont les données vivent dans les tables du schéma chat.
+description: Les écrans où un superviseur règle la messagerie sans quitter l’inbox — boîtes, équipes, conseillers, sites, horaires, réponses types, étiquettes, garde-fous, outils de l’IA, automatisations, widget, API — et dont les données vivent dans les tables du schéma chat.
 ---
 
 Un superviseur règle la messagerie depuis l’inbox. Les écrans de paramétrage lisent et
@@ -20,7 +20,8 @@ superviseurs voient. Elle se replie ; barre latérale réduite, c’est un menu.
 | **Réponses types et étiquettes** | `/parametrage/reponses` | « Réponses types », « Étiquettes » |
 | **Garde-fous** | `/parametrage/garde-fous` | « Garde-fous » |
 | **Outils IA** | `/outils` | « Outils IA », « Serveurs MCP » |
-| **Widget** | `/widget` | « Sites » : l’apparence et les textes du widget |
+| **Automatisations** | `/automatisations` | les automatisations et leurs exécutions (D20) |
+| **Widget** | `/widget` | « Sites » : l’apparence et les textes du widget ; les actions que déclarent ses pages (D21) |
 | **API et MCP** | `/parametrage/api` | les jetons et les webhooks (D16, D17) |
 
 La base de connaissance a son écran à part, dans la barre latérale de tous :
@@ -29,8 +30,8 @@ La base de connaissance a son écran à part, dans la barre latérale de tous :
 
 ## Le kit Studio
 
-Tous les écrans de la section, sauf **Widget** et **API et MCP**, sont bâtis sur le même kit,
-celui de l’éditeur du widget :
+Tous les écrans de la section, sauf **Automatisations**, **Widget** et **API et MCP**, sont
+bâtis sur le même kit, celui de l’éditeur du widget :
 
 - **à gauche, les lignes** de la table, avec un bouton pour en créer une — **Nouvelle boîte**,
   **Nouveau site**, **Nouvel outil** — et, au-delà de six lignes, **Rechercher…**. Une ligne
@@ -206,14 +207,19 @@ conseillers »). Aujourd’hui, le composeur propose toutes les réponses types
 conseillers, quelles que soient leurs équipes.
 :::
 
-## Garde-fous, outils, widget, API
+## Garde-fous, outils, automatisations, widget, API
 
 - **Garde-fous** : les sujets sur lesquels l’IA ne répond pas elle-même. Voir
   [agent IA › garde-fous](/messagerie/fonctionnalites/agent-ia/#les-garde-fous).
 - **Outils IA** : les outils et les serveurs MCP de l’IA, avec leur essai. Voir
   [outils de l’IA](/messagerie/fonctionnalites/outils-ia/).
-- **Widget** : l’éditeur du widget, avec le vrai widget en aperçu. Voir
-  [widget](/messagerie/fonctionnalites/widget/).
+- **Automatisations** : un déclencheur, une condition et des étapes, dessinés en flux, avec
+  leurs modèles et le journal de leurs exécutions. Voir
+  [automatisations](/messagerie/fonctionnalites/automatisations/).
+- **Widget** : l’éditeur du widget, avec le vrai widget en aperçu, et l’onglet **Actions**, où
+  s’autorisent les actions que déclarent les pages du site. Voir
+  [widget](/messagerie/fonctionnalites/widget/) et
+  [actions de la page](/messagerie/integrations/actions-de-page/).
 - **API et MCP** : les jetons des programmes et des agents, onglet **Jetons**, et les
   webhooks, onglet **Webhooks**. Voir l’[API REST](/messagerie/integrations/api-rest/), le
   [serveur MCP](/messagerie/integrations/mcp/) et les [webhooks](/messagerie/integrations/webhooks/).

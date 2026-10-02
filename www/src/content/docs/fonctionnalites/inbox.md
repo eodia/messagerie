@@ -15,7 +15,7 @@ De haut en bas :
 
 - le **menu des sites**, sous le nom de la Messagerie ;
 - **Conversations**, puis une ligne par boîte de réception, chacune avec son compteur ;
-- **Contacts**, **Connaissances**, **Statistiques** ;
+- **Contacts**, **Connaissances**, **Tableaux de bord** ;
 - **Administration**, repliée, pour les superviseurs seuls (voir
   [Paramétrage](/messagerie/fonctionnalites/parametrage/)) ;
 - le menu du compte, en bas : **Disponibilité**, **Alertes**, **Mode audio**, **Apparence**,
@@ -36,9 +36,10 @@ ses équipes ; un superviseur les voit toutes (voir
 ### Le menu des sites
 
 En haut de la barre latérale, le menu des sites restreint l’inbox à un site : ses conversations
-et leurs compteurs, ses contacts, ses articles (et ceux qui valent pour tous les sites), ses
-statistiques. Il propose les sites dont on voit des conversations ; avec un seul site, il se
-contente de le nommer.
+et leurs compteurs, ses contacts, ses articles (et ceux qui valent pour tous les sites). Les
+[tableaux de bord](/messagerie/fonctionnalites/tableaux-de-bord/), eux, comptent tous les sites.
+Il propose les sites dont on voit des conversations ; avec un seul site, il se contente de le
+nommer.
 
 C’est une **vue, pas un droit** : le choix est gardé par le navigateur, l’adresse ne le porte
 pas. Chaque site y montre ce qui vous attend, et un point sur le menu signale qu’un autre site
@@ -120,7 +121,10 @@ Le fil range les messages par jour. On y lit :
   équipe ;
 - les **notes internes**, sur fond jaune, que le visiteur ne voit jamais ;
 - les événements, sur une ligne : qui a repris la main, affecté, transféré, résolu, rouvert,
-  mis en attente, quel outil l’IA a utilisé.
+  mis en attente, quel outil l’IA a utilisé, ce qu’elle a demandé à la page du visiteur
+  ([actions de la page](/messagerie/integrations/actions-de-page/#dans-linbox)), quand le widget
+  a proposé au visiteur de laisser son e-mail et l’adresse qu’il a laissée, ce qu’une
+  automatisation a fait — sous son nom.
 
 Trois points disent quand le visiteur écrit, ou quand l’IA rédige. Le fil reste collé au
 dernier message tant qu’on ne remonte pas le lire.
@@ -137,7 +141,7 @@ dernier message tant qu’on ne remonte pas le lire.
 | **Réveiller** | la sort de l’attente avant l’heure |
 | **Affecter à un conseiller** | la confie à quelqu’un, ou la remet dans la file |
 | **Transférer à une autre boîte ou une autre équipe** | voir plus bas |
-| **Plus d’actions** | **Affecter à…**, **Remettre dans la file**, **Transférer…**, **Promouvoir en source pour l’IA** |
+| **Plus d’actions** | **Affecter à…**, **Remettre dans la file**, **Transférer…**, **Promouvoir en source pour l’IA**, et sous **Automatisations** celles qu’un conseiller lance d’un clic ([automatisations](/messagerie/fonctionnalites/automatisations/)) |
 | **Afficher le panneau** | le panneau de détails, à droite |
 
 Quand le fil est étroit, les boutons gardent leur pictogramme et disent leur nom au survol.
@@ -354,7 +358,8 @@ L’adresse suit l’écran, en mots lisibles (D15) :
 - `/conversations/service-client/lea-martin-a9ce42ba3084` : une conversation, dans sa boîte ;
 - `/conversations/toutes?filtre=en-file` : toutes les boîtes, onglet **En file** — les autres
   filtres d’état sont `ia`, `ouvertes`, `en-attente` et `resolues` ;
-- `/contacts/lea-martin-a9ce42ba3084`, `/connaissance/<article>`, `/statistiques`.
+- `/contacts/lea-martin-a9ce42ba3084`, `/connaissance/<article>`, `/tableaux-de-bord`,
+  `/automatisations`.
 
 Le nom ne sert qu’à lire ; la fin de l’identifiant retrouve la conversation, même si le
 visiteur a donné son nom depuis — l’adresse est alors réécrite. Une adresse se partage avec un
