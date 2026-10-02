@@ -6,9 +6,9 @@ corrigé. Chaque décision porte un numéro stable, que le code et les autres ch
 citent (`D1`, `D4`…).
 
 Point de départ : le cadrage « Messagerie client IA » du 29 septembre 2026. Il visait
-une messagerie développée en interne. Le produit
-devient un logiciel libre, frère de basedb, qui s'appuie sur basedb pour tout ce qui se
-paramètre.
+une messagerie développée en interne. Le produit est devenu un logiciel libre, frère de
+basedb dont il garde l'interface (D10). Il s'est d'abord appuyé sur basedb pour tout ce qui
+se paramètre ; depuis le 2 octobre 2026, il tient tout lui-même (D19).
 
 ---
 
@@ -18,153 +18,77 @@ paramètre.
 |---|---|---|
 | **Le widget** | Les visiteurs d'un site | Un script à coller dans le site (`apps/widget`) |
 | **L'inbox** | Les conseillers | Une application web dans le style de basedb (`apps/web`) |
-| **Le paramétrage** | Les administrateurs | basedb, base « Messagerie » |
+| **Le paramétrage** | Les superviseurs | Dans l'inbox, « Administration » (D19) |
 
 S'y ajoute une partie que personne ne voit : **le serveur du chat** (`apps/server`). Il
 porte l'API temps réel, l'IA et les tâches de fond.
 
 ---
 
-## D1 — Deux familles de données, un seul PostgreSQL
+## D1 — Un seul PostgreSQL, un seul schéma
 
-**basedb tient le paramétrage et le référentiel.** Il est rangé dans une base
-« Messagerie », créée par le modèle `packages/basedb-template/messagerie.json` :
+Tout vit dans le schéma `chat` d'une instance PostgreSQL, que le serveur migre à chaque
+démarrage (D8) :
 
-- sites (domaines autorisés, widget, seuil de confiance, conservation) ;
-- horaires d'ouverture ;
-- équipes et conseillers ;
-- réponses types, étiquettes ;
-- catégories, articles, conversations promues ;
-- garde-fous, outils IA.
+- **le paramétrage** — sites, horaires, fermetures, boîtes de réception, équipes,
+  conseillers, réponses types, étiquettes, catégories, articles, conversations promues,
+  garde-fous, outils de l'IA, serveurs MCP (D19) ;
+- **les comptes** — les conseillers, leurs sessions, les liens d'invitation, leurs
+  identités chez un fournisseur OIDC (D4) ;
+- **le flux** — contacts, conversations, messages, `ai_runs`, `ai_feedback`, `kb_chunks` et
+  leurs vecteurs, pièces jointes, notifications, journal des accès, jetons, webhooks.
 
-**Le serveur du chat tient le flux**, dans son propre schéma `chat` :
+Une conversation garde l'identifiant texte de son site, de sa boîte et de son équipe, et
+le nom du site au moment où elle a commencé : l'historique survit à une ligne supprimée.
 
-- contacts, conversations, messages ;
-- `ai_runs`, `ai_feedback` ;
-- `kb_chunks` et leurs vecteurs ;
-- métadonnées des pièces jointes, file de tâches, journal des accès.
+## D2 — Remplacée par D19
 
-Les deux vivent dans la même instance PostgreSQL. Le flux ne passe pas par basedb, pour
-quatre raisons :
+Le chat lisait le paramétrage dans basedb, par son API. Il le lit dans ses propres tables.
 
-- **Latence.** Un chat demande un WebSocket qui répond en moins de 100 ms.
-- **Maîtrise du schéma.** Le chat fait évoluer ses tables chaudes par ses propres
-  migrations : index, pgvector. basedb interdit tout DDL hors de son catalogue.
-- **Suppressions.** La rétention RGPD impose des purges, et un jeton d'intégration
-  basedb ne supprime jamais.
-- **Volume.** Chaque message ajouterait une révision d'historique dans basedb.
+## D3 — L'installation : un PostgreSQL, puis le premier superviseur
 
-## D2 — Le chat lit basedb par son API publique, jamais par ses tables
+Le serveur crée et migre son schéma au démarrage. Au premier lancement, personne ne peut
+se connecter : l'écran de connexion crée le premier superviseur, qui invite les autres
+(D4) et règle le reste dans l'inbox.
 
-Le serveur du chat lit la base « Messagerie » avec le SDK de basedb (licence MIT). Il
-utilise un jeton d'intégration limité à cette base, en lecture seule, et une écriture
-seulement pour promouvoir une conversation. Il ne lit jamais les tables `b_…` en SQL :
-leurs noms physiques sont un détail interne de basedb.
+En développement, `docker compose` fait tourner PostgreSQL (`pnpm db:up`). Au premier
+démarrage sur une base vide, le serveur écrit la démonstration — Acme Assurances, ses
+boîtes, ses équipes, ses articles (`apps/server/src/settings/demo.json`) ; `pnpm seed`
+vide le schéma et y ajoute les conversations de démonstration.
 
-Le paramétrage est mis en cache par le serveur du chat. basedb le prévient de chaque
-changement (dépendance B3). En attendant, le chat relit les lignes par `_updated_at`,
-ce qui reste bon marché sur des tables de quelques dizaines de lignes.
+## D4 — Les conseillers ont leur compte dans la messagerie
 
-Le sens inverse est permis : des vues SQL de basedb peuvent lire le schéma `chat` pour
-ses tableaux de bord. C'est ainsi que viendront les statistiques complètes.
+Un conseiller est une ligne de `chat.agent` — sa fiche « Conseillers » et son compte à la
+fois. Il se connecte avec son adresse et son mot de passe, ou par le fournisseur
+d'identité de l'entreprise (D19).
 
-## D3 — L'installation crée la base « Messagerie » en une opération
+- **Être conseiller**, c'est être actif dans « Conseillers ». Le rôle « Superviseur » ouvre
+  l'administration.
+- **Inviter** se fait dans l'inbox : la fiche est créée, et un lien s'affiche une fois, à
+  transmettre ; il vaut sept jours, une seule fois, et la personne y choisit son mot de
+  passe. Un mot de passe oublié se remplace par un lien de même sorte.
+- **Un conseiller cité par des messages n'est jamais supprimé** : retiré, il est désactivé.
+- **Un jeton de l'API n'est pas un conseiller** : il écrit sous une ligne à lui
+  (`token:<préfixe>`), jamais active (D16).
 
-basedb 0.5.0 applique un modèle côté serveur, en une seule opération (B1) :
-`POST /api/v1/<tenant>/admin/bases {"template": …, "label": …, "rows": …}`, avec le jeton
-d'accès d'un administrateur, et les étapes en NDJSON à la demande.
+**Le WebSocket s'ouvre par ticket.** Un navigateur ne peut pas y mettre d'en-tête, et un
+jeton dans l'URL finit dans les journaux : l'inbox demande un ticket par HTTP
+authentifié, valable une fois, trente secondes.
 
-`pnpm --filter @chat/server provision` le fait avec `messagerie.json`. Il prend le jeton
-d'un administrateur (`BASEDB_ADMIN_TOKEN`), ou son adresse et son mot de passe, avec
-lesquels il se connecte comme le fait l'interface. Les lignes du modèle sont écrites par
-défaut : ce sont les réglages de départ (un site, une équipe, les garde-fous), et elles
-font de celui qui lance la commande le premier superviseur. `--no-rows` les omet.
+En développement seulement, `CHAT_DEV_AGENT` nomme le conseiller (son adresse) au nom
+duquel se font les requêtes sans session : pas de connexion sur une machine de
+développement. En production, une requête sans session est refusée.
 
-Reste à créer, dans basedb, un jeton d'intégration de la base pour la surface REST, **en
-écriture**, puis à le donner au serveur (`BASEDB_BASE`, `BASEDB_TOKEN`). L'écriture sert à
-promouvoir une conversation ; le paramétrage, lui, écrit avec le jeton du superviseur
-(D10).
-
-En développement, `docker compose` fait tourner un basedb dédié au chat (basedb 0.5.0,
-http://localhost:8890), dans une base de données à lui du même PostgreSQL.
-`pnpm db:up` écrit d'abord `.env` : la clé de chiffrement et l'administrateur, générés, ne
-sont jamais dans le fichier compose. `pnpm basedb:setup` se connecte en administrateur,
-crée la base avec les lignes d'Acme Assurances si elle n'existe pas, émet le jeton du chat
-s'il n'en a pas de bon, et écrit la configuration du serveur et de l'inbox. Relancé, il ne
-change rien de ce qui marche.
-`pnpm template:check` fait passer le modèle au validateur de basedb, celui-là même que
-son serveur applique.
-
-Quand le modèle gagne un champ dans une version du chat, `pnpm basedb:setup` l'ajoute à
-la base existante, par l'API d'administration de basedb : ajout seulement, jamais de
-suppression, de renommage ni de changement de genre, qui restent une décision prise dans
-basedb. Une relation, un calcul ou une table entière qui manquent sont signalés, pas
-créés. Le serveur relit la description de la base quand il écrit un champ qu'il ne lui
-connaissait pas.
-
-## D4 — Les conseillers sont des comptes basedb
-
-Un conseiller se connecte avec son compte basedb. La mire de l'inbox ne fait que relayer
-la connexion de basedb (`POST /auth/password/login`) : basedb dépose ses cookies de session
-pour l'hôte, et l'inbox et basedb partagent dès lors une seule session. La déconnexion de
-l'une vaut pour l'autre. Un compte que basedb a créé avec un mot de passe temporaire choisit
-le sien dans la mire, comme l'interface de basedb le demande (`/auth/password/change`). Les
-boutons de SSO de basedb n'y paraissent que si l'inbox est servie à l'adresse de basedb :
-basedb ne renvoie une connexion SSO que vers ses propres chemins.
-
-Ensuite, l'inbox demande à la session basedb du navigateur un jeton d'accès (`POST /auth/session/access`, avec le cookie de session et,
-dans `X-Basedb-Csrf`, la valeur du cookie CSRF). Elle l'envoie au serveur du chat, qui
-demande à basedb ce qu'il vaut (introspection RFC 7662, B2). Le SSO vient donc de la
-configuration OIDC de basedb, sans réglage propre au chat.
-
-- **Être conseiller**, c'est figurer dans la table « Conseillers », avec son compte basedb
-  et la case « Actif » cochée. Le rôle « Superviseur » y est lu.
-- **Administrer la messagerie**, c'est avoir le droit de modifier la base « Messagerie »
-  dans basedb. Les droits par groupe, par table et par champ viennent de basedb.
-  `pnpm basedb:setup` crée le groupe « Superviseurs de la messagerie », qui peut modifier
-  la base (`BASEDB_SUPERVISORS_GROUP`). Un conseiller nommé superviseur dans l'inbox y
-  entre, et en sort quand il redevient conseiller.
-- **Inviter un conseiller** se fait dans l'inbox : son compte basedb est créé avec lui, son
-  mot de passe temporaire s'affiche une fois, et il choisit le sien à la première
-  connexion. Une adresse qui a déjà un compte le garde. Créer un compte, redonner un mot de
-  passe ou changer un rôle demande à basedb un administrateur qui a confirmé son mot de
-  passe dans les cinq minutes : l'inbox le redemande quand basedb l'exige.
-- **Un jeton d'intégration n'est pas un conseiller** : un programme ne répond pas aux
-  visiteurs.
-- **Réponse gardée 30 secondes au plus**, jamais au-delà de l'échéance du jeton. C'est la
-  même fenêtre de révocation que basedb.
-- **« Conseillers » gardée jusqu'au prochain signal.** Le serveur relit la table quand
-  basedb signale un changement, sur son flux SSE ouvert aux jetons d'intégration (B3).
-- **Copie locale.** Le chat garde une copie des conseillers dans `chat.agent`, pour qu'un
-  message nomme encore son auteur quand la ligne de basedb a disparu.
-
-**Contrainte de déploiement : l'inbox est servie sur le même hôte que basedb.** Le cookie
-CSRF de basedb n'est lisible que par les scripts de son hôte. C'est voulu : aucune autre
-origine ne doit pouvoir obtenir un jeton. L'inbox vit donc sous un autre chemin du même
-hôte, derrière la même passerelle (`https://support.exemple.fr/` pour l'inbox,
-`/basedb/` pour basedb). En développement, `localhost` suffit, car les cookies ignorent
-les ports : le basedb de `docker compose` (http://localhost:8890) et l'inbox
-(http://localhost:3210) partagent la session. Pour lever cette contrainte, il faudrait un transfert de jeton explicite fourni
-par basedb, par exemple un lien « Ouvrir la messagerie » qui le remet à l'inbox.
-
-**Le WebSocket s'ouvre par ticket.** Un navigateur ne peut pas y mettre d'en-tête
-`Authorization`, et un jeton dans l'URL finit dans les journaux. L'inbox demande donc un
-ticket par HTTP authentifié : il vaut une fois, pendant trente secondes.
-
-Sans basedb configuré, et en développement seulement, `CHAT_DEV_AGENT` désigne le compte
-au nom duquel se font les requêtes sans jeton. En production, une requête sans jeton est
-refusée.
-
-## D5 — Les visiteurs ne sont jamais des comptes basedb, et les secrets restent au chat
+## D5 — Les visiteurs n'ont pas de compte, et les secrets restent hors du paramétrage
 
 Les contacts vivent dans le schéma `chat`. Un visiteur est anonyme jusqu'à ce que le
 site signe son identité (HMAC ou JWT). Le widget n'accepte jamais un identifiant non
 signé.
 
-La clé de signature d'un site ne va pas dans basedb : toute personne qui lit la base
-« Messagerie » la verrait. Le serveur du chat garde les secrets par site, liés à
-l'identifiant de la ligne « Sites ». Il en va de même pour les clés des fournisseurs
-d'IA.
+La clé de signature d'un site ne va pas dans le paramétrage : tout superviseur qui le
+lit la verrait. Le serveur la garde à part (`site_secret`), liée à l'identifiant de la
+ligne « Sites ». Les clés des fournisseurs d'IA restent dans l'environnement du serveur ;
+un outil ou un serveur MCP y nomme une variable (`${NOM}`), jamais une valeur.
 
 ## D6 — Un seul canal temps réel, sans Redis
 
@@ -273,12 +197,13 @@ Le widget fait exception : il est écrit en Preact dans un Shadow DOM, pour pese
 quelques dizaines de Ko sur le site du client. Il reprend la palette, pas les
 composants.
 
-### Le paramétrage se fait dans l'inbox ; ses données restent dans basedb
+### Le paramétrage se fait dans l'inbox
 
-Un superviseur règle la messagerie sans quitter l'inbox. La section « Paramétrage » du
-menu ouvre les écrans des boîtes de réception, des équipes et des conseillers, des sites et
-de leurs horaires, des réponses types et des étiquettes, des garde-fous, des outils de l'IA
-et des serveurs MCP, des articles, et du widget.
+Un superviseur règle la messagerie sans la quitter : « Administration », au pied de la
+barre latérale, ouvre les écrans des boîtes de réception, des équipes et des conseillers,
+des sites et de leurs horaires, des réponses types et des étiquettes, des garde-fous, des
+outils de l'IA et des serveurs MCP, du widget, de l'API et des webhooks. Les conseillers
+n'en voient rien ; le serveur leur refuse ces tables, en écriture comme en lecture.
 
 Chaque écran est bâti comme l'éditeur du widget : les lignes à gauche, le formulaire au
 milieu, et à droite ce que le réglage change, dessiné en direct — la boîte dans le menu et
@@ -286,17 +211,9 @@ le chemin d'une conversation, la semaine d'ouverture, la réponse type dans le c
 le garde-fou qui se déclenche, l'outil tel que l'IA le lit et la requête qu'il envoie. Les
 changements restent des brouillons, ligne par ligne, jusqu'à « Enregistrer » (ou Ctrl+S).
 
-Ces écrans ne copient rien : ils lisent et écrivent les tables de la base « Messagerie »
-par l'API de basedb (D2). Les champs, leurs genres, leurs choix et leurs relations sont
-ceux que déclare `messagerie.json` : un champ ajouté au modèle que l'écran ne range pas
-encore apparaît sous « Autres réglages ».
-Le serveur vérifie chaque valeur contre le modèle, puis écrit dans basedb **avec le jeton
-du superviseur** : basedb applique ses droits, et l'historique de la ligne porte son nom.
-basedb réserve la suppression d'une ligne à ses administrateurs. Sans basedb, en
-démonstration, les lignes du modèle changent en mémoire jusqu'au redémarrage.
-
-basedb reste ouvert à qui veut ses grilles, ses vues, ses formulaires ou ses droits fins :
-le menu garde son lien. Rien de courant ne demande plus de s'y rendre.
+Les champs, leurs genres, leurs choix et leurs relations sont ceux que déclare
+`apps/server/src/settings/model.json` ; le serveur vérifie chaque valeur contre lui, puis
+l'écrit dans la table, par libellé de champ (D19).
 
 ### L'éditeur du widget
 
@@ -310,8 +227,8 @@ sont des colonnes de la table « Sites ».
 
 Le widget ne charge aucune police sur le site d'un client : « Police du site » reprend
 celle de la page, « Personnalisée » nomme une police que la page charge déjà. Un nom de
-police, un logo qui n'est pas en https, une marge hors bornes sont lus comme vides, qu'ils
-viennent de l'éditeur ou d'une saisie directe dans basedb.
+police, un logo qui n'est pas en https, une marge hors bornes sont lus comme vides, d'où
+qu'ils viennent.
 
 ## D11 — Licence AGPL-3.0-or-later
 
@@ -379,7 +296,7 @@ le système les dessine.
   (PNG, JPEG, GIF, WebP), PDF, textes (TXT, CSV, MD), Word et Excel. 10 Mo par fichier,
   cinq par message.
 - **Où ils vont** : les octets dans un dossier du serveur (`CHAT_FILES_DIR`, `.files` par
-  défaut), jamais dans la base ni dans basedb ; la table `chat.attachment` garde le nom,
+  défaut), jamais dans la base ; la table `chat.attachment` garde le nom,
   le type, la taille et la clé. La purge de rétention emporte le dossier de la
   conversation avec elle.
 - **Comment ils se lisent** : par un lien signé par le serveur (HMAC, valable un jour),
@@ -443,7 +360,7 @@ fonctions que l'inbox : un seul chemin vers les données.
 - sans expiration ou de 30 jours à un an ; révoqués à l'instant.
 
 Ils se créent dans l'inbox, par un superviseur, et ne s'affichent qu'une fois. Ils restent
-dans le schéma `chat`, jamais dans basedb (D5). Un jeton n'atteint pas `/api/inbox` : il ne
+dans le schéma `chat`. Un jeton n'atteint pas `/api/inbox` : il ne
 gère jamais les jetons. Codes de refus : `TOKEN_INVALID`, `TOKEN_EXPIRED`, `TOKEN_REVOKED`,
 `TOKEN_READ_ONLY`.
 
@@ -501,8 +418,7 @@ IPv6 comprise. `CHAT_WEBHOOK_ALLOW` fait confiance à des noms ou des plages pri
 
 Les webhooks se gèrent dans l'inbox, par un superviseur, dans « Paramétrage › API et MCP »,
 onglet « Webhooks » : créer, arrêter, reprendre, supprimer (gardé arrêté, pour son
-journal), envoyer un test, lire les derniers envois. Ils restent dans le schéma `chat`,
-jamais dans basedb (D5).
+journal), envoyer un test, lire les derniers envois. Ils restent dans le schéma `chat`.
 
 ## D18 — Où est un contact : son fuseau horaire, pas son adresse IP
 
@@ -523,15 +439,39 @@ dit le pays et la ville de référence. Les anciens noms que donnent encore les 
 
 ---
 
-## Ce que le chat attend de basedb
+## D19 — La messagerie tient tout elle-même
 
-| Réf. | Besoin | État |
-|---|---|---|
-| B1 | Appliquer un modèle côté serveur, en une seule opération | basedb 0.5.0 — `pnpm provision` |
-| B2 | Vérifier une identité basedb depuis une autre application | basedb 0.5.0 — introspection, D4 |
-| B3 | Prévenir un serveur interne d'un changement de lignes | basedb 0.5.0 — flux SSE suivi pour « Conseillers » |
-| B4 | Des vues SQL basedb qui lisent un schéma que basedb ne gère pas | À vérifier |
-| B5 | Remettre le jeton d'une personne à une application déclarée (code + PKCE, « Ouvrir la messagerie ») | Demandé — lève la contrainte du même hôte (D4) |
+Décidé le 2 octobre 2026 : la messagerie ne dépend plus de basedb. Deux produits à
+installer, un jeton à émettre, un modèle à faire évoluer par l'API d'administration, la
+contrainte du même hôte pour partager une session — pour quatorze petites tables que les
+écrans de l'inbox éditaient déjà. Et les tableaux de bord de basedb ne voyaient pas le
+flux, qui vit dans le schéma `chat`.
+
+**Le paramétrage** est fait de tables du schéma `chat`, avec leurs clés étrangères et
+leurs tables de liaison (`apps/server/src/db/schema.ts`). Les écrans et `Settings` parlent
+en libellés de champs ; `settings/catalog.ts` dit, pour chaque table, quelle colonne ou
+quelle liaison porte chaque libellé. Une écriture prévient tous les processus du chat
+(`NOTIFY chat_settings`), qui oublient la table.
+
+**Les comptes :**
+
+- un mot de passe gardé en scrypt ; dix caractères au moins, pas l'adresse ;
+- une session dans un cookie `httpOnly`, `SameSite=Lax`, dont la base ne garde que le
+  SHA-256 ; trente jours depuis son dernier usage ; la déconnexion la supprime, un
+  nouveau mot de passe ferme toutes les autres ;
+- chaque écriture de l'inbox porte l'en-tête `X-Chat-Request`, qu'une page d'un autre
+  site ne peut pas envoyer sans que CORS l'autorise — et CORS n'autorise que l'inbox ;
+- dix essais de connexion par quart d'heure et par adresse e-mail, trente par adresse IP ;
+- l'inbox et le serveur doivent partager un site (`app.exemple.fr` et `api.exemple.fr`, ou
+  le même hôte) : le cookie de session est celui du serveur.
+
+**Un fournisseur OpenID Connect** — Microsoft Entra, Google, Keycloak… — connecte le
+conseiller de la même adresse, vérifiée par lui (`CHAT_OIDC_ISSUER`,
+`CHAT_OIDC_CLIENT_ID`, `CHAT_OIDC_CLIENT_SECRET`). Flux « code » avec PKCE ; l'identité est
+ensuite retenue par son émetteur et son `sub`. Il ne crée personne : on invite d'abord.
+
+**La relecture des conversations promues** se fait dans « Connaissances » : la question et
+la réponse se corrigent, puis se publient — l'IA s'en sert — ou se rejettent.
 
 ## Questions ouvertes
 
@@ -547,4 +487,3 @@ Reprises du cadrage :
 Nouvelles, nées de ce chapitre :
 
 - Le nom du produit : « Messagerie » est un nom de travail (`apps/web/src/lib/product.ts`).
-- L'évolution d'une base « Messagerie » existante quand le modèle change (D3).
