@@ -226,24 +226,29 @@ export function Thread({
                 </span>
               </Hint>
             )}
-            {contact.email && (
-              <span className="hidden min-w-0 truncate @xl:block">{contact.email}</span>
-            )}
-            {code && (
-              // Named on hover: a number alone says nothing of what it numbers.
-              <Hint label={$t('{label}, transmis par le site', { label: code.label })}>
-                <span className="hidden shrink-0 font-mono @lg:inline">{code.value}</span>
-              </Hint>
-            )}
-            {whereOf(contact) && (
-              <span className="hidden min-w-0 items-center gap-1.5 whitespace-nowrap @4xl:inline-flex">
-                {contact.country ? (
-                  <Flag country={contact.country} className="text-[10px]" />
-                ) : (
-                  <MapPin className="size-3" />
+            {/* The panel on the right says these, and more: the header only when it is closed. */}
+            {!detailsOpen && (
+              <>
+                {contact.email && (
+                  <span className="hidden min-w-0 truncate @xl:block">{contact.email}</span>
                 )}
-                {whereOf(contact)}
-              </span>
+                {code && (
+                  // Named on hover: a number alone says nothing of what it numbers.
+                  <Hint label={$t('{label}, transmis par le site', { label: code.label })}>
+                    <span className="hidden shrink-0 font-mono @lg:inline">{code.value}</span>
+                  </Hint>
+                )}
+                {whereOf(contact) && (
+                  <span className="hidden min-w-0 items-center gap-1.5 whitespace-nowrap @4xl:inline-flex">
+                    {contact.country ? (
+                      <Flag country={contact.country} className="text-[10px]" />
+                    ) : (
+                      <MapPin className="size-3" />
+                    )}
+                    {whereOf(contact)}
+                  </span>
+                )}
+              </>
             )}
           </div>
         </div>

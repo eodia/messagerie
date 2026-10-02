@@ -528,10 +528,10 @@ function ContactHero({ conversation }: { readonly conversation: Conversation }) 
         />
         <div className="min-w-0 flex-1 pt-0.5">
           <h3 className="truncate text-base font-semibold tracking-tight">{contact.name}</h3>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             {contact.identified ? (
               <Hint label={$t('Le site a signé qui est ce client.')}>
-                <span>
+                <span className="inline-flex">
                   <Chip tint="emerald">
                     <ShieldCheck />
                     {$t('Client identifié')}
