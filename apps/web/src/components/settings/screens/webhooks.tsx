@@ -4,6 +4,7 @@ import { CodeGroup } from '@/components/api-reference/code-block'
 import { Chip } from '@/components/app/chip'
 import { CopyButton } from '@/components/app/copy-button'
 import { InboxGlyph } from '@/components/app/look'
+import { RowsSkeleton } from '@/components/app/skeletons'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -158,9 +159,7 @@ export function WebhooksPanel({
   return (
     <>
       {hooks === null ? (
-        <div className="flex justify-center py-10">
-          <LoaderCircle className="size-5 animate-spin text-muted-foreground" />
-        </div>
+        <RowsSkeleton rows={3} />
       ) : (
         <section className="space-y-3">
           <h2 className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
@@ -380,7 +379,7 @@ function Deliveries({
   }, [webhookId, tested])
 
   if (rows === null) {
-    return <LoaderCircle className="mt-2 ml-11 size-4 animate-spin text-muted-foreground" />
+    return <RowsSkeleton rows={2} avatar={false} className="ml-9" />
   }
   if (error !== null) {
     return <p className="mt-2 ml-11 text-xs text-destructive">{messageFor(error)}</p>

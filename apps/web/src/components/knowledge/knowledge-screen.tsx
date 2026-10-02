@@ -2,6 +2,7 @@
 
 import { Chip, type Tint } from '@/components/app/chip'
 import { ScreenHeader, Slash } from '@/components/app/screen-header'
+import { FormSkeleton, RowsSkeleton } from '@/components/app/skeletons'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -398,8 +399,20 @@ export function KnowledgeScreen() {
       )}
 
       {articles === null ? (
-        <div className="flex flex-1 items-center justify-center">
-          {!error && <LoaderCircle className="size-5 animate-spin text-muted-foreground" />}
+        <div className="flex min-h-0 flex-1">
+          {!error && (
+            <>
+              <div className="w-56 shrink-0 border-r bg-muted/20">
+                <RowsSkeleton rows={6} avatar={false} />
+              </div>
+              <div className="w-72 shrink-0 border-r">
+                <RowsSkeleton rows={7} avatar={false} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <FormSkeleton fields={4} />
+              </div>
+            </>
+          )}
         </div>
       ) : (
         <div className="flex min-h-0 flex-1">
@@ -813,8 +826,8 @@ function PromotedList({
       {error && <p className="border-b px-3 py-2 text-xs text-destructive">{messageFor(error)}</p>}
       <ul className="flex-1 overflow-y-auto scroll-discret">
         {rows === null && (
-          <li className="flex justify-center p-8">
-            <LoaderCircle className="size-4 animate-spin text-muted-foreground" />
+          <li>
+            <RowsSkeleton rows={6} avatar={false} />
           </li>
         )}
         {rows?.map((row) => (

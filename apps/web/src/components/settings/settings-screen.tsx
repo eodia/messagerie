@@ -2,6 +2,7 @@
 
 import { Chip } from '@/components/app/chip'
 import { ScreenHeader, Slash } from '@/components/app/screen-header'
+import { RowsSkeleton } from '@/components/app/skeletons'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
@@ -9,7 +10,7 @@ import { $t, $tp } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
 import { useTitle } from '@/lib/title'
 import type { SettingsField, SettingsOverview, SettingsRow, SettingsTable } from '@chat/contracts'
-import { Check, LoaderCircle, Plus, RefreshCw } from 'lucide-react'
+import { Check, Plus, RefreshCw } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Choice, Choices } from './field-input'
 import { RowEditor } from './row-editor'
@@ -176,11 +177,7 @@ export function SettingsScreen({ group: key }: { readonly group: string }) {
               {messageFor(error)}
             </p>
           )}
-          {!overview && !error && (
-            <div className="flex justify-center py-12">
-              <LoaderCircle className="size-5 animate-spin text-muted-foreground" />
-            </div>
-          )}
+          {!overview && !error && <RowsSkeleton rows={6} avatar={false} />}
 
           {table && overview && (
             <div className="overflow-hidden rounded-lg border">

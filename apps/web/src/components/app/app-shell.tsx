@@ -1,5 +1,7 @@
 'use client'
 
+import { RowsSkeleton, ScreenSkeletonFor } from '@/components/app/skeletons'
+import { Skeleton } from '@/components/ui/skeleton'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { showWaiting, unlockSound } from '@/lib/alerts'
 import { configureApi } from '@/lib/api'
@@ -9,7 +11,6 @@ import { isPaletteKey, usePalette } from '@/lib/store/palette'
 import { useSession } from '@/lib/store/session'
 import { useSidebar } from '@/lib/store/sidebar'
 import { useTheme } from '@/lib/theme'
-import { LoaderCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { type ReactNode, useEffect, useSyncExternalStore } from 'react'
 import { CommandPalette } from './command-palette'
@@ -97,8 +98,12 @@ export function AppShell({
   if (!inBrowser) return null
   if (status === 'checking') {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <LoaderCircle className="size-5 animate-spin text-muted-foreground" />
+      <div className="flex h-screen bg-background">
+        <div className="w-64 shrink-0 space-y-4 border-r p-3">
+          <Skeleton className="h-10 w-full" />
+          <RowsSkeleton rows={6} avatar={false} className="p-0" />
+        </div>
+        <ScreenSkeletonFor pathname={window.location.pathname} />
       </div>
     )
   }

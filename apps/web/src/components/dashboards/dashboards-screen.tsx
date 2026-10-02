@@ -3,6 +3,7 @@
 import 'react-grid-layout/css/styles.css'
 import './grid.css'
 import { ScreenHeader, Slash } from '@/components/app/screen-header'
+import { CardsSkeleton } from '@/components/app/skeletons'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -14,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Hint } from '@/components/ui/tooltip'
@@ -383,11 +385,7 @@ export function DashboardsScreen() {
             {error}
           </p>
         )}
-        {list === null && !error && (
-          <div className="flex justify-center py-16">
-            <LoaderCircle className="size-5 animate-spin text-muted-foreground" />
-          </div>
-        )}
+        {list === null && !error && <CardsSkeleton />}
         {shown && (
           <Grid
             cards={shown.cards}
@@ -569,7 +567,6 @@ function CardFrame({
           <h3 className="min-w-0 flex-1 truncate text-xs font-medium text-muted-foreground">
             {card.title || (text ? $t('Texte') : $t('Sans titre'))}
           </h3>
-          {run?.loading && <LoaderCircle className="size-3.5 animate-spin text-muted-foreground" />}
           {!text && card.question?.viz.type !== 'table' && card.question?.viz.type !== 'number' && (
             <Hint label={asTable ? $t('Voir le graphique') : $t('Voir les chiffres')}>
               <Button
@@ -637,13 +634,20 @@ function CardFrame({
         ) : run?.error ? (
           <p className="font-mono text-xs text-destructive">{run.error}</p>
         ) : run?.result && card.question ? (
-          <ResultView
-            result={run.result}
-            viz={card.question.viz}
-            sources={sources}
-            asTable={asTable}
-          />
-        ) : null}
+          // Refreshed, the result stays, faded, until the new one comes.
+          <div className={cn('size-full transition-opacity', run.loading && 'opacity-50')}>
+            <ResultView
+              result={run.result}
+              viz={card.question.viz}
+              sources={sources}
+              asTable={asTable}
+            />
+          </div>
+        ) : card.question?.viz.type === 'number' ? (
+          <Skeleton className="mt-2 h-8 w-20" />
+        ) : (
+          <Skeleton className="size-full" />
+        )}
       </div>
     </div>
   )

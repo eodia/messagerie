@@ -2,6 +2,7 @@
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Segmented } from '@/components/ui/segmented'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Hint } from '@/components/ui/tooltip'
 import { ApiFailure, api } from '@/lib/api'
 import { $t, msg } from '@/lib/i18n'
@@ -403,7 +404,12 @@ function EmojiPanel({
             {failed ? (
               $t('Les emoji n’ont pas pu être chargés.')
             ) : (
-              <LoaderCircle className="size-4 animate-spin" />
+              <div className="grid w-full grid-cols-8 gap-1.5 self-start p-2">
+                {Array.from({ length: 40 }, (_, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: placeholders
+                  <Skeleton key={i} className="aspect-square rounded-md" />
+                ))}
+              </div>
             )}
           </div>
         ) : found ? (
@@ -566,8 +572,11 @@ function GifPanel({
             {messageFor(error)}
           </p>
         ) : hits === null ? (
-          <div className="flex h-full items-center justify-center">
-            <LoaderCircle className="size-4 animate-spin text-muted-foreground" />
+          <div className="grid grid-cols-3 gap-1.5">
+            {Array.from({ length: 9 }, (_, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: placeholders
+              <Skeleton key={i} className="aspect-video rounded-md" />
+            ))}
           </div>
         ) : hits.length === 0 ? (
           <p className="px-4 py-12 text-center text-xs text-muted-foreground">

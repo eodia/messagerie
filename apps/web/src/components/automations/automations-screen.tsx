@@ -1,6 +1,7 @@
 'use client'
 
 import { ScreenHeader, Slash } from '@/components/app/screen-header'
+import { RowsSkeleton } from '@/components/app/skeletons'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -184,9 +185,7 @@ export function AutomationsScreen() {
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3 scroll-discret">
             {automations === null && error === null && (
-              <div className="flex justify-center py-6">
-                <LoaderCircle className="size-4 animate-spin text-muted-foreground" />
-              </div>
+              <RowsSkeleton rows={4} avatar={false} className="p-0" />
             )}
             {automations?.length === 0 && (
               <p className="px-2 py-6 text-center text-xs text-muted-foreground">
@@ -1033,11 +1032,7 @@ function TryRun({
           {$t('Ce qu’elle fait, elle le fait pour de bon.')}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {list === null && (
-          <div className="flex justify-center py-3">
-            <LoaderCircle className="size-4 animate-spin text-muted-foreground" />
-          </div>
-        )}
+        {list === null && <RowsSkeleton rows={4} avatar={false} className="p-0" />}
         {list?.length === 0 && (
           <p className="px-2 py-3 text-sm text-muted-foreground">{$t('Aucune conversation.')}</p>
         )}
@@ -1085,11 +1080,7 @@ function Runs({
 }) {
   const now = new Date()
   if (runs === null) {
-    return (
-      <div className="flex justify-center py-6">
-        <LoaderCircle className="size-4 animate-spin text-muted-foreground" />
-      </div>
-    )
+    return <RowsSkeleton rows={5} avatar={false} />
   }
   if (runs.length === 0) {
     return (

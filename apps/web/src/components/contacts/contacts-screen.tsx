@@ -4,6 +4,7 @@ import { Chip } from '@/components/app/chip'
 import { EmptyState } from '@/components/app/empty-state'
 import { Flag } from '@/components/app/flag'
 import { ScreenHeader } from '@/components/app/screen-header'
+import { FormSkeleton, RowsSkeleton } from '@/components/app/skeletons'
 import { ContactAvatar, StatusChip } from '@/components/inbox/labels'
 import { Hint } from '@/components/ui/tooltip'
 import { addressOf, wordOf, wordsAfter } from '@/lib/address'
@@ -17,7 +18,7 @@ import { useTitle } from '@/lib/title'
 import { useAddressBar } from '@/lib/use-address-bar'
 import { cn } from '@/lib/utils'
 import type { ContactDetail, ContactListItem } from '@chat/contracts'
-import { LoaderCircle, MapPin, Search, ShieldCheck, UsersRound } from 'lucide-react'
+import { MapPin, Search, ShieldCheck, UsersRound } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ContactsMap, type MapPoint } from './contacts-map'
 
@@ -127,8 +128,8 @@ export function ContactsScreen() {
           </div>
           <ul className="flex-1 overflow-y-auto scroll-discret">
             {contacts === null && !error && (
-              <li className="flex justify-center p-8">
-                <LoaderCircle className="size-4 animate-spin text-muted-foreground" />
+              <li>
+                <RowsSkeleton rows={8} />
               </li>
             )}
             {error && <li className="p-4 text-sm text-destructive">{messageFor(error)}</li>}
@@ -209,11 +210,8 @@ export function ContactsScreen() {
               )}
             </>
           ) : shown === null ? (
-            <div
-              className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-background"
-              style={{ top: BAND }}
-            >
-              <LoaderCircle className="size-5 animate-spin text-muted-foreground" />
+            <div className="absolute inset-x-0 bottom-0 bg-background" style={{ top: BAND }}>
+              <FormSkeleton fields={6} />
             </div>
           ) : (
             <ContactPanel detail={shown} />

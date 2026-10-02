@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
@@ -745,18 +746,19 @@ export function QuestionEditor({
               </Button>
             </div>
             <div className="relative min-h-0 flex-1 p-4">
-              {running && (
-                <LoaderCircle className="absolute top-3 right-3 size-4 animate-spin text-muted-foreground" />
-              )}
               {error && (
                 <p className="mb-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 font-mono text-xs text-destructive">
                   {error}
                 </p>
               )}
               {result ? (
-                <div className={cn('size-full', error && 'opacity-40')}>
+                <div
+                  className={cn('size-full transition-opacity', (error || running) && 'opacity-40')}
+                >
                   <ResultView result={result} viz={viz} sources={sources} asTable={asTable} />
                 </div>
+              ) : running ? (
+                <Skeleton className="size-full" />
               ) : (
                 !error && (
                   <p className="pt-10 text-center text-sm text-muted-foreground">

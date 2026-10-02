@@ -4,6 +4,7 @@ import { Chip, ColorBadge } from '@/components/app/chip'
 import { Lit } from '@/components/app/lit'
 import { InboxGlyph } from '@/components/app/look'
 import { ResizablePanel } from '@/components/app/resizable-panel'
+import { RowsSkeleton } from '@/components/app/skeletons'
 import { Kbd } from '@/components/ui/kbd'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Hint } from '@/components/ui/tooltip'
@@ -31,7 +32,6 @@ import {
   Clock,
   Frown,
   Inbox,
-  LoaderCircle,
   Paperclip,
   Search,
   Sparkles,
@@ -302,10 +302,9 @@ export function ConversationList({
               </Group>
             )}
             {loading && (
-              <p className="flex items-center gap-2 px-4 py-3 text-xs text-muted-foreground">
-                <LoaderCircle className="size-3.5 animate-spin" />
-                {$t('Recherche dans les messages…')}
-              </p>
+              <div aria-label={$t('Recherche dans les messages…')}>
+                <RowsSkeleton rows={2} />
+              </div>
             )}
             {found.length === 0 && !loading && (
               <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">

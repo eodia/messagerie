@@ -4,6 +4,7 @@ import { Chip } from '@/components/app/chip'
 import { CopyButton } from '@/components/app/copy-button'
 import { InboxGlyph } from '@/components/app/look'
 import { ScreenHeader, Slash } from '@/components/app/screen-header'
+import { RowsSkeleton } from '@/components/app/skeletons'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -161,9 +162,7 @@ export function TokensScreen() {
                 {$t('Les jetons se gèrent par les superviseurs.')}
               </p>
             ) : tokens === null ? (
-              <div className="flex justify-center py-10">
-                <LoaderCircle className="size-5 animate-spin text-muted-foreground" />
-              </div>
+              <RowsSkeleton rows={3} />
             ) : (
               <section className="space-y-3">
                 <h2 className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">

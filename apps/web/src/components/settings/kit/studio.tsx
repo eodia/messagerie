@@ -1,6 +1,7 @@
 'use client'
 
 import { ScreenHeader, Slash } from '@/components/app/screen-header'
+import { FormSkeleton, RowsSkeleton } from '@/components/app/skeletons'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -239,8 +240,17 @@ export function Studio({
       )}
 
       {data.overview === null ? (
-        <div className="flex flex-1 items-center justify-center">
-          {data.loading && <LoaderCircle className="size-5 animate-spin text-muted-foreground" />}
+        <div className="flex min-h-0 flex-1">
+          {data.loading && (
+            <>
+              <div className="w-64 shrink-0 border-r">
+                <RowsSkeleton rows={5} avatar={false} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <FormSkeleton />
+              </div>
+            </>
+          )}
         </div>
       ) : (
         <div className="flex min-h-0 flex-1">

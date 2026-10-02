@@ -1,13 +1,14 @@
 'use client'
 
 import { Chip } from '@/components/app/chip'
+import { RowsSkeleton } from '@/components/app/skeletons'
 import { Switch } from '@/components/ui/switch'
 import { Hint } from '@/components/ui/tooltip'
 import { ApiFailure, api } from '@/lib/api'
 import { $t, intlLocale } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
 import type { PageAction } from '@chat/contracts'
-import { LoaderCircle, MousePointerClick } from 'lucide-react'
+import { MousePointerClick } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 /**
@@ -55,11 +56,7 @@ export function PageActions({ siteId }: { readonly siteId: string }) {
         </p>
       </div>
       {error && <p className="text-xs text-destructive">{error}</p>}
-      {actions === null && !error && (
-        <div className="flex justify-center py-4">
-          <LoaderCircle className="size-4 animate-spin text-muted-foreground" />
-        </div>
-      )}
+      {actions === null && !error && <RowsSkeleton rows={3} avatar={false} />}
       {actions?.length === 0 && (
         <div className="flex items-start gap-2.5 rounded-lg border border-dashed px-3 py-3 text-xs text-muted-foreground">
           <MousePointerClick className="mt-0.5 size-4 shrink-0" />

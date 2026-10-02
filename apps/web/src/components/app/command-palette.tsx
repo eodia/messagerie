@@ -51,7 +51,6 @@ import {
   Inbox,
   KeyRound,
   ListFilter,
-  LoaderCircle,
   LogOut,
   type LucideIcon,
   MessageSquareText,
@@ -730,11 +729,9 @@ function Palette({ seed, onClose }: { readonly seed: string; readonly onClose: (
   return (
     <div className="flex max-h-[min(34rem,76vh)] min-w-0 flex-col">
       <div className="flex items-center gap-3 border-b px-4">
-        {searching ? (
-          <LoaderCircle className="size-4 shrink-0 animate-spin text-muted-foreground" />
-        ) : (
-          <Search className="size-4 shrink-0 text-muted-foreground" />
-        )}
+        <Search
+          className={cn('size-4 shrink-0 text-muted-foreground', searching && 'animate-pulse')}
+        />
         <input
           // biome-ignore lint/a11y/noAutofocus: the palette is this field
           autoFocus

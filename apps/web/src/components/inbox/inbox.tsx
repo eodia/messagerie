@@ -3,6 +3,7 @@
 import { Chip } from '@/components/app/chip'
 import { EmptyState } from '@/components/app/empty-state'
 import { ScreenHeader, Slash } from '@/components/app/screen-header'
+import { RowsSkeleton, ThreadSkeleton } from '@/components/app/skeletons'
 import { Button } from '@/components/ui/button'
 import { Kbd, useModKey } from '@/components/ui/kbd'
 import { Hint } from '@/components/ui/tooltip'
@@ -19,7 +20,6 @@ import { useAddressBar } from '@/lib/use-address-bar'
 import {
   CircleCheck,
   ExternalLink,
-  LoaderCircle,
   LogIn,
   LogOut,
   MessagesSquare,
@@ -115,9 +115,11 @@ export function Inbox() {
       <>
         {header}
         {loading ? (
-          <div className="flex flex-1 items-center justify-center gap-2 text-sm text-muted-foreground">
-            <LoaderCircle className="size-4 animate-spin" />
-            {$t('Chargement des conversations…')}
+          <div className="flex min-h-0 flex-1" aria-label={$t('Chargement des conversations…')}>
+            <div className="w-80 shrink-0 border-r">
+              <RowsSkeleton rows={8} />
+            </div>
+            <ThreadSkeleton />
           </div>
         ) : loadError === 'NOT_AN_AGENT' ? (
           <EmptyState
@@ -202,9 +204,7 @@ export function Inbox() {
             {detailsOpen && <DetailsPanel conversation={detail} />}
           </>
         ) : selectedId ? (
-          <div className="flex flex-1 items-center justify-center bg-surface">
-            <LoaderCircle className="size-5 animate-spin text-muted-foreground" />
-          </div>
+          <ThreadSkeleton />
         ) : (
           <EmptyState icon={MessagesSquare} title={$t('Aucune conversation ouverte')}>
             {$t('Choisissez une conversation dans la liste pour la lire et y répondre.')}

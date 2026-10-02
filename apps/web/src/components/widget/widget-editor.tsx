@@ -1,6 +1,7 @@
 'use client'
 
 import { ScreenHeader, Slash } from '@/components/app/screen-header'
+import { FormSkeleton } from '@/components/app/skeletons'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -9,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Segmented } from '@/components/ui/segmented'
+import { Skeleton } from '@/components/ui/skeleton'
 import { addressOf, idOfWord, wordOf, wordsAfter } from '@/lib/address'
 import { api, apiAddress } from '@/lib/api'
 import { $t } from '@/lib/i18n'
@@ -215,8 +217,13 @@ export function WidgetEditorScreen() {
       </ScreenHeader>
 
       {!editor && !error && (
-        <div className="flex flex-1 items-center justify-center">
-          <LoaderCircle className="size-5 animate-spin text-muted-foreground" />
+        <div className="flex min-h-0 flex-1">
+          <div className="w-[380px] shrink-0 border-r">
+            <FormSkeleton fields={6} />
+          </div>
+          <div className="flex min-w-0 flex-1 items-end justify-end bg-surface p-8">
+            <Skeleton className="h-[520px] w-[360px] rounded-2xl" />
+          </div>
         </div>
       )}
       {editor && !site && (

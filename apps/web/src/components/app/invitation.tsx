@@ -1,13 +1,13 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { configureApi } from '@/lib/api'
 import { $t } from '@/lib/i18n'
 import { AuthFailure, linkInfo, redeemLink } from '@/lib/session'
 import { useTitle } from '@/lib/title'
 import type { LinkInfo } from '@chat/contracts'
-import { Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { AuthLayout, pauseOnSuccess } from './auth-layout'
 import { ChoosePassword, sentence } from './sign-in'
@@ -52,7 +52,13 @@ function Link({ token }: { readonly token: string }) {
   if (!info) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        <div className="w-full max-w-sm space-y-4 p-6">
+          <Skeleton className="h-6 w-2/3" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
       </div>
     )
   }

@@ -23,7 +23,6 @@ import {
   Headset,
   Inbox,
   KeyRound,
-  LoaderCircle,
   type LucideIcon,
   MessageSquareText,
   MessagesSquare,
@@ -304,13 +303,8 @@ function NavContent({
           {label}
         </span>
       )}
-      {pending && !collapsed ? (
-        <span aria-hidden className="nav-pending relative">
-          <LoaderCircle className="size-3.5 animate-spin text-muted-foreground" />
-        </span>
-      ) : (
-        <Count value={count} collapsed={collapsed} />
-      )}
+      {/* The screen's own skeleton tells it is coming (`loading.tsx`): no spinner here. */}
+      <Count value={count} collapsed={collapsed} />
     </>
   )
 }
