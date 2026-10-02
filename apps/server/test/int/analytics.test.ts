@@ -3,6 +3,7 @@ import type pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   type AnalyticsDeps,
+  cardDetail,
   createDashboard,
   defaultCards,
   filterValues,
@@ -157,10 +158,19 @@ describe('a dashboard', () => {
     const [first] = await listDashboards(db, marc)
     expect(first?.name).toBe('Vue d’ensemble')
     expect(first?.cards.length).toBe(defaultCards().length)
-    for (const card of first?.cards ?? []) {
+    expect(first?.cards.filter((c) => c.kind === 'heading').map((c) => c.text)).toEqual([
+      'Activité',
+      'Visiteurs et IA',
+      'Équipe',
+    ])
+    for (const card of first?.cards.filter((c) => c.question) ?? []) {
       const result = await runCard(deps, julie, first?.id ?? '', card.id, 'Europe/Paris')
       expect(result.columns.length).toBeGreaterThan(0)
     }
+    // A key figure: one row a week, the last one this week's.
+    const trend = first?.cards.find((c) => c.title === 'Conversations')
+    const weeks = await runCard(deps, julie, first?.id ?? '', trend?.id ?? '', 'Europe/Paris')
+    expect(weeks.rows.at(-1)?.[1]).toBeGreaterThan(0)
     expect((await listDashboards(db, marc)).length).toBe(1)
   })
 
@@ -273,6 +283,53 @@ describe('a dashboard', () => {
     expect(
       (await runCard(deps, julie, made.id, 'libre', 'Europe/Paris', { statut: ['resolved'] })).rows,
     ).toEqual([[4]])
+    // The detail: the rows behind the card, under the dashboard's filters and the point clicked.
+    const rows = await cardDetail(deps, julie, made.id, 'lie', 'Europe/Paris', {
+      values: { statut: ['resolved'] },
+      rows: true,
+    })
+    expect(rows.rows.length).toBe(2)
+    expect(rows.columns.map((c) => c.name)).toContain('status')
+    const focused = await cardDetail(deps, julie, made.id, 'libre', 'Europe/Paris', {
+      values: {},
+      rows: true,
+      focus: [{ column: 'status', op: 'is', values: ['open'] }],
+    })
+    expect(focused.rows.length).toBe(1)
+    // A point of a chart: a day as the result gave it, then the rows of that day.
+    const byDay = await runQuestion(
+      deps,
+      {
+        mode: 'builder',
+        query: {
+          source: 'conversations',
+          filters: [],
+          aggregations: [],
+          breakouts: [{ column: 'created_at', unit: 'day' }],
+        },
+        viz: { type: 'bar' },
+      },
+      'Europe/Paris',
+    )
+    for (const [day, count] of byDay.rows) {
+      const ofDay = await cardDetail(deps, julie, made.id, 'libre', 'Europe/Paris', {
+        rows: true,
+        focus: [{ column: 'created_at', op: 'at', values: ['day', String(day)] }],
+      })
+      expect(ofDay.rows.length).toBe(count)
+    }
+    await expect(
+      cardDetail(deps, julie, made.id, 'libre', 'Europe/Paris', {
+        rows: true,
+        focus: [{ column: 'status', op: 'at', values: ['day', 'x'] }],
+      }),
+    ).rejects.toMatchObject({ code: 'QUERY_INVALID' })
+    await expect(
+      cardDetail(deps, julie, made.id, 'libre', 'Europe/Paris', {
+        rows: true,
+        focus: [{ column: 'password_hash', op: 'is', values: ['x'] }],
+      }),
+    ).rejects.toMatchObject({ code: 'QUERY_INVALID' })
     expect(await filterValues(deps, { source: 'conversations', column: 'status' })).toEqual([
       'ai',
       'open',

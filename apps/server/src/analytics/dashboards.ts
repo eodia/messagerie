@@ -18,7 +18,7 @@ import type { AgentRow } from '../inbox/read.js'
 import { Refusal } from '../refusal.js'
 import { SOURCES, sourceOf } from './catalog.js'
 import { readFilters, readLinks, readValues, valuesSource, withFilters } from './filters.js'
-import { compile, inlined, readQuestion } from './query.js'
+import { compile, inlined, readBuilder, readQuestion } from './query.js'
 import { runRead } from './run.js'
 
 /**
@@ -59,19 +59,20 @@ const within = (value: unknown, min: number, max: number, fallback: number) => {
 
 function readCard(raw: unknown, filters: readonly DashboardFilter[]): DashboardCard {
   const value = record(raw)
-  const kind = value.kind === 'text' ? 'text' : 'question'
+  const kind = value.kind === 'text' ? 'text' : value.kind === 'heading' ? 'heading' : 'question'
   const id = typeof value.id === 'string' && value.id.length <= 40 ? value.id : randomUUID()
   const card = {
     id,
     x: within(value.x, 0, 11, 0),
     y: within(value.y, 0, 500, 0),
     w: within(value.w, 1, 12, 4),
-    h: within(value.h, 2, 30, 6),
+    h: within(value.h, kind === 'heading' ? 1 : 2, 30, kind === 'heading' ? 1 : 6),
     title: typeof value.title === 'string' ? value.title.trim().slice(0, 120) : '',
     kind,
   } as const
-  if (kind === 'text') {
-    return { ...card, text: typeof value.text === 'string' ? value.text.slice(0, 4000) : '' }
+  if (kind === 'text' || kind === 'heading') {
+    const max = kind === 'heading' ? 120 : 4000
+    return { ...card, text: typeof value.text === 'string' ? value.text.slice(0, max) : '' }
   }
   const question = readQuestion(value.question)
   const links = readLinks(value.links, filters, question)
@@ -233,6 +234,38 @@ export async function runCard(
   )
 }
 
+const DETAIL_ROWS = 500
+
+/**
+ * A card's detail: its result under the dashboard's filters — or the rows behind it, those
+ * of the point clicked when one was: the same source and filters, nothing counted.
+ */
+export async function cardDetail(
+  deps: AnalyticsDeps,
+  agent: AgentRow,
+  id: string,
+  cardId: string,
+  timeZone: unknown,
+  raw: unknown,
+): Promise<QueryResult> {
+  const row = await rowOf(deps.db, agent, id)
+  const card = row.cards.find((c) => c.id === cardId)
+  if (!card?.question) throw new Refusal('DASHBOARD_NOT_FOUND', 404)
+  const body = record(raw)
+  const question = withFilters(card.question, card.links, row.filters, readValues(body.values))
+  if (body.rows !== true || question.mode !== 'builder')
+    return runQuestion(deps, question, timeZone)
+  // Checked as any builder's question: names from the catalogue, values as parameters.
+  const rows = readBuilder({
+    source: question.query.source,
+    filters: [...question.query.filters, ...(Array.isArray(body.focus) ? body.focus : [])],
+    aggregations: [],
+    breakouts: [],
+    limit: DETAIL_ROWS,
+  })
+  return runQuestion(deps, { ...question, query: rows }, timeZone)
+}
+
 /** The values a `choice` filter offers: those its column holds, two hundred at most. */
 export async function filterValues(deps: AnalyticsDeps, raw: unknown): Promise<readonly string[]> {
   const { source, column } = valuesSource(raw)
@@ -386,68 +419,70 @@ const card = (
   question: Question,
 ): DashboardCard => ({ id: randomUUID(), x, y, w, h, title, kind: 'question', question })
 
+const heading = (y: number, title: string): DashboardCard => ({
+  id: randomUUID(),
+  x: 0,
+  y,
+  w: 12,
+  h: 1,
+  title,
+  kind: 'heading',
+  text: title,
+})
+
+/** A key figure, this week against the last: one measure counted week by week. */
+const kpi = (
+  x: number,
+  title: string,
+  query: Partial<BuilderQuery>,
+  viz: Partial<Visualization> = {},
+): DashboardCard =>
+  card(
+    x,
+    1,
+    3,
+    3,
+    title,
+    builder(
+      {
+        source: 'conversations',
+        filters: [LAST_30, ...(query.filters ?? [])],
+        aggregations: query.aggregations ?? [{ fn: 'count' }],
+        breakouts: [{ column: 'created_at', unit: 'week' }],
+      },
+      { type: 'trend', ...viz },
+    ),
+  )
+
 /** « Vue d'ensemble »: what the statistics screen said, and more — on the default grid. */
 export function defaultCards(): DashboardCard[] {
   return [
-    card(
-      0,
-      0,
-      3,
-      3,
-      'Conversations',
-      builder(
-        { source: 'conversations', filters: [LAST_7], aggregations: [{ fn: 'count' }] },
-        { type: 'number' },
-      ),
-    ),
-    card(
-      3,
-      0,
-      3,
+    heading(0, 'Activité'),
+    kpi(0, 'Conversations', {}),
+    kpi(
       3,
       'Résolues par l’IA',
-      builder(
-        {
-          source: 'conversations',
-          filters: [LAST_7, { column: 'ai_answered', op: 'true', values: [] }],
-          aggregations: [{ fn: 'share', column: 'resolved_by_ai' }],
-        },
-        { type: 'number', unit: '%' },
-      ),
+      {
+        filters: [{ column: 'ai_answered', op: 'true', values: [] }],
+        aggregations: [{ fn: 'share', column: 'resolved_by_ai' }],
+      },
+      { unit: '%' },
     ),
-    card(
+    kpi(
       6,
-      0,
-      3,
-      3,
       'Première réponse (médiane)',
-      builder(
-        {
-          source: 'conversations',
-          filters: [LAST_7],
-          aggregations: [{ fn: 'median', column: 'first_response_seconds' }],
-        },
-        { type: 'number', unit: 's' },
-      ),
+      { aggregations: [{ fn: 'median', column: 'first_response_seconds' }] },
+      { unit: 's', invert: true },
     ),
-    card(
+    kpi(
       9,
-      0,
-      3,
-      3,
       'Transférées par l’IA',
-      builder(
-        {
-          source: 'conversations',
-          filters: [LAST_7, { column: 'handed_off', op: 'true', values: [] }],
-          aggregations: [{ fn: 'count' }],
-        },
-        { type: 'number' },
-      ),
+      { filters: [{ column: 'handed_off', op: 'true', values: [] }] },
+      { invert: true },
     ),
     card(
       0,
-      3,
+      4,
       8,
       7,
       'Conversations par jour',
@@ -462,7 +497,7 @@ export function defaultCards(): DashboardCard[] {
     ),
     card(
       8,
-      3,
+      4,
       4,
       7,
       'Par boîte de réception',
@@ -471,9 +506,10 @@ export function defaultCards(): DashboardCard[] {
         { type: 'pie' },
       ),
     ),
+    heading(11, 'Visiteurs et IA'),
     card(
       0,
-      10,
+      12,
       4,
       7,
       'Humeur des visiteurs',
@@ -488,7 +524,7 @@ export function defaultCards(): DashboardCard[] {
     ),
     card(
       4,
-      10,
+      12,
       4,
       7,
       'Étiquettes les plus posées',
@@ -499,7 +535,7 @@ export function defaultCards(): DashboardCard[] {
     ),
     card(
       8,
-      10,
+      12,
       4,
       7,
       'Avis des conseillers sur l’IA',
@@ -508,9 +544,10 @@ export function defaultCards(): DashboardCard[] {
         { type: 'bar' },
       ),
     ),
+    heading(19, 'Équipe'),
     card(
       0,
-      17,
+      20,
       6,
       7,
       'Conversations par conseiller',
@@ -526,7 +563,7 @@ export function defaultCards(): DashboardCard[] {
     ),
     card(
       6,
-      17,
+      20,
       6,
       7,
       'Heures où les visiteurs écrivent',

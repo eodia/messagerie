@@ -4,6 +4,7 @@ import type {
   BuilderQuery,
   ColumnType,
   FilterOperator,
+  QueryFilter,
   QueryResult,
   TimeUnit,
   Visualization,
@@ -91,12 +92,15 @@ export const OPERATOR_LABELS: Readonly<Record<FilterOperator, string>> = {
   lt: msg('avant / moins de'),
   between: msg('entre'),
   last: msg('dans les derniers'),
+  at: msg('à'),
   true: msg('oui'),
   false: msg('non'),
 }
 
 export const VIZ_LABELS: Readonly<Record<VisualizationType, string>> = {
   number: msg('Nombre'),
+  trend: msg('Tendance'),
+  progress: msg('Objectif'),
   table: msg('Tableau'),
   bar: msg('Barres'),
   row: msg('Barres horizontales'),
@@ -222,6 +226,87 @@ export function columnTitle(column: string, sources: readonly AnalyticsSource[])
     if (found) return unit ? `${$t(found.label)} (${$t(UNIT_LABELS[unit])})` : $t(found.label)
   }
   return column.replace(/_/g, ' ')
+}
+
+/** The period before the last one, as a trend compares them. */
+export const PREVIOUS_LABELS: Readonly<Partial<Record<TimeUnit, string>>> = {
+  hour: msg('l’heure précédente'),
+  day: msg('la veille'),
+  week: msg('la semaine précédente'),
+  month: msg('le mois précédent'),
+  year: msg('l’année précédente'),
+}
+
+/** A result column back to the source column it groups: `created_at_day` → `created_at`. */
+export function groupOf(name: string): { readonly column: string; readonly unit: TimeUnit | null } {
+  const unit = unitOf(name)
+  return { column: unit ? name.slice(0, -(unit.length + 1)) : name, unit }
+}
+
+export interface FocusPart {
+  readonly filter: QueryFilter
+  /** The source column it bears on. */
+  readonly column: string
+  readonly value: unknown
+  /** « Statut : Résolue ». */
+  readonly label: string
+}
+
+/**
+ * A row of a grouped result made the conditions of its group — a point clicked, and the
+ * rows behind it: each value it was grouped by, as the server compares it.
+ */
+export function focusOf(
+  result: QueryResult,
+  row: readonly unknown[],
+  sources: readonly AnalyticsSource[],
+): FocusPart[] {
+  const labels = labelsOf(sources)
+  return shapeOf(result).dimensions.flatMap((i): FocusPart[] => {
+    const col = result.columns[i]
+    if (!col) return []
+    const value = row[i]
+    const { column, unit } = groupOf(col.name)
+    if (!sources.some((s) => s.columns.some((c) => c.name === column))) return []
+    const filter: QueryFilter =
+      value === null || value === undefined
+        ? { column, op: 'empty', values: [] }
+        : unit
+          ? { column, op: 'at', values: [unit, String(value)] }
+          : col.type === 'boolean'
+            ? { column, op: value === true ? 'true' : 'false', values: [] }
+            : { column, op: 'is', values: [String(value)] }
+    return [
+      {
+        filter,
+        column,
+        value,
+        label: `${columnTitle(column, sources)} : ${valueText(value, col.name, col.type, labels)}`,
+      },
+    ]
+  })
+}
+
+/** The row behind a point of a chart: its category, and its series when they are values. */
+export function rowAt(
+  result: QueryResult,
+  sources: readonly AnalyticsSource[],
+  category: string,
+  series: string | undefined,
+): readonly unknown[] | undefined {
+  const labels = labelsOf(sources)
+  const { dimensions, measures } = shapeOf(result)
+  const say = (row: readonly unknown[], i: number) => {
+    const col = result.columns[i] as QueryResult['columns'][number]
+    return valueText(row[i], col.name, col.type, labels)
+  }
+  const [first, second] = dimensions
+  const pivoted = second !== undefined && measures.length === 1
+  return result.rows.find(
+    (row) =>
+      (first === undefined || say(row, first) === category) &&
+      (!pivoted || series === undefined || say(row, second) === series),
+  )
 }
 
 // ── The chart ───────────────────────────────────────────────────────────────

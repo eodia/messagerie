@@ -1,6 +1,6 @@
 ---
 title: Tableaux de bord
-description: Des cartes sur une grille — nombres, tableaux, graphiques —, chacune une question posée aux conversations, assistée ou en SQL, avec « Vue d’ensemble » pour commencer.
+description: Des cartes sur une grille — indicateurs, tableaux, graphiques —, chacune une question posée aux conversations, assistée ou en SQL, sous des titres de section, avec « Vue d’ensemble » pour commencer.
 ---
 
 L’écran **Tableaux de bord** remplace les anciennes statistiques (D22). Un tableau de bord est
@@ -38,14 +38,13 @@ conseillers — « Ce qui se passe dans les conversations : volume, IA, délais
 
 - trois filtres : **Période** (les 30 derniers jours à l’ouverture), **Boîte de réception** et
   **Site** ;
-- les conversations, la part que l’IA a résolue seule parmi celles où elle a répondu, la médiane
-  de la première réponse, et les conversations transférées par l’IA ;
-- les conversations par jour, et par boîte de réception ;
-- l’humeur des visiteurs ;
-- les étiquettes les plus posées ;
-- l’avis des conseillers sur l’IA ;
-- les conversations par conseiller ;
-- les heures où les visiteurs écrivent.
+- sous **Activité**, quatre indicateurs de la semaine comparée à la précédente : les
+  conversations, la part que l’IA a résolue seule parmi celles où elle a répondu, la médiane de
+  la première réponse, et les conversations transférées par l’IA — pour ces deux dernières, une
+  baisse est une bonne nouvelle ; puis les conversations par jour, et par boîte de réception ;
+- sous **Visiteurs et IA**, l’humeur des visiteurs, les étiquettes les plus posées et l’avis des
+  conseillers sur l’IA ;
+- sous **Équipe**, les conversations par conseiller et les heures où les visiteurs écrivent.
 
 C’est un tableau comme les autres : un superviseur le modifie ou le supprime. S’il ne reste plus
 aucun tableau, l’écran le recrée à sa prochaine ouverture.
@@ -56,7 +55,9 @@ Sur une grille de douze colonnes, chaque carte a sa place et sa taille. Une cart
 
 | Graphique | Pour |
 |---|---|
-| **Nombre** | une seule valeur |
+| **Nombre** | une seule valeur — celle du dernier groupe, si la question regroupe |
+| **Tendance** | la dernière période d’une question regroupée par date, et son écart avec la précédente : une flèche, le pourcentage, en vert ou en rouge selon que c’est une bonne nouvelle |
+| **Objectif** | une barre vers un objectif chiffré, avec ce qu’il reste à faire |
 | **Tableau** | des lignes telles quelles |
 | **Barres**, **Barres horizontales** | comparer, classer ; empilées si la question a deux regroupements |
 | **Courbe**, **Aire** | une évolution dans le temps |
@@ -70,7 +71,32 @@ graphique** y revient. Une carte montre 2 000 lignes au plus, et le dit : « Le
 lignes seulement. » **Actualiser**, en haut de l’écran, relit toutes les cartes ; elles ne
 bougent pas seules.
 
-Une carte **Texte** porte un titre de section ou une explication, sans question.
+Un tableau se trie d’un clic sur l’en-tête d’une colonne : un clic trie, un deuxième inverse
+l’ordre, un troisième rend l’ordre de la question. L’en-tête reste visible quand on fait défiler
+les lignes, et les nombres sont alignés à droite.
+
+Une carte **Titre** sépare les sections du tableau ; une carte **Texte** porte une explication,
+sans question.
+
+## Le détail d’une carte
+
+Un clic sur le **titre** d’une carte l’ouvre en grand, sous les filtres du tableau :
+
+- **Graphique** : le résultat à pleine taille ;
+- **Chiffres** : le même résultat en tableau ;
+- **Lignes** : pour une question assistée, les lignes derrière le résultat — les conversations,
+  les messages… —, 500 au plus.
+
+Un clic sur un **point** d’un graphique — une barre, une part, un point d’une courbe —, ou sur
+une valeur d’un tableau regroupé, ouvre un menu :
+
+- **Voir ces lignes** ouvre le détail sur les lignes de ce point seulement : « Commencée le :
+  2 oct. », « Statut : Résolue ». Chaque condition est une pastille qu’on retire d’un clic ;
+- **Filtrer le tableau** donne cette valeur au filtre du tableau lié à la carte sur cette
+  colonne — une boîte, un site —, quand il y en a un.
+
+Une question en SQL n’a pas de lignes à montrer : son détail s’arrête au graphique et aux
+chiffres.
 
 ## Les filtres
 
@@ -96,7 +122,9 @@ derniers choix, ou la valeur que le filtre a à l’ouverture.
 Un superviseur clique sur **Modifier** :
 
 - les cartes se déplacent et se redimensionnent à la souris ;
-- **Question** ouvre l’éditeur de question, **Texte** ajoute une carte de texte ;
+- **Question** ouvre l’éditeur de question, **Titre** ajoute un titre de section, **Texte** une
+  carte de texte ;
+- le titre d’une carte et celui d’une section se modifient sur place ;
 - le menu d’une carte la modifie (**Modifier la question**), la duplique (**Dupliquer**) ou la
   retire (**Retirer la carte**) ;
 - **Filtre**, au bout de la barre des filtres, en ajoute un ; le crayon à côté d’un filtre le
@@ -114,15 +142,19 @@ tableau compte quarante cartes au plus.
 
 ## Une question assistée
 
-L’onglet **Assistée** compose une question sans écrire de SQL, en cinq parties :
+L’onglet **Assistée** compose une question sans écrire de SQL, comme le carnet de basedb : des
+étapes l’une sous l’autre, chacune de sa couleur, chaque choix une pastille qui s’ouvre là où on
+le change, et qu’une croix retire.
 
-| Partie | Ce qu’on y choisit |
+| Étape | Ce qu’on y choisit |
 |---|---|
-| **Données** | la source : conversations, messages, appels à l’IA, avis sur l’IA, étiquettes, contacts, exécutions d’automatisations |
-| **Filtrer** | des conditions sur les colonnes : est, n’est pas, contient, est vide ; après, avant, entre ; **dans les derniers** N jours, semaines ou mois ; oui ou non |
-| **Compter** | un ou plusieurs calculs : nombre de lignes, nombre de valeurs distinctes, somme, moyenne, médiane, minimum, maximum, part des « oui » (%) |
-| **Par** | un ou deux regroupements ; une date se groupe par heure, jour, semaine, mois, année, jour de la semaine ou heure de la journée |
-| **Trier et limiter** | l’ordre, croissant ou décroissant, et le nombre de lignes |
+| **Données** (bleu) | la source : conversations, messages, appels à l’IA, avis sur l’IA, étiquettes, contacts, exécutions d’automatisations |
+| **Filtre** (violet) | des conditions sur les colonnes : est, n’est pas, contient, est vide ; après, avant, entre ; **dans les derniers** N jours, semaines ou mois ; oui ou non. Pour « est », les valeurs de la colonne se cochent |
+| **Résumer… par…** (vert) | un ou plusieurs calculs — nombre de lignes, nombre de valeurs distinctes, somme, moyenne, médiane, minimum, maximum, part des « oui » (%) — par un ou deux regroupements ; une date se groupe par heure, jour, semaine, mois, année, jour de la semaine ou heure de la journée |
+| **Trier**, **Limiter** | l’ordre, qu’un clic inverse, et le nombre de lignes |
+
+Au-dessus du résultat se choisissent le graphique et l’unité. Une **Tendance** dit si une baisse
+est une bonne nouvelle (un délai, un transfert) ; un **Objectif** prend sa valeur et son nom.
 
 Une nouvelle question part des trente derniers jours, comptés jour par jour : un graphique
 s’affiche aussitôt, et suit chaque changement. Les dates se lisent au fuseau horaire du

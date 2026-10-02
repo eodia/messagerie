@@ -52,12 +52,13 @@ import {
   ChartPie,
   Hash,
   LoaderCircle,
-  Plus,
   Sparkles,
   Table2,
-  X,
+  Target,
+  TrendingUp,
 } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { Notebook } from './notebook'
 import { ResultView } from './visualization'
 
 /**
@@ -68,6 +69,8 @@ import { ResultView } from './visualization'
 
 const VIZ_ICONS: Readonly<Record<VisualizationType, ReactNode>> = {
   number: <Hash className="size-3.5" />,
+  trend: <TrendingUp className="size-3.5" />,
+  progress: <Target className="size-3.5" />,
   table: <Table2 className="size-3.5" />,
   bar: <ChartBar className="size-3.5" />,
   row: <ChartBarBig className="size-3.5" />,
@@ -94,410 +97,6 @@ function Section({ title, children }: { readonly title: string; readonly childre
       </h3>
       {children}
     </section>
-  )
-}
-
-const choicesOf = (columns: readonly SourceColumn[]) =>
-  columns.map((c) => ({ id: c.name, label: $t(c.label) }))
-
-function FilterRow({
-  filter,
-  source,
-  onChange,
-  onRemove,
-}: {
-  readonly filter: QueryFilter
-  readonly source: AnalyticsSource
-  readonly onChange: (filter: QueryFilter) => void
-  readonly onRemove: () => void
-}) {
-  const column = source.columns.find((c) => c.name === filter.column) ?? source.columns[0]
-  if (!column) return null
-  const ops = OPERATORS_BY_TYPE[column.type]
-  const value = (i: number) => filter.values[i] ?? ''
-  const set = (i: number, v: string) => {
-    const values = [...filter.values]
-    values[i] = v
-    onChange({ ...filter, values })
-  }
-  const inputType = column.type === 'date' ? 'date' : column.type === 'number' ? 'number' : 'text'
-  return (
-    <div className="space-y-2 rounded-lg border bg-muted/20 p-2.5">
-      <div className="flex items-center gap-1.5">
-        <div className="min-w-0 flex-1">
-          <ChoiceMenu
-            id={`filter-${filter.column}`}
-            value={column.name}
-            choices={choicesOf(source.columns)}
-            onChange={(name) => {
-              const next = source.columns.find((c) => c.name === name)
-              if (!next) return
-              onChange({
-                column: next.name,
-                op: OPERATORS_BY_TYPE[next.type][0] as FilterOperator,
-                values: next.type === 'date' ? ['30', 'days'] : [],
-              })
-            }}
-            allowNone={false}
-            disabled={false}
-          />
-        </div>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={onRemove}
-          aria-label={$t('Retirer le filtre')}
-        >
-          <X className="size-4" />
-        </Button>
-      </div>
-      <ChoiceMenu
-        id={`op-${filter.column}`}
-        value={filter.op}
-        choices={ops.map((op) => ({ id: op, label: $t(OPERATOR_LABELS[op]) }))}
-        onChange={(op) =>
-          op &&
-          onChange({
-            ...filter,
-            op: op as FilterOperator,
-            values: op === 'last' ? ['30', 'days'] : filter.values,
-          })
-        }
-        allowNone={false}
-        disabled={false}
-      />
-      {filter.op === 'last' ? (
-        <div className="flex gap-1.5">
-          <Input
-            type="number"
-            min={1}
-            value={value(0)}
-            onChange={(e) => set(0, e.target.value)}
-            className="h-8 w-20 text-xs"
-            aria-label={$t('Combien')}
-          />
-          <Segmented
-            value={(value(1) || 'days') as 'days' | 'weeks' | 'months'}
-            onValueChange={(v) => set(1, v)}
-            options={[
-              { value: 'days', label: $t('jours') },
-              { value: 'weeks', label: $t('semaines') },
-              { value: 'months', label: $t('mois') },
-            ]}
-            className="flex-1"
-            aria-label={$t('Unité')}
-          />
-        </div>
-      ) : ['empty', 'not_empty', 'true', 'false'].includes(filter.op) ? null : column.values &&
-        (filter.op === 'is' || filter.op === 'is_not') ? (
-        <Toggles
-          value={filter.values}
-          choices={column.values.map((v) => ({ id: v.value, label: $t(v.label) }))}
-          onChange={(values) => onChange({ ...filter, values })}
-          disabled={false}
-        />
-      ) : (
-        <div className="flex gap-1.5">
-          <Input
-            type={inputType}
-            value={value(0)}
-            onChange={(e) => set(0, e.target.value)}
-            className="h-8 text-xs"
-            aria-label={$t('Valeur')}
-          />
-          {filter.op === 'between' && (
-            <Input
-              type={inputType}
-              value={value(1)}
-              onChange={(e) => set(1, e.target.value)}
-              className="h-8 text-xs"
-              aria-label={$t('Jusqu’à')}
-            />
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function Builder({
-  query,
-  sources,
-  result,
-  onChange,
-}: {
-  readonly query: BuilderQuery
-  readonly sources: readonly AnalyticsSource[]
-  readonly result: QueryResult | null
-  readonly onChange: (query: BuilderQuery) => void
-}) {
-  const source = sources.find((s) => s.key === query.source) ?? sources[0]
-  if (!source) return null
-  const set = (patch: Partial<BuilderQuery>) => onChange({ ...query, ...patch })
-  return (
-    <div className="space-y-4">
-      <Section title={$t('Données')}>
-        <ChoiceMenu
-          id="question-source"
-          value={source.key}
-          choices={sources.map((s) => ({ id: s.key, label: $t(s.label) }))}
-          onChange={(key) => key && onChange(emptyQuery(key))}
-          allowNone={false}
-          disabled={false}
-        />
-        <p className="text-xs text-muted-foreground">{$t(source.description)}</p>
-      </Section>
-
-      <Section title={$t('Filtrer')}>
-        {query.filters.map((filter, index) => (
-          <FilterRow
-            // biome-ignore lint/suspicious/noArrayIndexKey: filters have no id; their place is it
-            key={index}
-            filter={filter}
-            source={source}
-            onChange={(next) =>
-              set({ filters: query.filters.map((f, i) => (i === index ? next : f)) })
-            }
-            onRemove={() => set({ filters: query.filters.filter((_, i) => i !== index) })}
-          />
-        ))}
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full gap-1.5"
-          onClick={() => {
-            const first = source.columns[0] as SourceColumn
-            set({
-              filters: [
-                ...query.filters,
-                {
-                  column: first.name,
-                  op: OPERATORS_BY_TYPE[first.type][0] as FilterOperator,
-                  values: first.type === 'date' ? ['30', 'days'] : [],
-                },
-              ],
-            })
-          }}
-        >
-          <Plus className="size-3.5" />
-          {$t('Ajouter un filtre')}
-        </Button>
-      </Section>
-
-      <Section title={$t('Compter')}>
-        {query.aggregations.length === 0 && (
-          <p className="text-xs text-muted-foreground">
-            {query.breakouts.length === 0
-              ? $t('Rien : les lignes telles quelles.')
-              : $t('Le nombre de lignes.')}
-          </p>
-        )}
-        {query.aggregations.map((aggregation, index) => {
-          const types = AGGREGATE_TYPES[aggregation.fn]
-          const columns = types === null ? [] : source.columns.filter((c) => types.includes(c.type))
-          return (
-            // biome-ignore lint/suspicious/noArrayIndexKey: aggregations have no id
-            <div key={index} className="flex items-center gap-1.5">
-              <div className="min-w-0 flex-1">
-                <ChoiceMenu
-                  id={`aggregate-${index}`}
-                  value={aggregation.fn}
-                  choices={(Object.keys(AGGREGATE_LABELS) as AggregateFunction[]).map((fn) => ({
-                    id: fn,
-                    label: $t(AGGREGATE_LABELS[fn]),
-                  }))}
-                  onChange={(fn) => {
-                    if (!fn) return
-                    const allowed = AGGREGATE_TYPES[fn as AggregateFunction]
-                    const column =
-                      allowed === null
-                        ? undefined
-                        : source.columns.find((c) => allowed.includes(c.type))?.name
-                    set({
-                      aggregations: query.aggregations.map((a, i) =>
-                        i === index
-                          ? { fn: fn as AggregateFunction, ...(column ? { column } : {}) }
-                          : a,
-                      ),
-                    })
-                  }}
-                  allowNone={false}
-                  disabled={false}
-                />
-              </div>
-              {types !== null && (
-                <div className="min-w-0 flex-1">
-                  <ChoiceMenu
-                    id={`aggregate-column-${index}`}
-                    value={aggregation.column ?? null}
-                    choices={choicesOf(columns)}
-                    onChange={(column) =>
-                      column &&
-                      set({
-                        aggregations: query.aggregations.map((a, i) =>
-                          i === index ? { ...a, column } : a,
-                        ),
-                      })
-                    }
-                    allowNone={false}
-                    disabled={false}
-                  />
-                </div>
-              )}
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={$t('Retirer')}
-                onClick={() =>
-                  set({ aggregations: query.aggregations.filter((_, i) => i !== index) })
-                }
-              >
-                <X className="size-4" />
-              </Button>
-            </div>
-          )
-        })}
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full gap-1.5"
-          onClick={() => set({ aggregations: [...query.aggregations, { fn: 'count' }] })}
-        >
-          <Plus className="size-3.5" />
-          {$t('Ajouter un calcul')}
-        </Button>
-      </Section>
-
-      <Section title={$t('Par')}>
-        {query.breakouts.map((breakout, index) => {
-          const column = source.columns.find((c) => c.name === breakout.column)
-          return (
-            // biome-ignore lint/suspicious/noArrayIndexKey: breakouts have no id
-            <div key={index} className="flex items-center gap-1.5">
-              <div className="min-w-0 flex-1">
-                <ChoiceMenu
-                  id={`breakout-${index}`}
-                  value={breakout.column}
-                  choices={choicesOf(source.columns.filter((c) => c.type !== 'number'))}
-                  onChange={(name) => {
-                    const next = source.columns.find((c) => c.name === name)
-                    if (!next) return
-                    set({
-                      breakouts: query.breakouts.map((b, i) =>
-                        i === index
-                          ? { column: next.name, ...(next.type === 'date' ? { unit: 'day' } : {}) }
-                          : b,
-                      ),
-                    })
-                  }}
-                  allowNone={false}
-                  disabled={false}
-                />
-              </div>
-              {column?.type === 'date' && (
-                <div className="min-w-0 flex-1">
-                  <ChoiceMenu
-                    id={`breakout-unit-${index}`}
-                    value={breakout.unit ?? 'day'}
-                    choices={UNITS.map((u) => ({ id: u, label: $t(UNIT_LABELS[u]) }))}
-                    onChange={(unit) =>
-                      unit &&
-                      set({
-                        breakouts: query.breakouts.map((b, i) =>
-                          i === index ? { ...b, unit: unit as TimeUnit } : b,
-                        ),
-                      })
-                    }
-                    allowNone={false}
-                    disabled={false}
-                  />
-                </div>
-              )}
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={$t('Retirer')}
-                onClick={() => set({ breakouts: query.breakouts.filter((_, i) => i !== index) })}
-              >
-                <X className="size-4" />
-              </Button>
-            </div>
-          )
-        })}
-        {query.breakouts.length < 2 && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full gap-1.5"
-            onClick={() => {
-              const first = source.columns.find((c) => c.type !== 'number') as SourceColumn
-              set({
-                breakouts: [
-                  ...query.breakouts,
-                  {
-                    column: first.name,
-                    ...(first.type === 'date' ? { unit: 'day' as const } : {}),
-                  },
-                ],
-              })
-            }}
-          >
-            <Plus className="size-3.5" />
-            {query.breakouts.length === 0 ? $t('Regrouper par…') : $t('Puis par…')}
-          </Button>
-        )}
-      </Section>
-
-      <Section title={$t('Trier et limiter')}>
-        <div className="flex items-center gap-1.5">
-          <div className="min-w-0 flex-1">
-            <ChoiceMenu
-              id="question-sort"
-              value={query.sort?.column ?? null}
-              choices={(result?.columns ?? []).map((c) => ({
-                id: c.name,
-                label: columnTitle(c.name, sources),
-              }))}
-              onChange={(column) => {
-                const { sort: _, ...rest } = query
-                onChange(
-                  column ? { ...rest, sort: { column, desc: query.sort?.desc ?? true } } : rest,
-                )
-              }}
-              allowNone
-              disabled={false}
-            />
-          </div>
-          {query.sort && (
-            <Segmented
-              value={query.sort.desc ? 'desc' : 'asc'}
-              onValueChange={(v) =>
-                query.sort && set({ sort: { ...query.sort, desc: v === 'desc' } })
-              }
-              options={[
-                { value: 'desc', label: $t('Décroissant') },
-                { value: 'asc', label: $t('Croissant') },
-              ]}
-              aria-label={$t('Ordre')}
-            />
-          )}
-        </div>
-        <Input
-          type="number"
-          min={1}
-          max={2000}
-          value={query.limit ?? ''}
-          placeholder={$t('Toutes les lignes (2 000 au plus)')}
-          onChange={(e) => {
-            const { limit: _, ...rest } = query
-            const n = Number(e.target.value)
-            onChange(n > 0 ? { ...rest, limit: n } : rest)
-          }}
-          className="h-8 text-xs"
-          aria-label={$t('Nombre de lignes')}
-        />
-      </Section>
-    </div>
   )
 }
 
@@ -616,9 +215,9 @@ export function QuestionEditor({
         </DialogHeader>
 
         <div className="flex min-h-0 flex-1">
-          <aside className="w-[340px] shrink-0 overflow-y-auto border-r px-4 py-4 scroll-discret">
+          <aside className="w-[400px] shrink-0 overflow-y-auto border-r px-4 py-4 scroll-discret">
             {question.mode === 'builder' ? (
-              <Builder
+              <Notebook
                 query={question.query}
                 sources={sources}
                 result={result}
@@ -719,6 +318,40 @@ export function QuestionEditor({
                   disabled={false}
                 />
               </div>
+              {viz.type === 'trend' && (
+                <label htmlFor="question-invert" className="flex items-center gap-2 text-xs">
+                  <Switch
+                    id="question-invert"
+                    checked={viz.invert === true}
+                    onCheckedChange={(invert) => setViz({ invert })}
+                  />
+                  {$t('Une baisse est une bonne nouvelle')}
+                </label>
+              )}
+              {viz.type === 'progress' && (
+                <>
+                  <Input
+                    type="number"
+                    value={viz.goal ?? ''}
+                    onChange={(e) => {
+                      const goal = Number(e.target.value)
+                      setViz({
+                        goal: e.target.value === '' || !Number.isFinite(goal) ? undefined : goal,
+                      })
+                    }}
+                    placeholder={$t('Objectif')}
+                    aria-label={$t('Objectif')}
+                    className="h-7 w-28 text-xs"
+                  />
+                  <Input
+                    value={viz.goalLabel ?? ''}
+                    onChange={(e) => setViz({ goalLabel: e.target.value || undefined })}
+                    placeholder={$t('Nom de l’objectif')}
+                    aria-label={$t('Nom de l’objectif')}
+                    className="h-7 w-36 text-xs"
+                  />
+                </>
+              )}
               {(viz.type === 'bar' || viz.type === 'row' || viz.type === 'area') && (
                 <label htmlFor="question-stacked" className="flex items-center gap-2 text-xs">
                   <Switch

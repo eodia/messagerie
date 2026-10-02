@@ -22,6 +22,7 @@ import { SOURCES } from './analytics/catalog.js'
 import {
   type AnalyticsDeps,
   assistQuestion,
+  cardDetail,
   createDashboard,
   deleteDashboard,
   filterValues,
@@ -769,6 +770,19 @@ export function createApp({
         c.req.param('card'),
         timeZone,
         values,
+      ),
+    )
+  })
+  inbox.post('/dashboards/:id/cards/:card/detail', async (c) => {
+    const body = await jsonBody(c.req.raw)
+    return c.json(
+      await cardDetail(
+        analytics,
+        c.get('agent'),
+        c.req.param('id'),
+        c.req.param('card'),
+        body.timeZone,
+        body,
       ),
     )
   })

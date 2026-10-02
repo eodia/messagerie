@@ -33,6 +33,11 @@ export type FilterOperator =
   | 'between'
   /** The last N units, up to now: `values` = [N, 'days' | 'weeks' | 'months']. */
   | 'last'
+  /**
+   * In one group of a breakout — a point clicked: `values` = [unit, the value the result
+   * gave]. The detail of a card sets it, the builder does not offer it.
+   */
+  | 'at'
   | 'true'
   | 'false'
 
@@ -78,7 +83,18 @@ export interface BuilderQuery {
   readonly limit?: number
 }
 
-export type VisualizationType = 'number' | 'table' | 'bar' | 'row' | 'line' | 'area' | 'pie'
+export type VisualizationType =
+  | 'number'
+  /** A KPI: the last period, against the one before — a date breakout needed. */
+  | 'trend'
+  /** A KPI: a value towards a goal. */
+  | 'progress'
+  | 'table'
+  | 'bar'
+  | 'row'
+  | 'line'
+  | 'area'
+  | 'pie'
 
 export interface Visualization {
   readonly type: VisualizationType
@@ -86,6 +102,11 @@ export interface Visualization {
   readonly stacked?: boolean
   /** A number's unit: `%`, `s` (said as a duration), `€`. */
   readonly unit?: '%' | 's' | '€' | ''
+  /** `progress`: the value aimed at, and what it is called. */
+  readonly goal?: number
+  readonly goalLabel?: string
+  /** `trend`: a fall is good news — a delay, a cost. */
+  readonly invert?: boolean
 }
 
 export type Question =
@@ -141,7 +162,8 @@ export interface DashboardCard {
   readonly w: number
   readonly h: number
   readonly title: string
-  readonly kind: 'question' | 'text'
+  /** `heading`: a section's title, across the grid. */
+  readonly kind: 'question' | 'text' | 'heading'
   readonly question?: Question
   /** A text card's Markdown. */
   readonly text?: string
@@ -170,6 +192,14 @@ export interface DashboardBody {
 }
 
 /** What the AI proposes for a question said in words. */
+/** What a card's detail asks: the rows behind it, and the point clicked, if one was. */
+export interface CardDetailBody {
+  readonly values: FilterValues
+  readonly rows: boolean
+  /** The point of a chart clicked: a filter on each of its dimensions. */
+  readonly focus?: readonly QueryFilter[]
+}
+
 export interface QuestionDraft {
   readonly sql: string
   readonly viz: Visualization

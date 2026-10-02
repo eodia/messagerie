@@ -11,6 +11,7 @@ import type {
   AutomationDefinition,
   AutomationRunList,
   CannedReply,
+  CardDetailBody,
   CardLink,
   ContactDetail,
   ContactListItem,
@@ -259,6 +260,12 @@ export const api = {
       'POST',
       `/dashboards/${encodeURIComponent(id)}/cards/${encodeURIComponent(card)}/run`,
       { timeZone: zone(), values },
+    ),
+  cardDetail: (id: string, card: string, body: CardDetailBody) =>
+    request<QueryResult>(
+      'POST',
+      `/dashboards/${encodeURIComponent(id)}/cards/${encodeURIComponent(card)}/detail`,
+      { timeZone: zone(), ...body },
     ),
   pageActions: (siteId: string) =>
     request<PageAction[]>('GET', `/sites/${encodeURIComponent(siteId)}/page-actions`),

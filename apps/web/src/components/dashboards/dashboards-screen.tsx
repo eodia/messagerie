@@ -20,6 +20,7 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Hint } from '@/components/ui/tooltip'
 import { addressOf, idOfWord, wordOf, wordsAfter } from '@/lib/address'
+import { VIZ_LABELS } from '@/lib/analytics'
 import { ApiFailure, api } from '@/lib/api'
 import { $t } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
@@ -42,6 +43,7 @@ import {
   Ellipsis,
   Filter,
   GripVertical,
+  Heading,
   LayoutDashboard,
   LoaderCircle,
   Pencil,
@@ -57,14 +59,16 @@ import ReactGridLayout, {
   useContainerWidth,
   verticalCompactor,
 } from 'react-grid-layout'
+import { CardDetail, type DetailRequest, PointMenu } from './card-detail'
 import { FilterBar, FilterEditor, relinked, suggestedColumn } from './filters'
 import { QuestionEditor } from './question-editor'
-import { ResultView } from './visualization'
+import { type PointEvent, ResultView } from './visualization'
 
 /**
  * « Tableaux de bord » (D22) — basedb's: cards on a twelve-column grid, each a question
- * drawn as a number, a table or a chart. Everyone sees the shared ones; supervisors arrange
- * them, add questions — built by choosing or written in SQL — and texts.
+ * drawn as a number, a trend, a table or a chart, under section titles. A card's title opens
+ * it whole, a point of it the rows behind. Everyone sees the shared ones; supervisors
+ * arrange them, add questions — built by choosing or written in SQL —, titles and texts.
  */
 
 const BASE = '/tableaux-de-bord'
@@ -114,6 +118,11 @@ export function DashboardsScreen() {
   const [arrived, setArrived] = useState(false)
   const [values, setValues] = useState<FilterValues>({})
   const [filterEdited, setFilterEdited] = useState<DashboardFilter | 'new' | null>(null)
+  const [detail, setDetail] = useState<DetailRequest | null>(null)
+  const [point, setPoint] = useState<{
+    readonly card: DashboardCard
+    readonly event: PointEvent
+  } | null>(null)
 
   const fail = (failure: unknown) =>
     setError(messageFor(failure instanceof ApiFailure ? failure.code : 'INTERNAL_ERROR'))
@@ -296,6 +305,23 @@ export function DashboardsScreen() {
       { id: newId(), x: 0, y: below(cards), w: 12, h: 2, title: '', kind: 'text', text: '' },
     ])
 
+  const addHeading = () =>
+    setCards((cards) => [
+      ...cards,
+      {
+        id: newId(),
+        x: 0,
+        y: below(cards),
+        w: 12,
+        h: 1,
+        title: '',
+        kind: 'heading',
+        text: $t('Titre de section'),
+      },
+    ])
+
+  const detailCard = detail ? shown?.cards.find((c) => c.id === detail.cardId) : undefined
+
   return (
     <>
       <ScreenHeader
@@ -395,6 +421,15 @@ export function DashboardsScreen() {
             variant="outline"
             size="sm"
             className="h-8 gap-1.5 bg-background text-xs"
+            onClick={addHeading}
+          >
+            <Heading className="size-3.5" />
+            {$t('Titre')}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 bg-background text-xs"
             onClick={addText}
           >
             <Type className="size-3.5" />
@@ -473,6 +508,8 @@ export function DashboardsScreen() {
             onDuplicate={(card) =>
               setCards((cards) => [...cards, { ...card, id: newId(), y: below(cards) }])
             }
+            onOpen={(card) => setDetail({ cardId: card.id, focus: [], tab: 'result' })}
+            onPoint={(card, event) => setPoint({ card, event })}
           />
         )}
         {shown && shown.cards.length === 0 && (
@@ -513,6 +550,39 @@ export function DashboardsScreen() {
             })
             setEditing(null)
           }}
+        />
+      )}
+
+      {detail && detailCard && current && (
+        <CardDetail
+          key={JSON.stringify(detail)}
+          dashboardId={current.id}
+          card={detailCard}
+          result={runs[detailCard.id]?.result}
+          values={valuesShown}
+          sources={sources}
+          focus={detail.focus}
+          tab={detail.tab}
+          onClose={() => setDetail(null)}
+        />
+      )}
+
+      {point && shown && runs[point.card.id]?.result && (
+        <PointMenu
+          card={point.card}
+          event={point.event}
+          result={runs[point.card.id]?.result as QueryResult}
+          sources={sources}
+          filters={shown.filters}
+          onRows={(focus) => {
+            setDetail({ cardId: point.card.id, focus, tab: 'rows' })
+            setPoint(null)
+          }}
+          onFilter={(id, value) => {
+            chooseValue(id, value)
+            setPoint(null)
+          }}
+          onClose={() => setPoint(null)}
         />
       )}
 
@@ -574,6 +644,8 @@ function Grid({
   onChange,
   onRemove,
   onDuplicate,
+  onOpen,
+  onPoint,
 }: {
   readonly cards: readonly DashboardCard[]
   readonly filters: readonly DashboardFilter[]
@@ -585,10 +657,22 @@ function Grid({
   readonly onChange: (card: DashboardCard) => void
   readonly onRemove: (id: string) => void
   readonly onDuplicate: (card: DashboardCard) => void
+  readonly onOpen: (card: DashboardCard) => void
+  readonly onPoint: (card: DashboardCard, event: PointEvent) => void
 }) {
   const { width, containerRef, mounted } = useContainerWidth()
   const layout = useMemo(
-    () => cards.map((c) => ({ i: c.id, x: c.x, y: c.y, w: c.w, h: c.h, minW: 2, minH: 2 })),
+    () =>
+      cards.map((c) => ({
+        i: c.id,
+        x: c.x,
+        y: c.y,
+        w: c.w,
+        h: c.h,
+        minW: c.kind === 'heading' ? 4 : 2,
+        minH: c.kind === 'heading' ? 1 : 2,
+        ...(c.kind === 'heading' ? { maxH: 2 } : {}),
+      })),
     [cards],
   )
   // A phone reads the cards one under the other.
@@ -604,6 +688,8 @@ function Grid({
       onChange={onChange}
       onRemove={() => onRemove(card.id)}
       onDuplicate={() => onDuplicate(card)}
+      onOpen={() => onOpen(card)}
+      onPoint={(event) => onPoint(card, event)}
     />
   )
   const sorted = useMemo(() => [...cards].sort((a, b) => a.y - b.y || a.x - b.x), [cards])
@@ -656,6 +742,8 @@ function CardFrame({
   onChange,
   onRemove,
   onDuplicate,
+  onOpen,
+  onPoint,
 }: {
   readonly card: DashboardCard
   /** The filters it follows. */
@@ -667,27 +755,86 @@ function CardFrame({
   readonly onChange: (card: DashboardCard) => void
   readonly onRemove: () => void
   readonly onDuplicate: () => void
+  /** Its title clicked: the card at full size, its rows. */
+  readonly onOpen: () => void
+  /** A point of it clicked. */
+  readonly onPoint: (event: PointEvent) => void
 }) {
   const [asTable, setAsTable] = useState(false)
+  const menu = (
+    <CardMenu card={card} onEdit={onEdit} onDuplicate={onDuplicate} onRemove={onRemove} />
+  )
+
+  if (card.kind === 'heading') {
+    return (
+      <div className="flex size-full items-end gap-1 border-b-2 border-border pb-1">
+        {editing && (
+          <span className="card-handle mb-1.5 cursor-grab text-muted-foreground active:cursor-grabbing">
+            <GripVertical className="size-4" />
+          </span>
+        )}
+        {editing ? (
+          <input
+            value={card.text ?? ''}
+            onChange={(e) => onChange({ ...card, text: e.target.value })}
+            aria-label={$t('Titre de section')}
+            className="min-w-0 flex-1 rounded bg-transparent px-1 text-xl font-semibold tracking-tight outline-none hover:bg-accent focus:bg-accent"
+          />
+        ) : (
+          <h2 className="min-w-0 flex-1 truncate px-1 text-xl font-semibold tracking-tight">
+            {card.text}
+          </h2>
+        )}
+        {editing && menu}
+      </div>
+    )
+  }
+
   const text = card.kind === 'text'
+  const viz = card.question?.viz.type
+  const builder = card.question?.mode === 'builder'
+  const title = card.title || (text ? $t('Texte') : $t('Sans titre'))
   return (
-    <div
+    <section
       className={cn(
-        'flex size-full flex-col rounded-xl border bg-card',
+        'group flex size-full flex-col overflow-hidden rounded-xl border bg-card',
         text && !editing && 'border-transparent bg-transparent',
-        editing && 'ring-1 ring-primary/20',
+        editing && 'ring-primary/30 hover:ring-2',
       )}
     >
       {(!text || editing) && (
-        <div className="flex shrink-0 items-center gap-1.5 px-3 pt-2.5 pb-1">
+        <header className="flex shrink-0 items-center gap-1 px-3.5 pt-3 pb-1">
           {editing && (
-            <span className="card-handle -ml-1 cursor-grab text-muted-foreground active:cursor-grabbing">
+            <span className="card-handle -ml-1.5 cursor-grab text-muted-foreground active:cursor-grabbing">
               <GripVertical className="size-4" />
             </span>
           )}
-          <h3 className="min-w-0 flex-1 truncate text-xs font-medium text-muted-foreground">
-            {card.title || (text ? $t('Texte') : $t('Sans titre'))}
-          </h3>
+          {editing && !text ? (
+            <input
+              value={card.title}
+              placeholder={$t('Sans titre')}
+              onChange={(e) => onChange({ ...card, title: e.target.value })}
+              aria-label={$t('Titre de la carte')}
+              className="min-w-0 flex-1 rounded bg-transparent px-1 text-sm font-semibold outline-none hover:bg-accent focus:bg-accent"
+            />
+          ) : !text && card.question ? (
+            <Hint label={$t('Voir le détail')}>
+              <button
+                type="button"
+                onClick={onOpen}
+                className="min-w-0 flex-1 truncate text-left text-sm font-semibold hover:text-primary"
+              >
+                {title}
+              </button>
+            </Hint>
+          ) : (
+            <h3 className="min-w-0 flex-1 truncate text-sm font-semibold">{title}</h3>
+          )}
+          {!editing && viz && (
+            <span className="shrink-0 text-[11px] text-muted-foreground/70 opacity-0 transition-opacity group-hover:opacity-100">
+              {$t(VIZ_LABELS[viz])}
+            </span>
+          )}
           {editing && followed.length > 0 && (
             <Hint
               label={$t('Suit : {filters}', { filters: followed.map((f) => f.label).join(', ') })}
@@ -698,7 +845,7 @@ function CardFrame({
               </span>
             </Hint>
           )}
-          {!text && card.question?.viz.type !== 'table' && card.question?.viz.type !== 'number' && (
+          {viz && !['table', 'number', 'trend', 'progress'].includes(viz) && (
             <Hint label={asTable ? $t('Voir le graphique') : $t('Voir les chiffres')}>
               <Button
                 variant="ghost"
@@ -713,49 +860,16 @@ function CardFrame({
               </Button>
             </Hint>
           )}
-          {editing && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="size-6"
-                  aria-label={$t('Actions de la carte')}
-                >
-                  <Ellipsis className="size-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {!text && (
-                  <DropdownMenuItem onSelect={onEdit}>
-                    <Pencil />
-                    {$t('Modifier la question')}
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem onSelect={onDuplicate}>
-                  <Copy />
-                  {$t('Dupliquer')}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onSelect={onRemove}
-                >
-                  <Trash2 />
-                  {$t('Retirer la carte')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
+          {editing && menu}
+        </header>
       )}
-      <div className="min-h-0 flex-1 px-3 pb-3">
+      <div className={cn('min-h-0 flex-1 px-3.5 pb-3', viz === 'table' && 'px-1 pb-1')}>
         {text ? (
           editing ? (
             <Textarea
               value={card.text ?? ''}
               onChange={(e) => onChange({ ...card, text: e.target.value })}
-              placeholder={$t('Un titre de section, une explication…')}
+              placeholder={$t('Une explication, une consigne…')}
               className="size-full resize-none text-sm"
               aria-label={$t('Texte de la carte')}
             />
@@ -772,14 +886,62 @@ function CardFrame({
               viz={card.question.viz}
               sources={sources}
               asTable={asTable}
+              {...(builder && !editing ? { onPoint } : {})}
             />
           </div>
-        ) : card.question?.viz.type === 'number' ? (
-          <Skeleton className="mt-2 h-8 w-20" />
+        ) : viz === 'number' || viz === 'trend' ? (
+          <div className="space-y-2 pt-2">
+            <Skeleton className="h-9 w-28" />
+            <Skeleton className="h-3 w-40" />
+          </div>
         ) : (
           <Skeleton className="size-full" />
         )}
       </div>
-    </div>
+    </section>
+  )
+}
+
+function CardMenu({
+  card,
+  onEdit,
+  onDuplicate,
+  onRemove,
+}: {
+  readonly card: DashboardCard
+  readonly onEdit: () => void
+  readonly onDuplicate: () => void
+  readonly onRemove: () => void
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="size-6"
+          aria-label={$t('Actions de la carte')}
+        >
+          <Ellipsis className="size-3.5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {card.kind === 'question' && (
+          <DropdownMenuItem onSelect={onEdit}>
+            <Pencil />
+            {$t('Modifier la question')}
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem onSelect={onDuplicate}>
+          <Copy />
+          {$t('Dupliquer')}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={onRemove}>
+          <Trash2 />
+          {$t('Retirer la carte')}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

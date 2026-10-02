@@ -538,14 +538,21 @@ se recopie pas dans le serveur, l'IA le demande à la page.
 ## D22 — Les tableaux de bord, ceux de basedb faits pour les conversations
 
 « Tableaux de bord » remplace « Statistiques » : des cartes sur une grille de douze
-colonnes (react-grid-layout), chacune une question dessinée en nombre, tableau, barres,
-courbe, aire ou camembert (ECharts, la palette catégorielle validée ; une humeur ou un
-avis gardent leur couleur de sens).
+colonnes (react-grid-layout), chacune une question dessinée en nombre, tendance (la
+dernière période contre la précédente), objectif, tableau triable, barres, courbe, aire ou
+camembert (ECharts, la palette catégorielle validée ; une humeur ou un avis gardent leur
+couleur de sens), sous des cartes « titre » qui séparent les sections.
 
 - **Ce qu'on lit :** les vues du schéma `analytics` — conversations, messages, appels à
   l'IA, avis sur l'IA, étiquettes, contacts, exécutions d'automatisations —, jamais les
   tables elles-mêmes. Leurs colonnes ont un libellé en français (`analytics/catalog.ts`).
-- **Une question assistée :** une source, des filtres (dont « dans les derniers N jours »,
+- **Le détail d'une carte :** son titre l'ouvre en grand — graphique, chiffres, et pour une
+  question assistée les lignes derrière elle (500 au plus), sous les filtres du tableau. Un
+  point cliqué ouvre les lignes de ce point : chaque regroupement devient une condition
+  (`at` pour une date, comparée au groupe tel que Postgres l'a écrit), vérifiée comme toute
+  question assistée.
+- **Une question assistée :** le carnet de basedb (données, filtre, résumer… par…, trier,
+  limiter, en pastilles colorées) : une source, des filtres (dont « dans les derniers N jours »,
   au fuseau du lecteur), des calculs (nombre, distincts, somme, moyenne, médiane, part des
   « oui »), deux regroupements au plus (une date par heure, jour, semaine, mois, jour de la
   semaine…). Compilée en SQL paramétré, chaque nom pris dans le catalogue.
@@ -562,9 +569,10 @@ avis gardent leur couleur de sens).
 - **Qui voit quoi :** les superviseurs font et changent les tableaux ; un tableau « visible
   des conseillers » s'ouvre à tous, et une carte s'y exécute telle qu'enregistrée — un
   conseiller n'envoie jamais de SQL.
-- **Par défaut**, « Vue d'ensemble » : conversations, résolution par l'IA, première réponse,
-  transferts, conversations par jour, par boîte, humeur, étiquettes, avis sur l'IA, charge
-  par conseiller, heures où les visiteurs écrivent.
+- **Par défaut**, « Vue d'ensemble », en trois sections : *Activité* (conversations,
+  résolution par l'IA, première réponse, transferts — en tendances de la semaine —,
+  conversations par jour, par boîte), *Visiteurs et IA* (humeur, étiquettes, avis sur l'IA),
+  *Équipe* (charge par conseiller, heures où les visiteurs écrivent).
 
 ## Questions ouvertes
 

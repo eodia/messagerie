@@ -54,10 +54,11 @@ const OPERATORS: readonly FilterOperator[] = [
   'lt',
   'between',
   'last',
+  'at',
   'true',
   'false',
 ]
-const VIZ = ['number', 'table', 'bar', 'row', 'line', 'area', 'pie'] as const
+const VIZ = ['number', 'trend', 'progress', 'table', 'bar', 'row', 'line', 'area', 'pie'] as const
 
 function invalid(reason: string): never {
   throw new Refusal('QUERY_INVALID', 400, { reason })
@@ -82,7 +83,16 @@ function readVisualization(raw: unknown): Visualization {
   const unit = ['%', 's', '€', ''].includes(value.unit as string)
     ? (value.unit as Visualization['unit'])
     : ''
-  return { type, ...(value.stacked === true ? { stacked: true } : {}), ...(unit ? { unit } : {}) }
+  const goal = Number(value.goal)
+  const goalLabel = typeof value.goalLabel === 'string' ? value.goalLabel.trim().slice(0, 60) : ''
+  return {
+    type,
+    ...(value.stacked === true ? { stacked: true } : {}),
+    ...(unit ? { unit } : {}),
+    ...(Number.isFinite(goal) && goal !== 0 && value.goal !== undefined ? { goal } : {}),
+    ...(goalLabel ? { goalLabel } : {}),
+    ...(value.invert === true ? { invert: true } : {}),
+  }
 }
 
 export function readBuilder(raw: unknown): BuilderQuery {
@@ -99,6 +109,12 @@ export function readBuilder(raw: unknown): BuilderQuery {
     const column = columnOf(source, filter.column).name
     if (!OPERATORS.includes(filter.op as FilterOperator)) invalid('operator')
     const values = list(filter.values, 50).map((v) => String(v).slice(0, 200))
+    if (
+      filter.op === 'at' &&
+      (columnOf(source, column).type !== 'date' || !UNITS.includes(values[0] as TimeUnit))
+    ) {
+      invalid('operator')
+    }
     return { column, op: filter.op as FilterOperator, values }
   })
   const aggregations = list(value.aggregations, MAX_AGGREGATIONS).map((a): QueryAggregation => {
@@ -164,6 +180,17 @@ function timeExpression(column: string, unit: TimeUnit, zone: string): string {
   }
 }
 
+/**
+ * The group a result gave back, as Postgres wrote it: a `timestamp` read by this process as
+ * its own local time, then sent as ISO — its local clock again, to compare with the group.
+ */
+function wallTime(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) invalid('value')
+  const two = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())} ${two(date.getHours())}:${two(date.getMinutes())}:${two(date.getSeconds())}`
+}
+
 const aliasOf = (a: QueryAggregation) => (a.fn === 'count' ? 'count' : `${a.fn}_${a.column}`)
 const breakoutAlias = (b: QueryBreakout) => (b.unit ? `${b.column}_${b.unit}` : b.column)
 
@@ -218,6 +245,13 @@ export function compile(query: BuilderQuery, timeZone: string): Compiled {
         return unit === 'day'
           ? `${col} >= (date_trunc('day', now() AT TIME ZONE ${zone()}) - (${param(amount - 1)}::int * interval '1 day')) AT TIME ZONE ${zone()}`
           : `${col} >= now() - (${param(amount)}::int * interval '1 ${unit}')`
+      }
+      case 'at': {
+        const unit = first as TimeUnit
+        const group = timeExpression(f.column, unit, zone())
+        const given = f.values[1] ?? ''
+        if (unit === 'weekday' || unit === 'hour_of_day') return `${group} = ${param(given)}::int`
+        return `${group} = ${param(wallTime(given))}::timestamp`
       }
       case 'true':
         return `${col} is true`
