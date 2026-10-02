@@ -163,10 +163,15 @@ export const api = {
       body,
     ),
   canned: () => request<CannedReply[]>('GET', '/canned'),
-  contacts: (query: string) =>
-    request<ContactListItem[]>('GET', `/contacts?q=${encodeURIComponent(query)}`),
+  /** Those of one site, with `site`. */
+  contacts: (query: string, site: string | null = null) =>
+    request<ContactListItem[]>(
+      'GET',
+      `/contacts?q=${encodeURIComponent(query)}${site ? `&site=${encodeURIComponent(site)}` : ''}`,
+    ),
   contact: (id: string) => request<ContactDetail>('GET', `/contacts/${encodeURIComponent(id)}`),
-  stats: () => request<InboxStats>('GET', '/stats'),
+  stats: (site: string | null = null) =>
+    request<InboxStats>('GET', site ? `/stats?site=${encodeURIComponent(site)}` : '/stats'),
   knowledge: () => request<KnowledgeItem[]>('GET', '/knowledge'),
   tools: () => request<ToolsOverview>('GET', '/tools'),
   inboxes: () => request<InboxDirectory>('GET', '/inboxes'),

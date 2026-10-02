@@ -48,6 +48,7 @@ const UUID_A = '4f1c2e8a-7b3d-4c9e-a1f0-2d5e6b7c8a90'
 const UUID_CONTACT = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d'
 const UUID_AGENT = '0c1d2e3f-4a5b-4c6d-9e8f-7a6b5c4d3e2f'
 const UUID_INBOX = '01a0f647-74b7-7450-93a6-8dfe920d8934'
+const UUID_SITE = '01a0f647-6c2e-7d41-8b5a-3f9e2c7d1a46'
 
 const SUMMARY = {
   id: UUID_A,
@@ -58,6 +59,7 @@ const SUMMARY = {
     identified: true,
   },
   site: 'Acme Assurances',
+  siteId: UUID_SITE,
   inboxId: UUID_INBOX,
   teamId: null,
   status: 'open',
@@ -79,6 +81,7 @@ const CONVERSATION = {
   id: UUID_A,
   status: 'open',
   site: 'Acme Assurances',
+  siteId: UUID_SITE,
   inboxId: UUID_INBOX,
   assignee: 'Claire Dubois',
   assigneeId: UUID_AGENT,

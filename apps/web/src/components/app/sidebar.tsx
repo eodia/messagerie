@@ -12,15 +12,13 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { Hint } from '@/components/ui/tooltip'
 import { $t, msg } from '@/lib/i18n'
-import { PRODUCT_NAME } from '@/lib/product'
-import { useInbox, waitingByInbox, waitingCount } from '@/lib/store/inbox'
+import { useInbox, waitingByInbox, waitingHere } from '@/lib/store/inbox'
 import { useSidebar } from '@/lib/store/sidebar'
 import { cn } from '@/lib/utils'
 import {
   BookOpen,
   ChartColumn,
   ChevronDown,
-  ChevronsUpDown,
   ExternalLink,
   Globe,
   Headset,
@@ -40,6 +38,7 @@ import Link, { useLinkStatus } from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import { SiteMenu } from './site-menu'
 import { UserMenu } from './user-menu'
 
 interface Screen {
@@ -78,7 +77,7 @@ const SETTINGS: readonly Screen[] = [
 export function Sidebar({ basedbUrl }: { readonly basedbUrl: string }) {
   const collapsed = useSidebar((s) => s.collapsed)
   const pathname = usePathname()
-  const waiting = useInbox(waitingCount)
+  const waiting = useInbox(waitingHere)
   const byInbox = useInbox(useShallow(waitingByInbox))
   const inboxes = useInbox((s) => s.directory.inboxes)
   const current = useInbox((s) => s.inbox)
@@ -93,31 +92,7 @@ export function Sidebar({ basedbUrl }: { readonly basedbUrl: string }) {
       )}
     >
       <div className="p-2">
-        <button
-          type="button"
-          className={cn(
-            'flex w-full items-center gap-2.5 rounded-lg p-1.5 text-left transition-colors hover:bg-sidebar-accent',
-            collapsed && 'justify-center',
-          )}
-        >
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/10 ring-inset">
-            <MessagesSquare
-              className="size-4.5"
-              style={{ color: 'color-mix(in oklab, var(--primary) 65%, var(--foreground))' }}
-            />
-          </span>
-          {!collapsed && (
-            <>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold">{PRODUCT_NAME}</span>
-                <span className="block truncate text-[11px] text-muted-foreground">
-                  {$t('Tous les sites')}
-                </span>
-              </span>
-              <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
-            </>
-          )}
-        </button>
+        <SiteMenu collapsed={collapsed} />
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-1 scroll-discret">

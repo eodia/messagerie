@@ -1,0 +1,27 @@
+---
+/** A line icon of `icons.ts`, in the text's colour. Decorative: its label is the text beside it. */
+import { ICONS, type IconName } from './icons';
+
+interface Props {
+	name: IconName;
+	size?: number;
+	stroke?: number;
+	class?: string;
+}
+
+const { name, size = 18, stroke = 1.8, class: className } = Astro.props;
+---
+
+<svg
+	class={className}
+	width={size}
+	height={size}
+	viewBox="0 0 24 24"
+	fill="none"
+	stroke="currentColor"
+	stroke-width={stroke}
+	stroke-linecap="round"
+	stroke-linejoin="round"
+	aria-hidden="true"
+	set:html={ICONS[name]}
+/>

@@ -1,0 +1,54 @@
+name: Déployer le site
+
+# The public site (www/, Astro + Starlight) on GitHub Pages: by hand, or with a `www-v*` tag.
+on:
+  push:
+    tags:
+      - 'www-v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The site is a project of its own: nothing outside www/ is needed to build it.
+          sparse-checkout: www
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: www/package-lock.json
+
+      - name: Installer
+        working-directory: www
+        run: npm ci
+
+      - name: Construire
+        working-directory: www
+        run: npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: www/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -332,8 +332,16 @@ boîte, ou à défaut celle du site.
 
 - **Visibilité.** Un superviseur voit toutes les boîtes. Un conseiller voit les boîtes
   qu'une de ses équipes sert (« Conseillers » › Équipes). La règle vaut pour la liste, le
-  fil, les signaux temps réel et les cloches. Une conversation d'avant les boîtes est à
-  tous.
+  fil, les signaux temps réel, les cloches, les contacts (ceux qui ont écrit dans ces
+  boîtes) et les compteurs. Une conversation d'avant les boîtes est à tous.
+- **Sites.** Le menu en haut de la barre latérale restreint l'inbox à un site : ses
+  conversations et leurs pastilles, ses contacts, ses articles (et ceux de tous les sites),
+  ses compteurs. Il propose les sites dont on voit les conversations : un superviseur, tous ;
+  un conseiller, ceux qui arrivent dans une de ses boîtes, et ceux d'une conversation qu'on y
+  a transférée. C'est une vue, pas un droit : le choix est gardé par le navigateur, l'adresse
+  ne le porte pas. Le compteur de l'onglet et les alertes restent ceux de tous les sites ; ouvrir
+  une conversation d'un autre site, depuis la cloche ou une adresse, revient à « Tous les
+  sites ».
 - **Transfert.** Une conversation passe à une autre boîte, à une autre équipe de sa boîte,
   ou les deux, avec une note facultative. Elle revient dans la file de l'équipe qui la
   reçoit, qui en est prévenue. Elle quitte la personne qui l'avait, et l'IA.

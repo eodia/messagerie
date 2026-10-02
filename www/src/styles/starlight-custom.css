@@ -1,0 +1,125 @@
+/* Messagerie — the documentation's theme (Starlight), basedb's, matched to the landing page. */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+	--sl-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	--sl-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+	--sl-content-width: 48rem;
+}
+
+/* Dark */
+:root,
+:root[data-theme='dark'] {
+	--sl-color-accent-low: #12290e;
+	--sl-color-accent: #3fcb2a;
+	--sl-color-accent-high: #a6ee99;
+	--sl-color-text-accent: #62dc4c;
+
+	--sl-color-bg: #0b0f0c;
+	--sl-color-bg-nav: rgba(11, 15, 12, 0.86);
+	--sl-color-bg-sidebar: #0e1310;
+	--sl-color-bg-inline-code: #18201a;
+
+	--sl-color-gray-1: #eef3ec;
+	--sl-color-gray-2: #c3ccc0;
+	--sl-color-gray-3: #8d998a;
+	--sl-color-gray-4: #6b7668;
+	--sl-color-gray-5: #333b32;
+	--sl-color-gray-6: #1b221c;
+	--sl-color-gray-7: #111612;
+
+	--sl-color-hairline-light: #222a23;
+	--sl-color-hairline: #2b342c;
+	--sl-color-white: #fafdf9;
+	--sl-color-black: #0b0f0c;
+}
+
+/* Light */
+:root[data-theme='light'] {
+	--sl-color-accent-low: #e7f6e2;
+	--sl-color-accent: #2a9d1c;
+	--sl-color-accent-high: #175f0f;
+	--sl-color-text-accent: #23861a;
+
+	--sl-color-bg: #ffffff;
+	--sl-color-bg-nav: rgba(255, 255, 255, 0.78);
+	--sl-color-bg-sidebar: #f8faf7;
+	--sl-color-bg-inline-code: rgba(42, 157, 28, 0.08);
+
+	--sl-color-gray-1: #171c18;
+	--sl-color-gray-2: #333a34;
+	--sl-color-gray-3: #555e56;
+	--sl-color-gray-4: #6d766e;
+	--sl-color-gray-5: #c9cfc7;
+	--sl-color-gray-6: #e3e7e1;
+	--sl-color-gray-7: #f1f4ef;
+
+	--sl-color-hairline-light: #e3e7e1;
+	--sl-color-hairline: #d3d9d1;
+	--sl-color-white: #171c18;
+	--sl-color-black: #ffffff;
+}
+
+/* The header: blurred, like the landing's */
+header.header {
+	backdrop-filter: blur(14px) saturate(180%);
+	-webkit-backdrop-filter: blur(14px) saturate(180%);
+}
+.site-title {
+	font-weight: 700;
+	letter-spacing: -0.045em;
+	color: var(--sl-color-white);
+}
+.site-title img {
+	width: 32px;
+	height: 32px;
+}
+
+/* Sidebar */
+nav.sidebar a[aria-current='page'] {
+	background: color-mix(in srgb, var(--sl-color-accent) 13%, transparent);
+	color: var(--sl-color-text-accent);
+	font-weight: 600;
+}
+nav.sidebar a:hover {
+	color: var(--sl-color-white);
+}
+
+/* Headings */
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3 {
+	letter-spacing: -0.02em;
+}
+h1#_top {
+	font-weight: 800;
+	letter-spacing: -0.035em;
+}
+
+/* Images of the interface: framed */
+.sl-markdown-content img {
+	border-radius: 12px;
+	border: 1px solid var(--sl-color-hairline);
+	box-shadow: 0 18px 40px -26px rgba(0, 0, 0, 0.45);
+}
+
+/* Tables */
+.sl-markdown-content table {
+	display: table;
+	width: 100%;
+	font-size: 0.9rem;
+}
+.sl-markdown-content th {
+	background: var(--sl-color-gray-7);
+}
+
+/* Cards */
+.card {
+	border-radius: 14px;
+}
+
+/* Asides */
+.starlight-aside {
+	border-radius: 10px;
+}

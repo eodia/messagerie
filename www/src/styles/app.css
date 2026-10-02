@@ -1,0 +1,147 @@
+/* The application, as the home page draws it: the inbox's tokens (apps/web globals.css,
+ * themselves basedb's), its tinted chips, its bubbles. Drawings use these classes, never
+ * screenshots, so that they stay sharp and play. */
+
+.ap {
+	--ap-bg: #fff;
+	--ap-fg: oklch(0.21 0.006 285.885);
+	--ap-muted: oklch(0.973 0.002 286.35);
+	--ap-muted-fg: oklch(0.552 0.016 285.938);
+	--ap-accent: oklch(0.967 0.001 286.375);
+	--ap-border: oklch(0.92 0.004 286.32);
+	--ap-primary: oklch(0.627 0.195 141.6);
+	--ap-violet: #7c3aed;
+	font-family: var(--bd-font-sans);
+	font-size: 12px;
+	line-height: 1.45;
+	color: var(--ap-fg);
+	letter-spacing: 0;
+	text-align: left;
+}
+
+/* A window: its bar, its three dots, its address. */
+.ap-frame {
+	overflow: hidden;
+	border-radius: 14px;
+	background: var(--ap-bg);
+	box-shadow:
+		0 60px 120px -50px rgba(16, 40, 16, 0.45),
+		0 0 0 1px rgba(16, 24, 16, 0.08);
+}
+.ap-chrome {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	height: 34px;
+	padding: 0 14px;
+	border-bottom: 1px solid var(--ap-border);
+	background: #fafafa;
+}
+.ap-dots {
+	display: flex;
+	gap: 6px;
+}
+.ap-dots i {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: #e4e4e7;
+}
+.ap-url {
+	flex: 1;
+	max-width: 420px;
+	margin: 0 auto;
+	padding: 3px 12px;
+	border-radius: 7px;
+	font-size: 11px;
+	text-align: center;
+	color: var(--ap-muted-fg);
+	background: #f1f1f3;
+}
+
+/* Tinted chips — basedb's environment badges. Green is never a status. */
+.ap-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	height: 19px;
+	padding: 0 7px;
+	border-radius: 999px;
+	font-size: 10.5px;
+	font-weight: 500;
+	white-space: nowrap;
+}
+.ap-chip svg {
+	width: 11px;
+	height: 11px;
+}
+.ap-chip.zinc {
+	background: rgba(113, 113, 122, 0.15);
+	color: #3f3f46;
+}
+.ap-chip.sky {
+	background: rgba(14, 165, 233, 0.15);
+	color: #075985;
+}
+.ap-chip.violet {
+	background: rgba(139, 92, 246, 0.15);
+	color: #5b21b6;
+}
+.ap-chip.amber {
+	background: rgba(245, 158, 11, 0.15);
+	color: #92400e;
+}
+.ap-chip.rose {
+	background: rgba(244, 63, 94, 0.15);
+	color: #9f1239;
+}
+.ap-chip.emerald {
+	background: rgba(16, 185, 129, 0.15);
+	color: #065f46;
+}
+
+/* A person's initials in a tinted circle. */
+.ap-avatar {
+	display: grid;
+	flex-shrink: 0;
+	place-items: center;
+	width: 30px;
+	height: 30px;
+	border-radius: 50%;
+	font-size: 10.5px;
+	font-weight: 600;
+	color: color-mix(in oklab, var(--c, #71717a) 70%, #18181b);
+	background: color-mix(in srgb, var(--c, #71717a) 16%, white);
+}
+
+/* The micro-labels: 11 px, medium, capitals. */
+.ap-micro {
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--ap-muted-fg);
+}
+
+.ap-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	height: 26px;
+	padding: 0 10px;
+	border: 1px solid var(--ap-border);
+	border-radius: 7px;
+	font-size: 11.5px;
+	font-weight: 500;
+	background: #fff;
+	white-space: nowrap;
+}
+.ap-btn.primary {
+	border-color: transparent;
+	color: #fff;
+	background: var(--ap-primary);
+}
+.ap-btn svg {
+	width: 13px;
+	height: 13px;
+}

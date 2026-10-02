@@ -1,0 +1,183 @@
+---
+/**
+ * The first screen: the promise, and under it the inbox, tilted back, that stands up as
+ * the page scrolls. The visitor's side — the widget — overlaps its corner: the two ends of
+ * the same conversation. Without JavaScript, or asked for less motion, it simply stands.
+ */
+import { REPOSITORY, href } from '../../lib/site';
+import Inbox from './Inbox.astro';
+import Widget from './Widget.astro';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const FACTS = ['Logiciel libre (AGPL)', 'Hébergé chez vous', 'IA européenne par défaut', 'Un serveur, un PostgreSQL'];
+---
+
+<section class="hero" data-hero>
+	<div class="glow" aria-hidden="true"></div>
+	<header class="intro">
+		<p class="brand">
+			<img src={`${base}/brand/mark.svg`} width="28" height="28" alt="" />
+			Messagerie
+		</p>
+		<h1 class="tm-display">
+			<span>Chaque client a sa réponse,</span>
+			<span class="tm-grad">à toute heure.</span>
+		</h1>
+		<p class="tm-lede">
+			La messagerie client libre. Un agent IA répond à partir de vos articles et passe la main dès qu’il doute, avec un
+			résumé. Vos conseillers reprennent, et le copilote leur souffle la suite.
+		</p>
+		<div class="tm-actions">
+			<a class="tm-pill" href={href('/guides/installation/')}>Installer la Messagerie</a>
+			<a class="tm-pill ghost" href={REPOSITORY}>Voir le code</a>
+			<a class="tm-link" href="#ia">Voir l’IA répondre</a>
+		</div>
+		<ul class="facts">
+			{FACTS.map((f) => <li>{f}</li>)}
+		</ul>
+	</header>
+
+	<div class="device" data-device>
+		<Inbox />
+		<div class="visitor" aria-hidden="true">
+			<Widget>
+				<div class="m me">Bonjour, quel est le délai de remboursement après un sinistre ?</div>
+				<div class="m them">
+					<span class="by">Assistant <span class="ia">IA</span></span>
+					Une fois votre dossier complet, le remboursement est versé sous 5 à 10 jours ouvrés, par virement.
+					<span class="src">Source : Délai de remboursement d’un sinistre</span>
+				</div>
+			</Widget>
+		</div>
+	</div>
+</section>
+
+<script>
+	import { clamp, ease, fit, progress, reducedMotion } from '../../lib/motion';
+
+	for (const frame of document.querySelectorAll<HTMLElement>('[data-fit]')) fit(frame, Number(frame.dataset.fit), 0.2);
+
+	const section = document.querySelector<HTMLElement>('[data-hero]');
+	const device = section?.querySelector<HTMLElement>('[data-device]');
+	if (section && device && !reducedMotion()) {
+		// The window stands up while it comes into view.
+		progress(
+			device,
+			(p) => {
+				const e = ease(clamp(p));
+				device.style.transform = `perspective(1800px) rotateX(${24 * (1 - e)}deg) scale(${0.9 + 0.1 * e})`;
+				device.style.setProperty('--rise', String(e));
+			},
+			{ mode: 'pass', start: 1, end: 0.95 },
+		);
+	}
+</script>
+
+<style>
+	.hero {
+		position: relative;
+		padding: calc(60px + 9vh) 24px 120px;
+		overflow: hidden;
+	}
+	.glow {
+		position: absolute;
+		inset: 0;
+		background:
+			radial-gradient(46% 36% at 50% 72%, rgba(63, 203, 42, 0.16), transparent 70%),
+			radial-gradient(34% 30% at 16% 22%, rgba(20, 184, 166, 0.08), transparent 70%),
+			radial-gradient(30% 26% at 86% 30%, rgba(163, 220, 58, 0.1), transparent 70%);
+		pointer-events: none;
+	}
+	.intro {
+		position: relative;
+		text-align: center;
+	}
+	.brand {
+		display: inline-flex;
+		align-items: center;
+		gap: 9px;
+		margin: 0 0 18px;
+		font-size: 22px;
+		font-weight: 700;
+		letter-spacing: -0.045em;
+		color: #143d2b;
+	}
+	.intro h1 {
+		font-size: clamp(42px, 7.2vw, 108px);
+	}
+	.intro .tm-lede {
+		max-width: 720px;
+	}
+	.facts {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 8px 24px;
+		margin: 26px 0 0;
+		padding: 0;
+		list-style: none;
+		font-size: 14px;
+		font-weight: 500;
+		color: var(--tm-slate);
+	}
+	.facts li {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+	}
+	.facts li::before {
+		content: '';
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: #3fcb2a;
+	}
+
+	.device {
+		--rise: 1;
+		position: relative;
+		max-width: 1080px;
+		margin: 72px auto 0;
+		transform-origin: 50% 0;
+		will-change: transform;
+	}
+	.visitor {
+		position: absolute;
+		right: -56px;
+		bottom: -72px;
+		transform: translateY(calc((1 - var(--rise)) * 80px)) scale(0.92);
+		transform-origin: 100% 100%;
+		opacity: calc(0.2 + 0.8 * var(--rise));
+	}
+	.visitor :global(.wg) {
+		height: 330px;
+	}
+	@media (max-width: 1240px) {
+		.visitor {
+			right: -12px;
+		}
+	}
+	@media (max-width: 760px) {
+		.hero {
+			padding-bottom: 72px;
+		}
+		.device {
+			margin-top: 48px;
+		}
+		/* On a phone the inbox would be too small to read: the visitor's side stands alone. */
+		.device > :global(.ap-scale) {
+			display: none;
+		}
+		.visitor {
+			position: static;
+			display: flex;
+			justify-content: center;
+			transform: none;
+			opacity: 1;
+		}
+		.visitor :global(.wg) {
+			width: min(340px, 100%);
+			height: 360px;
+		}
+	}
+</style>

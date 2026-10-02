@@ -6,6 +6,7 @@
       "node_modules",
       ".turbo",
       "docs",
+      "www",
       ".next",
       "next-env.d.ts",
       ".playwright-mcp"

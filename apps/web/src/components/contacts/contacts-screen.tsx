@@ -37,6 +37,7 @@ function contactInAddress(): string | null {
  */
 export function ContactsScreen() {
   const now = useInbox((s) => s.now)
+  const site = useInbox((s) => s.site)
   const [query, setQuery] = useState('')
   const [contacts, setContacts] = useState<ContactListItem[] | null>(null)
   // The contact the address names, open: its id, or its word until the server answers.
@@ -73,7 +74,7 @@ export function ContactsScreen() {
   useEffect(() => {
     const timer = setTimeout(() => {
       api
-        .contacts(query)
+        .contacts(query, site)
         .then((list) => {
           setContacts(list)
           setError(null)
@@ -81,7 +82,7 @@ export function ContactsScreen() {
         .catch((failure: { code?: string }) => setError(failure.code ?? 'INTERNAL_ERROR'))
     }, 200)
     return () => clearTimeout(timer)
-  }, [query])
+  }, [query, site])
 
   useEffect(() => {
     if (selected === null || shownId.current === selected) return

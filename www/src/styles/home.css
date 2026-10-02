@@ -1,0 +1,212 @@
+/* The home page — what its sections share, as on basedb's home page. Each section keeps
+ * the rest in its own component. Light sections alternate with black ones; the gradient is
+ * kept for a few words, and the price. */
+
+.tm {
+	--tm-ink: #1d1d1f;
+	--tm-slate: #6e6e73;
+	--tm-mist: #f5f5f7;
+	--tm-line: #e3e3e8;
+	--tm-night: #000;
+	--tm-night-2: #111113;
+	--tm-night-ink: #f5f5f7;
+	--tm-night-slate: #86868b;
+	--tm-grad: linear-gradient(92deg, #0f8a6c 0%, #1fa34a 38%, #58c73a 70%, #a3dc3a 100%);
+	--tm-grad-night: linear-gradient(92deg, #3ee0b2 0%, #5fe07a 45%, #c9f06b 100%);
+	color: var(--tm-ink);
+	background: #fff;
+}
+
+.tm-section {
+	position: relative;
+	padding: clamp(96px, 14vw, 180px) 24px;
+}
+.tm-section.mist {
+	background: var(--tm-mist);
+}
+.tm-section.night {
+	background: var(--tm-night);
+	color: var(--tm-night-ink);
+}
+
+.tm-head {
+	max-width: 980px;
+	margin: 0 auto;
+	text-align: center;
+}
+.tm-kicker {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	margin: 0 0 18px;
+	font-size: clamp(17px, 1.6vw, 21px);
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	color: #1f9d4a;
+}
+.night .tm-kicker {
+	color: #6ee08a;
+}
+.tm-display {
+	margin: 0;
+	font-size: clamp(40px, 6.4vw, 88px);
+	font-weight: 800;
+	line-height: 1.02;
+	letter-spacing: -0.05em;
+	text-wrap: balance;
+}
+.tm-display > span {
+	display: block;
+}
+.tm-grad {
+	background: var(--tm-grad);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+	/* The descenders stay inside the gradient's box. */
+	padding-bottom: 0.08em;
+}
+.night .tm-grad {
+	background-image: var(--tm-grad-night);
+}
+.tm-lede {
+	max-width: 700px;
+	margin: 28px auto 0;
+	font-size: clamp(19px, 1.9vw, 24px);
+	line-height: 1.45;
+	letter-spacing: -0.012em;
+	color: var(--tm-slate);
+	text-wrap: pretty;
+}
+.night .tm-lede {
+	color: var(--tm-night-slate);
+}
+
+/* Buttons: a pill, and a link with its chevron. */
+.tm-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: 14px 30px;
+	margin-top: 34px;
+}
+.tm-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 13px 24px;
+	border-radius: 999px;
+	font-size: 17px;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	color: #fff;
+	background: var(--bd-primary);
+	transition:
+		background-color 0.2s ease,
+		transform 0.2s ease;
+}
+.tm-pill:hover {
+	background: #238a16;
+	transform: scale(1.02);
+}
+.tm-pill.ghost {
+	color: var(--tm-ink);
+	background: #fff;
+	box-shadow: inset 0 0 0 1px var(--tm-line);
+}
+.night .tm-pill.ghost {
+	color: #fff;
+	background: transparent;
+	box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+.tm-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 17px;
+	font-weight: 500;
+	color: #1b8c14;
+}
+.tm-link::after {
+	content: '›';
+	font-size: 1.25em;
+	line-height: 1;
+	transform: translateY(-1px);
+	transition: transform 0.2s ease;
+}
+.tm-link:hover {
+	text-decoration: underline;
+	text-underline-offset: 4px;
+}
+.tm-link:hover::after {
+	transform: translate(3px, -1px);
+}
+.night .tm-link {
+	color: #6ee08a;
+}
+
+/* Three short points under a scene */
+.tm-points {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 40px;
+	max-width: 1080px;
+	margin: 72px auto 0;
+}
+.tm-points h3 {
+	margin: 0 0 8px;
+	font-size: 19px;
+	font-weight: 700;
+	letter-spacing: -0.015em;
+}
+.tm-points p {
+	margin: 0;
+	font-size: 16px;
+	line-height: 1.55;
+	color: var(--tm-slate);
+}
+.night .tm-points p {
+	color: var(--tm-night-slate);
+}
+.tm-points .ic {
+	display: grid;
+	place-items: center;
+	width: 44px;
+	height: 44px;
+	margin-bottom: 16px;
+	border-radius: 12px;
+	color: #1f9d4a;
+	background: #eaf6e6;
+}
+.night .tm-points .ic {
+	color: #6ee08a;
+	background: rgba(110, 224, 138, 0.12);
+}
+
+/* Things that rise into view — once, and only with JavaScript and motion welcome. */
+.bd-js .tm-rise {
+	opacity: 0;
+	transform: translateY(32px);
+	transition:
+		opacity 0.9s ease,
+		transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.bd-js .tm-rise.is-in {
+	opacity: 1;
+	transform: none;
+}
+
+@media (max-width: 800px) {
+	.tm-points {
+		grid-template-columns: 1fr;
+		gap: 28px;
+		margin-top: 48px;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.bd-js .tm-rise {
+		opacity: 1;
+		transform: none;
+	}
+}

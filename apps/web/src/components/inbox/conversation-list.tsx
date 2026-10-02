@@ -19,7 +19,7 @@ import {
 import { $t, $tp, formatCount, msg } from '@/lib/i18n'
 import { plainOf } from '@/lib/rich-text'
 import { excerpt } from '@/lib/search'
-import { type InboxFilter, inInbox, matchesFilter, useInbox } from '@/lib/store/inbox'
+import { type InboxFilter, inInbox, inSite, matchesFilter, useInbox } from '@/lib/store/inbox'
 import { type Sort, matchesFilters, sorted, useListFilters } from '@/lib/store/list-filters'
 import { inboxTime } from '@/lib/time'
 import { cn } from '@/lib/utils'
@@ -79,6 +79,7 @@ export function ConversationList({
   const query = useInbox((s) => s.query)
   const now = useInbox((s) => s.now)
   const inbox = useInbox((s) => s.inbox)
+  const site = useInbox((s) => s.site)
   const inboxes = useInbox((s) => s.directory.inboxes)
   const typing = useInbox((s) => s.typing)
   const { select, setFilter, setQuery } = useInbox.getState()
@@ -87,8 +88,12 @@ export function ConversationList({
   // The filters kept in this browser, before the first paint.
   useLayoutEffect(() => useListFilters.getState().initialize(), [])
 
-  // The chosen inbox's conversations — the tabs count within it, its filters applied.
-  const inThisInbox = useMemo(() => summaries.filter((s) => inInbox(s, inbox)), [summaries, inbox])
+  // The chosen inbox's conversations, of the chosen site — the tabs count within it, its
+  // filters applied.
+  const inThisInbox = useMemo(
+    () => summaries.filter((s) => inInbox(s, inbox) && inSite(s, site)),
+    [summaries, inbox, site],
+  )
   const narrowed = useMemo(
     () => inThisInbox.filter((s) => matchesFilters(s, filters, me, now)),
     [inThisInbox, filters, me, now],

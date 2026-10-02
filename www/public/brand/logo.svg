@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="330" height="64" viewBox="0 0 330 64">
+  <title>Messagerie</title>
+  <rect width="64" height="64" rx="16" fill="#143D2B"/>
+  <path d="M20 16h24a7 7 0 0 1 7 7v14a7 7 0 0 1-7 7H32l-10 8v-8h-2a7 7 0 0 1-7-7V23a7 7 0 0 1 7-7z" fill="#D9F5B5"/>
+  <rect x="22" y="28" width="20" height="5" rx="2.5" fill="#72CA89"/>
+  <text x="78" y="46" fill="#143D2B" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="44" font-weight="700" letter-spacing="-2.2">Messagerie</text>
+</svg>

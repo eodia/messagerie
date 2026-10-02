@@ -1,0 +1,251 @@
+---
+/**
+ * The widget, as a visitor sees it on a client's site: its coloured head, the messages
+ * (the slot), the composer and its mention. Drawn at 340 px wide; `--w` is the site's
+ * colour. The scenes that play a conversation fill the slot and drive it.
+ */
+interface Props {
+	title?: string;
+	status?: string;
+	/** The site's colour. */
+	color?: string;
+	class?: string;
+}
+const {
+	title = 'Acme Assurances',
+	status = 'Notre assistant répond à toute heure',
+	color = '#2563eb',
+	class: className,
+} = Astro.props;
+---
+
+<div class:list={['ap', 'wg', className]} style={`--w:${color}`}>
+	<div class="wg-head">
+		<span class="wg-faces"><i class="ai"></i><i>CD</i></span>
+		<span class="wg-titles">
+			<b>{title}</b>
+			<small><i></i>{status}</small>
+		</span>
+		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+	</div>
+	<div class="wg-body">
+		<slot />
+	</div>
+	<div class="wg-foot">
+		<div class="wg-input">
+			<span data-wg-input>Écrivez votre message…</span>
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"></path></svg>
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+			<span class="wg-send"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"></path></svg></span>
+		</div>
+		<p>Propulsé par Messagerie</p>
+	</div>
+</div>
+
+<style>
+	.wg {
+		display: flex;
+		flex-direction: column;
+		width: 340px;
+		overflow: hidden;
+		border-radius: var(--wr, 20px);
+		background: #fff;
+		transition: border-radius 0.4s ease;
+		box-shadow:
+			0 30px 70px -24px rgba(15, 23, 42, 0.4),
+			0 0 0 1px rgba(15, 23, 42, 0.06);
+	}
+	.wg-head {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 14px 16px;
+		color: #fff;
+		background: var(--w);
+		transition: background-color 0.5s ease;
+	}
+	.wg-faces {
+		display: flex;
+	}
+	.wg-faces i {
+		display: grid;
+		place-items: center;
+		width: 28px;
+		height: 28px;
+		border: 2px solid var(--w);
+		border-radius: 50%;
+		font-size: 9.5px;
+		font-style: normal;
+		font-weight: 700;
+		color: #fff;
+		background: rgba(255, 255, 255, 0.24);
+	}
+	.wg-faces i + i {
+		margin-left: -9px;
+	}
+	.wg-faces .ai {
+		background: conic-gradient(from 200deg, #a5b4fc, #f0abfc, #93c5fd, #a5b4fc);
+	}
+	.wg-titles {
+		flex: 1;
+		min-width: 0;
+	}
+	.wg-titles b {
+		display: block;
+		font-size: 14px;
+		letter-spacing: -0.01em;
+	}
+	.wg-titles small {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 11px;
+		opacity: 0.92;
+	}
+	.wg-titles small i {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: #4ade80;
+	}
+	.wg-body {
+		position: relative;
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		justify-content: flex-end;
+		gap: 8px;
+		padding: 14px;
+		overflow: hidden;
+		background: #fff;
+	}
+	.wg-foot {
+		padding: 0 12px 8px;
+	}
+	.wg-input {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 8px 8px 8px 14px;
+		border: 1px solid #e4e4e7;
+		border-radius: 999px;
+		color: #a1a1aa;
+	}
+	.wg-input span:first-child {
+		flex: 1;
+		min-width: 0;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+		font-size: 12.5px;
+	}
+	.wg-send {
+		display: grid;
+		place-items: center;
+		width: 28px;
+		height: 28px;
+		border-radius: 50%;
+		color: #fff;
+		background: color-mix(in srgb, var(--w) 45%, white);
+	}
+	.wg-foot p {
+		margin: 6px 0 0;
+		font-size: 10px;
+		text-align: center;
+		color: #a1a1aa;
+	}
+
+	/* The messages, for the scenes that fill the slot */
+	.wg :global(.m) {
+		max-width: 82%;
+		padding: 8px 12px;
+		border-radius: 16px;
+		font-size: 12.5px;
+		line-height: 1.45;
+	}
+	.wg :global(.m.me) {
+		align-self: flex-end;
+		border-bottom-right-radius: 5px;
+		color: #fff;
+		background: var(--w);
+	}
+	.wg :global(.m.them) {
+		align-self: flex-start;
+		border-bottom-left-radius: 5px;
+		color: #18181b;
+		background: #f4f4f5;
+	}
+	.wg :global(.m .by) {
+		display: flex;
+		align-items: center;
+		gap: 5px;
+		margin-bottom: 3px;
+		font-size: 10px;
+		font-weight: 600;
+		color: #71717a;
+	}
+	.wg :global(.m .ia) {
+		padding: 0 5px;
+		border-radius: 999px;
+		font-size: 9px;
+		color: #5b21b6;
+		background: rgba(139, 92, 246, 0.15);
+	}
+	.wg :global(.m .src) {
+		display: flex;
+		align-items: center;
+		gap: 5px;
+		margin-top: 6px;
+		padding-top: 6px;
+		border-top: 1px solid #e4e4e7;
+		font-size: 10.5px;
+		color: #52525b;
+	}
+	.wg :global(.event) {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		font-size: 10.5px;
+		color: #71717a;
+	}
+	.wg :global(.event::before),
+	.wg :global(.event::after) {
+		content: '';
+		flex: 1;
+		height: 1px;
+		background: #e4e4e7;
+	}
+	.wg :global(.typing) {
+		align-self: flex-start;
+		display: flex;
+		gap: 4px;
+		padding: 11px 13px;
+		border-radius: 16px 16px 16px 5px;
+		background: #f4f4f5;
+	}
+	.wg :global(.typing i) {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: #a1a1aa;
+		animation: wg-dot 1.2s infinite ease-in-out;
+	}
+	.wg :global(.typing i:nth-child(2)) {
+		animation-delay: 0.15s;
+	}
+	.wg :global(.typing i:nth-child(3)) {
+		animation-delay: 0.3s;
+	}
+	@keyframes wg-dot {
+		0%,
+		60%,
+		100% {
+			transform: none;
+			opacity: 0.5;
+		}
+		30% {
+			transform: translateY(-3px);
+			opacity: 1;
+		}
+	}
+</style>

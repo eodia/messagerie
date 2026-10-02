@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import { $t, $tp, formatCount, intlLocale, msg } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
+import { useInbox } from '@/lib/store/inbox'
 import { useTitle } from '@/lib/title'
 import { cn } from '@/lib/utils'
 import type { InboxStats } from '@chat/contracts'
@@ -58,6 +59,7 @@ function duration(seconds: number | null): string {
 export function StatsScreen() {
   const basedbUrl = useBasedbUrl()
   useTitle([$t('Statistiques')])
+  const site = useInbox((s) => s.site)
   const [stats, setStats] = useState<InboxStats | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -65,16 +67,16 @@ export function StatsScreen() {
   const load = useCallback(() => {
     setLoading(true)
     api
-      .stats()
+      .stats(site)
       .then((next) => {
         setStats(next)
         setError(null)
       })
       .catch((failure: { code?: string }) => setError(failure.code ?? 'INTERNAL_ERROR'))
       .finally(() => setLoading(false))
-  }, [])
+  }, [site])
 
-  useEffect(load, [])
+  useEffect(() => load(), [load])
 
   const rate =
     stats?.aiResolutionRate === null || stats?.aiResolutionRate === undefined

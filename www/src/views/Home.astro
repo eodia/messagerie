@@ -1,0 +1,233 @@
+---
+/**
+ * The home page, told like basedb's: one idea per screen, the product doing the talking —
+ * drawn as the application draws it, and played where it moves. Its shared styles are
+ * `src/styles/home.css` (basedb's) and `src/styles/app.css` (the application's pieces).
+ */
+import '../styles/home.css';
+import '../styles/app.css';
+import Agent from '../components/home/Agent.astro';
+import Copilot from '../components/home/Copilot.astro';
+import Developers from '../components/home/Developers.astro';
+import Features from '../components/home/Features.astro';
+import Hero from '../components/home/Hero.astro';
+import Settings from '../components/home/Settings.astro';
+import Studio from '../components/home/Studio.astro';
+import Yours from '../components/home/Yours.astro';
+import Landing from '../layouts/Landing.astro';
+import { BASEDB, href } from '../lib/site';
+
+const FAQ = [
+	{
+		q: 'Que faut-il pour l’installer ?',
+		a: 'Un PostgreSQL 16 avec pgvector, et l’image de la Messagerie. Elle crée son schéma au premier démarrage ; l’écran de connexion fait de vous le premier superviseur, et tout le reste se règle dans l’inbox.',
+	},
+	{
+		q: 'Comment se connectent les conseillers ?',
+		a: 'Un superviseur les invite : chacun reçoit un lien, valable sept jours, où il choisit son mot de passe. Avec un fournisseur OpenID Connect — Microsoft Entra, Google, Keycloak —, ils se connectent avec leur compte de l’entreprise.',
+	},
+	{
+		q: 'Faut-il une clé d’IA ?',
+		a: 'Non. Sans clé, il n’y a pas d’IA : chaque conversation va directement aux conseillers, et tout le reste fonctionne. Avec une clé, l’agent répond en première ligne et le copilote aide les conseillers.',
+	},
+	{
+		q: 'Quel modèle, et où partent les données ?',
+		a: 'Mistral par défaut, ou tout serveur compatible OpenAI — Ollama compris, pour un modèle qui tourne chez vous. Vers un modèle externe, les données personnelles des messages sont masquées avant de partir.',
+	},
+	{
+		q: 'Le client sait-il qu’il parle à une IA ?',
+		a: 'Toujours. Chaque réponse de l’IA est signée « Assistant » et porte sa pastille. Quand un conseiller reprend la main, le fil le dit.',
+	},
+	{
+		q: 'Et mes clients déjà connectés à mon site ?',
+		a: 'Votre serveur signe leur identité, que le widget transmet : la conversation arrive avec leur nom et leur e-mail, que la page ne peut pas changer. Un visiteur anonyme le reste jusque-là.',
+	},
+	{
+		q: 'Plusieurs sites, plusieurs équipes ?',
+		a: 'Oui. Chaque site a son widget, ses domaines et ses horaires, et envoie ses conversations dans une boîte de réception. Une équipe peut servir plusieurs boîtes, et un conseiller ne voit que celles de ses équipes.',
+	},
+	{
+		q: 'Sous quelle licence ?',
+		a: 'GNU AGPL-3.0 : libre d’usage, de modification et d’hébergement. Qui propose une version modifiée à travers un réseau en doit le code à ses utilisateurs.',
+	},
+];
+---
+
+<Landing
+	title="Messagerie — la messagerie client libre, avec un agent IA en première ligne"
+	description="Un widget pour votre site, un agent IA qui répond de vos articles et passe la main avec un résumé, une inbox et un copilote pour vos conseillers. Libre, hébergée chez vous : un serveur, un PostgreSQL."
+>
+	<main class="tm">
+		<Hero />
+		<Agent />
+		<Copilot />
+		<Features />
+		<Settings />
+		<Studio />
+		<Developers />
+		<Yours />
+
+		<section class="bridge">
+			<div class="bridge-inner tm-rise">
+				<img src={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/brand/basedb.svg`} width="56" height="56" alt="" />
+				<div>
+					<h2>Sœur de basedb.</h2>
+					<p>
+						Du même atelier : la même interface dense, les mêmes décisions écrites, PostgreSQL et rien d’autre. Si vos équipes
+						ont aussi besoin d’une base collaborative, basedb est là.
+					</p>
+					<a class="tm-link" href={BASEDB}>Découvrir basedb</a>
+				</div>
+			</div>
+		</section>
+
+		<section class="tm-section faq" id="faq">
+			<h2 class="tm-display tm-rise">Questions</h2>
+			<div class="faq-list tm-rise">
+				{
+					FAQ.map((item) => (
+						<details>
+							<summary>{item.q}</summary>
+							<p>{item.a}</p>
+						</details>
+					))
+				}
+			</div>
+		</section>
+
+		<section class="tm-section finale">
+			<div class="tm-head">
+				<h2 class="tm-display tm-rise">
+					<span>Vos clients vous attendent.</span>
+					<span class="tm-grad">Répondez-leur à toute heure.</span>
+				</h2>
+				<p class="tm-lede tm-rise">Une image Docker, un PostgreSQL, une balise sur votre site.</p>
+				<div class="tm-actions tm-rise">
+					<a class="tm-pill" href={href('/guides/installation/')}>Installer la Messagerie</a>
+					<a class="tm-link" href={href('/guides/introduction/')}>Lire la documentation</a>
+				</div>
+			</div>
+		</section>
+	</main>
+</Landing>
+
+<script>
+	// What rises into view, once.
+	const risers = document.querySelectorAll('.tm-rise');
+	const observer = new IntersectionObserver(
+		(entries) => {
+			for (const entry of entries) {
+				if (!entry.isIntersecting) continue;
+				entry.target.classList.add('is-in');
+				observer.unobserve(entry.target);
+			}
+		},
+		{ rootMargin: '0px 0px -12% 0px' },
+	);
+	for (const el of risers) observer.observe(el);
+</script>
+
+<style>
+	/* The bridge to basedb */
+	.bridge {
+		padding: clamp(80px, 10vw, 140px) 24px 0;
+	}
+	.bridge-inner {
+		display: flex;
+		align-items: flex-start;
+		gap: 32px;
+		max-width: 1180px;
+		margin: 0 auto;
+		padding: 56px;
+		border-radius: 32px;
+		background: var(--tm-mist);
+	}
+	.bridge-inner img {
+		flex-shrink: 0;
+		border-radius: 14px;
+	}
+	.bridge h2 {
+		margin: 0;
+		font-size: clamp(28px, 3.4vw, 44px);
+		font-weight: 800;
+		letter-spacing: -0.04em;
+	}
+	.bridge p {
+		max-width: 760px;
+		margin: 12px 0 18px;
+		font-size: 17px;
+		line-height: 1.55;
+		color: var(--tm-slate);
+	}
+
+	/* Questions */
+	.faq {
+		display: grid;
+		grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr);
+		gap: 64px;
+		max-width: 1180px;
+		margin: 0 auto;
+		align-items: start;
+	}
+	.faq .tm-display {
+		font-size: clamp(40px, 5vw, 64px);
+	}
+	.faq-list {
+		border-top: 1px solid var(--tm-line);
+	}
+	details {
+		border-bottom: 1px solid var(--tm-line);
+	}
+	summary {
+		display: flex;
+		justify-content: space-between;
+		gap: 16px;
+		padding: 24px 2px;
+		font-size: 19px;
+		font-weight: 600;
+		letter-spacing: -0.015em;
+		cursor: pointer;
+		list-style: none;
+	}
+	summary::-webkit-details-marker {
+		display: none;
+	}
+	summary::after {
+		content: '+';
+		font-size: 26px;
+		font-weight: 300;
+		line-height: 1;
+		color: var(--tm-slate);
+		transition: transform 0.25s ease;
+	}
+	details[open] summary::after {
+		transform: rotate(45deg);
+	}
+	details p {
+		max-width: 680px;
+		margin: -6px 0 26px;
+		font-size: 17px;
+		line-height: 1.6;
+		color: var(--tm-slate);
+	}
+
+	/* The last word */
+	.finale {
+		padding-top: 40px;
+		padding-bottom: clamp(120px, 16vw, 200px);
+	}
+	.finale .tm-display {
+		font-size: clamp(38px, 5.4vw, 76px);
+	}
+
+	@media (max-width: 900px) {
+		.faq {
+			grid-template-columns: 1fr;
+			gap: 32px;
+		}
+		.bridge-inner {
+			flex-direction: column;
+			padding: 32px 24px;
+		}
+	}
+</style>

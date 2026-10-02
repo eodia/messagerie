@@ -1,0 +1,452 @@
+---
+/**
+ * The copilot, played in the inbox: a conversation the AI handed over with its summary, a
+ * customer's question, the copilot's three suggestions; the agent picks one, the draft
+ * fills the composer, the proofreading offers a word in green, the reply leaves.
+ *
+ * Runs while on screen; without JavaScript or asked for less motion, the sent reply.
+ */
+import { href } from '../../lib/site';
+import Icon from '../landing/Icon.astro';
+
+const SUGGESTIONS = [
+	'Bonne nouvelle : le changement d’adresse se fait en ligne, en deux minutes.',
+	'Je m’en occupe : quelle est votre nouvelle adresse et la date du déménagement ?',
+	'Votre contrat vous suit : seule la prime peut changer selon le logement.',
+];
+const PICKED = 1;
+---
+
+<section class="tm-section copilot" id="copilote" data-copilot>
+	<div class="tm-head">
+		<p class="tm-kicker tm-rise"><Icon name="wand" size={20} />Le copilote</p>
+		<h2 class="tm-display tm-rise">
+			<span>Vos conseillers reprennent.</span>
+			<span class="tm-grad">Le copilote souffle la suite.</span>
+		</h2>
+		<p class="tm-lede tm-rise">
+			Le résumé de ce qui s’est dit, trois réponses possibles, une relecture pendant la frappe. Le conseiller choisit,
+			corrige, envoie : il garde la main, et son avis sur chaque réponse de l’IA nourrit son évaluation.
+		</p>
+	</div>
+
+	<div class="ap panel tm-rise" data-panel aria-hidden="true">
+		<header>
+			<span class="ap-avatar" style="--c:#8b5cf6">JM</span>
+			<div>
+				<b>Julie Martin</b>
+				<small><span class="look" style="--c:#2563eb"></span>Service client <Icon name="chevronRight" size={10} /> Support</small>
+			</div>
+			<span class="ap-chip sky">Ouverte</span>
+			<span class="ap-chip amber"><Icon name="clock" />14 min</span>
+			<span class="grow"></span>
+			<span class="ap-btn"><Icon name="transfer" />Transférer…</span>
+		</header>
+
+		<div class="flow">
+			<div class="handoff">
+				<p class="ap-micro"><Icon name="transfer" size={11} /> Transférée à un conseiller</p>
+				<b>Résumé de l’IA</b>
+				<p>Julie Martin déménage le mois prochain, à Lyon. Elle veut savoir ce que devient son contrat habitation.</p>
+			</div>
+			<div class="visitor">
+				<span class="ap-avatar small" style="--c:#8b5cf6">JM</span>
+				<p>Je déménage le mois prochain : que dois-je faire pour mon contrat ?</p>
+			</div>
+			<div class="sent" data-show="6">
+				<p>{SUGGESTIONS[PICKED]}</p>
+				<small>Camille · à l’instant</small>
+			</div>
+		</div>
+
+		<div class="composer">
+			<div class="suggest" data-show="1" data-hide="6">
+				<p class="ap-micro"><Icon name="wand" size={11} /> Suggestions du copilote</p>
+				<p class="thinking" data-show="1" data-hide="2">Le copilote réfléchit…</p>
+				<div class="cards" data-show="2">
+					{SUGGESTIONS.map((s, i) => <span class:list={['card', { picked: i === PICKED }]}>{s}</span>)}
+				</div>
+			</div>
+			<div class="tabs"><span class="on">Répondre</span><span>Note interne</span></div>
+			<div class="box">
+				<p class="draft">
+					<span class="placeholder">Écrire au visiteur — « / » pour une réponse type…</span>
+					<span class="text" data-draft></span><span class="fix" data-show="4" data-hide="5"><s>demenagement</s><em>déménagement</em></span><span class="caret"></span>
+				</p>
+				<p class="hint" data-show="4" data-hide="5">Un clic sur un mot en vert l’accepte.</p>
+				<div class="tools">
+					<Icon name="paperclip" size={14} />
+					<Icon name="smile" size={14} />
+					<i></i>
+					<Icon name="bold" size={14} />
+					<Icon name="italic" size={14} />
+					<i></i>
+					<Icon name="wand" size={14} />
+					<Icon name="mic" size={14} />
+					<span class="grow"></span>
+					<span class="ap-btn primary" data-press><Icon name="send" />Envoyer</span>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="tm-points">
+		<div class="tm-rise">
+			<span class="ic"><Icon name="file" size={22} /></span>
+			<h3>Le résumé, d’abord</h3>
+			<p>Une conversation transférée arrive avec ce que l’IA en a compris : personne ne fait répéter le client.</p>
+		</div>
+		<div class="tm-rise">
+			<span class="ic"><Icon name="wand" size={22} /></span>
+			<h3>Suggérer, reformuler, relire</h3>
+			<p>Des réponses à choisir, un brouillon reformulé, l’orthographe relue après chaque pause.</p>
+		</div>
+		<div class="tm-rise">
+			<span class="ic"><Icon name="checkCircle" size={22} /></span>
+			<h3>Un avis qui compte</h3>
+			<p>Acceptée, modifiée, rejetée : chaque réponse de l’IA reçoit l’avis du conseiller, et forme le jeu d’évaluation.</p>
+		</div>
+	</div>
+	<p class="more tm-rise"><a class="tm-link" href={href('/fonctionnalites/copilote/')}>Tout ce que fait le copilote</a></p>
+</section>
+
+<script>
+	import { reducedMotion, whileVisible } from '../../lib/motion';
+
+	const section = document.querySelector<HTMLElement>('[data-copilot]');
+	const panel = section?.querySelector<HTMLElement>('[data-panel]');
+	const draft = panel?.querySelector<HTMLElement>('[data-draft]');
+	const picked = panel?.querySelector<HTMLElement>('.card.picked');
+	if (section && panel && draft && picked) {
+		const full = picked.textContent ?? '';
+		// The draft is typed with one word misspelled, which the proofreading then offers.
+		const typo = `${full.replace(/ \?$/, '')} `;
+		const show = (step: number) => {
+			panel.dataset.step = String(step);
+			for (const el of panel.querySelectorAll<HTMLElement>('[data-show]')) {
+				const from = Number(el.dataset.show);
+				const until = el.dataset.hide === undefined ? Infinity : Number(el.dataset.hide);
+				el.classList.toggle('on', step >= from && step < until);
+			}
+		};
+		const still = () => {
+			draft.textContent = '';
+			show(6);
+		};
+		if (reducedMotion()) still();
+		else {
+			panel.dataset.playing = '';
+			whileVisible(section, async (sleep) => {
+				for (;;) {
+					draft.textContent = '';
+					show(0);
+					await sleep(900);
+					show(1);
+					await sleep(1300);
+					show(2);
+					await sleep(1800);
+					show(3);
+					await sleep(700);
+					// The draft fills, up to the word the proofreading will offer.
+					const head = typo.split('déménagement')[0] ?? '';
+					for (let i = 0; i <= head.length; i += 2) {
+						draft.textContent = head.slice(0, i);
+						await sleep(28);
+					}
+					show(4);
+					await sleep(1900);
+					draft.textContent = `${head}déménagement ?`;
+					show(5);
+					await sleep(1100);
+					panel.dataset.press = '';
+					await sleep(250);
+					delete panel.dataset.press;
+					draft.textContent = '';
+					show(6);
+					await sleep(4200);
+				}
+			});
+		}
+	}
+</script>
+
+<style>
+	.copilot {
+		background: var(--tm-mist);
+	}
+	.grow {
+		flex: 1;
+	}
+	.panel {
+		display: flex;
+		flex-direction: column;
+		max-width: 860px;
+		height: 580px;
+		margin: 72px auto 0;
+		overflow: hidden;
+		border-radius: 18px;
+		background: #fff;
+		box-shadow:
+			0 50px 100px -50px rgba(16, 40, 16, 0.35),
+			0 0 0 1px rgba(16, 24, 16, 0.07);
+	}
+	header {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 12px 18px;
+		border-bottom: 1px solid var(--ap-border);
+	}
+	header b,
+	header small {
+		display: block;
+		white-space: nowrap;
+	}
+	header small {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		font-size: 10.5px;
+		color: var(--ap-muted-fg);
+	}
+	.look {
+		display: inline-block;
+		width: 8px;
+		height: 8px;
+		border-radius: 3px;
+		background: var(--c);
+	}
+	.flow {
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		justify-content: flex-end;
+		gap: 14px;
+		padding: 20px 24px;
+		overflow: hidden;
+		background: #fcfcfd;
+	}
+	.handoff {
+		align-self: center;
+		width: min(460px, 100%);
+		padding: 12px 14px;
+		border: 1px solid rgba(244, 63, 94, 0.25);
+		border-radius: 12px;
+		background: rgba(244, 63, 94, 0.04);
+	}
+	.handoff .ap-micro {
+		display: flex;
+		align-items: center;
+		gap: 5px;
+		margin: 0 0 6px;
+		color: #be123c;
+	}
+	.handoff b {
+		font-size: 12px;
+	}
+	.handoff p:last-child {
+		margin: 2px 0 0;
+		font-size: 12.5px;
+		color: #3f3f46;
+	}
+	.visitor {
+		display: flex;
+		align-items: flex-end;
+		gap: 8px;
+	}
+	.ap-avatar.small {
+		width: 24px;
+		height: 24px;
+		font-size: 9px;
+	}
+	.visitor p {
+		max-width: 380px;
+		margin: 0;
+		padding: 9px 13px;
+		border: 1px solid var(--ap-border);
+		border-radius: 14px 14px 14px 4px;
+		font-size: 12.5px;
+		background: #fff;
+	}
+	.sent {
+		align-self: flex-end;
+		max-width: 400px;
+		text-align: right;
+	}
+	.sent p {
+		margin: 0;
+		padding: 9px 13px;
+		border-radius: 14px 14px 4px 14px;
+		font-size: 12.5px;
+		text-align: left;
+		color: #fff;
+		background: #18181b;
+	}
+	.sent small {
+		font-size: 10px;
+		color: var(--ap-muted-fg);
+	}
+
+	.composer {
+		padding: 0 18px 16px;
+		border-top: 1px solid var(--ap-border);
+	}
+	.suggest {
+		padding: 12px 0 4px;
+	}
+	.suggest .ap-micro {
+		display: flex;
+		align-items: center;
+		gap: 5px;
+		margin: 0 0 8px;
+		color: #6d28d9;
+	}
+	.thinking {
+		margin: 0;
+		font-size: 12px;
+		color: var(--ap-muted-fg);
+	}
+	.cards {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 8px;
+	}
+	.card {
+		padding: 9px 11px;
+		border: 1px solid var(--ap-border);
+		border-radius: 10px;
+		font-size: 12px;
+		line-height: 1.45;
+		background: #fff;
+		transition:
+			border-color 0.3s ease,
+			background-color 0.3s ease,
+			box-shadow 0.3s ease;
+	}
+	.panel[data-step='3'] .card.picked {
+		border-color: var(--ap-primary);
+		background: color-mix(in srgb, var(--ap-primary) 6%, white);
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--ap-primary) 18%, transparent);
+	}
+	.tabs {
+		display: flex;
+		gap: 16px;
+		font-size: 11.5px;
+		color: var(--ap-muted-fg);
+	}
+	.tabs span {
+		padding: 8px 0;
+	}
+	.tabs .on {
+		font-weight: 600;
+		color: var(--ap-fg);
+		box-shadow: inset 0 -2px 0 var(--ap-primary);
+	}
+	.box {
+		margin-top: 8px;
+		border: 1px solid var(--ap-border);
+		border-radius: 10px;
+	}
+	.draft {
+		min-height: 42px;
+		margin: 0;
+		padding: 10px 12px 6px;
+		font-size: 12.5px;
+	}
+	.placeholder {
+		color: var(--ap-muted-fg);
+	}
+	.draft:has(.text:not(:empty)) .placeholder,
+	.panel[data-step='4'] .placeholder,
+	.panel[data-step='5'] .placeholder {
+		display: none;
+	}
+	.fix s {
+		text-decoration: underline wavy #16a34a;
+		text-decoration-skip-ink: none;
+	}
+	.fix em {
+		margin-left: 4px;
+		padding: 0 4px;
+		border-radius: 4px;
+		font-style: normal;
+		color: #15803d;
+		background: rgba(34, 197, 94, 0.14);
+	}
+	.caret {
+		display: none;
+		width: 1.5px;
+		height: 14px;
+		margin-left: 1px;
+		vertical-align: -2px;
+		background: var(--ap-fg);
+		animation: blink 1s steps(2) infinite;
+	}
+	.panel[data-step='3'] .caret,
+	.panel[data-step='4'] .caret,
+	.panel[data-step='5'] .caret {
+		display: inline-block;
+	}
+	@keyframes blink {
+		50% {
+			opacity: 0;
+		}
+	}
+	.hint {
+		margin: 0;
+		padding: 0 12px 4px;
+		font-size: 10.5px;
+		color: #15803d;
+	}
+	.tools {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 6px 8px 6px 12px;
+		color: var(--ap-muted-fg);
+	}
+	.tools i {
+		width: 1px;
+		height: 14px;
+		background: var(--ap-border);
+	}
+	.tools .ap-btn {
+		transition: transform 0.15s ease;
+	}
+	.panel[data-press] [data-press] {
+		transform: scale(0.94);
+	}
+
+	/* What the play shows step by step; without it, everything but the passing states. */
+	.panel:not([data-playing]) .suggest,
+	.panel:not([data-playing]) .hint,
+	.panel:not([data-playing]) .fix,
+	.panel[data-playing] [data-show]:not(.on) {
+		display: none;
+	}
+	.panel[data-playing] [data-show].on {
+		animation: rise 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+	}
+	@keyframes rise {
+		from {
+			opacity: 0;
+			transform: translateY(8px);
+		}
+	}
+	.more {
+		margin: 56px 0 0;
+		text-align: center;
+	}
+	@media (max-width: 760px) {
+		.panel {
+			height: 640px;
+		}
+		.cards {
+			grid-template-columns: 1fr;
+		}
+		header .ap-btn,
+		header .ap-chip.amber {
+			display: none;
+		}
+	}
+</style>

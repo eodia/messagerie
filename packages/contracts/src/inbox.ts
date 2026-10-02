@@ -201,7 +201,9 @@ export interface PastConversation {
 export interface Conversation {
   readonly id: string
   readonly contact: Contact
+  /** The site's name when the conversation began; `siteId` finds the site. */
   readonly site: string
+  readonly siteId: string
   /** « Boîtes de réception »: null for a conversation from before the inboxes. */
   readonly inboxId: string | null
   readonly teamId: string | null
@@ -261,6 +263,7 @@ export interface ConversationSummary {
   readonly id: string
   readonly contact: Pick<Contact, 'id' | 'name' | 'email' | 'identified'>
   readonly site: string
+  readonly siteId: string
   readonly inboxId: string | null
   readonly teamId: string | null
   readonly status: ConversationStatus
@@ -465,11 +468,24 @@ export interface InboxItem {
   readonly defaultTeamId: string | null
 }
 
+/** A site the agent may narrow the inbox to, from the menu at the top of the sidebar. */
+export interface SiteItem {
+  readonly id: string
+  readonly name: string
+  /** The widget's colour, `#RRGGBB`. */
+  readonly color: string
+}
+
 export interface InboxDirectory {
   /** The inboxes this agent sees — all of them for a supervisor. */
   readonly inboxes: readonly InboxItem[]
   /** Every team: a conversation may go to any team of its inbox. */
   readonly teams: readonly TeamItem[]
+  /**
+   * The sites whose conversations this agent sees: those that arrive in one of their
+   * inboxes, and those of a conversation moved into one — every site for a supervisor.
+   */
+  readonly sites: readonly SiteItem[]
 }
 
 /** Moves a conversation: to another inbox, another team, or both. */

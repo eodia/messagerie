@@ -10,7 +10,7 @@ import type {
   PastConversation,
   Tag,
 } from '@chat/contracts'
-import { type SQL, and, asc, desc, eq, gt, inArray, isNull, like, ne, or, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, gt, inArray, isNull, like, ne, or, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import type { Db } from '../db/client.js'
 import {
@@ -27,7 +27,7 @@ import {
 import { attachmentsOf, forInbox } from '../files/attachments.js'
 import { pointOf } from '../places/place.js'
 import { Refusal } from '../refusal.js'
-import { type Visible, canSee } from './access.js'
+import { type Visible, canSee, inVisible } from './access.js'
 
 /**
  * The inbox's reads: the list, and one conversation with its thread — in the shapes of
@@ -41,14 +41,6 @@ export function toAgent(row: AgentRow): Agent {
 }
 
 const PREVIEW_AUTHOR = { contact: 'visitor', agent: 'agent', ai: 'ai', system: null } as const
-
-/** Only the conversations of the inboxes one sees — and those of no inbox. */
-function inVisible(visible: Visible): SQL | undefined {
-  if (visible === null) return undefined
-  return visible.size === 0
-    ? isNull(conversations.inboxId)
-    : or(isNull(conversations.inboxId), inArray(conversations.inboxId, [...visible]))
-}
 
 /**
  * The rows of the list — all of them, or those of `ids` — of the inboxes one sees, the
@@ -127,6 +119,7 @@ export async function loadSummaries(
       id: conversation.id,
       contact,
       site: conversation.siteName,
+      siteId: conversation.siteId,
       inboxId: conversation.inboxId,
       teamId: conversation.teamId,
       status: conversation.status,
@@ -282,6 +275,7 @@ export async function loadConversation(
     id: conversation.id,
     contact: toContact(contact),
     site: conversation.siteName,
+    siteId: conversation.siteId,
     inboxId: conversation.inboxId,
     teamId: conversation.teamId,
     data: conversation.data,

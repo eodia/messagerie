@@ -93,3 +93,14 @@ Messagerie client libre, sœur de basedb (`../basedb`). Les décisions qui font 
   l'inbox seule (`preview.ts`).
 - `window.MessagerieChat` : l'API de la page (`page-api.ts`). Une commande ajoutée l'est
   aussi au panneau de `/demo` et à l'onglet « Installation » de l'éditeur.
+
+## Site public (`www`)
+
+- Astro + Starlight, comme `../basedb/www` : un projet à part, installé avec npm, hors de
+  l'espace de travail pnpm (`cd www && npm install && npm run dev`). Voir `www/README.md`.
+- **La documentation dit ce que fait le produit aujourd'hui** (`www/src/content/docs`). Une
+  fonctionnalité qui change un écran, un réglage, une route de l'API, un événement de
+  webhook ou une variable d'environnement corrige sa page, et celle du tableau des variables
+  (`hebergement/variables`).
+- Le site est en français seul. Il garde les jetons de basedb (`styles/landing.css`,
+  `starlight-custom.css`) : ne les changez qu'avec ceux de `globals.css`.

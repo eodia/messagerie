@@ -399,7 +399,10 @@ export function documentation(base: string): DocSection[] {
           '`contact`',
           '`id`, `name`, `email`, `identified` : `true` quand le site a signé l’identité.',
         ],
-        ['`site`, `inboxId`, `teamId`', 'Le site d’où elle vient, sa boîte, son équipe.'],
+        [
+          '`site`, `siteId`, `inboxId`, `teamId`',
+          'Le site d’où elle vient — son nom à l’arrivée, puis son identifiant —, sa boîte, son équipe.',
+        ],
         ['`status`', '`ai` : l’IA répond · `open` · `pending` · `resolved`.'],
         ['`assignee`, `assigneeId`', 'Le conseiller qui l’a, ou `null` : la file.'],
         ['`unread`', 'Un message du visiteur attend.'],

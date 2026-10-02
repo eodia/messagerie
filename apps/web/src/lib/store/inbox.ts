@@ -39,13 +39,23 @@ import { $t } from '../i18n'
 export type InboxFilter = ListFilter
 
 const INBOX_KEY = 'chat.inbox'
+const SITE_KEY = 'chat.site'
 
-function storeInbox(inbox: string | null): void {
+/** The inbox or the site last chosen — a convenience of this browser, nothing more. */
+function remember(key: string, id: string | null): void {
   try {
-    if (inbox) window.localStorage.setItem(INBOX_KEY, inbox)
-    else window.localStorage.removeItem(INBOX_KEY)
+    if (id) window.localStorage.setItem(key, id)
+    else window.localStorage.removeItem(key)
   } catch {
     // The choice is forgotten at the next visit, nothing more.
+  }
+}
+
+function recall(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key)
+  } catch {
+    return null
   }
 }
 
@@ -67,18 +77,13 @@ export function inboxAddress(
   )
 }
 
-/** The inbox last chosen — a convenience of this browser, nothing more. */
-function storedInbox(): string | null {
-  try {
-    return window.localStorage.getItem(INBOX_KEY)
-  } catch {
-    return null
-  }
-}
-
 /** The conversations of the chosen inbox — all of them when none is. */
 export const inInbox = (summary: Pick<ConversationSummary, 'inboxId'>, inbox: string | null) =>
   inbox === null || summary.inboxId === inbox
+
+/** The conversations of the chosen site — all of them when none is. */
+export const inSite = (summary: Pick<ConversationSummary, 'siteId'>, site: string | null) =>
+  site === null || summary.siteId === site
 
 type Status = Pick<ConversationSummary, 'status' | 'assignee'>
 
@@ -111,19 +116,37 @@ export function concernsMe(summary: ConversationSummary, me: Agent | null): bool
   return summary.status === 'open' && summary.assigneeId === null
 }
 
-/** What waits for the reader: unread, and theirs to answer — the tab's and sidebar's count. */
+/**
+ * What waits for the reader: unread, and theirs to answer — the tab's count, whatever the
+ * site chosen: it is the reader's, as the chimes are.
+ */
 export const waitingCount = (state: Pick<InboxState, 'summaries' | 'me'>): number =>
   state.summaries.filter((s) => s.unread && concernsMe(s, state.me)).length
 
-/** The same count, inbox by inbox — the sidebar's. */
+/** The same count within the site chosen — the sidebar's. */
+export const waitingHere = (state: Pick<InboxState, 'summaries' | 'me' | 'site'>): number =>
+  state.summaries.filter((s) => inSite(s, state.site) && s.unread && concernsMe(s, state.me)).length
+
+/** The sidebar's count, inbox by inbox, within the site chosen. */
 export function waitingByInbox(
+  state: Pick<InboxState, 'summaries' | 'me' | 'site'>,
+): ReadonlyMap<string, number> {
+  const counts = new Map<string, number>()
+  for (const s of state.summaries) {
+    if (s.inboxId !== null && inSite(s, state.site) && s.unread && concernsMe(s, state.me)) {
+      counts.set(s.inboxId, (counts.get(s.inboxId) ?? 0) + 1)
+    }
+  }
+  return counts
+}
+
+/** The same count, site by site — the site menu's. */
+export function waitingBySite(
   state: Pick<InboxState, 'summaries' | 'me'>,
 ): ReadonlyMap<string, number> {
   const counts = new Map<string, number>()
   for (const s of state.summaries) {
-    if (s.inboxId !== null && s.unread && concernsMe(s, state.me)) {
-      counts.set(s.inboxId, (counts.get(s.inboxId) ?? 0) + 1)
-    }
+    if (s.unread && concernsMe(s, state.me)) counts.set(s.siteId, (counts.get(s.siteId) ?? 0) + 1)
   }
   return counts
 }
@@ -140,10 +163,15 @@ interface InboxState {
   /** The thread of the selected conversation, once read. */
   readonly detail: Conversation | null
   readonly notifications: NotificationList
-  /** The inboxes the reader sees, and every team. */
+  /** The inboxes the reader sees, every team, and the sites they may narrow to. */
   readonly directory: InboxDirectory
   /** The inbox the list shows; null: all of them. */
   readonly inbox: string | null
+  /**
+   * The site the screens are narrowed to — its conversations, contacts, articles and
+   * counters; null: all of them. A view, not a right: the reader sees no more and no less.
+   */
+  readonly site: string | null
   readonly filter: InboxFilter
   readonly query: string
   /** The conversations whose visitor is writing, now — a few seconds after their last key. */
@@ -175,6 +203,8 @@ interface InboxState {
   arrive: (place: ConversationsPlace) => void
   /** Shows one inbox — or all with null — on the conversations screen. */
   showInbox: (inbox: string | null) => void
+  /** Narrows the screens to one site — or to none with null. */
+  showSite: (site: string | null) => void
   setFilter: (filter: InboxFilter) => void
   setQuery: (query: string) => void
   setDraft: (id: string, text: string) => void
@@ -264,7 +294,7 @@ export const useInbox = create<InboxState>((set, get) => {
       const inbox = place.inbox === null ? null : inboxOfWord(place.inbox, directory.inboxes)
       if (place.inbox !== null && inbox === null) error = INBOX_UNKNOWN
       set({ inbox: inbox?.id ?? null })
-      storeInbox(inbox?.id ?? null)
+      remember(INBOX_KEY, inbox?.id ?? null)
     }
     set({ filter: place.filter })
     if (place.conversation !== null) {
@@ -273,9 +303,18 @@ export const useInbox = create<InboxState>((set, get) => {
         summaries.map((s) => s.id),
       )
       if (id === null) error = 'CONVERSATION_NOT_FOUND'
-      else if (id !== selectedId) get().select(id)
+      else {
+        unnarrow(id)
+        if (id !== selectedId) get().select(id)
+      }
     }
     set({ arriving: false, ...(error ? { error, notice: null } : {}) })
+  }
+
+  /** A conversation of another site than the one chosen: all of them, so the list shows it. */
+  function unnarrow(id: string): void {
+    const summary = get().summaries.find((s) => s.id === id)
+    if (summary && !inSite(summary, get().site)) get().showSite(null)
   }
 
   /** The visitor is typing, or stopped (`false`) — by their message, or by their silence. */
@@ -354,8 +393,9 @@ export const useInbox = create<InboxState>((set, get) => {
     selectedId: null,
     detail: null,
     notifications: NO_NOTIFICATIONS,
-    directory: { inboxes: [], teams: [] },
-    inbox: storedInbox(),
+    directory: { inboxes: [], teams: [], sites: [] },
+    inbox: recall(INBOX_KEY),
+    site: recall(SITE_KEY),
     filter: 'all',
     query: '',
     typing: {},
@@ -436,13 +476,16 @@ export const useInbox = create<InboxState>((set, get) => {
           api.agents(),
           api.inboxes(),
         ])
-        // An inbox kept from another session, no longer seen: all of them.
+        // An inbox or a site kept from another session, no longer seen: all of them.
         const inbox = directory.inboxes.some((i) => i.id === get().inbox) ? get().inbox : null
+        const site = directory.sites.some((s) => s.id === get().site) ? get().site : null
+        if (site !== get().site) remember(SITE_KEY, site)
         set({
           me,
           agents,
           directory,
           inbox,
+          site,
           notifications,
           summaries: [...summaries].sort(newestFirst),
           loading: false,
@@ -452,7 +495,7 @@ export const useInbox = create<InboxState>((set, get) => {
         settle()
         const { selectedId } = get()
         const first = summaries.find(
-          (s) => matchesFilter(s, get().filter) && inInbox(s, get().inbox),
+          (s) => matchesFilter(s, get().filter) && inInbox(s, get().inbox) && inSite(s, site),
         )
         if (selectedId === null && first) get().select(first.id)
         else if (selectedId !== null) void refreshDetail(selectedId)
@@ -472,6 +515,7 @@ export const useInbox = create<InboxState>((set, get) => {
     },
 
     open: (id) => {
+      unnarrow(id)
       get().select(id)
       get().navigate(inboxAddress(get()))
     },
@@ -484,8 +528,13 @@ export const useInbox = create<InboxState>((set, get) => {
 
     showInbox: (inbox) => {
       set({ inbox })
-      storeInbox(inbox)
+      remember(INBOX_KEY, inbox)
       get().navigate(inboxAddress(get()))
+    },
+
+    showSite: (site) => {
+      set({ site })
+      remember(SITE_KEY, site)
     },
 
     setFilter: (filter) => set({ filter }),

@@ -19,6 +19,7 @@ import { addressOf, idOfWord, wordOf, wordsAfter } from '@/lib/address'
 import { api } from '@/lib/api'
 import { $t, $tp, msg } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
+import { useInbox } from '@/lib/store/inbox'
 import { dayLabel } from '@/lib/time'
 import { useTitle } from '@/lib/title'
 import { useAddressBar } from '@/lib/use-address-bar'
@@ -125,6 +126,8 @@ const BASE = '/connaissance'
 
 export function KnowledgeScreen() {
   const basedbUrl = useBasedbUrl()
+  // The site chosen at the top of the sidebar: its articles, and those of every site.
+  const site = useInbox((s) => s.site)
   const [overview, setOverview] = useState<SettingsOverview | null>(null)
   const [articles, setArticles] = useState<Article[] | null>(null)
   const [categories, setCategories] = useState<SettingsRow[]>([])
@@ -269,6 +272,7 @@ export function KnowledgeScreen() {
       const row = await api.createRow('articles', {
         Titre: $t('Nouvel article'),
         ...(shelf.kind === 'category' ? { Catégorie: shelf.id } : {}),
+        ...(site !== null ? { Sites: [site] } : {}),
       })
       await load()
       if (shelf.kind === 'promoted') setShelf({ kind: 'all' })
@@ -302,7 +306,10 @@ export function KnowledgeScreen() {
   }
 
   const canEdit = overview?.canEdit ?? false
-  const all = articles ?? []
+  const every = articles ?? []
+  const all = every.filter(
+    (a) => site === null || a.siteIds.length === 0 || a.siteIds.includes(site),
+  )
   const passages = useMemo(
     () => new Map(index.filter((i) => i.source === 'article').map((i) => [i.id, i.passages])),
     [index],
@@ -329,7 +336,8 @@ export function KnowledgeScreen() {
       (filter === 'all' || (filter === 'published') === (a.status === 'Publié')) &&
       (searched === '' || fold(`${a.title} ${a.content}`).includes(searched)),
   )
-  const selected = all.find((a) => a.id === selectedId) ?? null
+  // The address may name an article of another site: it opens all the same.
+  const selected = every.find((a) => a.id === selectedId) ?? null
   // Focus is on an article: without one, the shelves and the list come back.
   const focused = focus && selected !== null
   const shelfTitle =

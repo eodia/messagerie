@@ -1,7 +1,7 @@
-import type { InboxDirectory, TeamItem } from '@chat/contracts'
-import { eq } from 'drizzle-orm'
+import type { InboxDirectory, SiteItem, TeamItem } from '@chat/contracts'
+import { type SQL, eq, inArray, isNull, or } from 'drizzle-orm'
 import type { Db } from '../db/client.js'
-import { agents } from '../db/schema.js'
+import { agents, conversations } from '../db/schema.js'
 import type { Settings } from '../settings/settings.js'
 
 /**
@@ -16,6 +16,14 @@ export type Visible = ReadonlySet<string> | null
 
 export const canSee = (visible: Visible, inboxId: string | null): boolean =>
   visible === null || inboxId === null || visible.has(inboxId)
+
+/** `canSee`, in SQL: the conversations of the inboxes one sees — and those of no inbox. */
+export function inVisible(visible: Visible): SQL | undefined {
+  if (visible === null) return undefined
+  return visible.size === 0
+    ? isNull(conversations.inboxId)
+    : or(isNull(conversations.inboxId), inArray(conversations.inboxId, [...visible]))
+}
 
 export class Access {
   constructor(private readonly settings: Settings | null) {}
@@ -57,13 +65,43 @@ export class Access {
   }
 }
 
-/** The inboxes an agent sees, with their teams — the inbox's menu and transfer choices. */
+/**
+ * The sites whose conversations `visible` reaches: an active site whose conversations
+ * arrive in one of these inboxes, and any site of a conversation found in one — moved
+ * there, or from before the inboxes.
+ */
+async function sitesSeen(db: Db, settings: Settings, visible: Visible): Promise<SiteItem[]> {
+  const [sites, seen] = await Promise.all([
+    settings.sites(),
+    db
+      .selectDistinct({ siteId: conversations.siteId })
+      .from(conversations)
+      .where(inVisible(visible)),
+  ])
+  const met = new Set(seen.map((row) => row.siteId))
+  const reached = await Promise.all(
+    sites.map(
+      async (site) =>
+        met.has(site.id) ||
+        (site.active && canSee(visible, (await settings.routeOf(site)).inboxId)),
+    ),
+  )
+  return sites
+    .filter((_, i) => reached[i])
+    .map((site) => ({ id: site.id, name: site.name, color: site.color }))
+}
+
+/**
+ * The inboxes an agent sees, with their teams — the inbox's menu and transfer choices —
+ * and the sites they may narrow it to.
+ */
 export async function inboxDirectory(
+  db: Db,
   settings: Settings | null,
   access: Access,
   agent: { readonly basedbUserId: string; readonly role: 'agent' | 'supervisor' },
 ): Promise<InboxDirectory> {
-  if (!settings) return { inboxes: [], teams: [] }
+  if (!settings) return { inboxes: [], teams: [], sites: [] }
   const [inboxes, teams, visible] = await Promise.all([
     settings.inboxes(),
     settings.teams(),
@@ -85,5 +123,6 @@ export async function inboxDirectory(
         defaultTeamId: i.defaultTeamId,
       })),
     teams: teamItems,
+    sites: await sitesSeen(db, settings, visible),
   }
 }

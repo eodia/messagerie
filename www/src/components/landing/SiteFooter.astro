@@ -1,0 +1,151 @@
+---
+import { BASEDB, EODIA, REPOSITORY, href } from '../../lib/site';
+import Logo from './Logo.astro';
+
+const COLUMNS = [
+	{
+		title: 'Produit',
+		links: [
+			{ href: '/fonctionnalites/agent-ia/', label: 'L’agent IA' },
+			{ href: '/fonctionnalites/copilote/', label: 'Le copilote' },
+			{ href: '/fonctionnalites/inbox/', label: 'L’inbox' },
+			{ href: '/fonctionnalites/widget/', label: 'Le widget' },
+			{ href: '/fonctionnalites/parametrage/', label: 'Le paramétrage' },
+		],
+	},
+	{
+		title: 'Développeurs',
+		links: [
+			{ href: '/integrations/api-javascript/', label: 'API JavaScript' },
+			{ href: '/integrations/api-rest/', label: 'API REST' },
+			{ href: '/integrations/mcp/', label: 'Serveur MCP' },
+			{ href: '/integrations/webhooks/', label: 'Webhooks' },
+		],
+	},
+	{
+		title: 'Héberger',
+		links: [
+			{ href: '/guides/installation/', label: 'Installation' },
+			{ href: '/hebergement/production/', label: 'Mise en production' },
+			{ href: '/hebergement/comptes/', label: 'Comptes et connexion' },
+			{ href: '/hebergement/variables/', label: 'Variables' },
+		],
+	},
+	{
+		title: 'Projet',
+		links: [
+			{ href: '/architecture/principes/', label: 'Principes' },
+			{ href: REPOSITORY, label: 'GitHub' },
+			{ href: BASEDB, label: 'basedb' },
+			{ href: EODIA, label: 'Eodia' },
+		],
+	},
+];
+---
+
+<footer class="bd-footer">
+	<div class="inner">
+		<div class="brand">
+			<Logo size={26} />
+			<p>La messagerie client libre : un agent IA en première ligne, un copilote pour vos conseillers.</p>
+			<p class="small">Un logiciel libre d’<a class="eodia" href={EODIA}>Eodia</a>, frère de <a class="eodia" href={BASEDB}>basedb</a>.</p>
+		</div>
+		{
+			COLUMNS.map((c) => (
+				<nav aria-label={c.title}>
+					<h3>{c.title}</h3>
+					<ul>
+						{c.links.map((l) => (
+							<li>
+								<a href={href(l.href)}>{l.label}</a>
+							</li>
+						))}
+					</ul>
+				</nav>
+			))
+		}
+	</div>
+	<div class="bottom">
+		<span>© {new Date().getFullYear()} <a href={EODIA}>Eodia</a> · AGPL-3.0-or-later</span>
+		<span>Fait en France, avec Astro et Starlight.</span>
+	</div>
+</footer>
+
+<style>
+	.bd-footer {
+		border-top: 1px solid var(--bd-border);
+		background: #fff;
+	}
+	.inner {
+		display: grid;
+		grid-template-columns: 1.6fr repeat(4, 1fr);
+		gap: 32px;
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: 56px 24px 40px;
+	}
+	.brand p {
+		margin: 14px 0 0;
+		font-size: 14px;
+		line-height: 1.6;
+		color: var(--bd-text-soft);
+		max-width: 300px;
+	}
+	.brand .small {
+		margin-top: 8px;
+		font-size: 13px;
+		color: var(--bd-muted-fg);
+	}
+	h3 {
+		margin: 4px 0 14px;
+		font-size: 12px;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--bd-muted-fg);
+	}
+	ul {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+	nav a {
+		font-size: 14px;
+		color: var(--bd-text-soft);
+	}
+	nav a:hover {
+		color: var(--bd-primary);
+	}
+	.eodia,
+	.bottom a {
+		font-weight: 600;
+		color: var(--bd-text);
+	}
+	.eodia:hover,
+	.bottom a:hover {
+		color: var(--bd-primary);
+	}
+	.bottom {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		gap: 12px;
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: 18px 24px 32px;
+		border-top: 1px solid var(--bd-border-subtle);
+		font-size: 13px;
+		color: var(--bd-muted-fg);
+	}
+	@media (max-width: 900px) {
+		.inner {
+			grid-template-columns: repeat(2, 1fr);
+		}
+		.brand {
+			grid-column: 1 / -1;
+		}
+	}
+</style>

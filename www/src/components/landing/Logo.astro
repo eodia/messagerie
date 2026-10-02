@@ -1,0 +1,39 @@
+---
+import { PRODUCT } from '../../lib/site';
+
+interface Props {
+	/** The wordmark's colour: dark on light backgrounds, light on dark ones. */
+	tone?: 'dark' | 'light';
+	size?: number;
+}
+const { tone = 'dark', size = 26 } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+
+<span class:list={['bd-logo', tone]} style={`--bd-logo-size: ${size}px`}>
+	<img src={`${base}/brand/mark${tone === 'light' ? '-light' : ''}.svg`} width={size} height={size} alt="" />
+	<span class="word" translate="no">{PRODUCT}</span>
+</span>
+
+<style>
+	.bd-logo {
+		display: inline-flex;
+		align-items: center;
+		gap: 9px;
+		line-height: 1;
+	}
+	.bd-logo img {
+		width: var(--bd-logo-size);
+		height: var(--bd-logo-size);
+		flex-shrink: 0;
+	}
+	.word {
+		font-size: calc(var(--bd-logo-size) * 0.78);
+		font-weight: 700;
+		letter-spacing: -0.045em;
+		color: #143d2b;
+	}
+	.light .word {
+		color: #f4f8ef;
+	}
+</style>

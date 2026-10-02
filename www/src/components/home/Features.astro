@@ -1,0 +1,383 @@
+---
+/**
+ * The inbox in a grid: two large cards that show — the palette, a contact and where they
+ * are — and the rest said in a sentence each, every card leading to its page.
+ */
+import { href } from '../../lib/site';
+import Icon from '../landing/Icon.astro';
+import type { IconName } from '../landing/icons';
+
+const CARDS: Array<{ icon: IconName; title: string; text: string; link: string }> = [
+	{
+		icon: 'transfer',
+		title: 'Boîtes, équipes, transferts',
+		text: 'Une boîte dit où arrivent les conversations, une équipe qui y répond. Un transfert emporte sa note.',
+		link: '/fonctionnalites/inbox/',
+	},
+	{
+		icon: 'bell',
+		title: 'Des alertes justes',
+		text: 'Un son, une notification du bureau, la pastille de l’onglet, la cloche : seulement pour ce qui vous attend.',
+		link: '/fonctionnalites/alertes/',
+	},
+	{
+		icon: 'paperclip',
+		title: 'Pièces jointes, lues sur demande',
+		text: 'Images, PDF, Word, Excel. « Analyser avec l’IA » les lit quand un conseiller le demande, jamais avant.',
+		link: '/fonctionnalites/pieces-jointes/',
+	},
+	{
+		icon: 'volume',
+		title: 'Le mode audio',
+		text: 'Les messages lus à voix haute, la réponse dictée : pour répondre sans clavier.',
+		link: '/fonctionnalites/inbox/',
+	},
+	{
+		icon: 'pen',
+		title: 'Une réponse soignée',
+		text: 'Gras, listes, liens, réponses types à « / », emoji cherchés en français et GIF.',
+		link: '/fonctionnalites/inbox/',
+	},
+	{
+		icon: 'tag',
+		title: 'Les métadonnées de la page',
+		text: 'Un numéro de commande, un panier, la page lue : le site les joint, le conseiller et l’IA les voient.',
+		link: '/integrations/api-javascript/',
+	},
+	{
+		icon: 'chart',
+		title: 'Des statistiques',
+		text: 'Les conversations de la semaine, la part que l’IA résout seule, le délai de première réponse, les transferts.',
+		link: '/fonctionnalites/statistiques/',
+	},
+	{
+		icon: 'link',
+		title: 'Des adresses qui se lisent',
+		text: '/conversations/sinistres/lea-martin-a9ce… : l’adresse dit où l’on est, et se partage.',
+		link: '/fonctionnalites/inbox/',
+	},
+];
+---
+
+<section class="tm-section features" id="inbox">
+	<div class="tm-head">
+		<p class="tm-kicker tm-rise"><Icon name="inbox" size={20} />L’inbox</p>
+		<h2 class="tm-display tm-rise">
+			<span>Une inbox faite</span>
+			<span class="tm-grad">pour aller vite.</span>
+		</h2>
+		<p class="tm-lede tm-rise">Dense, rapide, au clavier comme à la souris. Tout ce qu’un conseiller fait cent fois par jour est à une touche.</p>
+	</div>
+
+	<div class="grid">
+		<article class="big tm-rise">
+			<div class="text">
+				<span class="ic"><Icon name="command" size={20} /></span>
+				<h3>Tout est à <kbd>Ctrl</kbd> <kbd>K</kbd></h3>
+				<p>Une conversation, un contact, un mot dit il y a trois semaines, une commande. La liste se cherche avec le même moteur : <code>#étiquette</code>, <code>@conseiller</code>.</p>
+			</div>
+			<div class="ap palette" aria-hidden="true">
+				<div class="pal-input"><Icon name="search" size={14} />rembour<span class="caret"></span></div>
+				<p class="ap-micro">Conversations</p>
+				<div class="pal-row on"><span class="ap-avatar s" style="--c:#ec4899">SL</span><span>Sophie Leroy<small>… délai de <mark>rembour</mark>sement après un sinistre</small></span><span class="ap-chip violet">IA en cours</span></div>
+				<div class="pal-row"><span class="ap-avatar s" style="--c:#f59e0b">LP</span><span>Lucas Petit<small>… le <mark>rembour</mark>sement est bien arrivé</small></span><span class="ap-chip emerald">Résolue</span></div>
+				<p class="ap-micro">Connaissance</p>
+				<div class="pal-row"><span class="doc"><Icon name="file" size={13} /></span><span>Délai de <mark>rembour</mark>sement d’un sinistre<small>Remboursements</small></span></div>
+				<p class="ap-micro">Commandes</p>
+				<div class="pal-row"><span class="doc"><Icon name="transfer" size={13} /></span><span>Transférer la conversation…</span><kbd>T</kbd></div>
+			</div>
+		</article>
+
+		<article class="big tm-rise">
+			<div class="text">
+				<span class="ic"><Icon name="mapPin" size={20} /></span>
+				<h3>Qui écrit, et d’où</h3>
+				<p>Chaque contact a son drapeau, son heure locale et sa carte, tirés du fuseau horaire de son navigateur — sans géolocaliser personne par son adresse IP.</p>
+			</div>
+			<div class="ap contact" aria-hidden="true">
+				<div class="map">
+					<svg viewBox="0 0 300 150" preserveAspectRatio="xMidYMid slice">
+						<rect width="300" height="150" fill="#e9eef3"></rect>
+						<path d="M40 10 C 80 20, 110 6, 150 24 S 230 40, 270 18 L 300 30 L 300 150 L 0 150 L 0 40 Z" fill="#f3f1ea"></path>
+						<path d="M0 96 C 60 86, 110 110, 170 96 S 260 84, 300 98" stroke="#fff" stroke-width="5" fill="none"></path>
+						<path d="M120 0 C 128 40, 112 90, 132 150" stroke="#fff" stroke-width="4" fill="none"></path>
+						<path d="M0 60 C 80 70, 180 50, 300 64" stroke="#cfe3f5" stroke-width="7" fill="none"></path>
+						<circle cx="168" cy="78" r="26" fill="rgba(42,157,28,0.14)"></circle>
+						<circle cx="168" cy="78" r="6" fill="#2a9d1c" stroke="#fff" stroke-width="2.5"></circle>
+					</svg>
+				</div>
+				<div class="who">
+					<span class="ap-avatar" style="--c:#3b82f6">TB</span>
+					<div>
+						<b>Thomas Bernard <span class="flag" title=""></span></b>
+						<small>thomas.bernard@exemple.fr</small>
+					</div>
+					<span class="ap-chip emerald"><Icon name="checkCircle" />Identifié</span>
+				</div>
+				<dl>
+					<div><dt>Heure locale</dt><dd>21:04 · Europe/Paris</dd></div>
+					<div><dt>Contrat</dt><dd>AUTO-48213</dd></div>
+					<div><dt>Conversations</dt><dd>3</dd></div>
+				</dl>
+			</div>
+		</article>
+
+		{
+			CARDS.map((c) => (
+				<a class="card tm-rise" href={href(c.link)}>
+					<span class="ic">
+						<Icon name={c.icon} size={20} />
+					</span>
+					<h3>{c.title}</h3>
+					<p>{c.text}</p>
+				</a>
+			))
+		}
+	</div>
+	<p class="more tm-rise"><a class="tm-link" href={href('/fonctionnalites/inbox/')}>Découvrir l’inbox</a></p>
+</section>
+
+<style>
+	.grid {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 16px;
+		max-width: 1180px;
+		margin: 72px auto 0;
+	}
+	.big,
+	.card {
+		border: 1px solid var(--tm-line);
+		border-radius: 24px;
+		background: #fff;
+	}
+	.big {
+		display: flex;
+		flex-direction: column;
+		grid-column: span 2;
+		gap: 24px;
+		padding: 32px;
+		overflow: hidden;
+		background: var(--tm-mist);
+		border-color: transparent;
+	}
+	.card {
+		display: block;
+		padding: 26px;
+		transition:
+			border-color 0.2s ease,
+			transform 0.2s ease;
+	}
+	.card:hover {
+		border-color: #cfd6cc;
+		transform: translateY(-2px);
+	}
+	h3 {
+		margin: 14px 0 8px;
+		font-size: 19px;
+		font-weight: 700;
+		letter-spacing: -0.02em;
+	}
+	.big h3 {
+		font-size: 24px;
+	}
+	.card h3 {
+		font-size: 17px;
+	}
+	p {
+		margin: 0;
+		font-size: 15px;
+		line-height: 1.55;
+		color: var(--tm-slate);
+	}
+	.card p {
+		font-size: 14.5px;
+	}
+	.ic {
+		display: grid;
+		place-items: center;
+		width: 40px;
+		height: 40px;
+		border-radius: 12px;
+		color: #1f9d4a;
+		background: #eaf6e6;
+	}
+	.big .ic {
+		background: #fff;
+	}
+	kbd {
+		display: inline-block;
+		padding: 0 8px;
+		border: 1px solid var(--tm-line);
+		border-bottom-width: 2px;
+		border-radius: 7px;
+		font-family: var(--bd-font-sans);
+		font-size: 0.8em;
+		background: #fff;
+	}
+	code {
+		font-size: 0.88em;
+		padding: 1px 5px;
+		border-radius: 5px;
+		background: #fff;
+	}
+
+	/* The palette */
+	.palette {
+		margin-top: auto;
+		padding: 10px;
+		border-radius: 14px;
+		background: #fff;
+		box-shadow:
+			0 30px 60px -30px rgba(16, 24, 16, 0.3),
+			0 0 0 1px rgba(16, 24, 16, 0.06);
+	}
+	.pal-input {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 6px 8px 10px;
+		border-bottom: 1px solid var(--ap-border);
+		font-size: 13px;
+	}
+	.caret {
+		width: 1.5px;
+		height: 14px;
+		background: var(--ap-fg);
+		animation: blink 1s steps(2) infinite;
+	}
+	@keyframes blink {
+		50% {
+			opacity: 0;
+		}
+	}
+	.palette .ap-micro {
+		margin: 10px 8px 4px;
+	}
+	.pal-row {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 6px 8px;
+		border-radius: 8px;
+	}
+	.pal-row.on {
+		background: var(--ap-accent);
+	}
+	.pal-row > span:nth-child(2) {
+		flex: 1;
+		min-width: 0;
+		font-weight: 500;
+	}
+	.pal-row small {
+		display: block;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+		font-weight: 400;
+		color: var(--ap-muted-fg);
+	}
+	.pal-row kbd {
+		font-size: 10px;
+	}
+	mark {
+		padding: 0 1px;
+		border-radius: 3px;
+		color: inherit;
+		background: rgba(250, 204, 21, 0.35);
+	}
+	.ap-avatar.s {
+		width: 24px;
+		height: 24px;
+		font-size: 9px;
+	}
+	.doc {
+		display: grid;
+		place-items: center;
+		width: 24px;
+		height: 24px;
+		border: 1px solid var(--ap-border);
+		border-radius: 6px;
+		color: var(--ap-muted-fg);
+	}
+
+	/* The contact */
+	.contact {
+		margin-top: auto;
+		overflow: hidden;
+		border-radius: 14px;
+		background: #fff;
+		box-shadow:
+			0 30px 60px -30px rgba(16, 24, 16, 0.3),
+			0 0 0 1px rgba(16, 24, 16, 0.06);
+	}
+	.map svg {
+		display: block;
+		width: 100%;
+		height: 130px;
+	}
+	.who {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 12px 14px 8px;
+	}
+	.who > div {
+		flex: 1;
+	}
+	.who b {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 13px;
+	}
+	.who small {
+		color: var(--ap-muted-fg);
+	}
+	.flag {
+		display: inline-block;
+		width: 16px;
+		height: 11px;
+		border-radius: 2px;
+		background: linear-gradient(90deg, #1d4ed8 33.3%, #fff 33.3% 66.6%, #dc2626 66.6%);
+		box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+	}
+	dl {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 8px;
+		margin: 0;
+		padding: 8px 14px 14px;
+	}
+	dt {
+		font-size: 10px;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--ap-muted-fg);
+	}
+	dd {
+		margin: 2px 0 0;
+		font-size: 12px;
+		font-weight: 500;
+	}
+	.more {
+		margin: 56px 0 0;
+		text-align: center;
+	}
+
+	@media (max-width: 1000px) {
+		.grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+	@media (max-width: 640px) {
+		.grid {
+			grid-template-columns: 1fr;
+		}
+		.big {
+			grid-column: auto;
+			padding: 24px;
+		}
+	}
+</style>

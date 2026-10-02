@@ -248,19 +248,33 @@ img.person-avatar { object-fit: cover; background: #fff; }
 .typing span:nth-child(3) { animation-delay: .3s; }
 @keyframes blink { 0%, 80%, 100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
 
-/* The AI's orb: the site's colour meeting the AI's violet. It turns only while writing. */
+/* A sculpted ribbon with an open centre: legible even at the 28px avatar size. */
 .orb {
-  position: relative; display: inline-block; flex: none; border-radius: 50%;
-  background: conic-gradient(from var(--orb-angle, 0deg), var(--accent), var(--ai), color-mix(in srgb, var(--accent) 60%, #fff), var(--accent));
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.25);
+  --orb-tempo: 4.6s; --orb-turn: 18s;
+  position: relative; display: inline-block; flex: none; vertical-align: middle;
+  border-radius: 50%; isolation: isolate;
 }
-.orb-core {
-  position: absolute; inset: 22%; border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, rgb(255 255 255 / 0.95), rgb(255 255 255 / 0.35) 55%, transparent 72%);
+.orb::before {
+  content: ""; position: absolute; inset: 16%; border-radius: 50%; pointer-events: none;
+  background: linear-gradient(135deg, #67e8f9, #818cf8 50%, #f0abfc);
+  filter: blur(5px); opacity: .12; transition: opacity .4s;
 }
-@property --orb-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
-.orb.busy { animation: orb 2.4s linear infinite; }
-@keyframes orb { to { --orb-angle: 360deg; } }
+.orb-ribbon { position: relative; display: block; width: 100%; height: 100%; overflow: visible; }
+.orb-flow { transform-origin: 32px 32px; }
+.orb.active .orb-ribbon { animation: ribbon-turn var(--orb-turn) linear infinite; }
+.orb.active .orb-flow { animation: ribbon-flow var(--orb-tempo) ease-in-out infinite; }
+.orb.active::before { animation: ribbon-glow var(--orb-tempo) ease-in-out infinite; }
+.orb.busy { --orb-tempo: 1.8s; --orb-turn: 8s; }
+@keyframes ribbon-turn { to { transform: rotate(360deg); } }
+@keyframes ribbon-flow {
+  0%, 100% { transform: scale(.96, 1.03) skewX(-4deg); }
+  35% { transform: scale(1.05, .94) skewX(5deg); }
+  70% { transform: scale(.97, 1.04) skewX(-2deg); }
+}
+@keyframes ribbon-glow {
+  0%, 100% { opacity: .13; transform: scale(.92); }
+  50% { opacity: .3; transform: scale(1.1); }
+}
 
 /* ── The composer ─────────────────────────────────────────────────────────────── */
 .composer { flex: none; padding: 10px 12px 6px; background: var(--surface); border-top: 1px solid var(--line); }

@@ -1,0 +1,188 @@
+/* Messagerie — landing pages, with basedb's tokens, value for value (CLAUDE.md).
+ * Design tokens and base styles only: each section keeps its own styles in its
+ * component's scoped <style> block. The green is the product's own accent.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Caveat:wght@600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --bd-text: #0b0b0d;
+  --bd-text-soft: #3a3a42;
+  --bd-muted-fg: #6b6b76;
+  --bd-card: #ffffff;
+  --bd-alt-bg: #f8faf7;
+  --bd-border: #e3e5e1;
+  --bd-border-subtle: #eceeea;
+  --bd-muted: #f1f3ef;
+  --bd-primary: #2a9d1c; /* text, buttons, links — AA on white */
+  --bd-primary-vivid: #3fcb2a; /* large accents and glows */
+  --bd-primary-soft: #e9f7e5;
+  --bd-ink: #0e1510; /* dark sections */
+  --bd-warning: #d97706;
+
+  --bd-font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --bd-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --bd-font-accent: 'Caveat', cursive;
+
+  --bd-radius: 14px;
+  --bd-shadow-lg: 0 1px 2px rgba(16, 24, 16, 0.04), 0 12px 32px -8px rgba(16, 24, 16, 0.14),
+    0 40px 80px -24px rgba(16, 24, 16, 0.18);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+html {
+  scroll-behavior: smooth;
+  overflow-x: clip;
+}
+body {
+  /* The hero's glow and its tilted mockup reach past the edge on purpose: clipped, not scrolled. */
+  overflow-x: clip;
+  font-family: var(--bd-font-sans);
+  color: var(--bd-text);
+  background: var(--bd-card);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+code,
+pre {
+  font-family: var(--bd-font-mono);
+  /* `=>` and `->` are psql prompts, not arrows. */
+  font-variant-ligatures: none;
+  font-feature-settings:
+    'calt' 0,
+    'liga' 0;
+}
+
+/* Shared layout */
+.bd-wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Shared accents */
+.bd-accent {
+  font-family: var(--bd-font-accent);
+  font-weight: 700;
+  color: var(--bd-primary-vivid);
+  font-size: 1.12em;
+  letter-spacing: 0;
+}
+.bd-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bd-primary);
+}
+
+/* Buttons */
+.bd-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 10px;
+  font-size: 14.5px;
+  font-weight: 600;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.bd-btn:hover {
+  transform: translateY(-1px);
+}
+.bd-btn-primary {
+  background: var(--bd-primary);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(42, 157, 28, 0.3), 0 8px 20px -6px rgba(42, 157, 28, 0.45);
+}
+.bd-btn-primary:hover {
+  background: #248a17;
+}
+.bd-btn-secondary {
+  background: #fff;
+  color: var(--bd-text);
+  border: 1px solid var(--bd-border);
+  box-shadow: 0 1px 2px rgba(16, 24, 16, 0.05);
+}
+.bd-btn-secondary:hover {
+  border-color: #cfd3cc;
+}
+
+/* Section headings */
+.bd-section-head {
+  max-width: 720px;
+  margin: 0 auto 48px;
+  text-align: center;
+}
+.bd-section-head h2 {
+  font-size: clamp(30px, 4vw, 44px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  margin: 14px 0 16px;
+}
+.bd-section-head p {
+  font-size: 17px;
+  color: var(--bd-text-soft);
+  margin: 0;
+}
+
+/* Scroll reveal (progressive: visible without JavaScript) */
+.bd-js .bd-reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.bd-js .bd-reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--bd-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .bd-js .bd-reveal {
+    opacity: 1;
+    transform: none;
+  }
+}

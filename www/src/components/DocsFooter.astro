@@ -1,0 +1,29 @@
+---
+// Starlight's own footer — edit link, pagination —, followed by who makes the product:
+// every page of the documentation leads back to the studio, as the home page does.
+import Default from '@astrojs/starlight/components/Footer.astro';
+import { BASEDB, EODIA } from '../lib/site';
+---
+
+<Default><slot /></Default>
+<p class="bd-made-by">
+	Un logiciel libre d’<a href={EODIA}>Eodia</a>, studio de logiciel IA-natif — frère de <a href={BASEDB}>basedb</a>.
+</p>
+
+<style>
+	.bd-made-by {
+		margin-top: 2rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--sl-color-hairline);
+		font-size: var(--sl-text-sm);
+		color: var(--sl-color-gray-3);
+	}
+	.bd-made-by a {
+		font-weight: 600;
+		color: var(--sl-color-text-accent);
+		text-decoration: none;
+	}
+	.bd-made-by a:hover {
+		text-decoration: underline;
+	}
+</style>

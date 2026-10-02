@@ -1,5 +1,7 @@
 /** The widget's few icons, drawn inline: nothing to load from elsewhere. Lucide's shapes. */
 
+import { useId } from 'preact/hooks'
+
 const stroke = {
   fill: 'none',
   stroke: 'currentColor',
@@ -57,15 +59,73 @@ export const SendIcon = () => (
 )
 
 /**
- * The AI, drawn as an orb in the site's colour and the AI's violet — still while it waits,
- * turning while it writes. The one mark of the AI in the widget, next to the « IA » word.
+ * A continuous pearlescent ribbon. Each instance owns its SVG gradients so several
+ * avatars can share the shadow root. Only the current mark moves.
  */
-export const Orb = ({ busy = false, size = 28 }: { busy?: boolean; size?: number }) => (
-  <span
-    class={busy ? 'orb busy' : 'orb'}
-    style={{ width: `${size}px`, height: `${size}px` }}
-    aria-hidden="true"
-  >
-    <span class="orb-core" />
-  </span>
-)
+export const Orb = ({
+  active = false,
+  busy = false,
+  size = 28,
+}: { active?: boolean; busy?: boolean; size?: number }) => {
+  const id = useId()
+  const ribbon = `${id}-ribbon`
+  const sheen = `${id}-sheen`
+  const loop =
+    'M32 10C42 10 44 20 49 28C55 38 50 48 39 48C28 48 19 55 13 45C7 35 15 27 19 19C22 13 25 10 32 10Z'
+  return (
+    <span
+      class={['orb', (active || busy) && 'active', busy && 'busy'].filter(Boolean).join(' ')}
+      style={{ width: `${size}px`, height: `${size}px` }}
+      aria-hidden="true"
+    >
+      <svg class="orb-ribbon" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient
+            id={ribbon}
+            x1="14"
+            y1="12"
+            x2="48"
+            y2="51"
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop stop-color="#a5f3fc" />
+            <stop offset=".22" stop-color="#38bdf8" />
+            <stop offset=".46" stop-color="#6366f1" />
+            <stop offset=".7" stop-color="#a78bfa" />
+            <stop offset="1" stop-color="#f9a8d4" />
+          </linearGradient>
+          <linearGradient id={sheen} x1="20" y1="9" x2="42" y2="53" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#fff" stop-opacity=".95" />
+            <stop offset=".28" stop-color="#e0f2fe" stop-opacity=".1" />
+            <stop offset=".52" stop-color="#312e81" stop-opacity=".55" />
+            <stop offset=".76" stop-color="#fff" stop-opacity=".7" />
+            <stop offset="1" stop-color="#fff" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+        <g class="orb-flow" stroke-linecap="round" stroke-linejoin="round">
+          <path
+            d={loop}
+            stroke="#4338ca"
+            stroke-opacity=".12"
+            stroke-width="11"
+            transform="translate(0 1)"
+          />
+          <path d={loop} stroke={`url(#${ribbon})`} stroke-width="9" />
+          <path d={loop} stroke={`url(#${sheen})`} stroke-width="4.5" />
+          <path
+            d="M20 17C23 11 27 9 32 9C39 9 42 16 45 21"
+            stroke="#fff"
+            stroke-opacity=".75"
+            stroke-width="1.2"
+          />
+          <path
+            d="M17 42C20 47 27 43 34 43C42 44 48 39 46 34"
+            stroke="#f5e8ff"
+            stroke-opacity=".7"
+            stroke-width="1"
+          />
+        </g>
+      </svg>
+    </span>
+  )
+}

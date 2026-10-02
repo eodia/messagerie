@@ -1,0 +1,308 @@
+---
+/**
+ * The bar of the landing page: the logo, the page's chapters, the documentation, GitHub, and
+ * « Installer ». Over a black section it turns to dark glass. Under 900 px the links fold
+ * into a sheet.
+ */
+import { REPOSITORY, href } from '../../lib/site';
+import Icon from './Icon.astro';
+import type { IconName } from './icons';
+import Logo from './Logo.astro';
+
+const LINKS: Array<{ href: string; label: string; icon: IconName }> = [
+	{ href: '/#ia', label: 'L’agent IA', icon: 'sparkles' },
+	{ href: '/#inbox', label: 'L’inbox', icon: 'message' },
+	{ href: '/#parametrage', label: 'Paramétrage', icon: 'sliders' },
+	{ href: '/#developpeurs', label: 'Développeurs', icon: 'code' },
+	{ href: '/guides/introduction/', label: 'Documentation', icon: 'book' },
+];
+---
+
+<header class="bd-nav-wrap" data-nav>
+	<nav class="bd-nav" aria-label="Navigation principale">
+		<a href={href('/')} class="bd-nav-logo" aria-label="Accueil">
+			<Logo size={26} />
+		</a>
+
+		<ul class="bd-menu">
+			{
+				LINKS.map((l) => (
+					<li>
+						<a href={href(l.href)}>{l.label}</a>
+					</li>
+				))
+			}
+		</ul>
+
+		<div class="bd-nav-end">
+			<a href={REPOSITORY} class="bd-nav-gh" aria-label="Le code sur GitHub">
+				<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
+					><path
+						d="M12 .5C5.65.5.5 5.65.5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.76 2.69 1.25 3.35.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.39-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"
+					></path></svg
+				>
+				<span class="gh-label">GitHub</span>
+			</a>
+			<a href={href('/guides/installation/')} class="bd-nav-cta">Installer</a>
+			<button type="button" class="bd-burger" aria-expanded="false" aria-controls="bd-sheet" aria-label="Ouvrir le menu">
+				<span></span><span></span>
+			</button>
+		</div>
+	</nav>
+</header>
+
+<div class="bd-sheet" id="bd-sheet" data-sheet hidden>
+	{
+		LINKS.map((l) => (
+			<a href={href(l.href)} class="entry">
+				<span class="glyph">
+					<Icon name={l.icon} />
+				</span>
+				{l.label}
+			</a>
+		))
+	}
+	<div class="sheet-actions">
+		<a href={href('/guides/installation/')} class="bd-btn bd-btn-primary">Installer</a>
+		<a href={REPOSITORY} class="bd-btn bd-btn-secondary">GitHub</a>
+	</div>
+</div>
+
+<script>
+	const header = document.querySelector<HTMLElement>('[data-nav]');
+	const sheet = document.querySelector<HTMLElement>('[data-sheet]');
+	const burger = document.querySelector<HTMLButtonElement>('.bd-burger');
+
+	if (header !== null) {
+		// Dark glass over a black section.
+		const nights = [...document.querySelectorAll<HTMLElement>('.night')];
+		let frame = 0;
+		const tint = () => {
+			frame = 0;
+			const line = header.offsetHeight / 2;
+			const over = nights.some((n) => {
+				const box = n.getBoundingClientRect();
+				return box.top <= line && box.bottom >= line;
+			});
+			header.toggleAttribute('data-dark', over);
+		};
+		window.addEventListener('scroll', () => (frame ||= requestAnimationFrame(tint)), { passive: true });
+		tint();
+	}
+
+	if (header !== null && sheet !== null && burger !== null) {
+		const toggle = (open: boolean) => {
+			sheet.hidden = !open;
+			burger.setAttribute('aria-expanded', String(open));
+			burger.setAttribute('aria-label', open ? 'Fermer le menu' : 'Ouvrir le menu');
+			header.toggleAttribute('data-sheet', open);
+			document.documentElement.style.overflow = open ? 'hidden' : '';
+		};
+		burger.addEventListener('click', () => toggle(sheet.hidden));
+		for (const a of sheet.querySelectorAll('a')) a.addEventListener('click', () => toggle(false));
+		document.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape' && !sheet.hidden) toggle(false);
+		});
+		window.matchMedia('(min-width: 901px)').addEventListener('change', (e) => {
+			if (e.matches) toggle(false);
+		});
+	}
+</script>
+
+<style>
+	.bd-nav-wrap {
+		position: fixed;
+		inset: 0 0 auto 0;
+		z-index: 50;
+		background: rgba(255, 255, 255, 0.78);
+		backdrop-filter: blur(18px) saturate(180%);
+		-webkit-backdrop-filter: blur(18px) saturate(180%);
+		border-bottom: 1px solid rgba(10, 20, 10, 0.07);
+		transition:
+			background-color 0.3s ease,
+			border-color 0.3s ease;
+	}
+	.bd-nav-wrap[data-sheet] {
+		background: #fff;
+	}
+	/* Over a black section: dark glass, light words — until the sheet opens. */
+	.bd-nav-wrap[data-dark]:not([data-sheet]) {
+		background: rgba(22, 22, 23, 0.72);
+		border-bottom-color: rgba(255, 255, 255, 0.08);
+	}
+	.bd-nav-wrap[data-dark]:not([data-sheet]) :global(.bd-logo .word) {
+		color: #f4f8ef;
+	}
+	.bd-nav-wrap[data-dark]:not([data-sheet]) .bd-menu a {
+		color: rgba(245, 245, 247, 0.78);
+	}
+	.bd-nav-wrap[data-dark]:not([data-sheet]) .bd-menu a:hover {
+		color: #fff;
+	}
+	.bd-nav-wrap[data-dark]:not([data-sheet]) .bd-nav-gh {
+		color: rgba(245, 245, 247, 0.85);
+		background: transparent;
+		border-color: rgba(255, 255, 255, 0.18);
+	}
+	.bd-nav-wrap[data-dark]:not([data-sheet]) .bd-burger span {
+		background: #f5f5f7;
+	}
+	.bd-nav {
+		display: flex;
+		align-items: center;
+		gap: 20px;
+		height: 60px;
+		padding: 0 32px;
+		max-width: 1320px;
+		margin: 0 auto;
+	}
+	.bd-nav-logo {
+		display: flex;
+		flex-shrink: 0;
+		margin-right: 12px;
+	}
+	.bd-menu {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		flex: 1;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.bd-menu a {
+		display: inline-flex;
+		padding: 8px 12px;
+		border-radius: 8px;
+		font-size: 14px;
+		font-weight: 500;
+		color: var(--bd-text-soft);
+		transition: color 0.15s ease;
+	}
+	.bd-menu a:hover {
+		color: var(--bd-text);
+	}
+	.bd-nav-end {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		margin-left: auto;
+	}
+	.bd-nav-gh {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--bd-text-soft);
+		padding: 6px 12px;
+		border: 1px solid var(--bd-border);
+		border-radius: 999px;
+		background: #fff;
+	}
+	.bd-nav-gh:hover {
+		color: var(--bd-text);
+	}
+	.bd-nav-cta {
+		padding: 8px 16px;
+		background: var(--bd-primary);
+		color: #fff;
+		border-radius: 999px;
+		font-size: 13px;
+		font-weight: 600;
+		box-shadow: 0 1px 3px rgba(42, 157, 28, 0.3);
+	}
+	.bd-nav-cta:hover {
+		background: #248a17;
+	}
+	.bd-burger {
+		display: none;
+		position: relative;
+		width: 40px;
+		height: 40px;
+		margin-right: -8px;
+	}
+	.bd-burger span {
+		position: absolute;
+		left: 11px;
+		width: 18px;
+		height: 1.8px;
+		border-radius: 2px;
+		background: var(--bd-text);
+		transition: transform 0.25s ease;
+	}
+	.bd-burger span:first-child {
+		top: 15px;
+	}
+	.bd-burger span:last-child {
+		top: 23px;
+	}
+	.bd-burger[aria-expanded='true'] span:first-child {
+		transform: translateY(4px) rotate(45deg);
+	}
+	.bd-burger[aria-expanded='true'] span:last-child {
+		transform: translateY(-4px) rotate(-45deg);
+	}
+
+	/* The sheet, under 900 px */
+	.bd-sheet {
+		position: fixed;
+		inset: 60px 0 0 0;
+		z-index: 49;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		padding: 16px 20px 32px;
+		background: #fff;
+		overflow-y: auto;
+	}
+	.bd-sheet[hidden] {
+		display: none;
+	}
+	.entry {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		padding: 12px 6px;
+		border-bottom: 1px solid var(--bd-border-subtle);
+		font-size: 17px;
+		font-weight: 600;
+		letter-spacing: -0.01em;
+	}
+	.glyph {
+		display: grid;
+		place-items: center;
+		width: 36px;
+		height: 36px;
+		border-radius: 10px;
+		color: var(--bd-primary);
+		background: var(--bd-primary-soft);
+	}
+	.sheet-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 10px;
+		margin-top: 24px;
+	}
+
+	@media (max-width: 1060px) {
+		.gh-label {
+			display: none;
+		}
+		.bd-menu a {
+			padding: 8px 9px;
+		}
+	}
+	@media (max-width: 900px) {
+		.bd-nav {
+			padding: 0 20px;
+		}
+		.bd-menu,
+		.bd-nav-gh {
+			display: none;
+		}
+		.bd-burger {
+			display: block;
+		}
+	}
+</style>

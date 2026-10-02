@@ -1,0 +1,62 @@
+---
+import '../styles/landing.css';
+import Navbar from '../components/landing/Navbar.astro';
+import SiteFooter from '../components/landing/SiteFooter.astro';
+import { EODIA, PRODUCT, REPOSITORY } from '../lib/site';
+
+interface Props {
+	title: string;
+	description: string;
+}
+
+const { title, description } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const canonical = new URL(Astro.url.pathname, Astro.site);
+
+// Who makes the product, said to search engines as well as to readers.
+const eodia = { '@type': 'Organization', name: 'Eodia', url: 'https://eodia.com/' };
+const structured = {
+	'@context': 'https://schema.org',
+	'@type': 'SoftwareApplication',
+	name: PRODUCT,
+	description,
+	inLanguage: 'fr',
+	url: canonical.href,
+	applicationCategory: 'BusinessApplication',
+	operatingSystem: 'Linux, Docker',
+	license: 'https://www.gnu.org/licenses/agpl-3.0.html',
+	isAccessibleForFree: true,
+	codeRepository: REPOSITORY,
+	author: eodia,
+	publisher: eodia,
+};
+---
+
+<!doctype html>
+<html lang="fr">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>{title}</title>
+		<meta name="description" content={description} />
+		<meta name="author" content="Eodia" />
+		<link rel="canonical" href={canonical} />
+		<link rel="author" href={EODIA} />
+		<script type="application/ld+json" set:html={JSON.stringify(structured)} />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content={canonical} />
+		<meta property="og:locale" content="fr_FR" />
+		<meta property="og:site_name" content={PRODUCT} />
+		<meta name="twitter:card" content="summary" />
+		<meta name="theme-color" content="#143d2b" />
+		<link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
+		<script is:inline>document.documentElement.classList.add('bd-js');</script>
+	</head>
+	<body>
+		<Navbar />
+		<slot />
+		<SiteFooter />
+	</body>
+</html>

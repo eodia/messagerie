@@ -1,0 +1,98 @@
+---
+/**
+ * Free, and at home: the price, very large, and the three reasons it holds — basedb's
+ * section, for the messaging.
+ */
+import { href } from '../../lib/site';
+import Icon from '../landing/Icon.astro';
+---
+
+<section class="tm-section night yours">
+	<div class="tm-head">
+		<p class="tm-kicker tm-rise">Libre, et chez vous</p>
+		<p class="price tm-rise" aria-label="0 € par conseiller, pour toujours">
+			<span class="figure">0 €</span>
+			<span class="per">par conseiller, pour toujours.</span>
+		</p>
+		<p class="tm-lede tm-rise">
+			Pas de licence par siège, pas de plafond de conversations. Vos échanges avec vos clients restent sur vos serveurs, dans
+			votre PostgreSQL.
+		</p>
+	</div>
+
+	<div class="tm-points">
+		<div class="tm-rise">
+			<span class="ic"><Icon name="server" size={22} /></span>
+			<h3>Hébergée chez vous</h3>
+			<p>Une image Docker et un PostgreSQL : rien d’autre. Pas de Redis, le temps réel passe par PostgreSQL lui-même.</p>
+		</div>
+		<div class="tm-rise">
+			<span class="ic"><Icon name="code" size={22} /></span>
+			<h3>Libre</h3>
+			<p>Sous licence AGPL-3.0 : lisez le code, modifiez-le, gardez-le. Des décisions d’architecture écrites, une à une.</p>
+		</div>
+		<div class="tm-rise">
+			<span class="ic"><Icon name="sparkles" size={22} /></span>
+			<h3>L’IA de votre choix</h3>
+			<p>Mistral par défaut, ou tout serveur compatible OpenAI, Ollama compris. Les données personnelles sont masquées avant de partir vers un modèle externe.</p>
+		</div>
+	</div>
+	<p class="more tm-rise"><a class="tm-link" href={href('/hebergement/production/')}>Mettre la Messagerie en production</a></p>
+</section>
+
+<style>
+	.yours {
+		overflow: hidden;
+	}
+	.yours::before {
+		content: '';
+		position: absolute;
+		left: 50%;
+		top: 30%;
+		width: 900px;
+		height: 600px;
+		transform: translateX(-50%);
+		background: radial-gradient(closest-side, rgba(95, 224, 122, 0.18), transparent 72%);
+		pointer-events: none;
+	}
+	.price {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		margin: 0;
+	}
+	.figure {
+		font-size: clamp(140px, 26vw, 340px);
+		font-weight: 800;
+		line-height: 0.86;
+		letter-spacing: -0.07em;
+		background: linear-gradient(100deg, #3ee0b2, #5fe07a 30%, #c9f06b 55%, #5fe07a 80%, #3ee0b2);
+		background-size: 220% 100%;
+		-webkit-background-clip: text;
+		background-clip: text;
+		color: transparent;
+		animation: sheen 9s ease-in-out infinite alternate;
+	}
+	@keyframes sheen {
+		to {
+			background-position: 100% 0;
+		}
+	}
+	.per {
+		margin-top: 18px;
+		font-size: clamp(30px, 4.4vw, 60px);
+		font-weight: 800;
+		letter-spacing: -0.045em;
+		line-height: 1.05;
+	}
+	.more {
+		margin: 56px 0 0;
+		text-align: center;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.figure {
+			animation: none;
+		}
+	}
+</style>

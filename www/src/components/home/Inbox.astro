@@ -1,0 +1,590 @@
+---
+/**
+ * The inbox, drawn as the application draws it: its sidebar with the boxes, the list of
+ * conversations and their chips, the thread where the AI's answer waits for the agent's
+ * opinion, and the composer. The demonstration's people (Acme Assurances), never real ones.
+ *
+ * Drawn at a fixed size, 1080 × 620, and scaled to the width it is given (`fit`).
+ */
+import Icon from '../landing/Icon.astro';
+
+const BOXES = [
+	{ name: 'Service client', color: '#2563eb', count: 4, on: true },
+	{ name: 'Sinistres', color: '#ea580c', count: 2 },
+	{ name: 'Réclamations', color: '#db2777', count: 0 },
+];
+const ROWS = [
+	{ name: 'Sophie Leroy', color: '#ec4899', time: '20:41', text: 'Une fois votre dossier complet, le remboursement…', chips: [{ t: 'violet', l: 'IA en cours', ai: true }], on: true, ai: true },
+	{ name: 'Thomas Bernard', color: '#3b82f6', time: '20:34', text: 'Je conteste le montant proposé. Je veux parler…', chips: [{ t: 'rose', l: 'Transférée' }, { t: 'amber', l: '3 min', wait: true }] },
+	{ name: 'Julie Martin', color: '#8b5cf6', time: '20:27', text: 'Je déménage le mois prochain : que dois-je faire…', chips: [{ t: 'sky', l: 'Ouverte' }, { t: 'amber', l: '14 min', wait: true }] },
+	{ name: 'Emma Richard', color: '#10b981', time: '20:20', text: 'Comment changer d’adresse sur mon contrat ?', chips: [{ t: 'zinc', l: 'Non assignée' }, { t: 'amber', l: '21 min', wait: true }], unread: true },
+	{ name: 'Lucas Petit', color: '#f59e0b', time: '19:58', text: 'Merci, c’est parfait !', chips: [{ t: 'emerald', l: 'Résolue' }] },
+];
+const initials = (name: string) =>
+	name
+		.split(' ')
+		.map((w) => w[0])
+		.join('');
+---
+
+<div class="ap ap-scale" data-fit="1080">
+	<div class="ap-canvas ap-frame inbox">
+		<div class="ap-chrome">
+			<span class="ap-dots"><i></i><i></i><i></i></span>
+			<span class="ap-url">support.acme-assurances.fr/conversations/service-client</span>
+		</div>
+		<div class="body">
+			<aside class="side">
+				<div class="brand">
+					<span class="mark"><Icon name="message" size={14} stroke={2.2} /></span>
+					<b>Messagerie</b>
+				</div>
+				<div class="site">
+					<span class="dot" style="--c:#2563eb"></span>
+					Acme Assurances
+					<Icon name="chevronDown" size={12} />
+				</div>
+				<nav>
+					<span class="item on"><Icon name="inbox" size={15} />Conversations<em>6</em></span>
+					<span class="item"><Icon name="contact" size={15} />Contacts</span>
+					<span class="item"><Icon name="book" size={15} />Connaissance</span>
+					<span class="item"><Icon name="chart" size={15} />Statistiques</span>
+				</nav>
+				<p class="ap-micro">Boîtes de réception</p>
+				<nav>
+					{
+						BOXES.map((b) => (
+							<span class:list={['item', 'box', { on: b.on }]}>
+								<span class="look" style={`--c:${b.color}`} />
+								{b.name}
+								{b.count > 0 && <em>{b.count}</em>}
+							</span>
+						))
+					}
+				</nav>
+				<p class="ap-micro">Administration</p>
+				<nav>
+					<span class="item"><Icon name="sliders" size={15} />Widget</span>
+					<span class="item"><Icon name="sparkles" size={15} />IA et outils</span>
+					<span class="item"><Icon name="users" size={15} />Équipes</span>
+				</nav>
+				<div class="me">
+					<span class="ap-avatar" style="--c:#16a34a">CD</span>
+					<span><b>Camille Durand</b><small>Superviseuse</small></span>
+				</div>
+			</aside>
+
+			<section class="list">
+				<div class="search"><Icon name="search" size={13} />Rechercher une conversation…<kbd>/</kbd></div>
+				<div class="filters">
+					<span class="on">Toutes</span><span>IA</span><span>Ouvertes</span><span>Non assignées</span>
+				</div>
+				{
+					ROWS.map((r) => (
+						<div class:list={['row', { on: r.on }]}>
+							<span class="ap-avatar" style={`--c:${r.color}`}>
+								{initials(r.name)}
+							</span>
+							<div class="row-body">
+								<div class="row-top">
+									<b>{r.name}</b>
+									<span>{r.time}</span>
+								</div>
+								<p class:list={{ ai: r.ai }}>
+									{r.ai && <Icon name="sparkles" size={11} />}
+									{r.text}
+								</p>
+								<div class="chips">
+									{r.chips.map((c) => (
+										<span class:list={['ap-chip', c.t]}>
+											{'ai' in c && <Icon name="sparkles" />}
+											{'wait' in c && <Icon name="clock" />}
+											{c.l}
+										</span>
+									))}
+								</div>
+							</div>
+							{r.unread && <i class="unread" />}
+						</div>
+					))
+				}
+			</section>
+
+			<section class="thread">
+				<header>
+					<span class="ap-avatar" style="--c:#ec4899">SL</span>
+					<div>
+						<b>Sophie Leroy</b>
+						<small><span class="look" style="--c:#2563eb"></span>Service client <Icon name="chevronRight" size={10} /> Support</small>
+					</div>
+					<span class="ap-chip violet"><Icon name="sparkles" />IA en cours</span>
+					<span class="grow"></span>
+					<span class="ap-btn">Reprendre la main</span>
+					<span class="ap-btn"><Icon name="transfer" />Transférer…</span>
+				</header>
+				<div class="flow">
+					<div class="visitor">
+						<span class="ap-avatar small" style="--c:#ec4899">SL</span>
+						<p>Bonjour, quel est le délai de remboursement après un sinistre ?</p>
+					</div>
+					<div class="answer">
+						<div class="answer-head">
+							<span class="bot"><Icon name="sparkles" size={13} /></span>
+							<b>Réponse de l’IA</b>
+							<span class="ap-chip emerald">Confiance 92 %</span>
+							<span class="grow"></span>
+							<small>Envoyée · 20:41</small>
+						</div>
+						<p class="answer-text">
+							Une fois votre dossier complet, le remboursement est versé sous 5 à 10 jours ouvrés, par virement. Vous suivez chaque étape dans votre espace client.
+						</p>
+						<div class="sources">
+							<p class="ap-micro"><Icon name="chevronDown" size={11} /> 2 sources</p>
+							<div class="source"><span><Icon name="file" size={13} /></span><b>Délai de remboursement d’un sinistre</b><small>Article · Remboursements</small></div>
+							<div class="source"><span><Icon name="message" size={13} /></span><b>Conversations similaires</b><small>3 réponses promues</small></div>
+						</div>
+						<div class="opinion">
+							<small>Votre avis</small>
+							<span><Icon name="tick" size={13} />Accepter</span>
+							<span><Icon name="pen" size={13} />Modifier</span>
+							<span><Icon name="close" size={13} />Rejeter</span>
+						</div>
+					</div>
+				</div>
+				<div class="composer">
+					<div class="tabs"><span class="on">Répondre</span><span>Note interne</span></div>
+					<div class="box">
+						<p>Écrire au visiteur — « / » pour une réponse type…</p>
+						<div class="tools">
+							<Icon name="paperclip" size={14} />
+							<Icon name="smile" size={14} />
+							<i></i>
+							<Icon name="bold" size={14} />
+							<Icon name="italic" size={14} />
+							<i></i>
+							<Icon name="wand" size={14} />
+							<Icon name="mic" size={14} />
+							<span class="grow"></span>
+							<span class="ap-btn primary"><Icon name="send" />Envoyer</span>
+						</div>
+					</div>
+				</div>
+			</section>
+		</div>
+	</div>
+</div>
+
+<style>
+	.ap-scale {
+		--k: 1;
+		position: relative;
+		height: calc(620px * var(--k));
+	}
+	.ap-canvas {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 1080px;
+		height: 620px;
+		transform: scale(var(--k));
+		transform-origin: 0 0;
+	}
+	.inbox {
+		display: flex;
+		flex-direction: column;
+	}
+	.body {
+		display: grid;
+		grid-template-columns: 200px 290px minmax(0, 1fr);
+		flex: 1;
+		min-height: 0;
+	}
+	.grow {
+		flex: 1;
+	}
+
+	/* The sidebar */
+	.side {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		padding: 12px 10px;
+		border-right: 1px solid var(--ap-border);
+		background: #fcfcfd;
+	}
+	.brand {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 2px 6px 8px;
+		font-size: 13.5px;
+		letter-spacing: -0.02em;
+	}
+	.mark {
+		display: grid;
+		place-items: center;
+		width: 22px;
+		height: 22px;
+		border-radius: 6px;
+		color: #143d2b;
+		background: #d9f5b5;
+	}
+	.site {
+		display: flex;
+		align-items: center;
+		gap: 7px;
+		margin-bottom: 8px;
+		padding: 6px 8px;
+		border: 1px solid var(--ap-border);
+		border-radius: 8px;
+		font-weight: 500;
+		background: #fff;
+	}
+	.site :global(svg) {
+		margin-left: auto;
+		color: var(--ap-muted-fg);
+	}
+	.dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: var(--c);
+	}
+	.side nav {
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+	}
+	.side .ap-micro {
+		margin: 12px 8px 4px;
+	}
+	.item {
+		display: flex;
+		align-items: center;
+		gap: 9px;
+		padding: 5px 8px;
+		border-radius: 7px;
+		color: #3f3f46;
+	}
+	.item :global(svg) {
+		color: var(--ap-muted-fg);
+	}
+	.item.on {
+		font-weight: 600;
+		color: var(--ap-fg);
+		background: var(--ap-accent);
+	}
+	.item em {
+		margin-left: auto;
+		min-width: 18px;
+		padding: 0 5px;
+		border-radius: 999px;
+		font-size: 10px;
+		font-style: normal;
+		font-weight: 600;
+		text-align: center;
+		color: #fff;
+		background: var(--ap-primary);
+	}
+	.look {
+		display: inline-block;
+		width: 12px;
+		height: 12px;
+		border-radius: 4px;
+		background: var(--c);
+	}
+	.me {
+		display: flex;
+		align-items: center;
+		gap: 9px;
+		margin-top: auto;
+		padding: 8px 6px 0;
+		border-top: 1px solid var(--ap-border);
+	}
+	.me b,
+	.me small {
+		display: block;
+	}
+	.me small {
+		font-size: 10.5px;
+		color: var(--ap-muted-fg);
+	}
+
+	/* The list */
+	.list {
+		display: flex;
+		flex-direction: column;
+		border-right: 1px solid var(--ap-border);
+		overflow: hidden;
+	}
+	.search {
+		display: flex;
+		align-items: center;
+		gap: 7px;
+		margin: 10px 10px 8px;
+		padding: 6px 9px;
+		border: 1px solid var(--ap-border);
+		border-radius: 8px;
+		color: var(--ap-muted-fg);
+	}
+	kbd {
+		margin-left: auto;
+		padding: 0 5px;
+		border: 1px solid var(--ap-border);
+		border-radius: 4px;
+		font-family: var(--bd-font-mono);
+		font-size: 10px;
+	}
+	.filters {
+		display: flex;
+		gap: 14px;
+		padding: 0 12px;
+		border-bottom: 1px solid var(--ap-border);
+		font-size: 11.5px;
+		color: var(--ap-muted-fg);
+	}
+	.filters span {
+		padding: 6px 0 7px;
+	}
+	.filters .on {
+		font-weight: 600;
+		color: var(--ap-fg);
+		box-shadow: inset 0 -2px 0 var(--ap-primary);
+	}
+	.row {
+		position: relative;
+		display: flex;
+		gap: 10px;
+		padding: 10px 12px;
+		border-bottom: 1px solid #f1f1f3;
+	}
+	.row.on {
+		background: #f6f6f7;
+		box-shadow: inset 3px 0 0 var(--ap-primary);
+	}
+	.row-body {
+		min-width: 0;
+		flex: 1;
+	}
+	.row-top {
+		display: flex;
+		justify-content: space-between;
+	}
+	.row-top span {
+		font-size: 10.5px;
+		color: var(--ap-muted-fg);
+	}
+	.row p {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		margin: 1px 0 5px;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+		color: var(--ap-muted-fg);
+	}
+	.row p.ai :global(svg) {
+		flex-shrink: 0;
+		color: var(--ap-violet);
+	}
+	.chips {
+		display: flex;
+		gap: 4px;
+	}
+	.unread {
+		position: absolute;
+		right: 12px;
+		top: 32px;
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: var(--ap-primary);
+	}
+
+	/* The thread */
+	.thread {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+		background: #fff;
+	}
+	.thread header {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 10px 16px;
+		border-bottom: 1px solid var(--ap-border);
+	}
+	.thread header b,
+	.thread header small {
+		display: block;
+		white-space: nowrap;
+	}
+	.thread header small {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		font-size: 10.5px;
+		color: var(--ap-muted-fg);
+	}
+	.thread header .look {
+		width: 8px;
+		height: 8px;
+		border-radius: 3px;
+	}
+	.flow {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+		padding: 18px 20px;
+		overflow: hidden;
+		background: #fcfcfd;
+	}
+	.visitor {
+		display: flex;
+		align-items: flex-end;
+		gap: 8px;
+	}
+	.ap-avatar.small {
+		width: 24px;
+		height: 24px;
+		font-size: 9px;
+	}
+	.visitor p {
+		max-width: 340px;
+		margin: 0;
+		padding: 9px 13px;
+		border: 1px solid var(--ap-border);
+		border-radius: 14px 14px 14px 4px;
+		font-size: 12.5px;
+		background: #fff;
+	}
+	.answer {
+		align-self: flex-end;
+		width: 400px;
+		border: 1px solid var(--ap-border);
+		border-radius: 12px;
+		background: #fff;
+	}
+	.answer-head {
+		display: flex;
+		align-items: center;
+		gap: 7px;
+		padding: 8px 12px;
+		border-bottom: 1px solid var(--ap-border);
+	}
+	.answer-head small {
+		font-size: 10px;
+		color: var(--ap-muted-fg);
+	}
+	.bot {
+		display: grid;
+		place-items: center;
+		width: 22px;
+		height: 22px;
+		border-radius: 6px;
+		color: var(--ap-violet);
+		background: rgba(139, 92, 246, 0.12);
+	}
+	.answer-text {
+		margin: 0;
+		padding: 10px 12px;
+		font-size: 12.5px;
+		line-height: 1.55;
+	}
+	.sources {
+		padding: 6px 12px 8px;
+		border-top: 1px solid var(--ap-border);
+	}
+	.sources .ap-micro {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		margin: 0 0 4px;
+	}
+	.source {
+		display: grid;
+		grid-template-columns: 24px 1fr;
+		column-gap: 8px;
+		padding: 3px 0;
+	}
+	.source span {
+		display: grid;
+		grid-row: span 2;
+		place-items: center;
+		width: 24px;
+		height: 24px;
+		border: 1px solid var(--ap-border);
+		border-radius: 6px;
+		color: var(--ap-muted-fg);
+	}
+	.source b {
+		font-size: 11.5px;
+		font-weight: 600;
+	}
+	.source small {
+		font-size: 10px;
+		color: var(--ap-muted-fg);
+	}
+	.opinion {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		padding: 7px 12px;
+		border-top: 1px solid var(--ap-border);
+		font-size: 11.5px;
+		font-weight: 500;
+	}
+	.opinion small {
+		font-size: 10.5px;
+		font-weight: 400;
+		color: var(--ap-muted-fg);
+	}
+	.opinion span {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+	}
+	.composer {
+		padding: 0 16px 14px;
+		border-top: 1px solid var(--ap-border);
+	}
+	.composer .tabs {
+		display: flex;
+		gap: 16px;
+		font-size: 11.5px;
+		color: var(--ap-muted-fg);
+	}
+	.composer .tabs span {
+		padding: 8px 0;
+	}
+	.composer .tabs .on {
+		font-weight: 600;
+		color: var(--ap-fg);
+		box-shadow: inset 0 -2px 0 var(--ap-primary);
+	}
+	.composer .box {
+		margin-top: 8px;
+		border: 1px solid var(--ap-border);
+		border-radius: 10px;
+	}
+	.composer .box p {
+		margin: 0;
+		padding: 9px 12px 14px;
+		color: var(--ap-muted-fg);
+	}
+	.tools {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 6px 8px 6px 12px;
+		color: var(--ap-muted-fg);
+	}
+	.tools i {
+		width: 1px;
+		height: 14px;
+		background: var(--ap-border);
+	}
+</style>

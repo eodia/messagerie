@@ -216,6 +216,7 @@ export function ChatGlimpse() {
       identified: index !== 3,
     },
     site: 'Acme Assurances',
+    siteId: 'acme',
     inboxId: null,
     teamId: null,
     status: 'ai',

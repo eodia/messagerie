@@ -1,0 +1,336 @@
+---
+/**
+ * The AI in the first line, played: on the left the widget, where a visitor asks and the AI
+ * answers from an article; then the same visitor contests an amount, a guardrail hands the
+ * conversation to a team with a summary, and an agent takes over. On the right, what the
+ * inbox keeps of it, lit step by step.
+ *
+ * The play runs while the section is on screen (`whileVisible`), and starts again when it
+ * comes back. Without JavaScript, or asked for less motion, the whole exchange is there.
+ */
+import { href } from '../../lib/site';
+import Icon from '../landing/Icon.astro';
+import Widget from './Widget.astro';
+---
+
+<section class="tm-section night agent" id="ia" data-agent>
+	<div class="tm-head">
+		<p class="tm-kicker tm-rise"><Icon name="sparkles" size={20} />L’agent IA</p>
+		<h2 class="tm-display tm-rise">
+			<span>Il répond de vos articles.</span>
+			<span class="tm-grad">Il passe la main s’il doute.</span>
+		</h2>
+		<p class="tm-lede tm-rise">
+			Chaque réponse cite ses sources et porte sa confiance. Sous votre seuil, sur un sujet qu’un garde-fou réserve, ou dès
+			que le client le demande, la conversation va à l’équipe qu’il faut, avec un résumé.
+		</p>
+	</div>
+
+	<div class="stage tm-rise" data-stage>
+		<div class="site" aria-hidden="true">
+			<div class="site-bar">
+				<span class="logo"></span><b>Acme Assurances</b>
+				<span class="grow"></span><span class="pill">Mon espace</span>
+			</div>
+			<div class="site-hero">
+				<i style="width: 62%"></i><i style="width: 44%"></i><i class="thin" style="width: 70%"></i><i class="thin" style="width: 52%"></i>
+			</div>
+			<Widget class="w" status="Un conseiller peut prendre le relais">
+				<div class="m me" data-s="1">Bonjour, quel est le délai de remboursement après un sinistre ?</div>
+				<div class="typing" data-s="2" data-until="3"><i></i><i></i><i></i></div>
+				<div class="m them" data-s="3">
+					<span class="by">Assistant <span class="ia">IA</span></span>
+					Une fois votre dossier complet, le remboursement est versé sous 5 à 10 jours ouvrés, par virement.
+					<span class="src"><Icon name="file" size={12} />Délai de remboursement d’un sinistre</span>
+				</div>
+				<div class="m me" data-s="4">Je conteste le montant proposé. Je veux parler à quelqu’un.</div>
+				<div class="typing" data-s="5" data-until="6"><i></i><i></i><i></i></div>
+				<div class="m them" data-s="6">
+					<span class="by">Assistant <span class="ia">IA</span></span>
+					Je transmets votre demande à un conseiller, qui la reprend personnellement.
+				</div>
+				<div class="event" data-s="6">Un conseiller va reprendre votre demande</div>
+				<div class="event" data-s="7">Camille a rejoint la conversation</div>
+				<div class="typing" data-s="8" data-until="9"><i></i><i></i><i></i></div>
+				<div class="m them" data-s="9">
+					<span class="by">Camille</span>
+					Bonjour Thomas, je reprends votre dossier. Quel montant vous a-t-on proposé ?
+				</div>
+			</Widget>
+		</div>
+
+		<ol class="trace">
+			<li data-s="3">
+				<span class="ic violet"><Icon name="book" size={16} /></span>
+				<div>
+					<b>Réponse sourcée</b>
+					<p>Deux passages de la base de connaissance, une confiance de 92 % : au-dessus du seuil du site, la réponse part.</p>
+					<span class="ap-chip emerald">Confiance 92 %</span>
+				</div>
+			</li>
+			<li data-s="6">
+				<span class="ic rose"><Icon name="shieldAlert" size={16} /></span>
+				<div>
+					<b>Garde-fou « Litiges et réclamations »</b>
+					<p>Une décision contestée n’est pas pour l’IA : elle le dit au client, et la conversation passe à l’Équipe Auto, qui est prévenue.</p>
+					<span class="ap-chip rose">Transférée</span>
+				</div>
+			</li>
+			<li data-s="6">
+				<span class="ic sky"><Icon name="file" size={16} /></span>
+				<div>
+					<b>Résumé de l’IA</b>
+					<p>« Thomas Bernard conteste l’indemnisation de son sinistre auto du 12 septembre. Il demande un conseiller. »</p>
+				</div>
+			</li>
+			<li data-s="7">
+				<span class="ic green"><Icon name="contact" size={16} /></span>
+				<div>
+					<b>Camille reprend la main</b>
+					<p>L’IA se retire. Tout ce qu’elle a fait reste dans le fil, et chaque appel est tracé.</p>
+				</div>
+			</li>
+		</ol>
+	</div>
+
+	<div class="tm-points">
+		<div class="tm-rise">
+			<span class="ic"><Icon name="book" size={22} /></span>
+			<h3>De vos articles, pas d’ailleurs</h3>
+			<p>L’IA cherche dans votre base de connaissance, rédigée dans l’inbox, et cite ce qu’elle a lu.</p>
+		</div>
+		<div class="tm-rise">
+			<span class="ic"><Icon name="shield" size={22} /></span>
+			<h3>Des garde-fous que vous écrivez</h3>
+			<p>Un seuil de confiance par site, des sujets réservés aux conseillers, des données personnelles masquées avant de partir vers le modèle.</p>
+		</div>
+		<div class="tm-rise">
+			<span class="ic"><Icon name="zap" size={22} /></span>
+			<h3>Des outils, si vous le voulez</h3>
+			<p>La fiche du visiteur, une API, un serveur MCP : l’IA n’agit que par les outils que vous lui donnez.</p>
+		</div>
+	</div>
+	<p class="more tm-rise"><a class="tm-link" href={href('/fonctionnalites/agent-ia/')}>Comment répond l’agent IA</a></p>
+</section>
+
+<script>
+	import { reducedMotion, whileVisible } from '../../lib/motion';
+
+	const section = document.querySelector<HTMLElement>('[data-agent]');
+	const stage = section?.querySelector<HTMLElement>('[data-stage]');
+	if (section && stage) {
+		const items = [...stage.querySelectorAll<HTMLElement>('[data-s]')];
+		const show = (step: number) => {
+			for (const item of items) {
+				const from = Number(item.dataset.s);
+				const until = item.dataset.until === undefined ? Infinity : Number(item.dataset.until);
+				item.classList.toggle('on', step >= from && step < until);
+			}
+		};
+		/** How long each step waits before the next one. */
+		const PAUSES = [700, 1100, 1300, 2600, 1200, 1300, 2400, 1300, 1200, 4200];
+		if (reducedMotion()) show(99);
+		else
+			whileVisible(section, async (sleep) => {
+				for (;;) {
+					for (let step = 0; step < PAUSES.length; step++) {
+						show(step);
+						await sleep(PAUSES[step]!);
+					}
+				}
+			});
+		stage.dataset.playing = '';
+	}
+</script>
+
+<style>
+	.agent {
+		overflow: hidden;
+	}
+	.agent::before {
+		content: '';
+		position: absolute;
+		left: 50%;
+		top: 40%;
+		width: 1000px;
+		height: 700px;
+		transform: translateX(-50%);
+		background: radial-gradient(closest-side, rgba(95, 224, 122, 0.12), transparent 72%);
+		pointer-events: none;
+	}
+	.stage {
+		position: relative;
+		display: grid;
+		grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+		gap: 48px;
+		align-items: center;
+		max-width: 1120px;
+		margin: 72px auto 0;
+	}
+
+	/* The client's site, with its widget */
+	.site {
+		position: relative;
+		height: 560px;
+		border-radius: 20px;
+		background: #f5f6f8;
+		overflow: hidden;
+	}
+	.site-bar {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 16px 22px;
+		font-size: 14px;
+		color: #0f172a;
+		background: #fff;
+		border-bottom: 1px solid #e5e7eb;
+	}
+	.logo {
+		width: 22px;
+		height: 22px;
+		border-radius: 6px;
+		background: #2563eb;
+	}
+	.grow {
+		flex: 1;
+	}
+	.pill {
+		padding: 5px 12px;
+		border-radius: 8px;
+		font-size: 12px;
+		font-weight: 600;
+		color: #fff;
+		background: #0f172a;
+	}
+	.site-hero {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		padding: 40px 28px;
+	}
+	.site-hero i {
+		height: 22px;
+		border-radius: 6px;
+		background: #dfe3ea;
+	}
+	.site-hero i.thin {
+		height: 10px;
+		background: #e8ebf0;
+	}
+	.site :global(.w) {
+		position: absolute;
+		right: 18px;
+		bottom: 18px;
+		height: 440px;
+	}
+
+	/* The steps appear one by one — only once the play has taken them in hand. */
+	:global(.bd-js) .stage[data-playing] [data-s]:not(.on) {
+		display: none;
+	}
+	:global(.bd-js) .stage[data-playing] .trace [data-s]:not(.on) {
+		display: flex;
+		opacity: 0.18;
+		transform: none;
+	}
+	.stage [data-s].on {
+		animation: rise 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+	}
+	@keyframes rise {
+		from {
+			opacity: 0;
+			transform: translateY(10px);
+		}
+	}
+
+	/* What the inbox keeps */
+	.trace {
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.trace li {
+		display: flex;
+		gap: 14px;
+		padding: 16px 18px;
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 16px;
+		background: var(--tm-night-2);
+		transition:
+			opacity 0.5s ease,
+			transform 0.5s ease;
+	}
+	.trace li.on {
+		animation: none;
+	}
+	.trace b {
+		display: block;
+		font-size: 16px;
+		letter-spacing: -0.01em;
+	}
+	.trace p {
+		margin: 4px 0 8px;
+		font-size: 14px;
+		line-height: 1.5;
+		color: var(--tm-night-slate);
+	}
+	.trace p:last-child {
+		margin-bottom: 0;
+	}
+	.trace .ic {
+		display: grid;
+		flex-shrink: 0;
+		place-items: center;
+		width: 34px;
+		height: 34px;
+		border-radius: 10px;
+	}
+	.ic.violet {
+		color: #c4b5fd;
+		background: rgba(139, 92, 246, 0.18);
+	}
+	.ic.rose {
+		color: #fda4af;
+		background: rgba(244, 63, 94, 0.18);
+	}
+	.ic.sky {
+		color: #7dd3fc;
+		background: rgba(14, 165, 233, 0.18);
+	}
+	.ic.green {
+		color: #86efac;
+		background: rgba(110, 224, 138, 0.16);
+	}
+	.trace :global(.ap-chip.emerald) {
+		color: #6ee7b7;
+		background: rgba(16, 185, 129, 0.16);
+	}
+	.trace :global(.ap-chip.rose) {
+		color: #fda4af;
+		background: rgba(244, 63, 94, 0.16);
+	}
+	.more {
+		margin: 56px 0 0;
+		text-align: center;
+	}
+
+	@media (max-width: 900px) {
+		.stage {
+			grid-template-columns: 1fr;
+			gap: 32px;
+		}
+		.site {
+			height: 520px;
+		}
+		.site :global(.w) {
+			left: 50%;
+			right: auto;
+			transform: translateX(-50%);
+			width: min(340px, calc(100% - 24px));
+		}
+	}
+</style>

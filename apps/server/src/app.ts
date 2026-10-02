@@ -306,7 +306,9 @@ export function createApp({
     return c.json(await removeTag(db, c.get('agent'), id, c.req.param('label')))
   })
 
-  inbox.get('/inboxes', async (c) => c.json(await inboxDirectory(settings, access, c.get('agent'))))
+  inbox.get('/inboxes', async (c) =>
+    c.json(await inboxDirectory(db, settings, access, c.get('agent'))),
+  )
 
   inbox.get('/me', (c) => c.json(toAgent(c.get('agent'))))
 
@@ -338,7 +340,17 @@ export function createApp({
 
   inbox.get('/canned', async (c) => c.json(await cannedReplies(settings)))
 
-  inbox.get('/contacts', async (c) => c.json(await listContacts(db, c.req.query('q') ?? '')))
+  // The contacts of the inboxes the agent sees — of one site, with `site`.
+  inbox.get('/contacts', async (c) =>
+    c.json(
+      await listContacts(
+        db,
+        c.req.query('q') ?? '',
+        await access.visibleTo(c.get('agent')),
+        c.req.query('site') || null,
+      ),
+    ),
+  )
 
   // GIPHY, for the picker — its key stays here (D5). A GIF chosen comes back as bytes, and
   // goes with the message as any file.
@@ -363,10 +375,15 @@ export function createApp({
     const tail = /(?:^|-)([0-9a-f]{12})$/i.exec(asked)?.[1]
     const id = UUID.test(asked) ? asked : tail ? await contactByTail(db, tail) : null
     if (id === null) throw new Refusal('CONTACT_NOT_FOUND', 404)
-    return c.json(await contactDetail(db, id))
+    return c.json(await contactDetail(db, id, await access.visibleTo(c.get('agent'))))
   })
 
-  inbox.get('/stats', async (c) => c.json(await stats(db, c.get('agent'))))
+  inbox.get('/stats', async (c) => {
+    const agent = c.get('agent')
+    return c.json(
+      await stats(db, agent, await access.visibleTo(agent), c.req.query('site') || null),
+    )
+  })
 
   inbox.get('/knowledge', async (c) => c.json(await knowledge(db)))
 

@@ -12,7 +12,8 @@ import { TicketBook } from '../../src/auth/tickets.js'
 import type { Config } from '../../src/config.js'
 import { type Db, connect, migrateDatabase } from '../../src/db/client.js'
 import { agents, contacts, conversations, notifications } from '../../src/db/schema.js'
-import { Access } from '../../src/inbox/access.js'
+import { Access, inboxDirectory } from '../../src/inbox/access.js'
+import { contactDetail, listContacts, stats } from '../../src/inbox/extras.js'
 import { createConversation, handOff } from '../../src/inbox/incoming.js'
 import { patchContact, patchConversationData, readPatch } from '../../src/inbox/metadata.js'
 import { type AgentRow, loadConversation, loadSummaries } from '../../src/inbox/read.js'
@@ -27,7 +28,8 @@ import { WidgetHub } from '../../src/widget/hub.js'
  * it, how it moves, and what a page or an agent attaches to it.
  *
  * Two inboxes — « Service client » (Support) and « Sinistres » (Auto, Habitation) — a
- * supervisor of Support, and an agent of Auto.
+ * supervisor of Support, and an agent of Auto. Acme and Initech arrive in « Service
+ * client », Globex in « Sinistres ».
  */
 
 const ROWS: Readonly<Record<string, LabeledRow[]>> = {
@@ -42,6 +44,24 @@ const ROWS: Readonly<Record<string, LabeledRow[]>> = {
         Langue: 'Français',
         'Boîte de réception': 'service',
         'Équipe par défaut': 'support',
+      },
+    },
+    {
+      id: 'globex',
+      values: {
+        Nom: 'Globex',
+        'Domaines autorisés': 'globex.test',
+        Actif: true,
+        'Boîte de réception': 'sinistres',
+      },
+    },
+    {
+      id: 'initech',
+      values: {
+        Nom: 'Initech',
+        'Domaines autorisés': 'initech.test',
+        Actif: true,
+        'Boîte de réception': 'service',
       },
     },
   ],
@@ -384,5 +404,68 @@ describe('metadata', () => {
       data: { Page: '/tarifs', Panier: 3 },
     })
     expect(conversation?.contact.data).toEqual({ Plan: 'Pro' })
+  })
+})
+
+describe('the sites one may narrow to', () => {
+  const sitesOf = async (agent: AgentRow) =>
+    (await inboxDirectory(db, settings, access, agent)).sites.map((site) => site.id)
+
+  it('are every site for a supervisor', async () => {
+    expect(await sitesOf(supervisor)).toEqual(['acme', 'globex', 'initech'])
+  })
+
+  it('are, for an agent, those that arrive in their inboxes, and those moved into one', async () => {
+    const before = await sitesOf(autoAgent)
+    expect(before).toContain('globex')
+    expect(before).not.toContain('initech')
+    const id = await arrived()
+    await transfer(db, settings, access, supervisor, id, { inboxId: 'sinistres' })
+    expect(await sitesOf(autoAgent)).toContain('acme')
+  })
+
+  it('come with the inbox’s directory, with their colour', async () => {
+    const directory = (await (await app.request('/api/inbox/inboxes')).json()) as {
+      sites: { id: string; name: string; color: string }[]
+    }
+    expect(directory.sites.find((site) => site.id === 'globex')).toEqual({
+      id: 'globex',
+      name: 'Globex',
+      color: expect.stringMatching(/^#[0-9A-Fa-f]{6}$/),
+    })
+  })
+})
+
+describe('contacts and counters', () => {
+  it('show an agent the contacts of their inboxes only', async () => {
+    const [contact] = await db
+      .insert(contacts)
+      .values({ siteId: 'acme', name: 'Zoé Service' })
+      .returning()
+    const site = await settings.site('acme')
+    if (!contact || !site) throw new Error('fixture')
+    await createConversation(db, contact.id, site, await settings.routeOf(site))
+
+    const listed = (await (await app.request('/api/inbox/contacts?q=Zoé')).json()) as unknown[]
+    expect(listed).toEqual([])
+    expect((await app.request(`/api/inbox/contacts/${contact.id}`)).status).toBe(404)
+    const visible = await access.visibleTo(autoAgent)
+    await expect(contactDetail(db, contact.id, visible)).rejects.toMatchObject({
+      code: 'CONTACT_NOT_FOUND',
+    })
+    expect((await listContacts(db, 'Zoé')).map((c) => c.id)).toEqual([contact.id])
+  })
+
+  it('narrow the contacts to a site', async () => {
+    expect(await listContacts(db, 'Zoé', null, 'acme')).toHaveLength(1)
+    expect(await listContacts(db, 'Zoé', null, 'globex')).toEqual([])
+  })
+
+  it('count the conversations one sees, of the site chosen', async () => {
+    const all = await stats(db, supervisor)
+    expect(all.conversations).toBeGreaterThan(0)
+    expect((await stats(db, supervisor, null, 'acme')).conversations).toBe(all.conversations)
+    expect((await stats(db, supervisor, null, 'globex')).conversations).toBe(0)
+    expect((await stats(db, autoAgent, new Set())).conversations).toBe(0)
   })
 })

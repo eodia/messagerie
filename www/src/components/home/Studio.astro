@@ -1,0 +1,380 @@
+---
+/**
+ * The widget's editor: the settings on the left, the widget on a sketched page on the
+ * right, changing as they change. The play turns the colour, the corners and the theme;
+ * under it, the one tag a site pastes.
+ */
+import { href } from '../../lib/site';
+import Icon from '../landing/Icon.astro';
+import Widget from './Widget.astro';
+
+/** The editor's nine colours (apps/web, the widget's editor). */
+const SWATCHES = ['#2563eb', '#16a34a', '#dc2626', '#7c3aed', '#db2777', '#ea580c', '#0891b2', '#0f172a', '#ca8a04'];
+/** What the play shows, in turn: a colour (its index), corners, theme. */
+const LOOKS = [
+	{ color: 0, corners: 'Arrondis', theme: 'Clair' },
+	{ color: 3, corners: 'Arrondis', theme: 'Clair' },
+	{ color: 1, corners: 'Adoucis', theme: 'Clair' },
+	{ color: 7, corners: 'Droits', theme: 'Sombre' },
+	{ color: 4, corners: 'Adoucis', theme: 'Clair' },
+];
+const TAG = `<script src="https://chat.exemple.fr/widget.js"
+        data-site="acme-assurances" async></script>`;
+---
+
+<section class="tm-section studio" id="widget" data-studio data-looks={JSON.stringify(LOOKS)} data-swatches={JSON.stringify(SWATCHES)}>
+	<div class="tm-head">
+		<p class="tm-kicker tm-rise"><Icon name="palette" size={20} />Le widget</p>
+		<h2 class="tm-display tm-rise">
+			<span>Une balise à coller.</span>
+			<span class="tm-grad">Le reste, en le voyant.</span>
+		</h2>
+		<p class="tm-lede tm-rise">
+			Couleur, thème, coins, police, bouton, textes d’accueil, questions suggérées : l’éditeur montre le vrai widget,
+			dans son coin, à chaque réglage. Une soixantaine de Ko, dans un Shadow DOM, sans police chargée.
+		</p>
+	</div>
+
+	<div class="editor tm-rise" aria-hidden="true">
+		<div class="ap form">
+			<div class="form-head">
+				<b>Widget</b>
+				<span class="ap-chip zinc">Acme Assurances</span>
+				<span class="grow"></span>
+				<span class="ap-btn primary">Enregistrer</span>
+			</div>
+			<div class="tabs"><span class="on">Apparence</span><span>Textes</span><span>Affichage</span><span>Installation</span></div>
+			<div class="fields">
+				<div class="field">
+					<p class="ap-micro">Couleur</p>
+					<div class="swatches">
+						{SWATCHES.map((c, i) => <i style={`--c:${c}`} data-swatch={i} />)}
+					</div>
+				</div>
+				<div class="field">
+					<p class="ap-micro">Thème</p>
+					<div class="seg" data-seg="theme"><span>Automatique</span><span>Clair</span><span>Sombre</span></div>
+				</div>
+				<div class="field">
+					<p class="ap-micro">Coins</p>
+					<div class="seg" data-seg="corners"><span>Arrondis</span><span>Adoucis</span><span>Droits</span></div>
+				</div>
+				<div class="field">
+					<p class="ap-micro">Bouton</p>
+					<div class="seg"><span class="on">Rond</span><span>Avec libellé</span></div>
+				</div>
+				<div class="field">
+					<p class="ap-micro">Titre d’accueil</p>
+					<div class="input">Bonjour {'{prénom}'}</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="preview" data-preview>
+			<div class="ap previewbar">
+				<span class="seg small"><span>Fermé</span><span>Bulle d’accueil</span><span class="on">Accueil</span><span>Conversation</span></span>
+			</div>
+			<div class="page">
+				<i style="width: 54%"></i><i style="width: 38%"></i><i class="thin" style="width: 66%"></i><i class="thin" style="width: 48%"></i>
+			</div>
+			<Widget class="pw" status="Notre assistant répond à toute heure">
+				<div class="welcome">
+					<b>Bonjour Sophie</b>
+					<p>Posez votre question : notre assistant répond à toute heure, nos conseillers en semaine.</p>
+				</div>
+				<span class="q">Déclarer un sinistre</span>
+				<span class="q">Suivre mon remboursement</span>
+				<span class="q">Télécharger mon attestation</span>
+			</Widget>
+			<span class="launcher"><Icon name="chevronDown" size={22} stroke={2.4} /></span>
+		</div>
+	</div>
+
+	<div class="install tm-rise">
+		<pre><code>{TAG}</code></pre>
+		<p>
+			Un client connecté au site ? Son identité, signée par votre serveur, voyage avec lui. La page parle au widget par
+			<code>window.MessagerieChat</code>.
+			<a class="tm-link" href={href('/fonctionnalites/widget/')}>Installer le widget</a>
+		</p>
+	</div>
+</section>
+
+<script>
+	import { reducedMotion, whileVisible } from '../../lib/motion';
+
+	type Look = { color: number; corners: string; theme: string };
+	const section = document.querySelector<HTMLElement>('[data-studio]');
+	const preview = section?.querySelector<HTMLElement>('[data-preview]');
+	if (section && preview) {
+		const looks = JSON.parse(section.dataset.looks ?? '[]') as Look[];
+		const swatches = JSON.parse(section.dataset.swatches ?? '[]') as string[];
+		const RADIUS: Record<string, string> = { Arrondis: '20px', Adoucis: '12px', Droits: '4px' };
+		const apply = (look: Look) => {
+			for (const s of section.querySelectorAll<HTMLElement>('[data-swatch]'))
+				s.classList.toggle('on', Number(s.dataset.swatch) === look.color);
+			for (const seg of section.querySelectorAll<HTMLElement>('[data-seg]')) {
+				const value = seg.dataset.seg === 'theme' ? look.theme : look.corners;
+				for (const option of seg.querySelectorAll('span')) option.classList.toggle('on', option.textContent === value);
+			}
+			preview.style.setProperty('--w', swatches[look.color] ?? '#2563eb');
+			preview.style.setProperty('--wr', RADIUS[look.corners] ?? '20px');
+			preview.classList.toggle('dark', look.theme === 'Sombre');
+		};
+		apply(looks[0]!);
+		if (!reducedMotion())
+			whileVisible(section, async (sleep) => {
+				for (let i = 0; ; i = (i + 1) % looks.length) {
+					apply(looks[i]!);
+					await sleep(2200);
+				}
+			});
+	}
+</script>
+
+<style>
+	.grow {
+		flex: 1;
+	}
+	.editor {
+		display: grid;
+		grid-template-columns: 340px minmax(0, 1fr);
+		max-width: 1080px;
+		height: 600px;
+		margin: 72px auto 0;
+		overflow: hidden;
+		border-radius: 18px;
+		background: #fff;
+		box-shadow:
+			0 50px 100px -50px rgba(16, 40, 16, 0.35),
+			0 0 0 1px rgba(16, 24, 16, 0.08);
+	}
+	.form {
+		display: flex;
+		flex-direction: column;
+		border-right: 1px solid var(--ap-border);
+	}
+	.form-head {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 12px 16px;
+		border-bottom: 1px solid var(--ap-border);
+		font-size: 13px;
+	}
+	.tabs {
+		display: flex;
+		gap: 14px;
+		padding: 0 16px;
+		border-bottom: 1px solid var(--ap-border);
+		font-size: 11.5px;
+		color: var(--ap-muted-fg);
+	}
+	.tabs span {
+		padding: 8px 0;
+	}
+	.tabs .on {
+		font-weight: 600;
+		color: var(--ap-fg);
+		box-shadow: inset 0 -2px 0 var(--ap-primary);
+	}
+	.fields {
+		display: flex;
+		flex-direction: column;
+		gap: 18px;
+		padding: 18px 16px;
+	}
+	.field .ap-micro {
+		margin: 0 0 7px;
+	}
+	.swatches {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+	.swatches i {
+		width: 24px;
+		height: 24px;
+		border-radius: 50%;
+		background: var(--c);
+		transition: box-shadow 0.3s ease;
+	}
+	.swatches i:global(.on) {
+		box-shadow:
+			0 0 0 2px #fff,
+			0 0 0 4px var(--c);
+	}
+	.seg {
+		display: inline-flex;
+		padding: 2px;
+		border-radius: 8px;
+		background: var(--ap-muted);
+	}
+	.seg span {
+		padding: 4px 10px;
+		border-radius: 6px;
+		font-size: 11.5px;
+		color: var(--ap-muted-fg);
+		transition:
+			background-color 0.3s ease,
+			color 0.3s ease;
+	}
+	.seg span:global(.on) {
+		font-weight: 500;
+		color: var(--ap-fg);
+		background: #fff;
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+	}
+	.input {
+		padding: 7px 10px;
+		border: 1px solid var(--ap-border);
+		border-radius: 7px;
+		font-size: 12px;
+	}
+
+	/* The preview: the real widget, in its corner of a sketched page */
+	.preview {
+		--w: #2563eb;
+		position: relative;
+		overflow: hidden;
+		background: #f4f4f5;
+	}
+	.previewbar {
+		display: flex;
+		justify-content: center;
+		padding: 12px;
+	}
+	.seg.small span {
+		font-size: 11px;
+	}
+	.page {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		padding: 24px 40px;
+	}
+	.page i {
+		height: 20px;
+		border-radius: 6px;
+		background: #e4e4e7;
+	}
+	.page i.thin {
+		height: 10px;
+		background: #ececee;
+	}
+	.preview :global(.pw) {
+		position: absolute;
+		right: 24px;
+		bottom: 92px;
+		height: 430px;
+	}
+	.welcome b {
+		display: block;
+		font-size: 18px;
+		letter-spacing: -0.02em;
+	}
+	.welcome p {
+		margin: 4px 0 6px;
+		font-size: 12.5px;
+		color: #52525b;
+	}
+	.q {
+		align-self: flex-start;
+		padding: 7px 12px;
+		border: 1px solid color-mix(in srgb, var(--w) 35%, white);
+		border-radius: 999px;
+		font-size: 12px;
+		color: color-mix(in srgb, var(--w) 80%, black);
+		transition:
+			border-color 0.5s ease,
+			color 0.5s ease;
+	}
+	.launcher {
+		position: absolute;
+		right: 24px;
+		bottom: 24px;
+		display: grid;
+		place-items: center;
+		width: 54px;
+		height: 54px;
+		border-radius: 50%;
+		color: #fff;
+		background: var(--w);
+		box-shadow: 0 10px 24px -8px color-mix(in srgb, var(--w) 70%, transparent);
+		transition: background-color 0.5s ease;
+	}
+	/* The dark theme */
+	.preview.dark :global(.wg),
+	.preview.dark :global(.wg-body) {
+		color: #f4f4f5;
+		background: #18181b;
+	}
+	.preview.dark .welcome p {
+		color: #a1a1aa;
+	}
+	.preview.dark .q {
+		color: #e4e4e7;
+		border-color: #3f3f46;
+	}
+	.preview.dark :global(.wg-input) {
+		border-color: #3f3f46;
+	}
+
+	.install {
+		display: grid;
+		grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+		gap: 40px;
+		align-items: center;
+		max-width: 1080px;
+		margin: 48px auto 0;
+	}
+	pre {
+		margin: 0;
+		padding: 22px 24px;
+		border-radius: 18px;
+		font-size: 13.5px;
+		line-height: 1.7;
+		color: #d8e6d4;
+		background: var(--bd-ink);
+		overflow-x: auto;
+	}
+	.install p {
+		margin: 0;
+		font-size: 17px;
+		line-height: 1.55;
+		color: var(--tm-slate);
+	}
+	.install p code {
+		font-size: 0.86em;
+		padding: 1px 5px;
+		border-radius: 5px;
+		background: var(--tm-mist);
+	}
+	.install .tm-link {
+		display: flex;
+		margin-top: 12px;
+	}
+
+	@media (max-width: 900px) {
+		.editor {
+			grid-template-columns: 1fr;
+			height: auto;
+		}
+		.form {
+			border-right: 0;
+			border-bottom: 1px solid var(--ap-border);
+		}
+		.preview {
+			height: 600px;
+		}
+		.preview :global(.pw) {
+			right: 50%;
+			transform: translateX(50%);
+			width: min(340px, calc(100% - 24px));
+		}
+		.install {
+			grid-template-columns: 1fr;
+			gap: 20px;
+		}
+	}
+</style>

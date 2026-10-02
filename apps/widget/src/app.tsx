@@ -526,9 +526,10 @@ export function App({
     { id: 'welcome', from: site.ai ? 'ai' : 'site', body: welcomeOf(site), at: null },
     messages,
   )
-  const avatarOf = (from: Speaker, author: string | null, busy = false) =>
+  const lastItem = items[items.length - 1]
+  const avatarOf = (from: Speaker, author: string | null, busy = false, active = false) =>
     from === 'ai' ? (
-      <Orb busy={busy} />
+      <Orb busy={busy} active={active} />
     ) : from === 'site' && look.logo ? (
       <img class="person-avatar" src={look.logo} alt="" />
     ) : (
@@ -608,7 +609,12 @@ export function App({
                         ? site.name
                         : item.author
                   }
-                  avatar={avatarOf(item.from, item.author)}
+                  avatar={avatarOf(
+                    item.from,
+                    item.author,
+                    false,
+                    item === lastItem && !typing && answeredBy === 'ai',
+                  )}
                   lines={item.lines}
                   fileUrl={(path) => api.fileUrl(path)}
                 />

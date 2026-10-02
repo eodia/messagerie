@@ -1,0 +1,493 @@
+---
+/**
+ * The administration, done in the inbox: the guardrails' screen as the application draws
+ * it — the rows, the form, and on the right what the setting changes, live: the moment the
+ * guardrail fires, and what the AI reads of it. The play types the message to the visitor,
+ * then switches the action from « Transférer » to « Répondre sans traiter » and back; the
+ * preview follows. The rows are the demonstration's (settings/demo.json).
+ */
+import { href } from '../../lib/site';
+import Icon from '../landing/Icon.astro';
+
+const MESSAGE = 'Je transmets votre demande à un conseiller, qui la reprend personnellement.';
+---
+
+<section class="tm-section night settings" id="parametrage" data-settings>
+	<div class="tm-head">
+		<p class="tm-kicker tm-rise"><Icon name="sliders" size={20} />L’administration</p>
+		<h2 class="tm-display tm-rise">
+			<span>Tout se règle dans l’inbox.</span>
+			<span class="tm-grad">Et se voit en le réglant.</span>
+		</h2>
+		<p class="tm-lede tm-rise">
+			Boîtes, équipes, conseillers, sites et horaires, réponses types, garde-fous, outils de l’IA, widget, API : chaque
+			écran montre, à côté du formulaire, ce que le réglage change. Rien d’autre à installer, rien d’autre à ouvrir.
+		</p>
+	</div>
+
+	<div class="ap studio tm-rise" data-pair aria-hidden="true">
+		<div class="bar">
+			<span class="crumbs">Paramétrage <Icon name="chevronRight" size={11} /> <b>Garde-fous</b></span>
+			<span class="grow"></span>
+			<span class="ap-chip amber draft" data-draft>Brouillon</span>
+			<span class="ap-btn primary" data-save>Enregistrer</span>
+		</div>
+		<div class="cols">
+			<ul class="rows">
+				<li class="on"><Icon name="shieldAlert" size={13} />Litiges et réclamations</li>
+				<li><Icon name="shieldAlert" size={13} />Données de santé</li>
+				<li><Icon name="shieldAlert" size={13} />Montant d’indemnisation</li>
+				<li class="add"><Icon name="plus" size={13} />Nouveau garde-fou</li>
+			</ul>
+
+			<div class="form">
+				<p class="ap-micro">Le sujet</p>
+				<label>Nom</label>
+				<div class="input">Litiges et réclamations</div>
+				<label>Ce qui le déclenche</label>
+				<div class="input area">Le client conteste une décision, parle d’avocat ou de tribunal, ou formule une réclamation.</div>
+				<p class="ap-micro">Ce que fait l’IA</p>
+				<div class="choices">
+					<div class="choice" data-choice="transfer">
+						<Icon name="transfer" size={15} />
+						<b>Transférer</b>
+						<small>Elle prévient le visiteur et passe la main à une équipe.</small>
+					</div>
+					<div class="choice" data-choice="answer">
+						<Icon name="message" size={15} />
+						<b>Répondre sans traiter</b>
+						<small>Elle dit son message, sans traiter la demande.</small>
+					</div>
+				</div>
+				<label>Message au visiteur</label>
+				<div class="input area"><span data-typed>{MESSAGE}</span><span class="caret"></span></div>
+				<div class="team" data-transfer>
+					<label>Vers l’équipe</label>
+					<div class="input"><span class="look" style="--c:#ea580c"></span>Équipe Auto</div>
+				</div>
+			</div>
+
+			<div class="preview">
+				<div class="card">
+					<p class="card-head"><span class="ap-micro">Le moment venu</span><small>Litiges et réclamations</small></p>
+					<div class="moment">
+						<p class="me">Je vais devoir saisir un avocat si rien ne bouge.</p>
+						<span class="pill"><Icon name="shieldAlert" size={13} />Garde-fou «&nbsp;Litiges et réclamations&nbsp;» reconnu</span>
+						<div class="ai">
+							<span class="bot"><Icon name="sparkles" size={12} /></span>
+							<p data-mirror>{MESSAGE}</p>
+						</div>
+						<div class="handover" data-transfer>
+							<span class="line"></span><span class="ap-chip amber"><Icon name="transfer" />Transférée à Équipe Auto</span><span class="line"></span>
+						</div>
+						<p class="dashed" data-transfer><span class="ap-avatar" style="--c:#ea580c">EA</span>Un conseiller reprend, avec le résumé de l’IA.</p>
+					</div>
+				</div>
+				<div class="card">
+					<p class="card-head"><span class="ap-micro">Ce que lit l’IA</span></p>
+					<div class="reads">
+						<p><span>Si :</span> Le client conteste une décision, parle d’avocat ou de tribunal, ou formule une réclamation.</p>
+						<p><span>Alors :</span> <em data-then>dire le message, puis transférer — sans répondre sur le fond.</em></p>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="tm-points">
+		<div class="tm-rise">
+			<span class="ic"><Icon name="eye" size={22} /></span>
+			<h3>L’effet, en direct</h3>
+			<p>La boîte dans le menu, la semaine d’ouverture, la réponse type dans le composeur, l’outil tel que l’IA le lit : chaque écran le dessine.</p>
+		</div>
+		<div class="tm-rise">
+			<span class="ic"><Icon name="users" size={22} /></span>
+			<h3>Vos conseillers, vos comptes</h3>
+			<p>Une invitation par lien, un mot de passe, ou le fournisseur d’identité de l’entreprise — Microsoft, Google, Keycloak — par OpenID Connect.</p>
+		</div>
+		<div class="tm-rise">
+			<span class="ic"><Icon name="key" size={22} /></span>
+			<h3>Aucun secret dans les réglages</h3>
+			<p>Un outil nomme la variable d’environnement qui porte son jeton, jamais sa valeur. Les clés restent au serveur.</p>
+		</div>
+	</div>
+	<p class="more tm-rise">
+		<a class="tm-link" href={href('/fonctionnalites/parametrage/')}>L’administration, écran par écran</a>
+		<a class="tm-link" href={href('/hebergement/comptes/')}>Comptes et connexion</a>
+	</p>
+</section>
+
+<script>
+	import { reducedMotion, whileVisible } from '../../lib/motion';
+
+	const THEN = {
+		transfer: 'dire le message, puis transférer — sans répondre sur le fond.',
+		answer: 'dire le message, sans traiter la demande.',
+	};
+	const section = document.querySelector<HTMLElement>('[data-settings]');
+	const pair = section?.querySelector<HTMLElement>('[data-pair]');
+	const typed = pair?.querySelector<HTMLElement>('[data-typed]');
+	const mirror = pair?.querySelector<HTMLElement>('[data-mirror]');
+	const then = pair?.querySelector<HTMLElement>('[data-then]');
+	if (section && pair && typed && mirror && then) {
+		const full = typed.textContent ?? '';
+		const write = (text: string) => {
+			typed.textContent = text;
+			mirror.textContent = text;
+		};
+		const action = (value: 'transfer' | 'answer') => {
+			pair.dataset.action = value;
+			then.textContent = THEN[value];
+		};
+		action('transfer');
+		if (!reducedMotion()) {
+			whileVisible(section, async (sleep) => {
+				for (;;) {
+					pair.dataset.step = 'typing';
+					write('');
+					pair.toggleAttribute('data-dirty', true);
+					await sleep(600);
+					for (let i = 1; i <= full.length; i += 2) {
+						write(full.slice(0, i));
+						await sleep(30);
+					}
+					write(full);
+					pair.dataset.step = 'idle';
+					await sleep(1800);
+					action('answer');
+					await sleep(2600);
+					action('transfer');
+					await sleep(1400);
+					pair.dataset.step = 'save';
+					await sleep(300);
+					pair.dataset.step = 'idle';
+					pair.toggleAttribute('data-dirty', false);
+					await sleep(3600);
+				}
+			});
+		}
+	}
+</script>
+
+<style>
+	.settings {
+		overflow: hidden;
+	}
+	.grow {
+		flex: 1;
+	}
+	.studio {
+		max-width: 1180px;
+		margin: 72px auto 0;
+		overflow: hidden;
+		border-radius: 16px;
+		background: #fff;
+		box-shadow: 0 40px 90px -40px rgba(0, 0, 0, 0.7);
+	}
+	.bar {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		height: 44px;
+		padding: 0 14px;
+		border-bottom: 1px solid var(--ap-border);
+	}
+	.crumbs {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		color: var(--ap-muted-fg);
+	}
+	.crumbs b {
+		color: var(--ap-fg);
+	}
+	.draft {
+		visibility: hidden;
+	}
+	.studio[data-dirty] .draft {
+		visibility: visible;
+	}
+	[data-save] {
+		transition: transform 0.15s ease;
+	}
+	.studio[data-step='save'] [data-save] {
+		transform: scale(0.93);
+	}
+	.cols {
+		display: grid;
+		grid-template-columns: 190px minmax(0, 1fr) minmax(0, 1.05fr);
+		min-height: 470px;
+	}
+
+	/* The rows */
+	.rows {
+		margin: 0;
+		padding: 8px;
+		list-style: none;
+		border-right: 1px solid var(--ap-border);
+	}
+	.rows li {
+		display: flex;
+		align-items: center;
+		gap: 7px;
+		padding: 6px 8px;
+		border-radius: 7px;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.rows li :global(svg) {
+		flex-shrink: 0;
+		color: #ef4444;
+	}
+	.rows li.on {
+		font-weight: 600;
+		background: var(--ap-accent);
+	}
+	.rows li.add,
+	.rows li.add :global(svg) {
+		color: var(--ap-muted-fg);
+	}
+
+	/* The form */
+	.form {
+		padding: 14px 18px;
+		border-right: 1px solid var(--ap-border);
+	}
+	.form .ap-micro {
+		margin: 4px 0 6px;
+	}
+	.form .ap-micro:not(:first-child) {
+		margin-top: 16px;
+	}
+	label {
+		display: block;
+		margin: 8px 0 4px;
+		font-size: 11px;
+		font-weight: 500;
+		color: var(--ap-muted-fg);
+	}
+	.input {
+		display: flex;
+		align-items: center;
+		gap: 7px;
+		min-height: 30px;
+		padding: 5px 9px;
+		border: 1px solid var(--ap-border);
+		border-radius: 7px;
+	}
+	.input.area {
+		display: block;
+		min-height: 48px;
+		line-height: 1.5;
+	}
+	.caret {
+		display: none;
+		width: 1.5px;
+		height: 13px;
+		vertical-align: -2px;
+		background: var(--ap-fg);
+	}
+	.studio[data-step='typing'] .caret {
+		display: inline-block;
+	}
+	.choices {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 8px;
+	}
+	.choice {
+		display: grid;
+		grid-template-columns: 18px 1fr;
+		column-gap: 6px;
+		padding: 8px 10px;
+		border: 1px solid var(--ap-border);
+		border-radius: 9px;
+		transition:
+			border-color 0.3s ease,
+			background-color 0.3s ease;
+	}
+	.choice :global(svg) {
+		margin-top: 1px;
+		color: var(--ap-muted-fg);
+	}
+	.choice small {
+		grid-column: 2;
+		font-size: 10.5px;
+		line-height: 1.4;
+		color: var(--ap-muted-fg);
+	}
+	.studio[data-action='transfer'] [data-choice='transfer'],
+	.studio[data-action='answer'] [data-choice='answer'] {
+		border-color: var(--ap-primary);
+		background: color-mix(in srgb, var(--ap-primary) 6%, white);
+	}
+	.studio[data-action='transfer'] [data-choice='transfer'] :global(svg),
+	.studio[data-action='answer'] [data-choice='answer'] :global(svg) {
+		color: var(--ap-primary);
+	}
+	.look {
+		width: 10px;
+		height: 10px;
+		border-radius: 3px;
+		background: var(--c);
+	}
+	.studio[data-action='answer'] [data-transfer] {
+		display: none;
+	}
+
+	/* The preview */
+	.preview {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		padding: 14px;
+		background: #fafafa;
+	}
+	.card {
+		overflow: hidden;
+		border: 1px solid var(--ap-border);
+		border-radius: 12px;
+		background: #fff;
+	}
+	.card-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin: 0;
+		padding: 8px 12px;
+		border-bottom: 1px solid var(--ap-border);
+	}
+	.card-head small {
+		font-size: 10.5px;
+		color: var(--ap-muted-fg);
+	}
+	.moment {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		padding: 14px;
+		background: rgba(244, 244, 245, 0.4);
+	}
+	.me {
+		align-self: flex-end;
+		max-width: 80%;
+		margin: 0;
+		padding: 8px 12px;
+		border-radius: 14px 14px 4px 14px;
+		font-size: 12.5px;
+		color: #fff;
+		background: #18181b;
+	}
+	.pill {
+		display: inline-flex;
+		align-self: center;
+		align-items: center;
+		gap: 5px;
+		padding: 3px 10px;
+		border: 1px solid var(--ap-border);
+		border-radius: 999px;
+		font-size: 10.5px;
+		color: var(--ap-muted-fg);
+		background: #fff;
+	}
+	.pill :global(svg) {
+		color: #d97706;
+	}
+	.ai {
+		display: flex;
+		align-items: flex-end;
+		gap: 7px;
+	}
+	.bot {
+		display: grid;
+		flex-shrink: 0;
+		place-items: center;
+		width: 24px;
+		height: 24px;
+		border-radius: 50%;
+		color: var(--ap-violet);
+		background: rgba(139, 92, 246, 0.15);
+	}
+	.ai p {
+		max-width: 82%;
+		min-height: 36px;
+		margin: 0;
+		padding: 8px 12px;
+		border: 1px solid var(--ap-border);
+		border-radius: 14px 14px 14px 4px;
+		font-size: 12.5px;
+		line-height: 1.5;
+		background: #fff;
+	}
+	.handover {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.handover .line {
+		flex: 1;
+		height: 1px;
+		background: var(--ap-border);
+	}
+	.dashed {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin: 0;
+		padding: 7px 10px;
+		border: 1px dashed var(--ap-border);
+		border-radius: 8px;
+		font-size: 11px;
+		color: var(--ap-muted-fg);
+		background: #fff;
+	}
+	.dashed .ap-avatar {
+		width: 22px;
+		height: 22px;
+		font-size: 8.5px;
+	}
+	.reads {
+		padding: 12px 14px;
+		font-family: var(--bd-font-mono);
+		font-size: 11px;
+		line-height: 1.6;
+	}
+	.reads p {
+		margin: 0 0 4px;
+	}
+	.reads span {
+		color: var(--ap-muted-fg);
+	}
+	.reads em {
+		font-style: normal;
+	}
+	.more {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 12px 32px;
+		margin: 56px 0 0;
+	}
+
+	@media (max-width: 1060px) {
+		.cols {
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		}
+		.rows {
+			display: none;
+		}
+	}
+	@media (max-width: 720px) {
+		.cols {
+			grid-template-columns: 1fr;
+		}
+		.form {
+			border-right: 0;
+			border-bottom: 1px solid var(--ap-border);
+		}
+		.choices {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

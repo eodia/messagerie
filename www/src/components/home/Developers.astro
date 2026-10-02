@@ -1,0 +1,274 @@
+---
+/**
+ * For developers: four doors into the product — the widget's JavaScript API, the REST API,
+ * the MCP server, the webhooks — each with what it opens and a sample, in tabs. Without
+ * JavaScript, the four panels follow each other.
+ */
+import { href } from '../../lib/site';
+import Icon from '../landing/Icon.astro';
+import type { IconName } from '../landing/icons';
+
+const TABS: Array<{ id: string; label: string; icon: IconName; title: string; text: string; points: string[]; link: string; code: string }> = [
+	{
+		id: 'js',
+		label: 'API JavaScript',
+		icon: 'code',
+		title: 'La page parle au widget',
+		text: 'Ouvrir, préremplir, envoyer, dire qui est le visiteur, joindre un panier : la page du site pilote le widget, et écoute ce qui s’y passe.',
+		points: ['Les appels faits avant le chargement attendent dans une file', 'Des métadonnées libres, jamais prises pour une preuve', 'Un client connecté, par une identité que signe votre serveur'],
+		link: '/integrations/api-javascript/',
+		code: `<span class="c">// Le panier, que l’IA lit dès sa première réponse</span>
+MessagerieChat.<span class="f">setConversationData</span>({
+  panier: <span class="s">'AUTO-48213'</span>, total: <span class="n">412</span>,
+})
+
+MessagerieChat.<span class="f">on</span>(<span class="s">'message:received'</span>, ({ author, body }) =&gt; {
+  <span class="k">if</span> (!MessagerieChat.<span class="f">isOpen</span>()) <span class="f">notifier</span>(author, body)
+})
+
+document.<span class="f">querySelector</span>(<span class="s">'#aide'</span>).<span class="f">onclick</span> = () =&gt; {
+  MessagerieChat.<span class="f">setMessage</span>(<span class="s">'Où trouver mon attestation ?'</span>)
+  MessagerieChat.<span class="f">open</span>()
+}`,
+	},
+	{
+		id: 'rest',
+		label: 'API REST',
+		icon: 'terminal',
+		title: 'Vos conversations, pour vos programmes',
+		text: 'Lister, lire, répondre, noter, affecter, résoudre, étiqueter : par des jetons msg_… créés dans l’inbox, en lecture ou en écriture, sur les boîtes choisies.',
+		points: ['Un jeton ne supprime jamais rien', 'Ce qu’il écrit est signé de son nom dans le fil', 'Une spécification OpenAPI 3.1'],
+		link: '/integrations/api-rest/',
+		code: `<span class="p">$</span> curl https://chat.exemple.fr/api/v1/conversations?assignee=none \\
+    -H <span class="s">"Authorization: Bearer $MESSAGERIE_TOKEN"</span>
+
+<span class="p">$</span> curl -X POST https://chat.exemple.fr/api/v1/conversations/4f1c…/messages \\
+    -H <span class="s">"Authorization: Bearer $MESSAGERIE_TOKEN"</span> \\
+    -H <span class="s">"Content-Type: application/json"</span> \\
+    -d <span class="s">'{"body": "Votre dossier est **complet**.", "resolve": true}'</span>`,
+	},
+	{
+		id: 'mcp',
+		label: 'Serveur MCP',
+		icon: 'cpu',
+		title: 'Un agent à côté de vos conseillers',
+		text: 'Quatorze outils pour Claude ou tout client MCP : lire la file, chercher dans les messages, retrouver un contact, et — si le jeton le permet — répondre ou noter.',
+		points: ['Transport HTTP « Streamable », sans session', 'Un jeton en lecture ne voit pas les outils d’écriture', 'Une requête venue d’une page est refusée'],
+		link: '/integrations/mcp/',
+		code: `<span class="p">$</span> claude mcp add --transport http messagerie \\
+    https://chat.exemple.fr/mcp \\
+    --header <span class="s">"Authorization: Bearer $MESSAGERIE_TOKEN"</span>
+
+<span class="c">› Quelles conversations attendent depuis plus d’une heure,</span>
+<span class="c">  et que demandent-elles ?</span>
+
+  <span class="f">list_conversations</span>  <span class="f">get_conversation</span>  <span class="f">search_messages</span>
+  <span class="f">send_reply</span>  <span class="f">add_note</span>  <span class="f">assign_conversation</span>  …`,
+	},
+	{
+		id: 'webhooks',
+		label: 'Webhooks',
+		icon: 'webhook',
+		title: 'Prévenir vos systèmes, à la seconde',
+		text: 'Un message, un transfert, une affectation, une résolution : un POST signé part vers votre adresse, dans l’ordre de chaque conversation, retenté s’il échoue.',
+		points: ['Capté dans la transaction qui écrit : rien ne se perd', 'Signé HMAC-SHA256, dédoublonné par son id', 'Huit essais, de 10 secondes à un jour'],
+		link: '/integrations/webhooks/',
+		code: `POST /messagerie HTTP/1.1
+X-Messagerie-Signature: t=1790932443,v1=5f2b9c…
+
+{ <span class="s">"events"</span>: [ {
+    <span class="s">"id"</span>: <span class="s">"6f1c2e8a-…"</span>,
+    <span class="s">"type"</span>: <span class="s">"conversation.handed_off"</span>,
+    <span class="s">"occurredAt"</span>: <span class="s">"2026-10-02T09:14:03.512Z"</span>,
+    <span class="s">"conversation"</span>: { <span class="s">"id"</span>: <span class="s">"4f1c…"</span>, <span class="s">"status"</span>: <span class="s">"open"</span>, … }
+} ] }`,
+	},
+];
+---
+
+<section class="tm-section devs" id="developpeurs" data-devs>
+	<div class="tm-head">
+		<p class="tm-kicker tm-rise"><Icon name="code" size={20} />Développeurs</p>
+		<h2 class="tm-display tm-rise">
+			<span>Ouverte à vos programmes.</span>
+			<span class="tm-grad">Et à vos agents.</span>
+		</h2>
+		<p class="tm-lede tm-rise">Le même chemin vers les données que l’inbox, avec des jetons créés dans l’administration : ce qu’un programme voit et fait, vous le décidez.</p>
+	</div>
+
+	<div class="tabs tm-rise" role="tablist" aria-label="Les intégrations">
+		{
+			TABS.map((t, i) => (
+				<button type="button" role="tab" id={`dev-tab-${t.id}`} aria-controls={`dev-${t.id}`} aria-selected={i === 0 ? 'true' : 'false'} data-tab={t.id}>
+					<Icon name={t.icon} size={16} />
+					{t.label}
+				</button>
+			))
+		}
+	</div>
+
+	<div class="panels tm-rise">
+		{
+			TABS.map((t, i) => (
+				<div class="panel" role="tabpanel" id={`dev-${t.id}`} aria-labelledby={`dev-tab-${t.id}`} data-panel={t.id} hidden={i !== 0}>
+					<div class="text">
+						<h3>{t.title}</h3>
+						<p>{t.text}</p>
+						<ul>
+							{t.points.map((p) => (
+								<li>
+									<Icon name="tick" size={16} stroke={2.6} />
+									{p}
+								</li>
+							))}
+						</ul>
+						<a class="tm-link" href={href(t.link)}>
+							La documentation
+						</a>
+					</div>
+					<pre><code set:html={t.code} /></pre>
+				</div>
+			))
+		}
+	</div>
+</section>
+
+<script>
+	const section = document.querySelector<HTMLElement>('[data-devs]');
+	if (section) {
+		const tabs = [...section.querySelectorAll<HTMLButtonElement>('[data-tab]')];
+		const panels = [...section.querySelectorAll<HTMLElement>('[data-panel]')];
+		const select = (id: string) => {
+			for (const t of tabs) t.setAttribute('aria-selected', String(t.dataset.tab === id));
+			for (const p of panels) p.hidden = p.dataset.panel !== id;
+		};
+		tabs.forEach((tab, i) => {
+			tab.addEventListener('click', () => select(tab.dataset.tab ?? ''));
+			tab.addEventListener('keydown', (e) => {
+				const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+				if (step === 0) return;
+				const next = tabs[(i + step + tabs.length) % tabs.length]!;
+				next.focus();
+				select(next.dataset.tab ?? '');
+			});
+		});
+	}
+</script>
+
+<style>
+	.tabs {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 8px;
+		margin: 56px auto 0;
+	}
+	.tabs button {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 10px 18px;
+		border-radius: 999px;
+		font-size: 15px;
+		font-weight: 600;
+		color: var(--tm-slate);
+		background: var(--tm-mist);
+		transition:
+			background-color 0.2s ease,
+			color 0.2s ease;
+	}
+	.tabs button:hover {
+		color: var(--tm-ink);
+	}
+	.tabs button[aria-selected='true'] {
+		color: #fff;
+		background: var(--tm-ink);
+	}
+	.panels {
+		max-width: 1120px;
+		margin: 32px auto 0;
+	}
+	.panel {
+		display: grid;
+		grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+		gap: 48px;
+		align-items: center;
+		padding: 40px;
+		border-radius: 28px;
+		background: var(--tm-mist);
+	}
+	.panel[hidden] {
+		display: none;
+	}
+	:global(html:not(.bd-js)) .panel[hidden] {
+		display: grid;
+		margin-top: 16px;
+	}
+	h3 {
+		margin: 0;
+		font-size: clamp(24px, 2.6vw, 32px);
+		font-weight: 800;
+		letter-spacing: -0.035em;
+	}
+	.text p {
+		margin: 12px 0 18px;
+		font-size: 16.5px;
+		line-height: 1.6;
+		color: var(--tm-slate);
+	}
+	ul {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		margin: 0 0 22px;
+		padding: 0;
+		list-style: none;
+	}
+	li {
+		display: flex;
+		gap: 10px;
+		font-size: 15px;
+		line-height: 1.45;
+	}
+	li :global(svg) {
+		flex-shrink: 0;
+		margin-top: 2px;
+		color: var(--bd-primary);
+	}
+	pre {
+		margin: 0;
+		padding: 26px 28px;
+		border-radius: 20px;
+		font-size: 12.5px;
+		line-height: 1.75;
+		color: #d8e6d4;
+		background: var(--bd-ink);
+		overflow-x: auto;
+		box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.5);
+	}
+	pre :global(.c) {
+		color: #7d8a7a;
+	}
+	pre :global(.s) {
+		color: #a6ee99;
+	}
+	pre :global(.f) {
+		color: #7dd3fc;
+	}
+	pre :global(.k) {
+		color: #f0abfc;
+	}
+	pre :global(.n) {
+		color: #fcd34d;
+	}
+	pre :global(.p) {
+		color: var(--bd-primary-vivid);
+	}
+	@media (max-width: 900px) {
+		.panel {
+			grid-template-columns: 1fr;
+			gap: 28px;
+			padding: 24px;
+		}
+	}
+</style>

@@ -6,13 +6,14 @@ import type {
   InboxStats,
   KnowledgeItem,
 } from '@chat/contracts'
-import { and, asc, desc, eq, ilike, inArray, max, or, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, ilike, max, or, sql } from 'drizzle-orm'
 import type { BasedbClient } from '../basedb/client.js'
 import type { Db } from '../db/client.js'
 import { contacts, conversations, kbChunks, messages } from '../db/schema.js'
 import { pointOf } from '../places/place.js'
 import { Refusal } from '../refusal.js'
 import { type Settings, TABLES } from '../settings/settings.js'
+import { type Visible, inVisible } from './access.js'
 import type { AgentRow } from './read.js'
 
 /**
@@ -46,13 +47,15 @@ export async function contactByTail(db: Db, tail: string): Promise<string | null
 }
 
 /**
- * The contacts — with `visible`, those who wrote in one of these inboxes only: a token
- * limited to some inboxes reaches no one else (D16).
+ * The contacts — with `visible`, those who wrote in one of these inboxes only, counted by
+ * the conversations found there: an agent, or a token limited to some inboxes, reaches no
+ * one else (D12, D16). With `siteId`, the contacts of that site.
  */
 export async function listContacts(
   db: Db,
   query: string,
-  visible: ReadonlySet<string> | null = null,
+  visible: Visible = null,
+  siteId: string | null = null,
 ): Promise<ContactListItem[]> {
   const needle = query.trim()
   const rows = await db
@@ -63,9 +66,10 @@ export async function listContacts(
       site: max(conversations.siteName),
     })
     .from(contacts)
-    .leftJoin(conversations, eq(conversations.contactId, contacts.id))
+    .leftJoin(conversations, and(eq(conversations.contactId, contacts.id), inVisible(visible)))
     .where(
       and(
+        siteId === null ? undefined : eq(contacts.siteId, siteId),
         needle
           ? or(
               ilike(contacts.name, `%${needle}%`),
@@ -94,16 +98,14 @@ export async function listContacts(
   }))
 }
 
-/** The contacts who have a conversation in one of these inboxes. */
+/** The contacts who have a conversation one sees. */
 const wroteIn = (visible: ReadonlySet<string>) =>
-  visible.size === 0
-    ? sql`false`
-    : sql`exists (select 1 from ${conversations} where ${conversations.contactId} = ${contacts.id} and ${inArray(conversations.inboxId, [...visible])})`
+  sql`exists (select 1 from ${conversations} where ${conversations.contactId} = ${contacts.id} and ${inVisible(visible)})`
 
 export async function contactDetail(
   db: Db,
   id: string,
-  visible: ReadonlySet<string> | null = null,
+  visible: Visible = null,
 ): Promise<ContactDetail> {
   const [contact] = await db
     .select()
@@ -113,12 +115,7 @@ export async function contactDetail(
   const rows = await db
     .select()
     .from(conversations)
-    .where(
-      and(
-        eq(conversations.contactId, id),
-        visible === null ? undefined : inArray(conversations.inboxId, [...visible]),
-      ),
-    )
+    .where(and(eq(conversations.contactId, id), inVisible(visible)))
     .orderBy(desc(conversations.lastMessageAt))
   const firsts = await db
     .selectDistinctOn([messages.conversationId], {
@@ -157,7 +154,17 @@ export async function contactDetail(
 
 // ── Counters ──────────────────────────────────────────────────────────────────────────
 
-export async function stats(db: Db, agent: AgentRow, now = new Date()): Promise<InboxStats> {
+/** The counters of the conversations one sees — of one site, with `siteId`. */
+export async function stats(
+  db: Db,
+  agent: AgentRow,
+  visible: Visible = null,
+  siteId: string | null = null,
+  now = new Date(),
+): Promise<InboxStats> {
+  const scope =
+    and(inVisible(visible), siteId === null ? undefined : eq(conversations.siteId, siteId)) ??
+    sql`true`
   const since = new Date(now)
   since.setHours(0, 0, 0, 0)
   since.setDate(since.getDate() - 6)
@@ -170,8 +177,8 @@ export async function stats(db: Db, agent: AgentRow, now = new Date()): Promise<
     handoff: boolean
     first_response: number | null
   }>(sql`
-    select c.id,
-           c.created_at as created,
+    select ${conversations.id} as id,
+           ${conversations.createdAt} as created,
            bool_or(m.author = 'ai' and m.kind = 'text') as ai,
            bool_or(m.author = 'agent' and m.kind = 'text') as agent,
            bool_or(m.kind = 'handoff') as handoff,
@@ -179,10 +186,10 @@ export async function stats(db: Db, agent: AgentRow, now = new Date()): Promise<
              min(m.created_at) filter (where m.author in ('ai', 'agent') and m.kind = 'text')
              - min(m.created_at) filter (where m.author = 'contact')
            ))::float as first_response
-      from chat.conversation c
-      join chat.message m on m.conversation_id = c.id
-     where c.created_at >= ${since}
-     group by c.id`)
+      from ${conversations}
+      join chat.message m on m.conversation_id = ${conversations.id}
+     where ${conversations.createdAt} >= ${since} and ${scope}
+     group by ${conversations.id}`)
   // The day in the server's time zone, not the database's.
   const localDay = (at: Date) =>
     `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, '0')}-${String(at.getDate()).padStart(2, '0')}`
@@ -210,7 +217,8 @@ export async function stats(db: Db, agent: AgentRow, now = new Date()): Promise<
       select count(*) filter (where status = 'ai')::int as ai,
              count(*) filter (where status = 'open' and assignee_id is null)::int as queue,
              count(*) filter (where status in ('open', 'pending') and assignee_id = ${agent.id})::int as mine
-        from chat.conversation`)
+        from ${conversations}
+       where ${scope}`)
   ).rows
 
   return {
