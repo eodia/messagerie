@@ -239,6 +239,89 @@ export const apiTokens = chat.table('api_token', {
   revokedBy: uuid('revoked_by').references(() => agents.id, { onDelete: 'set null' }),
 })
 
+/**
+ * A webhook (D17) — basedb's, for the chat: an HTTPS address told of what happens in the
+ * conversations, signed with its own secret. The secret is SEALED, not hashed — it signs
+ * every call —, with a key drawn from `CHAT_SECRET`, and shown once. Deleted, it is kept,
+ * stopped, for its log.
+ */
+export const webhooks = chat.table('webhook', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  label: text('label').notNull(),
+  targetUrl: text('target_url').notNull(),
+  /** AES-256-GCM, `v1.<iv>.<tag>.<ciphertext>`. */
+  signingSecret: text('signing_secret').notNull(),
+  /** The events it is told of: `message.created`, `conversation.resolved`… */
+  events: text('events').array().notNull(),
+  /** The inboxes it hears; null: all of them. */
+  inboxIds: text('inbox_ids').array(),
+  isActive: boolean('is_active').notNull().default(true),
+  /** Why it stopped: `failures` (by itself), `manual`. */
+  disabledReason: text('disabled_reason'),
+  createdBy: uuid('created_by')
+    .notNull()
+    .references(() => agents.id),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+})
+
+/**
+ * What happened, captured by triggers in the transaction that did it — and only while a
+ * webhook listens. Drained into deliveries; kept seven days.
+ */
+export const changeEvents = chat.table(
+  'change_event',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    type: text('type').notNull(),
+    /** None for a test sent from the settings. */
+    conversationId: uuid('conversation_id').references(() => conversations.id, {
+      onDelete: 'cascade',
+    }),
+    messageId: uuid('message_id'),
+    inboxId: text('inbox_id'),
+    /** A test sent to one webhook only. */
+    webhookId: uuid('webhook_id'),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
+    drainedAt: timestamp('drained_at', { withTimezone: true }),
+  },
+  (t) => [index('change_event_undrained_idx').on(t.occurredAt).where(sql`drained_at is null`)],
+)
+
+/**
+ * An event to send to a webhook, and how it went. In order per conversation, never
+ * globally; the body is never kept — it is written when sent. Kept ninety days.
+ */
+export const webhookDeliveries = chat.table(
+  'webhook_delivery',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    webhookId: uuid('webhook_id')
+      .notNull()
+      .references(() => webhooks.id, { onDelete: 'cascade' }),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => changeEvents.id, { onDelete: 'cascade' }),
+    /** `<webhook>:<conversation>`: what keeps the order. */
+    partitionKey: text('partition_key').notNull(),
+    /** `pending`, `in_flight`, `delivered`, `failed`, `abandoned`. */
+    status: text('status').notNull().default('pending'),
+    attempts: integer('attempts').notNull().default(0),
+    nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }).notNull().defaultNow(),
+    leaseUntil: timestamp('lease_until', { withTimezone: true }),
+    responseCode: integer('response_code'),
+    errorCode: text('error_code'),
+    deliveredAt: timestamp('delivered_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('webhook_delivery_due_idx').on(t.status, t.nextAttemptAt),
+    index('webhook_delivery_partition_idx').on(t.partitionKey, t.createdAt),
+    index('webhook_delivery_log_idx').on(t.webhookId, t.createdAt),
+  ],
+)
+
 /** A message an agent took out of their own view of the thread — « Supprimer pour moi ». */
 export const hiddenMessages = chat.table(
   'hidden_message',

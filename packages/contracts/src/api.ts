@@ -68,6 +68,9 @@ export type ErrorCode =
   | 'TOKEN_REVOKED'
   | 'TOKEN_READ_ONLY'
   | 'TOKEN_NOT_FOUND'
+  | 'WEBHOOK_NOT_FOUND'
+  /** The address of a webhook: HTTPS, to a public address — not a machine of the network. */
+  | 'WEBHOOK_TARGET_REJECTED'
   /** An event or a handoff: part of the conversation's story, not a message to delete. */
   | 'MESSAGE_NOT_DELETABLE'
   | 'SPEECH_UNAVAILABLE'

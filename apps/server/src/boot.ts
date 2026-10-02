@@ -9,12 +9,14 @@ import { type Db, connect, migrateDatabase } from './db/client.js'
 import { DiskStore } from './files/store.js'
 import { Settings, TABLES } from './settings/settings.js'
 import { sourceFor } from './settings/source.js'
+import { startWebhooks } from './webhooks/dispatch.js'
 
 /**
  * What the server and the worker both start with: the configuration, the schema up to
  * date, the settings (basedb, or the demonstration in development), and the AI with its
  * queues. The server works the queues itself unless `CHAT_WORKER=separate` gives them to
- * `worker.ts` (D7: the model's calls away from the WebSocket's process).
+ * `worker.ts` (D7: the model's calls away from the WebSocket's process) — and so do the
+ * webhooks' calls (D17).
  */
 
 export interface Booted {
@@ -84,6 +86,12 @@ export async function boot(role: 'server' | 'worker'): Promise<Booted> {
     )
   }
 
+  // The webhooks' postman (D17), with the queues: in the server, or in the worker alone.
+  const postman =
+    role === 'worker' || process.env.CHAT_WORKER !== 'separate'
+      ? startWebhooks(db, config.secret)
+      : null
+
   return {
     config,
     db,
@@ -94,6 +102,7 @@ export async function boot(role: 'server' | 'worker'): Promise<Booted> {
     mcp,
     stop: async () => {
       stopFollowing()
+      await postman?.stop()
       await stopJobs()
       await mcp.close()
       await pool.end()

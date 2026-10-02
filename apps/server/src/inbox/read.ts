@@ -298,6 +298,51 @@ export async function loadConversation(
   }
 }
 
+/** A message deleted for everyone, as a program sees it: that it was, not what it said. */
+function withoutWords(message: Message): Message {
+  if (!('body' in message)) return message
+  return 'attachments' in message
+    ? { ...message, body: '', attachments: [] }
+    : { ...message, body: '' }
+}
+
+/**
+ * Messages by id, as a program sees them — no one's verdicts, no one's hiding; what was
+ * deleted for everyone without its words. What a webhook's events carry.
+ */
+export async function loadMessagesById(
+  db: Db,
+  ids: readonly string[],
+): Promise<Map<string, Message>> {
+  if (ids.length === 0) return new Map()
+  const author = alias(agents, 'author')
+  const deleter = alias(agents, 'deleter')
+  const rows = await db
+    .select({
+      message: messages,
+      author: author.name,
+      deleter: deleter.name,
+      confidence: aiRuns.confidence,
+    })
+    .from(messages)
+    .leftJoin(author, eq(author.id, messages.agentId))
+    .leftJoin(deleter, eq(deleter.id, messages.deletedBy))
+    .leftJoin(aiRuns, eq(aiRuns.id, messages.aiRunId))
+    .where(inArray(messages.id, [...ids]))
+  const files = await attachmentsOf(
+    db,
+    rows.map(({ message }) => message.id),
+  )
+  const found = new Map<string, Message>()
+  for (const { message, author, deleter, confidence } of rows) {
+    const attached = (files.get(message.id) ?? []).map(forInbox)
+    const shown = toMessage(message, author, confidence, null, attached, deleter)
+    if (!shown) continue
+    found.set(message.id, shown.deleted && 'body' in shown ? withoutWords(shown) : shown)
+  }
+  return found
+}
+
 function toContact(row: typeof contacts.$inferSelect): Contact {
   return {
     id: row.id,

@@ -10,7 +10,9 @@ import type {
   Conversation,
   ConversationSummary,
   CreateTokenBody,
+  CreateWebhookBody,
   CreatedToken,
+  CreatedWebhook,
   ErrorCode,
   FeedbackBody,
   GifHit,
@@ -34,6 +36,8 @@ import type {
   ToolTestResult,
   ToolsOverview,
   TransferBody,
+  Webhook,
+  WebhookDelivery,
   WidgetEditor,
   WidgetEditorSite,
   WidgetSettings,
@@ -218,6 +222,14 @@ export const api = {
   openApiSpec: () => request<Record<string, unknown>>('GET', '/api-docs/openapi.json'),
   createToken: (body: CreateTokenBody) => request<CreatedToken>('POST', '/tokens', body),
   revokeToken: (id: string) => request<void>('DELETE', `/tokens/${encodeURIComponent(id)}`),
+  webhooks: () => request<Webhook[]>('GET', '/webhooks'),
+  createWebhook: (body: CreateWebhookBody) => request<CreatedWebhook>('POST', '/webhooks', body),
+  setWebhookActive: (id: string, active: boolean) =>
+    request<void>('PATCH', `/webhooks/${encodeURIComponent(id)}`, { active }),
+  deleteWebhook: (id: string) => request<void>('DELETE', `/webhooks/${encodeURIComponent(id)}`),
+  webhookDeliveries: (id: string) =>
+    request<WebhookDelivery[]>('GET', `/webhooks/${encodeURIComponent(id)}/deliveries`),
+  testWebhook: (id: string) => request<void>('POST', `/webhooks/${encodeURIComponent(id)}/test`),
   search: (query: string) => request<MessageHit[]>('GET', `/search?q=${encodeURIComponent(query)}`),
   analyzeAttachment: (id: string) =>
     request<Attachment>('POST', `/attachments/${encodeURIComponent(id)}/analysis`),

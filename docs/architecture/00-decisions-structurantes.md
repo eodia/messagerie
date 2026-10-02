@@ -458,6 +458,52 @@ descriptions en français, comme ceux de basedb ; un jeton en lecture ne se voit
 proposer les outils d'écriture. Une requête venue d'une page (en-tête `Origin`) est
 refusée. Un refus d'outil est un résultat d'erreur qui porte le code et son sens.
 
+## D17 — Des webhooks à la basedb
+
+L'inverse de D16 : la Messagerie prévient un autre système, dans les secondes, de ce qui se
+passe dans les conversations. Le modèle est celui des webhooks de basedb, repris tel quel.
+
+**Capter dans la transaction.** Des déclencheurs PostgreSQL sur `chat.message` et
+`chat.conversation` écrivent l'événement (`chat.change_event`) dans la transaction qui fait
+la chose : rien ne se perd entre une écriture et son signal, quel que soit le chemin —
+inbox, IA, API. Ils ne capturent rien tant qu'aucun webhook n'est actif. L'heure est celle
+de l'horloge (`clock_timestamp()`), pas celle du début de la transaction : deux événements
+d'une même transaction gardent leur ordre.
+
+**Les événements :** `message.created` (notes comprises), `message.deleted`,
+`conversation.created`, `conversation.handed_off`, `conversation.assigned`,
+`conversation.transferred`, `conversation.resolved`, `conversation.reopened` — plus
+`webhook.ping`, le test envoyé depuis l'écran. Chacun porte la conversation telle que la
+liste la donne, et le message s'il y en a un, dans leur état au moment de l'envoi.
+
+**L'envoi** (`apps/server/src/webhooks/dispatch.ts`), toutes les deux secondes, là où
+tournent les files (D7) :
+
+- un `POST` signé `X-Messagerie-Signature: t=<s>,v1=<HMAC-SHA256 de "t.corps">`, jusqu'à
+  50 événements, délai de 10 s, aucune redirection suivie ;
+- dans l'ordre par conversation — une prise à la fois, sous verrou consultatif —, jamais
+  globalement ;
+- `2xx` livré ; `5xx`, `408`, `429` ou pas de réponse : huit essais, de 10 s à un jour,
+  ±20 %, `Retry-After` respecté s'il est plus long ; tout le reste échoue ;
+- un envoi pris et jamais conclu se libère au bout de deux minutes : un événement peut
+  arriver deux fois, jamais se perdre — le destinataire dédoublonne par `id` ;
+- les 50 derniers envois tous en échec arrêtent le webhook (`failures`) ;
+- événements gardés 7 jours, envois 90.
+
+**Le secret** (`whsec_…`) signe chaque appel : il est donc scellé (AES-256-GCM, clé tirée
+de `CHAT_SECRET` pour ce seul usage), pas haché, et ne s'affiche qu'une fois. Changer
+`CHAT_SECRET` rend les secrets illisibles : il faut recréer les webhooks.
+
+**Où appeler.** HTTPS, port 443, adresses publiques seulement : toutes les adresses que
+donne le nom sont vérifiées, à la création et avant chaque appel, une IPv4 cachée dans une
+IPv6 comprise. `CHAT_WEBHOOK_ALLOW` fait confiance à des noms ou des plages privées ;
+`CHAT_WEBHOOK_DEV=1` ouvre HTTP et le réseau local, en développement seulement.
+
+Les webhooks se gèrent dans l'inbox, par un superviseur, dans « Paramétrage › API et MCP »,
+onglet « Webhooks » : créer, arrêter, reprendre, supprimer (gardé arrêté, pour son
+journal), envoyer un test, lire les derniers envois. Ils restent dans le schéma `chat`,
+jamais dans basedb (D5).
+
 ---
 
 ## Ce que le chat attend de basedb

@@ -20,18 +20,23 @@ import { $t, $tp, intlLocale } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
 import { useInbox } from '@/lib/store/inbox'
 import { useTitle } from '@/lib/title'
+import { useAddressBar } from '@/lib/use-address-bar'
+import { useAddressTab } from '@/lib/use-address-tab'
 import { cn } from '@/lib/utils'
 import type { ApiToken, CreatedToken, TokenAccess, TokenSurface } from '@chat/contracts'
 import { BookOpen, Bot, Eye, KeyRound, LoaderCircle, PenLine, Plus, Terminal } from 'lucide-react'
 import Link from 'next/link'
 import { type ReactNode, useEffect, useState } from 'react'
 import { CardChoice, Field, FormSection, ToggleField } from '../kit/controls'
+import { StudioTabs } from '../kit/studio'
+import { WebhooksPanel } from './webhooks'
 
 /**
  * The tokens of the public API and the MCP server (D16) — basedb's integration tokens, for
  * the chat. A supervisor makes one for a program or an agent: what it is for, where it is
  * taken (REST, MCP), its rights (read, or read and write — never delete), its inboxes, how
  * long it lives. Its secret is shown once, with what to paste where; then only its prefix.
+ * And, in their tab, the webhooks (D17): the chat calling another system, not the reverse.
  */
 
 const VALIDITY = ['never', '30', '90', '180', '365'] as const
@@ -47,11 +52,20 @@ const dateOf = (iso: string) =>
 const dead = (t: ApiToken, now: number) =>
   t.revokedAt !== null || (t.expiresAt !== null && new Date(t.expiresAt).getTime() <= now)
 
+type Tab = 'tokens' | 'webhooks'
+
 export function TokensScreen() {
-  useTitle([$t('API et MCP')])
+  const [tab, setTab, tabBase] = useAddressTab<Tab>('/parametrage/api', {
+    tokens: null,
+    webhooks: 'webhooks',
+  })
+  // The tab follows the address by itself: there is nothing more to follow.
+  useAddressBar(tabBase, async () => {})
+  useTitle([tab === 'webhooks' ? $t('Webhooks') : null, $t('API et MCP')])
   const [tokens, setTokens] = useState<ApiToken[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+  const [hooking, setHooking] = useState(false)
   const [revoking, setRevoking] = useState<ApiToken | null>(null)
   const [deadOpen, setDeadOpen] = useState(false)
   const server = apiAddress()
@@ -82,15 +96,21 @@ export function TokensScreen() {
         tools={
           <>
             <Button size="sm" variant="outline" asChild>
-              <Link href="/documentation">
+              <Link href={tab === 'webhooks' ? '/documentation#webhooks' : '/documentation'}>
                 <BookOpen />
                 {$t('Documentation')}
               </Link>
             </Button>
-            {allowed && (
+            {allowed && tab === 'tokens' && (
               <Button size="sm" onClick={() => setCreating(true)}>
                 <Plus />
                 {$t('Nouveau jeton')}
+              </Button>
+            )}
+            {allowed && tab === 'webhooks' && (
+              <Button size="sm" onClick={() => setHooking(true)}>
+                <Plus />
+                {$t('Nouveau webhook')}
               </Button>
             )}
           </>
@@ -100,85 +120,101 @@ export function TokensScreen() {
         <Slash />
         <span className="font-medium">{$t('API et MCP')}</span>
       </ScreenHeader>
+      <StudioTabs
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { value: 'tokens', label: $t('Jetons') },
+          { value: 'webhooks', label: $t('Webhooks') },
+        ]}
+      />
       <div className="flex-1 overflow-y-auto scroll-discret">
-        <div className="mx-auto max-w-4xl space-y-8 px-6 py-8">
-          <div className="grid gap-3 md:grid-cols-2">
-            <Surface
-              icon={<Terminal className="size-4" />}
-              title={$t('API REST')}
-              text={$t(
-                'Un programme, un script, une synchronisation : JSON, avec le jeton en en-tête.',
-              )}
-              address={`${server}/api/v1`}
-              docs="/documentation#presentation"
-            />
-            <Surface
-              icon={<Bot className="size-4" />}
-              title={$t('Serveur MCP')}
-              text={$t('Un agent — Claude ou tout client MCP — lit les conversations et y répond.')}
-              address={`${server}/mcp`}
-              docs="/documentation#mcp"
-            />
+        {tab === 'webhooks' ? (
+          <div className="mx-auto max-w-4xl space-y-8 px-6 py-8">
+            <WebhooksPanel creating={hooking} onCreating={setHooking} />
           </div>
-
-          {!allowed ? (
-            <p className="rounded-lg border bg-muted/40 px-4 py-6 text-center text-sm text-muted-foreground">
-              {$t('Les jetons se gèrent par les superviseurs.')}
-            </p>
-          ) : tokens === null ? (
-            <div className="flex justify-center py-10">
-              <LoaderCircle className="size-5 animate-spin text-muted-foreground" />
+        ) : (
+          <div className="mx-auto max-w-4xl space-y-8 px-6 py-8">
+            <div className="grid gap-3 md:grid-cols-2">
+              <Surface
+                icon={<Terminal className="size-4" />}
+                title={$t('API REST')}
+                text={$t(
+                  'Un programme, un script, une synchronisation : JSON, avec le jeton en en-tête.',
+                )}
+                address={`${server}/api/v1`}
+                docs="/documentation#presentation"
+              />
+              <Surface
+                icon={<Bot className="size-4" />}
+                title={$t('Serveur MCP')}
+                text={$t(
+                  'Un agent — Claude ou tout client MCP — lit les conversations et y répond.',
+                )}
+                address={`${server}/mcp`}
+                docs="/documentation#mcp"
+              />
             </div>
-          ) : (
-            <section className="space-y-3">
-              <h2 className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-                {$t('Jetons actifs')}{' '}
-                <span className="font-normal tabular-nums">{live.length}</span>
-              </h2>
-              {error && <p className="text-sm text-destructive">{messageFor(error)}</p>}
-              {live.length === 0 ? (
-                <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center">
-                  <KeyRound className="size-5 text-muted-foreground" />
-                  <p className="max-w-sm text-sm text-muted-foreground">
-                    {$t('Aucun jeton : créez-en un pour un programme ou un agent.')}
-                  </p>
-                  <Button size="sm" variant="outline" onClick={() => setCreating(true)}>
-                    <Plus />
-                    {$t('Nouveau jeton')}
-                  </Button>
-                </div>
-              ) : (
-                <ul className="space-y-2">
-                  {live.map((t) => (
-                    <TokenRow key={t.id} token={t} onRevoke={() => setRevoking(t)} />
-                  ))}
-                </ul>
-              )}
-              {gone.length > 0 && (
-                <div className="pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setDeadOpen((open) => !open)}
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    {$tp(
-                      gone.length,
-                      '{count} jeton révoqué ou expiré',
-                      '{count} jetons révoqués ou expirés',
+
+            {!allowed ? (
+              <p className="rounded-lg border bg-muted/40 px-4 py-6 text-center text-sm text-muted-foreground">
+                {$t('Les jetons se gèrent par les superviseurs.')}
+              </p>
+            ) : tokens === null ? (
+              <div className="flex justify-center py-10">
+                <LoaderCircle className="size-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <section className="space-y-3">
+                <h2 className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                  {$t('Jetons actifs')}{' '}
+                  <span className="font-normal tabular-nums">{live.length}</span>
+                </h2>
+                {error && <p className="text-sm text-destructive">{messageFor(error)}</p>}
+                {live.length === 0 ? (
+                  <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center">
+                    <KeyRound className="size-5 text-muted-foreground" />
+                    <p className="max-w-sm text-sm text-muted-foreground">
+                      {$t('Aucun jeton : créez-en un pour un programme ou un agent.')}
+                    </p>
+                    <Button size="sm" variant="outline" onClick={() => setCreating(true)}>
+                      <Plus />
+                      {$t('Nouveau jeton')}
+                    </Button>
+                  </div>
+                ) : (
+                  <ul className="space-y-2">
+                    {live.map((t) => (
+                      <TokenRow key={t.id} token={t} onRevoke={() => setRevoking(t)} />
+                    ))}
+                  </ul>
+                )}
+                {gone.length > 0 && (
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setDeadOpen((open) => !open)}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      {$tp(
+                        gone.length,
+                        '{count} jeton révoqué ou expiré',
+                        '{count} jetons révoqués ou expirés',
+                      )}
+                    </button>
+                    {deadOpen && (
+                      <ul className="mt-2 space-y-2 opacity-70">
+                        {gone.map((t) => (
+                          <TokenRow key={t.id} token={t} />
+                        ))}
+                      </ul>
                     )}
-                  </button>
-                  {deadOpen && (
-                    <ul className="mt-2 space-y-2 opacity-70">
-                      {gone.map((t) => (
-                        <TokenRow key={t.id} token={t} />
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-            </section>
-          )}
-        </div>
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
+        )}
       </div>
 
       {creating && (

@@ -72,6 +72,15 @@ import type { InboxHub } from './realtime/hub.js'
 import { signalTyping } from './realtime/signals.js'
 import { Refusal } from './refusal.js'
 import type { Settings } from './settings/settings.js'
+import {
+  createWebhook,
+  deleteWebhook,
+  listWebhooks,
+  pingWebhook,
+  readWebhookBody,
+  setWebhookActive,
+  webhookLog,
+} from './webhooks/manage.js'
 import { demoPage } from './widget/demo.js'
 import { RateLimiter, type WidgetHub } from './widget/hub.js'
 import { previewPage } from './widget/preview-page.js'
@@ -651,6 +660,42 @@ export function createApp({
     if (!UUID.test(id)) throw new Refusal('TOKEN_NOT_FOUND', 404)
     await revokeToken(db, c.get('agent'), id)
     return c.body(null, 204)
+  })
+
+  // The webhooks (D17): supervisors make, stop, resume and delete them, read their log,
+  // send them a test; `webhooks/dispatch.ts` calls them.
+  const webhookParam = (value: string) => {
+    if (!UUID.test(value)) throw new Refusal('WEBHOOK_NOT_FOUND', 404)
+    return value
+  }
+  inbox.get('/webhooks', async (c) => c.json(await listWebhooks(db, c.get('agent'))))
+  inbox.post('/webhooks', async (c) =>
+    c.json(
+      await createWebhook(
+        db,
+        config.secret,
+        c.get('agent'),
+        readWebhookBody(await jsonBody(c.req.raw)),
+      ),
+      201,
+    ),
+  )
+  inbox.patch('/webhooks/:id', async (c) => {
+    const { active } = await jsonBody(c.req.raw)
+    if (typeof active !== 'boolean') throw new Refusal('INVALID_REQUEST', 400, { field: 'active' })
+    await setWebhookActive(db, c.get('agent'), webhookParam(c.req.param('id')), active)
+    return c.body(null, 204)
+  })
+  inbox.delete('/webhooks/:id', async (c) => {
+    await deleteWebhook(db, c.get('agent'), webhookParam(c.req.param('id')))
+    return c.body(null, 204)
+  })
+  inbox.get('/webhooks/:id/deliveries', async (c) =>
+    c.json(await webhookLog(db, c.get('agent'), webhookParam(c.req.param('id')))),
+  )
+  inbox.post('/webhooks/:id/test', async (c) => {
+    await pingWebhook(db, c.get('agent'), webhookParam(c.req.param('id')))
+    return c.body(null, 202)
   })
 
   app.route('/api/inbox', inbox)

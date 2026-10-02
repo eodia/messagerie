@@ -79,6 +79,10 @@ Messagerie client libre, sœur de basedb (`../basedb`). Les décisions qui font 
   `api/service.ts` (droits du jeton, boîtes atteintes), puis s'expose en route dans
   `api/rest.ts` et en outil dans `api/mcp.ts`. Un jeton ne supprime jamais rien, et
   n'atteint jamais `/api/inbox`.
+- **Webhooks** (D17) : `src/webhooks`. Un événement se capte par un déclencheur de la
+  migration, dans la transaction qui écrit, jamais depuis le code ; son type s'ajoute aussi
+  à `WebhookEventType`, à `EVENT_TYPES` (`webhooks/manage.ts`), à l'écran et à la
+  documentation (`api/documentation.ts`).
 
 ## Widget (`apps/widget`)
 

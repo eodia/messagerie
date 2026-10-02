@@ -481,7 +481,7 @@ export function StudioTabs<T extends string>({
 }: {
   readonly value: T
   readonly onChange: (value: T) => void
-  readonly tabs: readonly { readonly value: T; readonly label: string; readonly count: number }[]
+  readonly tabs: readonly { readonly value: T; readonly label: string; readonly count?: number }[]
 }) {
   return (
     <div role="tablist" className="flex shrink-0 gap-4 border-b px-3 pt-2.5">
@@ -500,7 +500,9 @@ export function StudioTabs<T extends string>({
           )}
         >
           {tab.label}
-          <span className="text-[11px] text-muted-foreground tabular-nums">{tab.count}</span>
+          {tab.count !== undefined && (
+            <span className="text-[11px] text-muted-foreground tabular-nums">{tab.count}</span>
+          )}
         </button>
       ))}
     </div>

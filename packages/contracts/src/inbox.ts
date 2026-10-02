@@ -580,3 +580,59 @@ export interface DocSection {
 export interface ApiDocumentation {
   readonly sections: readonly DocSection[]
 }
+
+// ── Webhooks (D17) ─────────────────────────────────────────────────────────────────────
+
+/** What a webhook can be told of. */
+export type WebhookEventType =
+  | 'conversation.created'
+  | 'message.created'
+  | 'message.deleted'
+  | 'conversation.handed_off'
+  | 'conversation.assigned'
+  | 'conversation.transferred'
+  | 'conversation.resolved'
+  | 'conversation.reopened'
+
+export interface Webhook {
+  readonly id: string
+  readonly label: string
+  readonly url: string
+  readonly events: readonly WebhookEventType[]
+  /** The inboxes it hears; null: all of them. */
+  readonly inboxIds: readonly string[] | null
+  readonly active: boolean
+  /** Why it stopped: `failures` by itself, `manual` by someone. */
+  readonly disabledReason: 'failures' | 'manual' | null
+  readonly createdBy: string
+  readonly createdAt: string
+  readonly lastDeliveryAt: string | null
+}
+
+export interface CreateWebhookBody {
+  readonly label: string
+  readonly url: string
+  readonly events: readonly WebhookEventType[]
+  readonly inboxIds: readonly string[] | null
+}
+
+/** A webhook just created: its signing secret is here, and nowhere else, ever. */
+export interface CreatedWebhook {
+  readonly webhook: Webhook
+  readonly secret: string
+}
+
+export type DeliveryStatus = 'pending' | 'in_flight' | 'delivered' | 'failed' | 'abandoned'
+
+export interface WebhookDelivery {
+  readonly id: string
+  readonly type: WebhookEventType | 'webhook.ping'
+  readonly conversationId: string
+  readonly status: DeliveryStatus
+  readonly attempts: number
+  readonly responseCode: number | null
+  readonly errorCode: string | null
+  readonly createdAt: string
+  readonly deliveredAt: string | null
+  readonly nextAttemptAt: string | null
+}

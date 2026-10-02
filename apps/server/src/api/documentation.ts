@@ -233,6 +233,7 @@ function toolMarkdown(tool: Tool): string {
 const START = 'Démarrer'
 const REST = 'API REST'
 const MCP = 'MCP'
+const WEBHOOKS = 'Webhooks'
 
 const ERRORS: readonly (readonly [string, number, string])[] = [
   [
@@ -535,6 +536,156 @@ export function documentation(base: string): DocSection[] {
       Object.entries(MEANING).map(([code, meaning]) => [`\`${code}\``, meaning]),
     ),
     'Un jeton refusé, lui, l’est avant tout outil : une erreur JSON-RPC `-32000` avec le statut HTTP 401, et son code en message.',
+  )
+
+  add(
+    'webhooks',
+    WEBHOOKS,
+    'Principe',
+    'Un webhook fait l’inverse de l’API : c’est la Messagerie qui appelle un autre système — un CRM, un entrepôt de données, une alerte —, dans les secondes, quand quelque chose se passe dans les conversations.',
+    '### Le créer',
+    'Dans **Paramétrage › API et MCP**, onglet **Webhooks** : un nom, une adresse HTTPS, les événements qui la préviennent, et les boîtes de réception qu’elle écoute. Son **secret de signature** n’est affiché qu’une fois : gardez-le du côté du système destinataire.',
+    '### L’appel',
+    'Un `POST` en JSON, jusqu’à 50 événements à la fois, les plus anciens en premier :',
+    fence(
+      'http',
+      'Requête',
+      [
+        'POST /messagerie HTTP/1.1',
+        'Content-Type: application/json',
+        'User-Agent: messagerie-webhook/1',
+        'X-Messagerie-Signature: t=1790930043,v1=5f2b…',
+        'X-Messagerie-Delivery-Id: 1d5e…',
+        'X-Messagerie-Webhook-Id: 7c0a…',
+        '',
+        json({
+          events: [
+            {
+              id: '6f1c2e8a-…',
+              type: 'message.created',
+              occurredAt: '2026-10-02T09:14:03.512Z',
+              conversation: { id: '4f1c2e8a-…', status: 'open' },
+              message: { id: '9a8b7c6d-…', kind: 'visitor', body: 'Où en est mon remboursement ?' },
+            },
+          ],
+        }),
+      ].join('\n'),
+    ),
+    table(
+      ['En-tête', 'Ce qu’il porte'],
+      [
+        [
+          '`X-Messagerie-Signature`',
+          '`t=<secondes>,v1=<hex>` : le HMAC-SHA256, avec le secret, de `<t>.<corps brut>`.',
+        ],
+        [
+          '`X-Messagerie-Delivery-Id`',
+          'L’identifiant de cet appel — un nouvel essai en a un autre.',
+        ],
+        ['`X-Messagerie-Webhook-Id`', 'Le webhook qui appelle.'],
+      ],
+    ),
+    '### La réponse attendue',
+    table(
+      ['Réponse', 'Ce qui se passe'],
+      [
+        ['`2xx` en moins de 10 secondes', 'Livré.'],
+        [
+          '`5xx`, `408`, `429`, pas de réponse',
+          'Retenté plus tard : 10 s, 30 s, 2 min, 10 min, 1 h, 6 h, 1 jour — un `Retry-After` plus long est respecté. Après le 8ᵉ essai, l’envoi est en échec.',
+        ],
+        ['Toute autre réponse, une redirection comprise', 'En échec, sans nouvel essai.'],
+      ],
+    ),
+    callout(
+      'IMPORTANT',
+      'Répondez vite, puis traitez : au-delà de 10 secondes, l’appel compte comme un échec et sera refait.',
+    ),
+    '### Ordre et doublons',
+    '- Les événements d’une **même conversation** arrivent dans l’ordre où ils se sont produits : tant que l’un attend un nouvel essai, les suivants l’attendent aussi. Entre conversations, aucun ordre n’est promis.\n- Un événement peut arriver **deux fois** — un appel coupé après réception, un serveur redémarré —, jamais se perdre : dédoublonnez par son `id`.\n- Ce que l’événement porte de la conversation et du message est leur état **au moment de l’envoi**, pas de l’événement.',
+    '### Arrêts',
+    '- Un webhook dont les **50 derniers envois** ont tous échoué s’arrête de lui-même ; il se reprend depuis l’écran, et ce qui attendait repart.\n- Un webhook supprimé n’envoie plus rien, et ce qui attendait est abandonné.\n- Le journal de chaque webhook garde ses envois 90 jours.',
+    callout(
+      'WARNING',
+      'L’adresse doit être en HTTPS, sur le port 443, et joindre une adresse publique : un webhook ne peut pas viser le réseau où tourne la Messagerie. Toutes les adresses que donne le nom sont vérifiées, à la création et avant chaque appel.',
+    ),
+  )
+  add(
+    'webhooks-signature',
+    WEBHOOKS,
+    'Vérifier la signature',
+    'Recalculez le HMAC sur le **corps brut** reçu — avant tout décodage JSON —, comparez-le en temps constant, et refusez un `t` de plus de cinq minutes : un appel rejoué plus tard ne passe pas.',
+    fence(
+      'js',
+      'Node.js',
+      [
+        "import { createHmac, timingSafeEqual } from 'node:crypto'",
+        '',
+        'function authentique(header, body, secret) {',
+        "  const { t, v1 } = Object.fromEntries(header.split(',').map((p) => p.split('=')))",
+        "  const attendu = createHmac('sha256', secret).update(`${t}.${body}`).digest('hex')",
+        '  const frais = Math.abs(Date.now() / 1000 - Number(t)) < 300',
+        "  return frais && timingSafeEqual(Buffer.from(v1, 'hex'), Buffer.from(attendu, 'hex'))",
+        '}',
+      ].join('\n'),
+    ),
+    fence(
+      'python',
+      'Python',
+      [
+        'import hashlib, hmac, time',
+        '',
+        'def authentique(header: str, body: bytes, secret: str) -> bool:',
+        "    parts = dict(p.split('=', 1) for p in header.split(','))",
+        "    t, v1 = parts['t'], parts['v1']",
+        "    attendu = hmac.new(secret.encode(), f'{t}.'.encode() + body, hashlib.sha256).hexdigest()",
+        '    return abs(time.time() - int(t)) < 300 and hmac.compare_digest(v1, attendu)',
+      ].join('\n'),
+    ),
+    callout(
+      'TIP',
+      'Le bouton **Envoyer un test** d’un webhook lui envoie un événement `webhook.ping` : de quoi vérifier la signature avant le premier vrai message.',
+    ),
+  )
+  add(
+    'webhooks-evenements',
+    WEBHOOKS,
+    'Événements',
+    'Chaque événement porte son `id`, son `type`, `occurredAt`, et la conversation telle qu’en donne la liste — le même objet que `GET /api/v1/conversations`. Ceux qui concernent un message le portent aussi, sous `message`.',
+    table(
+      ['Type', 'Quand', 'Porte'],
+      [
+        [
+          '`message.created`',
+          'Un message du visiteur, de l’IA ou d’un conseiller, ou une note interne.',
+          '`conversation`, `message`',
+        ],
+        [
+          '`message.deleted`',
+          'Un message supprimé pour tout le monde — sans son texte.',
+          '`conversation`, `message`',
+        ],
+        ['`conversation.created`', 'Une conversation commence.', '`conversation`'],
+        [
+          '`conversation.handed_off`',
+          'L’IA passe la main à un conseiller.',
+          '`conversation`, `message`',
+        ],
+        ['`conversation.assigned`', 'Le conseiller affecté change.', '`conversation`'],
+        [
+          '`conversation.transferred`',
+          'La conversation change de boîte ou d’équipe.',
+          '`conversation`',
+        ],
+        ['`conversation.resolved`', 'La conversation est résolue.', '`conversation`'],
+        ['`conversation.reopened`', 'Une conversation résolue reprend.', '`conversation`'],
+        ['`webhook.ping`', 'Un test envoyé depuis l’écran.', '`webhook`'],
+      ],
+    ),
+    callout(
+      'NOTE',
+      'Les notes internes arrivent comme les autres messages, avec `kind: "note"` : filtrez-les si le système destinataire est vu des clients.',
+    ),
   )
 
   return sections

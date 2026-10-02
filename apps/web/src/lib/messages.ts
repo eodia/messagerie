@@ -41,6 +41,10 @@ export function messageFor(code: string): string {
       return $t('Aucune voix d’IA sur ce serveur : celle du navigateur lit les messages.')
     case 'MESSAGE_NOT_DELETABLE':
       return $t('Ce message ne se supprime pas.')
+    case 'WEBHOOK_NOT_FOUND':
+      return $t('Ce webhook n’existe plus.')
+    case 'WEBHOOK_TARGET_REJECTED':
+      return $t('Cette adresse est refusée : HTTPS, vers une adresse publique.')
     case 'TOKEN_INVALID':
       return $t('Ce jeton n’est pas valable.')
     case 'TOKEN_EXPIRED':

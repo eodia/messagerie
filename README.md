@@ -32,6 +32,7 @@ Les décisions qui expliquent le reste sont dans
 | Outils de l'IA | Lecture dans basedb, appels HTTP (en-têtes et jetons lus dans l'environnement), rappels, serveurs MCP |
 | Alertes | Son, notifications du bureau, pastilles de l'onglet, cloche par conseiller, réglables |
 | API et MCP | API REST `/api/v1` et serveur MCP `/mcp` pour les programmes et les agents, avec des jetons à la basedb (`msg_…`, lecture ou écriture, par boîte), gérés dans « Paramétrage › API et MCP » (D16) |
+| Webhooks | Un autre système prévenu de ce qui se passe dans les conversations : appels signés, retentés, dans l'ordre par conversation, gérés dans « Paramétrage › API et MCP » (D17) |
 | basedb (0.5.0 et plus) | Un basedb dédié dans `docker compose` ; base créée et reliée par `pnpm basedb:setup` ; conseillers reconnus par introspection de leur jeton ; tables suivies en direct |
 
 ## Développer
@@ -146,6 +147,14 @@ claude mcp add --transport http messagerie http://localhost:8810/mcp \
 Les routes sont décrites en tête de `apps/server/src/api/rest.ts` ; les outils MCP
 (`list_conversations`, `get_conversation`, `send_reply`, `add_note`…) dans
 `apps/server/src/api/mcp.ts`.
+
+### Les webhooks (D17)
+
+Dans le même écran, onglet « Webhooks » : une adresse HTTPS publique, les événements qui la
+préviennent (`message.created`, `conversation.resolved`…), ses boîtes. Chaque appel porte
+`X-Messagerie-Signature`, à vérifier avec le secret affiché une seule fois ; la
+documentation (`/documentation#webhooks`) donne le code. Pour essayer un récepteur sur sa
+machine, `CHAT_WEBHOOK_DEV=1` autorise HTTP et les adresses locales.
 
 Le code (identifiants, types, commentaires) est en anglais. Le français est réservé à
 ce que lit l'utilisateur et aux documents d'architecture.

@@ -2,16 +2,12 @@ import { boot } from './boot.js'
 
 /**
  * The AI's worker, alone (D7): the queues of `ai/jobs.ts` — answers, suggestions, tags,
- * summaries, the knowledge base, the retention — in a process of their own, so that a slow
- * model never slows the WebSocket. Run it with `CHAT_WORKER=separate` on the server.
+ * summaries, the knowledge base, the retention — and the webhooks' calls (D17), in a
+ * process of their own, so that a slow model or a slow receiver never slows the WebSocket.
+ * Run it with `CHAT_WORKER=separate` on the server.
  */
 const { ai, stop } = await boot('worker')
-if (!ai) {
-  console.error('worker : aucune IA configurée (CHAT_AI_API_KEY) — rien à faire.')
-  await stop()
-  process.exit(1)
-}
-console.log('worker : au travail')
+console.log(ai ? 'worker : au travail' : 'worker : au travail, webhooks seulement (aucune IA)')
 
 const quit = async () => {
   await stop()
