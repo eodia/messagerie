@@ -17,14 +17,24 @@ import { cn } from '@/lib/utils'
 import type { ConversationSummary, Feedback } from '@chat/contracts'
 import {
   ArrowRightLeft,
+  Baseline,
+  Bold,
   BookOpen,
   ChartColumn,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
+  Italic,
   type LucideIcon,
   MessagesSquare,
+  Mic,
   PanelLeft,
+  Paperclip,
   Search,
+  SendHorizontal,
+  Smile,
   Sparkles,
+  Underline,
   UsersRound,
   WandSparkles,
 } from 'lucide-react'
@@ -599,7 +609,7 @@ function Composer({
         <span className="text-muted-foreground">{$t('Note interne')}</span>
       </div>
       {suggestions && (
-        <div className="animate-in fade-in slide-in-from-bottom-1 px-5 pt-3 pb-2 duration-300">
+        <div className="animate-in fade-in slide-in-from-bottom-1 px-5 pt-3 duration-300">
           <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-violet-700 uppercase dark:text-violet-300">
             <WandSparkles className="size-3.5" />
             {$t('Suggestions du copilote')}
@@ -621,19 +631,62 @@ function Composer({
           </div>
         </div>
       )}
-      <div className="mx-5 mb-4 min-h-16 rounded-xl border px-3 py-2.5 text-sm">
-        {text ? (
-          <span>
-            {text}
-            <span className="ml-px inline-block h-4 w-px translate-y-0.5 animate-pulse bg-foreground" />
+      <div className="mx-5 mt-3 mb-4 rounded-xl border">
+        <div className="min-h-10 px-3 pt-2.5 pb-1 text-sm">
+          {text ? (
+            <span>
+              {text}
+              <span className="ml-px inline-block h-4 w-px translate-y-0.5 animate-pulse bg-foreground" />
+            </span>
+          ) : (
+            <span className="text-muted-foreground">
+              {$t('Écrire au visiteur — « / » pour une réponse type…')}
+            </span>
+          )}
+        </div>
+        {/* The real composer's tools, drawn: the glimpse shows, it does not take input. */}
+        <div aria-hidden className="flex items-center gap-0.5 px-1.5 pb-1.5 text-muted-foreground">
+          <GlimpseTool icon={Paperclip} />
+          <GlimpseTool icon={Smile} />
+          <span className="mx-1 h-4 w-px bg-border" />
+          <GlimpseTool icon={Bold} />
+          <GlimpseTool icon={Italic} />
+          <GlimpseTool icon={Underline} />
+          <GlimpseTool icon={Baseline} />
+          <GlimpseTool icon={ChevronUp} />
+          <span className="mx-1 h-4 w-px bg-border" />
+          <GlimpseTool icon={WandSparkles} />
+          <GlimpseTool icon={Mic} />
+          <span className="ml-auto hidden items-center gap-1 pr-2 text-[10px] xl:flex">
+            <kbd className="rounded border bg-muted px-1 font-sans">↵</kbd>
+            {$t('envoyer')}
           </span>
-        ) : (
-          <span className="text-muted-foreground">
-            {$t('Écrire au visiteur — « / » pour une réponse type…')}
+          <span
+            className={cn(
+              // Pushed right by the hint where it shows, by itself where it does not.
+              'ml-auto flex h-7 items-center overflow-hidden rounded-md bg-primary text-xs font-medium text-primary-foreground transition-opacity xl:ml-0',
+              text ? 'opacity-100' : 'opacity-50',
+            )}
+          >
+            <span className="flex items-center gap-1.5 px-2.5">
+              <SendHorizontal className="size-3.5" />
+              {$t('Envoyer')}
+            </span>
+            <span className="flex h-full items-center border-l border-primary-foreground/25 px-1.5">
+              <ChevronDown className="size-3.5" />
+            </span>
           </span>
-        )}
+        </div>
       </div>
     </div>
+  )
+}
+
+function GlimpseTool({ icon: Icon }: { readonly icon: LucideIcon }) {
+  return (
+    <span className="flex size-7 items-center justify-center rounded-md">
+      <Icon className="size-3.5" />
+    </span>
   )
 }
 
