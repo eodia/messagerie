@@ -25,6 +25,7 @@ import {
   messages,
 } from '../db/schema.js'
 import { attachmentsOf, forInbox } from '../files/attachments.js'
+import { pagesOf } from '../page/views.js'
 import { pointOf } from '../places/place.js'
 import { Refusal } from '../refusal.js'
 import { type Visible, canSee, inVisible } from './access.js'
@@ -291,6 +292,7 @@ export async function loadConversation(
     suggestions: await currentSuggestions(db, id),
     summary: conversation.summary,
     history: await pastConversations(db, contact.id, id),
+    pages: await pagesOf(db, id),
     messages: thread.flatMap(({ message, author, deleter, confidence, feedback }) => {
       const attached = (files.get(message.id) ?? []).map(forInbox)
       const shown = toMessage(message, author, confidence, feedback, attached, deleter)

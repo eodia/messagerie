@@ -199,6 +199,20 @@ export class WidgetApi implements Backend {
     let socket: WebSocket | null = null
     let delay = 1000
     let timer: ReturnType<typeof setTimeout> | undefined
+    // The page this tab shows, said to the server once the socket is open and each time it
+    // changes — its address or its title, a site of one page included (D21).
+    let said = ''
+    const sayPage = () => {
+      if (socket?.readyState !== WebSocket.OPEN) return
+      const page = { type: 'page', url: window.location.href, title: document.title }
+      const text = JSON.stringify(page)
+      if (text === said) return
+      said = text
+      socket.send(text)
+    }
+    const watching = setInterval(sayPage, 1500)
+    window.addEventListener('popstate', sayPage)
+    window.addEventListener('hashchange', sayPage)
 
     const again = () => {
       if (stopped) return
@@ -223,6 +237,9 @@ export class WidgetApi implements Backend {
         delay = 1000
         // Whatever was said while the socket was down came with no signal.
         onEvent({ type: 'conversation' })
+        // A new socket is a new tab for the server: the page, again.
+        said = ''
+        sayPage()
       }
       next.onmessage = (message) => onEvent(JSON.parse(String(message.data)) as WidgetEvent)
       next.onclose = () => {
@@ -234,6 +251,9 @@ export class WidgetApi implements Backend {
     return () => {
       stopped = true
       clearTimeout(timer)
+      clearInterval(watching)
+      window.removeEventListener('popstate', sayPage)
+      window.removeEventListener('hashchange', sayPage)
       socket?.close()
       if (this.socket === socket) this.socket = null
     }

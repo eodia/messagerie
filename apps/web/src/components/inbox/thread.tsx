@@ -53,6 +53,7 @@ import {
   VisitorBubble,
   VisitorTyping,
 } from './messages'
+import { pageNow } from './page-trail'
 import { SnoozeMenu } from './snooze-menu'
 import { TransferDialog } from './transfer-dialog'
 
@@ -192,7 +193,7 @@ export function Thread({
         ref={header}
         className="@container flex min-h-14 shrink-0 items-center gap-3 border-b bg-background px-5 py-2"
       >
-        <ContactAvatar name={contact.name} online={status !== 'resolved'} />
+        <ContactAvatar name={contact.name} online={pageNow(conversation) !== null} />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2 overflow-hidden">
             <h2 className="min-w-[5rem] truncate text-sm font-semibold">{contact.name}</h2>

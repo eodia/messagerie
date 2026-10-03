@@ -34,6 +34,7 @@ import {
   takeOver,
   wake,
 } from '../../src/inbox/write.js'
+import { leaveAllPages, leavePage, viewPage } from '../../src/page/views.js'
 import {
   type Signal,
   listenForChanges,
@@ -298,6 +299,34 @@ describe('on hold', () => {
     })
     await resolve(db, agent, id)
     await expect(snooze(db, agent, id, inAnHour())).rejects.toMatchObject({ code: 'NOT_SNOOZABLE' })
+  })
+})
+
+describe('the pages a visitor goes through', () => {
+  it('follow the tab: a page said again is one, a new one leaves the last, closing leaves it', async () => {
+    const { id } = await aiConversation()
+    const devis = await viewPage(db, id, null, 'https://acme.fr/devis', 'Devis')
+    expect(await viewPage(db, id, devis, 'https://acme.fr/devis', 'Devis')).toBe(devis)
+    // Renamed, the same page: no new step.
+    expect(await viewPage(db, id, devis, 'https://acme.fr/devis', 'Devis auto')).toBe(devis)
+    const garanties = await viewPage(db, id, devis, 'https://acme.fr/garanties', 'Garanties')
+    expect(garanties).not.toBe(devis)
+
+    let pages = (await loadConversation(db, id, agent)).pages
+    expect(pages.map((p) => [p.title, p.leftAt === null])).toEqual([
+      ['Garanties', true],
+      ['Devis auto', false],
+    ])
+    await leavePage(db, garanties)
+    pages = (await loadConversation(db, id, agent)).pages
+    expect(pages.every((p) => p.leftAt !== null)).toBe(true)
+  })
+
+  it('are all left when the server starts again', async () => {
+    const { id } = await aiConversation()
+    await viewPage(db, id, null, 'https://acme.fr/', 'Accueil')
+    await leaveAllPages(db)
+    expect((await loadConversation(db, id, agent)).pages[0]?.leftAt).not.toBeNull()
   })
 })
 

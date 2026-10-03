@@ -250,7 +250,20 @@ export interface Conversation {
   /** The AI's summary, written when an agent picks the conversation up. */
   readonly summary: string | null
   readonly history: readonly PastConversation[]
+  /**
+   * The pages the visitor went through while the conversation lived, newest first — as
+   * their widget says it, never checked.
+   */
+  readonly pages: readonly PageVisit[]
   readonly messages: readonly Message[]
+}
+
+/** A page a visitor in conversation opened: since when, until when — open while `leftAt` is null. */
+export interface PageVisit {
+  readonly url: string
+  readonly title: string
+  readonly at: string
+  readonly leftAt: string | null
 }
 
 /** An agent — a row of « Conseillers », and their account (D19). */

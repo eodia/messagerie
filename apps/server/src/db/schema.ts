@@ -558,6 +558,26 @@ export const pageCalls = chat.table(
 )
 
 /**
+ * The pages a visitor in conversation goes through, as their widget says it: the page, from
+ * when, until when — `leftAt` empty while it is still open in their browser. Data the page
+ * gives, never checked; the hundred newest kept per conversation.
+ */
+export const pageViews = chat.table(
+  'page_view',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    conversationId: uuid('conversation_id')
+      .notNull()
+      .references(() => conversations.id, { onDelete: 'cascade' }),
+    url: text('url').notNull(),
+    title: text('title').notNull().default(''),
+    createdAt: createdAt(),
+    leftAt: timestamp('left_at', { withTimezone: true }),
+  },
+  (t) => [index('page_view_conversation_idx').on(t.conversationId, t.createdAt)],
+)
+
+/**
  * The dashboards (D22): their cards, on a twelve-column grid, each a question and how it
  * is drawn. Shared, agents see it; supervisors alone change it.
  */

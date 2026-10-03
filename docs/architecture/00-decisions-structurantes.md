@@ -534,6 +534,12 @@ se recopie pas dans le serveur, l'IA le demande à la page.
   de connaissance.
 - La page de démonstration (`/demo`) déclare un tarif, un devis à pré-remplir et une
   section à montrer.
+- **Où est le visiteur :** une fois la conversation commencée, le widget dit par sa
+  connexion temps réel chaque page qu'il ouvre (adresse et titre, un site d'une seule page
+  compris) ; la fermer, c'est la quitter. Table `page_view`, cent par conversation ; l'adresse
+  sans fragment ni paramètre qui ressemble à un secret ou à une personne. Rien pour un
+  visiteur qui n'a jamais écrit. Au démarrage, le serveur ferme les pages restées ouvertes.
+  L'inbox en tire la page ouverte, la pastille de présence et la piste des pages vues.
 
 ## D22 — Les tableaux de bord, ceux de basedb faits pour les conversations
 

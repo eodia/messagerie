@@ -280,7 +280,8 @@ le bouton rappelle. La dictée ne dépend pas du mode audio.
 
 À droite du fil, quand l’écran est assez large. En tête, le contact : **Client identifié** ou
 **Visiteur anonyme**, son adresse et son téléphone (copiés d’un clic), où il est et l’heure
-qu’il y est, et trois cases — le nombre d’**Échanges**, le **Sentiment**, la **Priorité**. L’onglet
+qu’il y est, la page du site qu’il a ouverte — **Sur** « Votre devis auto », d’un clic dans un
+nouvel onglet —, ou la dernière qu’il a quittée, et trois cases — le nombre d’**Échanges**, le **Sentiment**, la **Priorité**. L’onglet
 **Historique** liste ses autres conversations.
 
 Dessous, des blocs que chacun range à sa guise :
@@ -288,10 +289,23 @@ Dessous, des blocs que chacun range à sa guise :
 - **Résumé de l’IA**, avec **Copier** ;
 - **Conversation** : boîte, équipe, conseiller (un clic pour le changer), site, intention
   détectée par l’IA, et les étiquettes ;
+- **Pages vues** : les pages que le visiteur a ouvertes depuis le début de la conversation,
+  la plus récente d’abord — l’heure, le titre et l’adresse, combien de temps il y est resté,
+  **maintenant** pour celle qu’il a encore ouverte ;
 - **Transmis par le site** : ce que la signature du site dit du client ;
 - **Déclaré sur le contact** et **Données de la conversation** : les métadonnées ;
 - **Outils IA** : les outils que le conseiller peut lancer (voir
   [Outils de l’IA](/messagerie/fonctionnalites/outils-ia/)).
+
+La pastille verte de l’avatar, en tête du panneau et du fil, dit que le visiteur a une page du
+site ouverte en ce moment.
+
+Les pages viennent du widget du visiteur, une fois la conversation commencée : un visiteur qui
+n’a jamais écrit ne laisse aucune trace. Chaque page ouverte, chaque changement d’adresse ou de
+titre — un site d’une seule page compris — s’y ajoute ; la fermer, c’est la quitter. Ce que dit
+le widget n’est pas vérifié. L’adresse est gardée sans ce qui suit `#`, ni les paramètres qui
+ressemblent à un secret ou à une personne (`token`, `password`, `email`, `code`, `session`…). Les
+cent dernières pages sont gardées par conversation, et partent avec elle.
 
 Chaque bloc se replie. **Organiser le panneau** les fait glisser dans l’ordre voulu, ou les
 masque ; **Réinitialiser** remet l’ordre de départ. Le navigateur s’en souvient.

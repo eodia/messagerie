@@ -419,6 +419,10 @@ export function documentation(base: string): DocSection[] {
         ['`intent`, `summary`', 'L’intention et le résumé qu’en a faits l’IA.'],
         ['`data`', 'Les métadonnées que la page ou un conseiller a jointes.'],
         ['`contact`', 'La fiche entière.'],
+        [
+          '`pages`',
+          'Les pages que le visiteur a ouvertes, la plus récente d’abord : `url`, `title`, `at`, `leftAt` (`null` tant qu’elle est ouverte).',
+        ],
         ['`messages`', 'Tous les messages, dans l’ordre — voir ci-dessous.'],
       ],
     ),

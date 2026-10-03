@@ -32,6 +32,7 @@ import {
   Check,
   ChevronDown,
   CircleAlert,
+  Compass,
   FileText,
   Globe,
   GripVertical,
@@ -56,6 +57,7 @@ import { Fragment, type ReactNode, useEffect, useLayoutEffect, useState } from '
 import { AssignPicker } from './assign-picker'
 import { ContactAvatar, PriorityChip, SentimentChip, StatusChip, conversationState } from './labels'
 import { MetadataList } from './metadata'
+import { PageNowLine, PageTrail, pageNow } from './page-trail'
 import { Tags } from './tag-picker'
 
 /**
@@ -258,6 +260,21 @@ export function DetailsPanel({ conversation }: { readonly conversation: Conversa
         </div>
       </Section>
     ),
+    pages: (
+      <Section
+        id="pages"
+        title={$t(TITLES.pages)}
+        icon={Compass}
+        count={conversation.pages.length}
+        aside={
+          <Hint label={$t('Dit par le widget du visiteur : rien n’en est vérifié.')}>
+            <CircleAlert className="size-3.5 text-muted-foreground" />
+          </Hint>
+        }
+      >
+        <PageTrail conversation={conversation} />
+      </Section>
+    ),
     site: (
       <Section
         id="site"
@@ -376,6 +393,7 @@ export function DetailsPanel({ conversation }: { readonly conversation: Conversa
 const TITLES: Readonly<Record<BlockId, string>> = {
   summary: msg('Résumé de l’IA'),
   conversation: msg('Conversation'),
+  pages: msg('Pages vues'),
   site: msg('Transmis par le site'),
   declared: msg('Déclaré sur le contact'),
   data: msg('Données de la conversation'),
@@ -385,6 +403,7 @@ const TITLES: Readonly<Record<BlockId, string>> = {
 const ICONS: Readonly<Record<BlockId, LucideIcon>> = {
   summary: Sparkles,
   conversation: MessagesSquare,
+  pages: Compass,
   site: ShieldCheck,
   declared: NotebookPen,
   data: Braces,
@@ -523,7 +542,7 @@ function ContactHero({ conversation }: { readonly conversation: Conversation }) 
       <div className="flex items-start gap-3.5">
         <ContactAvatar
           name={contact.name}
-          online={conversation.status !== 'resolved'}
+          online={pageNow(conversation) !== null}
           className="size-12 text-sm"
         />
         <div className="min-w-0 flex-1 pt-0.5">
@@ -547,6 +566,7 @@ function ContactHero({ conversation }: { readonly conversation: Conversation }) 
       </div>
 
       <ContactLines contact={contact} />
+      <PageNowLine conversation={conversation} />
 
       <dl className="mt-4 grid grid-cols-3 divide-x overflow-hidden rounded-lg border bg-background">
         <Stat label={$t('Échanges')}>

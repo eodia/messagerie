@@ -128,6 +128,11 @@ page et d’une visite à l’autre. Le panneau resté ouvert le reste en change
 conversation résolue depuis plus d’un jour est terminée : le message suivant en ouvre une
 nouvelle.
 
+Une fois la conversation commencée, le widget dit aux conseillers la page que le visiteur
+ouvre, et celles qu’il parcourt ensuite : son adresse et son titre, sans rien de ce qui suit
+`#` ni les paramètres qui ressemblent à un secret. Ils les lisent dans le panneau de détails
+(voir [l’inbox](/messagerie/fonctionnalites/inbox/#le-panneau-de-détails)).
+
 Sur un écran de 480 pixels de large ou moins, le panneau occupe tout l’écran.
 
 ### La langue

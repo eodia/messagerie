@@ -9,6 +9,7 @@ import { filesOf, readUploads } from '../files/attachments.js'
 import { uploadLimit } from '../files/routes.js'
 import { readPatch, readProfile } from '../inbox/metadata.js'
 import { answerCall, claimCall, readSnapshot, refuseCall } from '../page/actions.js'
+import { cleanPageTitle, cleanPageUrl, leavePage, viewPage } from '../page/views.js'
 import { Refusal } from '../refusal.js'
 import { RateLimiter, type WidgetHub } from './hub.js'
 import {
@@ -70,6 +71,9 @@ export function widgetRoutes(
   const edits = new RateLimiter(30, 60_000)
   // A visitor typing says so every few seconds; once every two is all the inbox needs.
   const typing = new RateLimiter(1, 2_000)
+  // A page a second at most, as the visitor goes — a bot that changes its address faster
+  // leaves no more trace.
+  const pages = new RateLimiter(60, 60_000)
 
   widget.use('*', (c, next) =>
     c.req.header('upgrade')?.toLowerCase() === 'websocket'
@@ -203,35 +207,69 @@ export function widgetRoutes(
 
   /**
    * The visitor's live signals: their conversation changed, someone is typing. The visitor
-   * says only one thing back: « I am typing ».
+   * says two things back: « I am typing », and the page this tab shows — left when the tab
+   * closes.
    */
   widget.get(
     '/events',
     upgradeWebSocket((c) => {
       const holder = tickets.redeem(c.req.query('ticket'))
       const contactId = holder?.startsWith('visitor:') ? holder.slice(8) : null
+      // The page this tab shows, while it does.
+      let view: string | null = null
+      let viewing = Promise.resolve()
+      const leave = () => {
+        const shown = view
+        view = null
+        if (shown !== null) {
+          viewing = viewing
+            .then(() => leavePage(deps.db, shown))
+            .catch((error) => console.error('chat : page quittée', error))
+        }
+      }
       return {
         onOpen: (_event, socket) => {
           if (contactId === null) socket.close(4401, 'TICKET_INVALID')
           else hub.add(contactId, socket)
         },
         onMessage: (event) => {
-          if (contactId === null || typeof event.data !== 'string' || event.data.length > 100)
+          if (contactId === null || typeof event.data !== 'string' || event.data.length > 5000)
             return
-          let said: unknown
+          let said: { type?: unknown; url?: unknown; title?: unknown } | null
           try {
             said = JSON.parse(event.data)
           } catch {
             return
           }
-          if ((said as { type?: unknown } | null)?.type !== 'typing') return
-          if (!typing.allow(contactId)) return
-          visitorTyping(deps.db, contactId).catch((error) =>
-            console.error('chat : frappe du visiteur', error),
-          )
+          if (said?.type === 'typing') {
+            if (!typing.allow(contactId)) return
+            visitorTyping(deps.db, contactId).catch((error) =>
+              console.error('chat : frappe du visiteur', error),
+            )
+            return
+          }
+          if (said?.type !== 'page') return
+          const url = cleanPageUrl(said.url)
+          if (url === null || !pages.allow(contactId)) return
+          const title = cleanPageTitle(said.title)
+          // One after the other: a tab's pages are kept in the order it showed them.
+          viewing = viewing
+            .then(async () => {
+              const conversationId = await currentConversationId(deps.db, contactId)
+              view = await viewPage(deps.db, conversationId, view, url, title)
+            })
+            .catch((error) => {
+              if (!(error instanceof Refusal)) console.error('chat : page vue', error)
+            })
         },
-        onClose: (_event, socket) => contactId && hub.remove(contactId, socket),
-        onError: (_event, socket) => contactId && hub.remove(contactId, socket),
+        onClose: (_event, socket) => {
+          if (contactId) hub.remove(contactId, socket)
+          leave()
+        },
+        onError: (_event, socket) => {
+          if (contactId) hub.remove(contactId, socket)
+          leave()
+        },
       }
     }),
   )

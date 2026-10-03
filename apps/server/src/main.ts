@@ -7,6 +7,7 @@ import { boot } from './boot.js'
 import { conversations } from './db/schema.js'
 import { Access } from './inbox/access.js'
 import { loadSummaries } from './inbox/read.js'
+import { leaveAllPages } from './page/views.js'
 import { InboxHub } from './realtime/hub.js'
 import { listenForChanges } from './realtime/signals.js'
 import { WidgetHub } from './widget/hub.js'
@@ -16,6 +17,9 @@ import { WidgetHub } from './widget/hub.js'
  * WebSocket server. Stops cleanly on Ctrl+C and `docker stop`.
  */
 const { config, db, pool, settings, ai, mcp, automations, stop: stopBoot } = await boot('server')
+
+// No widget is connected to a server that starts: the pages a stop left open are left.
+await leaveAllPages(db)
 
 const hub = new InboxHub()
 const widgetHub = new WidgetHub()

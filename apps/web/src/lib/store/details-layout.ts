@@ -7,7 +7,15 @@ import { create } from 'zustand'
  * this browser, like the panes' widths.
  */
 
-export const BLOCKS = ['summary', 'conversation', 'site', 'declared', 'data', 'tools'] as const
+export const BLOCKS = [
+  'summary',
+  'conversation',
+  'pages',
+  'site',
+  'declared',
+  'data',
+  'tools',
+] as const
 export type BlockId = (typeof BLOCKS)[number]
 
 const KEY = 'chat.details.layout'

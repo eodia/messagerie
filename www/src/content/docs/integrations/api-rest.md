@@ -310,6 +310,7 @@ En plus des champs de la liste :
 | `intent`, `summary` | L’intention et le résumé qu’en a faits l’IA, ou `null`. |
 | `suggestions` | Les réponses que le copilote propose pour la suite, de 0 à 3. |
 | `history` | Les autres conversations du contact : `subject`, `at`, `status`. |
+| `pages` | Les pages que le visiteur a ouvertes depuis le début de la conversation, la plus récente d’abord, vingt au plus : `url`, `title`, `at`, `leftAt` — `null` tant qu’elle est ouverte. Ce que dit son widget, non vérifié. |
 | `messages` | Tous les messages, dans l’ordre — voir ci-dessous. |
 
 Chaque message a un `id`, une date `at` et un `kind` :
