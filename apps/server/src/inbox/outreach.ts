@@ -56,7 +56,7 @@ export async function outreachOptions(deps: OutreachDeps): Promise<OutreachOptio
       phone: n.phone,
       siteId: n.siteId,
     })),
-    email: deps.email || mailboxes.size > 0,
+    email: deps.email,
     sites: sites.map((s) => ({
       id: s.id,
       name: s.name,

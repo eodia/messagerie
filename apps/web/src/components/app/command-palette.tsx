@@ -39,6 +39,7 @@ import type {
 import {
   AlarmClock,
   ArrowRightLeft,
+  AtSign,
   BookOpen,
   ChartColumn,
   CircleCheck,
@@ -551,6 +552,13 @@ function Palette({ seed, onClose }: { readonly seed: string; readonly onClose: (
         () => go('/parametrage/sms?nouveau=1'),
         'créer téléphone rcs twilio',
       )
+      command(
+        'new-email-address',
+        $t('Nouvelle adresse e-mail'),
+        Plus,
+        () => go('/parametrage/email?nouveau=1'),
+        'créer imap smtp boîte mail',
+      )
     }
     const theme = useTheme.getState()
     command('light', $t('Thème clair'), Sun, () => theme.setPreference('light'), 'apparence jour')
@@ -657,6 +665,7 @@ function Palette({ seed, onClose }: { readonly seed: string; readonly onClose: (
       page('/automatisations', $t('Automatisations'), Workflow, 'règles relances flux déclencheurs')
       page('/widget', $t('Widget'), PaletteIcon, 'paramétrage apparence couleur installation')
       page('/parametrage/sms', $t('Numéros SMS'), Smartphone, 'paramétrage téléphone rcs twilio')
+      page('/parametrage/email', $t('Adresses e-mail'), AtSign, 'paramétrage imap smtp boîte mail')
       page('/parametrage/api', $t('API et MCP'), KeyRound, 'paramétrage jetons webhooks')
     }
     return out

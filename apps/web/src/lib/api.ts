@@ -27,6 +27,7 @@ import type {
   Dashboard,
   DashboardBody,
   DashboardFilter,
+  EmailAddressTest,
   ErrorCode,
   FeedbackBody,
   FilterValues,
@@ -157,6 +158,9 @@ export const api = {
     request<Conversation>('POST', '/conversations', body),
   smsAddresses: (numberId: string) =>
     request<SmsNumberAddresses>('GET', `/sms-numbers/${encodeURIComponent(numberId)}/addresses`),
+  /** « Adresses e-mail »: its IMAP and SMTP servers, tried with what is saved (D24). */
+  testEmailAddress: (addressId: string) =>
+    request<EmailAddressTest>('POST', `/email-addresses/${encodeURIComponent(addressId)}/test`),
   markRead: (id: string) => request<void>('POST', `${conversation(id)}/read`),
   typing: (id: string) => request<void>('POST', `${conversation(id)}/typing`),
   /** A message read aloud by the server's AI voice, as an MP3. */

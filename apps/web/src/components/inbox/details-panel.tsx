@@ -244,12 +244,20 @@ export function DetailsPanel({ conversation }: { readonly conversation: Conversa
             <span className="truncate">{conversation.site}</span>
           </Row>
           {conversation.channel !== 'web' && (
-            <Row icon={Smartphone} label={$t('Canal')}>
+            <Row icon={conversation.channel === 'email' ? Mail : Smartphone} label={$t('Canal')}>
               <span className="truncate">
-                {conversation.channel === 'rcs' ? $t('RCS') : $t('SMS')}
-                {conversation.contact.phone && (
+                {conversation.channel === 'rcs'
+                  ? $t('RCS')
+                  : conversation.channel === 'email'
+                    ? $t('E-mail')
+                    : $t('SMS')}
+                {(conversation.channel === 'email'
+                  ? conversation.contact.email
+                  : conversation.contact.phone) && (
                   <span className="ml-1.5 font-mono text-xs text-muted-foreground">
-                    {conversation.contact.phone}
+                    {conversation.channel === 'email'
+                      ? conversation.contact.email
+                      : conversation.contact.phone}
                   </span>
                 )}
               </span>

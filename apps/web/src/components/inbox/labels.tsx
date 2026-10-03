@@ -5,7 +5,7 @@ import { useInbox } from '@/lib/store/inbox'
 import { wakeLabel } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import type { Channel, ConversationSummary, Priority, Sentiment } from '@chat/contracts'
-import { AlarmClock, Smartphone, Sparkles } from 'lucide-react'
+import { AlarmClock, Mail, Smartphone, Sparkles } from 'lucide-react'
 
 type StateOf = Pick<ConversationSummary, 'status' | 'assignee' | 'handedOff'> &
   Partial<Pick<ConversationSummary, 'snoozedUntil'>>
@@ -118,9 +118,16 @@ function colorOf(name: string): string {
   return AVATAR_COLORS[hash % AVATAR_COLORS.length] ?? '#64748b'
 }
 
-/** Where a conversation is held, said: by SMS, by RCS — the widget says nothing (D23). */
+/** Where a conversation is held, said: by SMS, by RCS, by e-mail — the widget says nothing. */
 export function ChannelMark({ channel }: { readonly channel: Channel }) {
   if (channel === 'web') return null
+  if (channel === 'email') {
+    return (
+      <Hint label={$t('Par e-mail')}>
+        <Mail className="size-3.5 shrink-0 text-sky-600 dark:text-sky-400" />
+      </Hint>
+    )
+  }
   return (
     <Hint
       label={

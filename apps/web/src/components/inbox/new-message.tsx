@@ -58,6 +58,10 @@ function Row({
   )
 }
 
+/** The sites one may write an e-mail for: with their own address, or the server's SMTP. */
+const writable = (options: OutreachOptions) =>
+  options.sites.filter((s) => s.mailbox || (options.email && s.emailReplies))
+
 export function NewMessageDialog() {
   const { open, contact: given, hide } = useNewMessage()
   const [options, setOptions] = useState<OutreachOptions | null>(null)
@@ -89,7 +93,7 @@ export function NewMessageDialog() {
         const sms = loaded.numbers.length > 0
         setChannel(sms && (!given || given.phone || !given.email) ? 'sms' : 'email')
         setNumberId(loaded.numbers[0]?.id ?? null)
-        setSiteId(loaded.sites.find((s) => s.emailReplies)?.id ?? null)
+        setSiteId(writable(loaded)[0]?.id ?? null)
       })
       .catch(() => setOptions({ numbers: [], email: false, sites: [] }))
   }, [open, given])
@@ -112,7 +116,9 @@ export function NewMessageDialog() {
 
   const sms = channel === 'sms'
   const canSms = (options?.numbers.length ?? 0) > 0
-  const canEmail = options?.email === true && options.sites.some((s) => s.emailReplies)
+  const emailSites = options ? writable(options) : []
+  const canEmail = emailSites.length > 0
+  const viaMailbox = emailSites.find((s) => s.id === siteId)?.mailbox === true
   // What the message goes to: the contact's own, else what was typed.
   const destination = contact
     ? sms
@@ -162,16 +168,20 @@ export function NewMessageDialog() {
               ? $t(
                   'Écrivez le premier au client, par SMS. Sa réponse arrive ici, dans la conversation.',
                 )
-              : $t(
-                  'Écrivez le premier au client, par e-mail. Il répond en revenant sur le site : le widget lui montre la conversation.',
-                )}
+              : viaMailbox
+                ? $t(
+                    'Écrivez le premier au client, par e-mail, depuis l’adresse du site. Sa réponse arrive ici, dans la conversation.',
+                  )
+                : $t(
+                    'Écrivez le premier au client, par e-mail. Il répond en revenant sur le site : le widget lui montre la conversation.',
+                  )}
           </DialogDescription>
         </DialogHeader>
 
         {nothing ? (
           <p className="rounded-lg border border-dashed px-3 py-3 text-sm text-muted-foreground">
             {$t(
-              'Aucun moyen d’écrire au client pour l’instant : un superviseur ajoute un numéro dans « Numéros SMS », ou le serveur se voit donner un serveur d’e-mail (CHAT_SMTP_URL).',
+              'Aucun moyen d’écrire au client pour l’instant : un superviseur ajoute un numéro dans « Numéros SMS » ou une adresse dans « Adresses e-mail », ou le serveur se voit donner un serveur d’e-mail (CHAT_SMTP_URL).',
             )}
           </p>
         ) : (
@@ -222,7 +232,7 @@ export function NewMessageDialog() {
                       'Aucun site n’écrit d’e-mails à ses clients : « Répondre par e-mail » est désactivé.',
                     )
                   : $t(
-                      'Le serveur n’envoie pas d’e-mails : aucun serveur SMTP n’est configuré (CHAT_SMTP_URL).',
+                      'Aucun site n’a d’adresse dans « Adresses e-mail », et le serveur n’a pas de serveur SMTP (CHAT_SMTP_URL).',
                     )}
               </p>
             )}
@@ -338,15 +348,13 @@ export function NewMessageDialog() {
               </Row>
             )}
 
-            {!sms && !contact && (options?.sites.filter((s) => s.emailReplies).length ?? 0) > 1 && (
+            {!sms && !contact && emailSites.length > 1 && (
               <Row label={$t('Pour le site')}>
                 {(id) => (
                   <ChoiceMenu
                     id={id}
                     value={siteId}
-                    choices={(options?.sites ?? [])
-                      .filter((s) => s.emailReplies)
-                      .map((s) => ({ id: s.id, label: s.name }))}
+                    choices={emailSites.map((s) => ({ id: s.id, label: s.name }))}
                     onChange={setSiteId}
                     allowNone={false}
                     disabled={busy}

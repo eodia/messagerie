@@ -1,5 +1,6 @@
 'use client'
 
+import { EmailAddressesScreen } from '@/components/settings/screens/email'
 import { GuardrailsScreen } from '@/components/settings/screens/guardrails'
 import { InboxesScreen } from '@/components/settings/screens/inboxes'
 import { RepliesScreen } from '@/components/settings/screens/replies'
@@ -20,6 +21,7 @@ const SCREENS: Readonly<Record<string, ComponentType>> = {
   reponses: RepliesScreen,
   'garde-fous': GuardrailsScreen,
   sms: SmsNumbersScreen,
+  email: EmailAddressesScreen,
   outils: ToolsStudio,
   api: TokensScreen,
 }

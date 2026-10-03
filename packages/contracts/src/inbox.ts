@@ -372,7 +372,7 @@ export interface OutreachOptions {
     readonly phone: string | null
     readonly siteId: string | null
   }[]
-  /** The server writes e-mails. */
+  /** The server has its own SMTP server (CHAT_SMTP_URL): a site without an address uses it. */
   readonly email: boolean
   readonly sites: readonly {
     readonly id: string

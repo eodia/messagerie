@@ -23,6 +23,7 @@ export const GROUPS: Readonly<Record<string, Group>> = {
   'garde-fous': { title: msg('Garde-fous'), tables: ['garde_fous'] },
   outils: { title: msg('Outils IA'), tables: ['outils_ia', 'serveurs_mcp'] },
   sms: { title: msg('Numéros SMS'), tables: ['numeros_sms'] },
+  email: { title: msg('Adresses e-mail'), tables: ['adresses_email'] },
   connaissance: { title: msg('Connaissances'), tables: ['articles', 'categories'] },
 }
 
@@ -76,6 +77,7 @@ export const VIEWS: Readonly<Record<string, TableView>> = {
   outils_ia: { columns: ['Nom', 'Type', 'Agent IA', 'Copilote', 'Actif'] },
   serveurs_mcp: { columns: ['Nom', 'Adresse', 'Agent IA', 'Copilote', 'Actif'] },
   numeros_sms: { columns: ['Nom', 'Numéro', 'Site', 'Actif'] },
+  adresses_email: { columns: ['Nom', 'Adresse', 'Site', 'Actif'] },
   articles: { columns: ['Titre', 'Statut', 'Catégorie', 'Sites'] },
   categories: { columns: ['Nom'] },
 }

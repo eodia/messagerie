@@ -237,7 +237,12 @@ export function Composer({
         ? conversation.channel === 'web'
           ? $t('Écrire au visiteur — « / » pour une réponse type…')
           : $t('Répondre par {channel}, en texte simple — « / » pour une réponse type…', {
-              channel: conversation.channel === 'rcs' ? 'RCS' : 'SMS',
+              channel:
+                conversation.channel === 'rcs'
+                  ? 'RCS'
+                  : conversation.channel === 'email'
+                    ? $t('e-mail')
+                    : 'SMS',
             })
         : $t('Une note pour l’équipe : le visiteur ne la verra pas.'),
     onChange: (markdown) => {

@@ -170,6 +170,14 @@ function deliveryFailure(code: string | null): string {
   }
 }
 
+/** A delivery still waiting: a queued SMS or e-mail, or one held until the visitor's return. */
+const pendingWords = (delivery: Delivery) =>
+  delivery.by === 'sms'
+    ? $t('SMS en file')
+    : delivery.unlessSeen
+      ? $t('Par e-mail s’il ne revient pas')
+      : $t('E-mail en file')
+
 /** How an answer left for the visitor: their phone, or their mailbox once they had left. */
 function DeliveryMark({
   delivery,
@@ -186,9 +194,7 @@ function DeliveryMark({
       delivery.status === 'failed'
         ? `${sms ? $t('Non remis') : $t('E-mail non parti')} — ${deliveryFailure(delivery.error)}`
         : delivery.status === 'pending'
-          ? sms
-            ? $t('SMS en file')
-            : $t('Par e-mail s’il ne revient pas')
+          ? pendingWords(delivery)
           : !sms
             ? $t('Envoyé par e-mail')
             : delivery.status === 'sent'
@@ -228,7 +234,7 @@ function DeliveryMark({
     ) : delivery.status === 'pending' ? (
       <span className="inline-flex items-center gap-1">
         <Clock className="size-3" />
-        {sms ? $t('SMS en file') : $t('Par e-mail s’il ne revient pas')}
+        {pendingWords(delivery)}
       </span>
     ) : !sms ? (
       <span className="inline-flex items-center gap-1">
