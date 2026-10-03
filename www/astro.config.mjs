@@ -43,6 +43,7 @@ export default defineConfig({
 					items: [
 						{ slug: 'fonctionnalites/inbox' },
 						{ slug: 'fonctionnalites/widget' },
+						{ slug: 'fonctionnalites/sms-et-rcs' },
 						{ slug: 'fonctionnalites/agent-ia' },
 						{ slug: 'fonctionnalites/copilote' },
 						{ slug: 'fonctionnalites/base-de-connaissance' },

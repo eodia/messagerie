@@ -181,6 +181,7 @@ curl "https://chat.exemple.fr/api/v1/conversations?status=open&assignee=none&lim
       },
       "site": "Acme Assurances",
       "siteId": "01a0f647-6c2e-7d41-8b5a-3f9e2c7d1a46",
+      "channel": "web",
       "inboxId": "01a0f647-74b7-7450-93a6-8dfe920d8934",
       "teamId": null,
       "status": "open",
@@ -206,6 +207,7 @@ curl "https://chat.exemple.fr/api/v1/conversations?status=open&assignee=none&lim
 |---|---|
 | `contact` | `id`, `name`, `email`, et `identified` : `true` quand le site a signé l’identité (voir [Identité signée](/messagerie/integrations/identite-signee/)). |
 | `site`, `siteId` | Le nom du site à l’arrivée de la conversation, et son identifiant. |
+| `channel` | D’où écrit le visiteur : `web` — le widget —, `sms` ou `rcs` — son téléphone ([SMS et RCS](/messagerie/fonctionnalites/sms-et-rcs/)). |
 | `inboxId`, `teamId` | Sa boîte et son équipe ; `null` si elle n’en a pas. |
 | `status` | `ai` : l’IA répond seule · `open` : des conseillers répondent · `pending` : en attente · `resolved` : résolue. |
 | `assignee`, `assigneeId` | Le conseiller qui l’a, ou `null` : elle est dans la file. |
@@ -251,6 +253,7 @@ curl https://chat.exemple.fr/api/v1/conversations/4f1c2e8a-7b3d-4c9e-a1f0-2d5e6b
     },
     "site": "Acme Assurances",
     "siteId": "01a0f647-6c2e-7d41-8b5a-3f9e2c7d1a46",
+    "channel": "web",
     "inboxId": "01a0f647-74b7-7450-93a6-8dfe920d8934",
     "teamId": null,
     "data": { "contrat": "AUTO-2291" },
@@ -329,6 +332,12 @@ l’IA, à la demande d’un conseiller, ou `null`) et `url` : un chemin signé,
 serveur, qui lit le fichier sans jeton pendant environ un jour.
 
 Un message supprimé pour tout le monde porte `deleted` (`by`, `at`) et un `body` vide.
+
+Une réponse (`agent`, `ai`) partie hors du widget porte `delivery` : `by` — `sms` (SMS ou RCS)
+ou `email` (au visiteur parti qui a laissé son adresse) —, `status` — `pending`, `sent`,
+`delivered`, `read` ou `failed` — et, en échec, `error` : le code du fournisseur
+(`TWILIO_21610` : le client a répondu STOP) ou de la messagerie (`NUMBER_UNAVAILABLE`…). Voir
+[SMS et RCS](/messagerie/fonctionnalites/sms-et-rcs/).
 
 ### Répondre ou noter
 

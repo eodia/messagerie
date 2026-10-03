@@ -11,6 +11,20 @@ import type { PageCallStatus, WidgetAppearance } from './widget.js'
  * one list, in the order they happened. That is what makes a thread auditable as it reads.
  */
 
+/** Where the visitor writes from: the widget, or their phone — by SMS, or RCS (D23). */
+export type Channel = 'web' | 'sms' | 'rcs'
+
+/**
+ * How an answer left the chat for the visitor (D23): to their phone, in an SMS or RCS
+ * conversation; by e-mail, to a visitor of the widget who had left. `error` is the
+ * provider's code (`TWILIO_21610`…) or the chat's, when it failed.
+ */
+export interface Delivery {
+  readonly by: 'sms' | 'email'
+  readonly status: 'pending' | 'sent' | 'delivered' | 'read' | 'failed'
+  readonly error: string | null
+}
+
 /** `ai`: the AI answers alone. `open`: an agent has it. `pending`: waiting for the visitor. */
 export type ConversationStatus = 'ai' | 'open' | 'pending' | 'resolved'
 
@@ -117,6 +131,8 @@ export interface AgentMessage extends MessageBase {
   readonly authorId: string | null
   readonly body: string
   readonly attachments: readonly Attachment[]
+  /** Its way to the visitor's phone or mailbox, when it took one. */
+  readonly delivery?: Delivery
 }
 
 export interface AiMessage extends MessageBase {
@@ -126,6 +142,7 @@ export interface AiMessage extends MessageBase {
   readonly confidence: number
   readonly sources: readonly Source[]
   readonly feedback: Feedback | null
+  readonly delivery?: Delivery
 }
 
 export interface NoteMessage extends MessageBase {
@@ -230,6 +247,7 @@ export interface Conversation {
   /** The site's name when the conversation began; `siteId` finds the site. */
   readonly site: string
   readonly siteId: string
+  readonly channel: Channel
   /** « Boîtes de réception »: null for a conversation from before the inboxes. */
   readonly inboxId: string | null
   readonly teamId: string | null
@@ -303,6 +321,7 @@ export interface ConversationSummary {
   readonly contact: Pick<Contact, 'id' | 'name' | 'email' | 'identified'>
   readonly site: string
   readonly siteId: string
+  readonly channel: Channel
   readonly inboxId: string | null
   readonly teamId: string | null
   readonly status: ConversationStatus
@@ -342,6 +361,29 @@ export type AlertKind =
   | 'woke'
   /** An automation's « Prévenir » step: `text` says why, `by` is the automation. */
   | 'automation'
+
+/**
+ * Where an agent's alerts go beyond the open inbox (D23): their phones, by Web Push — each
+ * device subscribes itself —, and their mailbox, when they ask for it.
+ */
+export interface AlertChannels {
+  /** The server's VAPID public key, base64url: what a device subscribes with. */
+  readonly pushKey: string
+  /** How many devices of theirs get the alerts. */
+  readonly devices: number
+  /** The server writes e-mails (CHAT_SMTP_URL). */
+  readonly emailAvailable: boolean
+  /** What stays unread ten minutes reaches them by e-mail. */
+  readonly email: boolean
+  /** Where it goes. */
+  readonly address: string | null
+}
+
+/** A device's subscription, as the browser gives it (`PushSubscription.toJSON()`). */
+export interface PushSubscriptionBody {
+  readonly endpoint: string
+  readonly keys: { readonly p256dh: string; readonly auth: string }
+}
 
 /** One entry of an agent's bell. Kept by the server, so that a reload loses none. */
 export interface Notification {
@@ -630,11 +672,15 @@ export interface Invited {
   readonly row: SettingsRow
   /** The link to hand over — they choose their password there. Shown once, seven days good. */
   readonly link: string
+  /** The link went to their address too (D23): an SMTP server is configured, and took it. */
+  readonly emailed: boolean
 }
 
 /** A link to choose a new password, for an agent: shown once, seven days good. */
 export interface PasswordReset {
   readonly link: string
+  /** The link went to their address too (D23). */
+  readonly emailed: boolean
 }
 
 // ── Signing in (D19) ────────────────────────────────────────────────────────────────────
@@ -646,6 +692,8 @@ export interface AuthState {
   readonly setup: boolean
   /** The identity provider's name, when one is configured: « Se connecter avec {sso} ». */
   readonly sso: string | null
+  /** The server writes e-mails (D23): « Mot de passe oublié ? » sends a link. */
+  readonly forgot: boolean
 }
 
 export interface SignInBody {

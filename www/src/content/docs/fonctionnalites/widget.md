@@ -107,6 +107,31 @@ La carte paraît dans deux cas :
 Elle ne paraît qu’une fois par conversation, et jamais pour un contact dont l’adresse est déjà
 connue. Un client que le site a signé garde l’adresse de sa signature.
 
+#### La réponse, par e-mail
+
+Quand le serveur écrit des e-mails (`CHAT_SMTP_URL`), la promesse est tenue : une réponse —
+d’un conseiller, de l’IA, d’une automatisation — écrite à un visiteur dont on connaît l’adresse
+lui part par e-mail **s’il ne l’a pas vue**. Celle qu’il a laissée dans la carte, comme celle
+que le site a signée : un client connecté la reçoit aussi. Un site qui n’en veut pas décoche
+**Répondre par e-mail**, dans **Administration › Sites et horaires**, section **Le visiteur
+parti**.
+
+- Elle attend **deux minutes** : le visiteur revenu sur le site entre-temps la lit dans le widget,
+  et rien ne part.
+- Un visiteur qui a encore une page du site ouverte la voit : rien ne part. Le widget dit au
+  serveur les pages ouvertes et quittées ([pages vues](/messagerie/fonctionnalites/inbox/#le-panneau-de-détails)).
+- Les réponses écrites depuis qu’il a quitté sa dernière page partent ensemble, dans **un seul
+  e-mail** : « Acme Assurances vous a répondu », chaque réponse signée du prénom du conseiller, de
+  « Assistant IA » ou du nom du site, et ses fichiers nommés.
+- Un bouton **Reprendre la conversation** ramène à la page d’où il écrivait. Le visiteur ne
+  répond pas par e-mail : il revient sur le site, où le widget retrouve la conversation.
+- L’e-mail est dans la langue du site ; l’expéditeur est `CHAT_MAIL_FROM`.
+
+Dans l’inbox, la réponse le dit sous elle : **Par e-mail s’il ne revient pas** pendant l’attente,
+puis **Envoyé par e-mail**. Rien n’est dit d’une réponse que le visiteur a vue sur le site.
+Un visiteur qui a recommencé une conversation depuis la page (`reset`) ne reçoit plus celles de
+l’ancienne.
+
 ### Ce que l’IA propose de faire sur la page
 
 Quand la page a déclaré des [actions](/messagerie/integrations/actions-de-page/) et qu’un

@@ -8,7 +8,9 @@ import { installDefaultAutomations } from '../automations/defaults.js'
 import type { Config } from '../config.js'
 import type { Db } from '../db/client.js'
 import { agentIdentities, agents } from '../db/schema.js'
+import { mailLink } from '../inbox/accounts.js'
 import { type AgentRow, toAgent } from '../inbox/read.js'
+import type { Mailer } from '../outbound/mailer.js'
 import { person } from '../programs.js'
 import { Refusal } from '../refusal.js'
 import type { Settings } from '../settings/settings.js'
@@ -20,6 +22,7 @@ import {
   closeSession,
   closeSessionsOf,
   hashPassword,
+  issueLink,
   openSession,
   readLink,
   sessionAgent,
@@ -70,6 +73,8 @@ export function authRoutes(deps: {
   readonly db: Db
   readonly config: Config
   readonly settings: Settings
+  /** The SMTP server, when one is configured: « Mot de passe oublié ? » (D23). */
+  readonly mailer?: Mailer | null
 }): Hono {
   const { db, config } = deps
   const auth = new Hono()
@@ -127,6 +132,7 @@ export function authRoutes(deps: {
       agent: agent ? toAgent(agent) : null,
       setup: !(await anyoneCanSignIn(db)),
       sso: config.oidc?.name ?? null,
+      forgot: Boolean(deps.mailer),
     } satisfies AuthState)
   })
 
@@ -166,6 +172,36 @@ export function authRoutes(deps: {
     if (!agent || !good || !agent.active) throw new Refusal('SIGN_IN_FAILED', 401)
     await signIn(c, agent)
     return c.json(toAgent(agent))
+  })
+
+  /**
+   * « Mot de passe oublié ? »: a link to choose a new one, by e-mail (D23). The same answer
+   * whoever the address is — known or not, with or without a password: nobody learns who
+   * has an account. Sent after the answer, so that its time says nothing either.
+   */
+  auth.post('/forgot', async (c) => {
+    const email = str((await jsonOf(c)).email)
+      .trim()
+      .toLowerCase()
+    slow(c, email)
+    const mailer = deps.mailer ?? null
+    if (!mailer) throw new Refusal('MAIL_UNAVAILABLE', 503)
+    if (!EMAIL.test(email)) throw new Refusal('INVALID_REQUEST', 400, { field: 'email' })
+    void (async () => {
+      const [agent] = await db
+        .select()
+        .from(agents)
+        .where(and(eq(agents.login, email), eq(agents.active, true), person(agents.login)))
+      if (!agent) return
+      const token = await issueLink(db, agent.id, 'reset', null)
+      await mailLink(mailer, agent.email ?? agent.login, {
+        purpose: 'reset',
+        name: agent.name,
+        by: null,
+        link: `${config.webOrigin}/invitation/${token}`,
+      })
+    })().catch((error) => console.error('chat : mot de passe oublié', error))
+    return c.body(null, 202)
   })
 
   auth.post('/sign-out', async (c) => {

@@ -170,7 +170,7 @@ ont un libellé en français.
 
 | Source | Une ligne par… | Quelques colonnes |
 |---|---|---|
-| **Conversations** | conversation | commencée le, statut, boîte, équipe, site, priorité, humeur, conseiller, client identifié, pays, l’IA a répondu, transférée par l’IA, résolue par l’IA, première réponse (s), messages |
+| **Conversations** | conversation | commencée le, statut, boîte, équipe, site, canal (widget, SMS, RCS), priorité, humeur, conseiller, client identifié, pays, l’IA a répondu, transférée par l’IA, résolue par l’IA, première réponse (s), messages |
 | **Messages** | message | envoyé le, auteur (visiteur, IA, conseiller, système), type (message, note, fichier, transfert), conseiller, boîte, supprimé |
 | **Appels à l’IA** | appel au modèle | le, raison (réponse, suggestion, étiquettes, résumé, reformulation, pièce jointe, voix, automatisation), modèle, confiance, durée, jetons lus et écrits |
 | **Avis sur l’IA** | avis d’un conseiller | le, avis (acceptée, modifiée, rejetée), conseiller, sur |

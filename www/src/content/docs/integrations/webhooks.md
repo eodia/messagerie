@@ -85,6 +85,7 @@ X-Messagerie-Webhook-Id: 7c0a3f12-…
         },
         "site": "Acme Assurances",
         "siteId": "01a0f647-6c2e-7d41-8b5a-3f9e2c7d1a46",
+        "channel": "web",
         "inboxId": "01a0f647-74b7-7450-93a6-8dfe920d8934",
         "teamId": null,
         "status": "open",

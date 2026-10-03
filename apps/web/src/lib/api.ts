@@ -1,5 +1,6 @@
 import type {
   Agent,
+  AlertChannels,
   AnalyticsSource,
   ApiDocumentation,
   ApiError,
@@ -137,6 +138,12 @@ const zone = () => Intl.DateTimeFormat().resolvedOptions().timeZone
 
 export const api = {
   me: () => request<Agent>('GET', '/me'),
+  /** Where one's alerts go beyond the open inbox: devices, mailbox (D23). */
+  alerts: () => request<AlertChannels>('GET', '/alerts'),
+  setEmailAlerts: (email: boolean) => request<void>('PATCH', '/alerts', { email }),
+  subscribeDevice: (subscription: PushSubscriptionJSON) =>
+    request<void>('PUT', '/alerts/devices', subscription),
+  unsubscribeDevice: (endpoint: string) => request<void>('DELETE', '/alerts/devices', { endpoint }),
   agents: () => request<Agent[]>('GET', '/agents'),
   ticket: () => request<Ticket>('POST', '/ticket'),
   conversations: () => request<ConversationSummary[]>('GET', '/conversations'),

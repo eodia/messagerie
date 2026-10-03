@@ -3,6 +3,7 @@
 import { Chip } from '@/components/app/chip'
 import { CopyButton } from '@/components/app/copy-button'
 import { Button } from '@/components/ui/button'
+import { Hint } from '@/components/ui/tooltip'
 import { $t, $tp, intlLocale, msg } from '@/lib/i18n'
 import { useSpeech } from '@/lib/speech'
 import { clockTime } from '@/lib/time'
@@ -11,6 +12,7 @@ import type {
   AgentMessage,
   AiMessage,
   ConversationEvent,
+  Delivery,
   EventMessage,
   Feedback,
   HandoffMessage,
@@ -27,13 +29,17 @@ import {
   Ban,
   Bot,
   Check,
+  CheckCheck,
   ChevronRight,
+  CircleAlert,
   CircleCheck,
+  Clock,
   FileText,
   Flag,
   Forward,
   Hand,
   Inbox,
+  Mail,
   MessagesSquare,
   MousePointerClick,
   Pencil,
@@ -141,6 +147,124 @@ export function VisitorBubble({
   )
 }
 
+/** Why an answer did not reach the visitor, from the provider's code or the chat's (D23). */
+function deliveryFailure(code: string | null): string {
+  switch (code) {
+    case 'TWILIO_21610':
+      return $t('Le client a répondu STOP : il ne reçoit plus de SMS de ce numéro.')
+    case 'TWILIO_21211':
+    case 'TWILIO_21614':
+      return $t('Ce numéro ne reçoit pas de SMS.')
+    case 'TWILIO_30003':
+    case 'TWILIO_30005':
+    case 'TWILIO_30006':
+      return $t('Le téléphone est injoignable, ou le numéro n’existe plus.')
+    case 'TWILIO_30007':
+      return $t('L’opérateur a filtré le message.')
+    case 'NUMBER_UNAVAILABLE':
+    case 'ACCOUNT_MISSING':
+    case 'TOKEN_MISSING':
+      return $t('Le numéro SMS est inactif, ou il lui manque son compte ou son jeton.')
+    default:
+      return code ? $t('Refusé ({code}).', { code }) : $t('Refusé.')
+  }
+}
+
+/** How an answer left for the visitor: their phone, or their mailbox once they had left. */
+function DeliveryMark({
+  delivery,
+  compact = false,
+}: {
+  readonly delivery: Delivery | undefined
+  /** Its pictogram alone, its words in a hint: where the line is short. */
+  readonly compact?: boolean
+}) {
+  if (!delivery) return null
+  const sms = delivery.by === 'sms'
+  if (compact) {
+    const said =
+      delivery.status === 'failed'
+        ? `${sms ? $t('Non remis') : $t('E-mail non parti')} — ${deliveryFailure(delivery.error)}`
+        : delivery.status === 'pending'
+          ? sms
+            ? $t('SMS en file')
+            : $t('Par e-mail s’il ne revient pas')
+          : !sms
+            ? $t('Envoyé par e-mail')
+            : delivery.status === 'sent'
+              ? $t('Envoyé')
+              : delivery.status === 'read'
+                ? $t('Lu')
+                : $t('Remis')
+    const Icon =
+      delivery.status === 'failed'
+        ? CircleAlert
+        : delivery.status === 'pending'
+          ? Clock
+          : !sms
+            ? Mail
+            : delivery.status === 'sent'
+              ? Check
+              : CheckCheck
+    return (
+      <Hint label={said}>
+        <Icon
+          aria-label={said}
+          className={cn(
+            'size-3.5 shrink-0',
+            delivery.status === 'failed' && 'text-rose-600 dark:text-rose-400',
+            delivery.status === 'read' && 'text-emerald-600 dark:text-emerald-400',
+          )}
+        />
+      </Hint>
+    )
+  }
+  const mark =
+    delivery.status === 'failed' ? (
+      <span className="inline-flex items-center gap-1 text-rose-700 dark:text-rose-400">
+        <CircleAlert className="size-3" />
+        {sms ? $t('Non remis') : $t('E-mail non parti')}
+      </span>
+    ) : delivery.status === 'pending' ? (
+      <span className="inline-flex items-center gap-1">
+        <Clock className="size-3" />
+        {sms ? $t('SMS en file') : $t('Par e-mail s’il ne revient pas')}
+      </span>
+    ) : !sms ? (
+      <span className="inline-flex items-center gap-1">
+        <Mail className="size-3" />
+        {$t('Envoyé par e-mail')}
+      </span>
+    ) : delivery.status === 'sent' ? (
+      <span className="inline-flex items-center gap-1">
+        <Check className="size-3" />
+        {$t('Envoyé')}
+      </span>
+    ) : (
+      <span
+        className={cn(
+          'inline-flex items-center gap-1',
+          delivery.status === 'read' && 'text-emerald-700 dark:text-emerald-400',
+        )}
+      >
+        <CheckCheck className="size-3" />
+        {delivery.status === 'read' ? $t('Lu') : $t('Remis')}
+      </span>
+    )
+  return (
+    <>
+      {' · '}
+      {delivery.status === 'failed' ? (
+        <Hint label={deliveryFailure(delivery.error)}>
+          <span className="cursor-default">{mark}</span>
+        </Hint>
+      ) : (
+        mark
+      )}
+    </>
+  )
+}
+
 export function AgentBubble({ message }: { readonly message: AgentMessage }) {
   return (
     <div className="group/message flex justify-end">
@@ -155,6 +279,7 @@ export function AgentBubble({ message }: { readonly message: AgentMessage }) {
         <Meta align="right">
           <SpeakButton id={message.id} text={message.body} /> {message.author} ·{' '}
           {clockTime(message.at)}
+          <DeliveryMark delivery={message.delivery} />
         </Meta>
       </div>
     </div>
@@ -397,7 +522,10 @@ export function AiAnswer({
           <ConfidenceChip value={message.confidence} />
           <span className="ml-auto flex items-center gap-1 text-[11px] text-muted-foreground tabular-nums">
             <SpeakButton id={message.id} text={message.body} />
-            {$t('Envoyée · {time}', { time: clockTime(message.at) })}
+            <span className="whitespace-nowrap">
+              {$t('Envoyée · {time}', { time: clockTime(message.at) })}
+            </span>
+            <DeliveryMark delivery={message.delivery} compact />
           </span>
         </header>
 

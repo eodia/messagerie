@@ -51,7 +51,7 @@ import {
 } from 'react'
 import { BulkBar, TickBox } from './bulk-bar'
 import { DesktopInvite } from './desktop-invite'
-import { ContactAvatar, StateChip } from './labels'
+import { ChannelMark, ContactAvatar, StateChip } from './labels'
 import { ActiveFilters, FiltersButton } from './list-filters'
 import { TypingDots } from './messages'
 
@@ -528,6 +528,7 @@ export function ConversationRow({
               <BadgeCheck className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
             </Hint>
           )}
+          <ChannelMark channel={summary.channel} />
           <span
             className={cn(
               'ml-auto shrink-0 text-[11px] tabular-nums',

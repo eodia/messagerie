@@ -217,6 +217,7 @@ export function ChatGlimpse() {
     },
     site: 'Acme Assurances',
     siteId: 'acme',
+    channel: 'web',
     inboxId: null,
     teamId: null,
     status: 'ai',

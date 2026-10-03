@@ -58,6 +58,8 @@ export const authState = () => call<AuthState>('GET', '/state')
 export const signIn = (body: SignInBody) => call<void>('POST', '/sign-in', body)
 export const setUp = (body: SetupBody) => call<void>('POST', '/setup', body)
 export const signOut = () => call<void>('POST', '/sign-out', {})
+/** « Mot de passe oublié ? »: a link by e-mail — the same answer, whoever the address is. */
+export const forgotPassword = (email: string) => call<void>('POST', '/forgot', { email })
 export const changePassword = (body: ChangePasswordBody) => call<void>('POST', '/password', body)
 export const linkInfo = (token: string) =>
   call<LinkInfo>('GET', `/links/${encodeURIComponent(token)}`)

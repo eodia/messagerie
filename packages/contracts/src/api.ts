@@ -88,6 +88,14 @@ export type ErrorCode =
   | 'AUTOMATION_INVALID'
   /** An automation's own address, called with a wrong key, or while it is off. */
   | 'AUTOMATION_KEY_INVALID'
+  /** No SMTP server is configured (CHAT_SMTP_URL): the chat writes no e-mail. */
+  | 'MAIL_UNAVAILABLE'
+  /** Not an address of a browser's push service. */
+  | 'PUSH_REJECTED'
+  /** An SMS number that does not exist, is off, or lacks its account or token. */
+  | 'NUMBER_UNAVAILABLE'
+  /** A provider's webhook whose signature does not hold. */
+  | 'SIGNATURE_INVALID'
 
 /** Opens the inbox's WebSocket, once, within thirty seconds. */
 export interface Ticket {

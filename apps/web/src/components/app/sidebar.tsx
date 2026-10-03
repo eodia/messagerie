@@ -29,6 +29,7 @@ import {
   Palette,
   Settings,
   ShieldAlert,
+  Smartphone,
   UsersRound,
   Workflow,
   Wrench,
@@ -70,6 +71,7 @@ const SETTINGS: readonly Screen[] = [
   { href: '/outils', label: msg('Outils IA'), icon: Wrench },
   { href: '/automatisations', label: msg('Automatisations'), icon: Workflow },
   { href: '/widget', label: msg('Widget'), icon: Palette },
+  { href: '/parametrage/sms', label: msg('Numéros SMS'), icon: Smartphone },
   { href: '/parametrage/api', label: msg('API et MCP'), icon: KeyRound },
 ]
 

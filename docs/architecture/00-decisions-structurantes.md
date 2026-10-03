@@ -36,7 +36,8 @@ démarrage (D8) :
 - **les comptes** — les conseillers, leurs sessions, les liens d'invitation, leurs
   identités chez un fournisseur OIDC (D4) ;
 - **le flux** — contacts, conversations, messages, `ai_runs`, `ai_feedback`, `kb_chunks` et
-  leurs vecteurs, pièces jointes, notifications, journal des accès, jetons, webhooks.
+  leurs vecteurs, pièces jointes, notifications, journal des accès, jetons, webhooks, ce qui
+  sort (D23) et les appareils des conseillers.
 
 Une conversation garde l'identifiant texte de son site, de sa boîte et de son équipe, et
 le nom du site au moment où elle a commencé : l'historique survit à une ligne supprimée.
@@ -580,6 +581,63 @@ couleur de sens), sous des cartes « titre » qui séparent les sections.
   conversations par jour, par boîte), *Visiteurs et IA* (humeur, étiquettes, avis sur l'IA),
   *Équipe* (charge par conseiller, heures où les visiteurs écrivent).
 
+## D23 — Ce qui sort de la messagerie : e-mails, alertes sur le téléphone, SMS et RCS
+
+La messagerie ne parlait qu'au widget et à l'inbox ouverte. Elle écrit désormais ailleurs : par
+e-mail, sur le téléphone d'un conseiller, et par SMS ou RCS au visiteur qui écrit depuis le sien.
+
+**Une file, captée dans la transaction.** Tout ce qui sort passe par `chat.outbound`, que relève
+un facteur (`apps/server/src/outbound/dispatch.ts`) toutes les deux secondes, là où tournent les
+webhooks (D17) : sous bail, à plusieurs processus (`SKIP LOCKED`), six essais sur une heure et
+quart, puis échec avec son code (D9 bis). Une réponse au visiteur y entre par un déclencheur sur
+`chat.message`, dans la transaction qui l'écrit, quel que soit son chemin — inbox, IA,
+automatisation, API ; une alerte, par `notify`, avec la ligne de cloche. Un message écrit dans le
+passé (la démonstration, un import) n'y entre pas. Gardée 90 jours ; purgée avec sa conversation.
+
+**Les e-mails** passent par un serveur SMTP (`CHAT_SMTP_URL`, `CHAT_MAIL_FROM`) ; sans lui, aucun.
+
+- Les **liens des comptes** (D4) partent aussi à l'adresse du conseiller : l'invitation, le
+  nouveau mot de passe. Le lien reste affiché une fois — un e-mail se perd. Il n'est jamais
+  écrit dans la file : la base n'en garde que l'empreinte.
+- **Mot de passe oublié ?** envoie un lien à l'adresse tapée. Même réponse, en même temps,
+  que l'adresse soit connue ou non ; l'envoi se fait après la réponse.
+- **Le visiteur qui a laissé son e-mail** (la carte du widget, D20) reçoit les réponses qu'il
+  n'a pas vues : deux minutes d'attente, puis un e-mail qui réunit les réponses écrites depuis
+  qu'il a quitté sa dernière page (`page_view`, D21) — rien s'il a une page ouverte. Dans la
+  langue du site, avec un lien vers la page d'où il écrivait. Il ne répond pas par e-mail : il
+  revient sur le site. Un site le coupe (« Répondre par e-mail », coché par défaut) : le
+  client que le site a signé a une adresse, et l'activer pour les invitations n'impose pas
+  d'écrire aux clients.
+- **Un conseiller qui le demande** reçoit par e-mail ce qui reste non lu dans sa cloche dix
+  minutes : une fois par ligne.
+
+**Les alertes sur le téléphone** sont du Web Push, sans bibliothèque ni service tiers (RFC 8291,
+8292) : l'inbox s'installe (manifeste, service worker `/sw.js`) et chaque appareil s'abonne
+depuis le menu du compte. Ce qui reste non lu quinze secondes dans la cloche y part, chiffré pour
+l'appareil seul ; un onglet de l'inbox au premier plan le tait. La clé VAPID est tirée de
+`CHAT_SECRET`, pour ce seul usage : rien à régler, et la changer réabonne les appareils. Le
+serveur n'appelle que les services de push des navigateurs (Google, Mozilla, Apple, Microsoft),
+et oublie un appareil que son service dit parti. Un iPhone ne reçoit les alertes que de l'inbox
+ajoutée à l'écran d'accueil.
+
+**SMS et RCS** passent par Twilio, derrière une interface à lui (`channels/twilio.ts`) :
+
+- **Un numéro** est une ligne de « Numéros SMS » : son compte, la variable de son jeton (D5),
+  son site — dont les conversations prennent la boîte, l'équipe, l'IA et la langue — et, pour
+  le RCS, un service de messagerie Twilio avec un expéditeur RCS, qui écrit en RCS aux
+  téléphones qui le lisent et en SMS aux autres.
+- **Ce qui arrive** est un appel de Twilio à `/channels/twilio/<numéro>`, signé par le jeton
+  du compte et refusé sinon. Le téléphone est un contact du site, nommé par son numéro ; sa
+  conversation, celle du numéro (une conversation résolue depuis plus d'un jour est finie). Un
+  message rejoué par Twilio n'est écrit qu'une fois. Une image, un PDF suivent la règle des
+  pièces jointes (D14).
+- **Une conversation garde son canal** (`web`, `sms`, `rcs`), celui du dernier message du
+  visiteur. L'IA y répond en texte simple ; la carte de l'e-mail n'y est pas demandée.
+- **Ce qui repart** : chaque réponse, dans l'ordre de la conversation, en texte simple, en
+  plusieurs messages au-delà de 1 600 caractères. Un fichier part en RCS ; en SMS, son lien
+  signé, valable un jour, est dans le texte. Twilio dit ensuite remis, lu (RCS) ou non remis,
+  avec son code : l'inbox l'écrit sous la réponse.
+
 ## Questions ouvertes
 
 Reprises du cadrage :
@@ -587,7 +645,7 @@ Reprises du cadrage :
 - Quel modèle LLM est autorisé, et avec quelles données ?
 - Quels sites embarquent le widget au lancement, et leurs clients y sont-ils connectés ?
 - Quels outils métier l'agent peut-il appeler en phase 4 ?
-- Faut-il le canal e-mail dès le MVP ?
+- Faut-il le canal e-mail dès le MVP ? (D23 envoie des e-mails ; les recevoir reste ouvert.)
 - Quelle durée de conservation impose la conformité ?
 - Quel volume à dimensionner (conversations par jour, conseillers simultanés) ?
 

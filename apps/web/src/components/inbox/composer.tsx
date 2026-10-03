@@ -234,7 +234,11 @@ export function Composer({
     value: draft,
     placeholder:
       mode === 'reply'
-        ? $t('Écrire au visiteur — « / » pour une réponse type…')
+        ? conversation.channel === 'web'
+          ? $t('Écrire au visiteur — « / » pour une réponse type…')
+          : $t('Répondre par {channel}, en texte simple — « / » pour une réponse type…', {
+              channel: conversation.channel === 'rcs' ? 'RCS' : 'SMS',
+            })
         : $t('Une note pour l’équipe : le visiteur ne la verra pas.'),
     onChange: (markdown) => {
       setDraft(conversation.id, markdown)

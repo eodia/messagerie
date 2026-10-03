@@ -64,6 +64,7 @@ export function AppShell({
   useEffect(() => {
     if (status !== 'signed-in') return
     const stopInbox = useInbox.getState().start()
+    void useAlertSettings.getState().loadChannels()
     const stopBadge = useInbox.subscribe((state) => showWaiting(waitingCount(state)))
     return () => {
       stopInbox()

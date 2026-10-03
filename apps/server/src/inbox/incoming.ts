@@ -34,6 +34,8 @@ export async function createConversation(
     readonly defaultTeamId: string | null
   },
   route: { readonly inboxId: string | null; readonly teamId: string | null } | null = null,
+  /** Where the visitor writes from, when not the widget: an SMS number (D23). */
+  held: { readonly channel: 'sms' | 'rcs'; readonly smsNumberId: string } | null = null,
 ): Promise<string> {
   const [row] = await db
     .insert(conversations)
@@ -44,6 +46,7 @@ export async function createConversation(
       status: site.aiEnabled ? 'ai' : 'open',
       inboxId: route?.inboxId ?? null,
       teamId: route ? route.teamId : site.defaultTeamId,
+      ...(held ?? {}),
     })
     .returning({ id: conversations.id })
   if (!row) throw new Refusal('INTERNAL_ERROR', 500)
@@ -61,6 +64,8 @@ export async function receiveVisitorMessage(
   body: string,
   /** The rows of the files sent with it, given the message's id. */
   attach?: AttachRows,
+  /** An SMS or RCS: the provider's id of it, and the channel it came by (D23). */
+  phone?: { readonly providerId: string; readonly channel: 'sms' | 'rcs' },
 ): Promise<void> {
   const text = body.trim()
   if (text === '' && !attach) throw new Refusal('EMPTY_MESSAGE', 400)
@@ -69,7 +74,13 @@ export async function receiveVisitorMessage(
     const at = new Date()
     const [message] = await tx
       .insert(messages)
-      .values({ conversationId: id, author: 'contact', body: text, createdAt: at })
+      .values({
+        conversationId: id,
+        author: 'contact',
+        body: text,
+        meta: phone ? { providerId: phone.providerId } : {},
+        createdAt: at,
+      })
       .returning({ id: messages.id })
     if (attach && message) await tx.insert(attachments).values(attach(message.id))
     const status =
@@ -82,7 +93,15 @@ export async function receiveVisitorMessage(
           : row.status
     await tx
       .update(conversations)
-      .set({ status, snoozedUntil: null, agentUnread: true, lastMessageAt: at, updatedAt: at })
+      .set({
+        status,
+        snoozedUntil: null,
+        agentUnread: true,
+        lastMessageAt: at,
+        updatedAt: at,
+        // RCS or SMS: the answers go back by what the visitor last wrote with.
+        ...(phone ? { channel: phone.channel } : {}),
+      })
       .where(eq(conversations.id, id))
     if (status === 'ai') {
       await signalChange(tx, id)

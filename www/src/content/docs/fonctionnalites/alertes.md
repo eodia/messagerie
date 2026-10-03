@@ -1,6 +1,6 @@
 ---
 title: Alertes
-description: Le son, les notifications du bureau, les pastilles de l’onglet et la cloche de chaque conseiller — qui est prévenu de quoi, et comment le régler.
+description: Le son, les notifications du bureau, les alertes sur le téléphone et par e-mail, les pastilles de l’onglet et la cloche de chaque conseiller — qui est prévenu de quoi, et comment le régler.
 ---
 
 Un conseiller ne garde pas les yeux sur la liste. L’inbox l’appelle quand une conversation a
@@ -70,6 +70,51 @@ Les navigateurs taisent une page tant qu’on n’y a pas cliqué ni tapé. Le s
 un premier clic ou une première touche dans l’inbox, après chaque chargement de la page.
 :::
 
+## Sur le téléphone
+
+L’inbox fermée, un conseiller reste prévenu sur son téléphone — ou sur un ordinateur où
+l’inbox n’est pas ouverte : ce qui arrive dans sa **cloche** et y reste **non lu quinze
+secondes** part en notification, « Léa Martin vous a écrit », avec le site et les premiers
+mots du visiteur. La toucher ouvre la conversation. Quinze secondes : le temps de la lire à
+son bureau, et de ne pas faire vibrer sa poche pour rien.
+
+- **Une ligne lue entre-temps** — la conversation ouverte, **Tout marquer comme lu** — ne part
+  pas.
+- Un visiteur qui écrit cinq fois ne fait pas vibrer cinq fois : une alerte attend par ligne de
+  la cloche, et les alertes d’une même conversation se remplacent sur le téléphone.
+- **Un onglet de l’inbox au premier plan** sur l’appareil tait l’alerte : il a déjà sonné.
+- Ce qui ne va pas dans la cloche — un message dans une conversation de la file, que personne
+  n’a prise — ne part pas non plus.
+
+**L’activer** : sur le téléphone, ouvrez l’inbox, puis le menu du compte, **Sur cet appareil,
+inbox fermée**. Le navigateur demande la permission ; chaque appareil s’active ainsi, et un
+autre conseiller qui se connecte sur le même appareil le reprend pour lui. Le décocher arrête
+les alertes de cet appareil.
+
+:::note[Sur iPhone et iPad]
+Safari n’envoie d’alertes qu’à une application de l’écran d’accueil. Ouvrez l’inbox dans
+Safari, **Partager**, puis **Sur l’écran d’accueil** ; ouvrez-la depuis son icône, et activez
+les alertes dans son menu. Tant qu’elle n’est pas installée, l’entrée le rappelle. Android,
+Chrome, Edge et Firefox n’en demandent pas tant ; installer l’inbox reste possible partout
+(**Installer l’application**, dans le menu du navigateur).
+:::
+
+L’inbox doit être servie en **HTTPS** : un navigateur ne propose les alertes qu’à une page sûre
+— `localhost` excepté. Les alertes passent par le service de push du navigateur (Apple, Google,
+Mozilla, Microsoft), chiffrées pour l’appareil seul : ce service les porte sans les lire. Rien
+n’est à configurer côté serveur ; voir les [variables](/messagerie/hebergement/variables/#alertes-sur-le-téléphone).
+
+## Par e-mail
+
+Un conseiller qui le demande reçoit par e-mail ce qui reste **non lu dix minutes** dans sa
+cloche : un e-mail par ligne, une fois, avec le site, les mots du visiteur et un bouton **Ouvrir
+la conversation**. Lue avant, la ligne ne part pas ; remontée en tête par un nouveau message,
+elle ne repart pas.
+
+Le réglage est **Par e-mail**, dans le menu du compte : « Ce qui reste non lu dix minutes, à … »,
+l’adresse de sa fiche. Il suit le conseiller d’un appareil à l’autre. Il ne paraît que si le
+serveur écrit des e-mails (`CHAT_SMTP_URL`).
+
 ## Les pastilles
 
 Les pastilles comptent **ce qui attend le lecteur** : les conversations non lues qui sont les
@@ -93,6 +138,8 @@ Dans le menu du compte, en bas de la barre latérale, sous **Alertes** :
 |---|---|
 | **Son à chaque nouveau message** | activé |
 | **Notifications du bureau** | désactivé ; l’activer demande la permission au navigateur |
+| **Sur cet appareil, inbox fermée** | désactivé ; voir [plus haut](#sur-le-téléphone) |
+| **Par e-mail** | désactivé ; voir [plus haut](#par-e-mail) — si le serveur écrit des e-mails |
 | **Mode audio** | désactivé ; voir [l’inbox](/messagerie/fonctionnalites/inbox/#mode-audio--lecture-et-dictée) |
 
 Les notifications du bureau sont aussi proposées une fois, au pied de la liste des
@@ -101,8 +148,8 @@ onglet. » **Activer les notifications** demande la permission au navigateur ; 
 ferme. Dans les deux cas, elle ne revient plus dans ce navigateur : le réglage reste dans le menu
 du compte.
 
-Ces réglages valent **pour ce navigateur** : un poste partagé n’est pas un ordinateur
-personnel. Si le navigateur a refusé les notifications, l’entrée devient **Notifications
+Ces réglages valent **pour ce navigateur** — sauf **Par e-mail**, qui suit le conseiller : un
+poste partagé n’est pas un ordinateur personnel. Si le navigateur a refusé les notifications, l’entrée devient **Notifications
 bloquées par le navigateur** ; il faut alors les autoriser dans ses réglages.
 
 La cloche ne se règle pas : elle garde tout ce qui vous a appelé, son et bureau coupés compris.

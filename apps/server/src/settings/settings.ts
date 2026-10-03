@@ -24,6 +24,7 @@ export const TABLES = {
   guardrails: 'Garde-fous',
   tools: 'Outils IA',
   mcp: 'Serveurs MCP',
+  sms: 'Numéros SMS',
 } as const
 
 type TableLabel = (typeof TABLES)[keyof typeof TABLES]
@@ -57,6 +58,23 @@ export interface Inbox {
   readonly active: boolean
 }
 
+/**
+ * A number visitors write to by SMS or RCS (D23), through Twilio. `tokenEnv` names the
+ * variable of the server's environment that holds the auth token (D5).
+ */
+export interface SmsNumber {
+  readonly id: string
+  readonly name: string
+  /** `+33612345678`, or null when the row does not say a number that reads. */
+  readonly phone: string | null
+  readonly accountSid: string | null
+  readonly tokenEnv: string | null
+  readonly messagingServiceSid: string | null
+  /** The site its conversations are held for; null: the first active one. */
+  readonly siteId: string | null
+  readonly active: boolean
+}
+
 export interface Site {
   readonly id: string
   readonly name: string
@@ -76,6 +94,8 @@ export interface Site {
   readonly threshold: number
   readonly instructions: string | null
   readonly retentionDays: number | null
+  /** « Répondre par e-mail »: what a visitor who left did not see reaches them (D23). */
+  readonly emailReplies: boolean
   readonly active: boolean
   readonly defaultTeamId: string | null
   /** The inbox its conversations reach; null: the first active one. */
@@ -393,6 +413,8 @@ export class Settings {
       threshold: Math.min(Math.max((num(values['Seuil de confiance (%)']) ?? 75) / 100, 0), 1),
       instructions: text(values["Consignes de l'agent IA"]),
       retentionDays: num(values['Conservation (jours)']),
+      // A row of the database says it; one of memory without the field, as the column's default.
+      emailReplies: values['Répondre par e-mail'] !== false,
       active: bool(values.Actif),
       defaultTeamId: one(values['Équipe par défaut']),
       inboxId: one(values['Boîte de réception']),
@@ -596,5 +618,26 @@ export class Settings {
         },
       ]
     })
+  }
+
+  /** « Numéros SMS », every row — the inactive ones too: the inbox says they are off. */
+  async smsNumbers(): Promise<SmsNumber[]> {
+    return (await this.table(TABLES.sms)).map(({ id, values }) => {
+      const phone = (text(values.Numéro) ?? '').replace(/[\s.()-]/g, '')
+      return {
+        id,
+        name: text(values.Nom) ?? id,
+        phone: /^\+[1-9]\d{6,14}$/.test(phone) ? phone : null,
+        accountSid: text(values['Compte Twilio']),
+        tokenEnv: text(values["Jeton (variable d'environnement)"]),
+        messagingServiceSid: text(values['Service de messagerie']),
+        siteId: one(values.Site),
+        active: bool(values.Actif),
+      }
+    })
+  }
+
+  async smsNumber(id: string): Promise<SmsNumber | null> {
+    return (await this.smsNumbers()).find((n) => n.id === id) ?? null
   }
 }

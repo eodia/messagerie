@@ -104,7 +104,10 @@ interface Demo {
     readonly externalId: string | null
     readonly location?: string
     readonly attributes?: readonly ContactAttribute[]
+    readonly phone?: string
   }
+  /** A conversation by SMS, on the demonstration's number (D23). */
+  readonly channel?: 'sms'
   readonly status: 'ai' | 'open' | 'pending' | 'resolved'
   readonly assignee: string | null
   readonly unread: boolean
@@ -387,6 +390,33 @@ const DEMOS: readonly Demo[] = [
     ],
   },
   {
+    contact: { name: '+33648217709', phone: '+33648217709', email: null, externalId: null },
+    channel: 'sms',
+    status: 'ai',
+    assignee: null,
+    unread: false,
+    intent: 'Renouvellement de contrat',
+    tags: [TAGS.home, TAGS.contract],
+    sentiment: 'positive',
+    priority: 'low',
+    lines: [
+      {
+        t: '2026-09-30T09:52:00',
+        visitor:
+          'Bonjour, j’ai reçu un courrier pour le renouvellement de mon assurance habitation. Je dois faire quelque chose ?',
+      },
+      {
+        t: '2026-09-30T09:52:00',
+        ai: 'Bonjour ! Votre contrat habitation se renouvelle tout seul à son échéance : vous n’avez rien à faire. Pour changer une garantie, écrivez-moi ici, un conseiller vous répondra.',
+        confidence: 0.9,
+        sources: [
+          { title: 'Renouvellement des contrats', origin: 'article', detail: 'Article · Contrats' },
+        ],
+      },
+      { t: '2026-09-30T09:55:00', visitor: 'Parfait, merci !' },
+    ],
+  },
+  {
     contact: { name: 'Hugo Lambert', email: 'hugo.lambert@gmail.com', externalId: 'CLI-450092' },
     status: 'pending',
     assignee: ME,
@@ -436,6 +466,7 @@ const settings = new Settings(new DatabaseSource(db))
 const found = (await settings.sites()).find((s) => s.active)
 if (found) SITE = { id: found.id, name: found.name }
 inboxes = await settings.inboxes()
+const SMS_NUMBER = (await settings.smsNumbers())[0]?.id ?? null
 
 await db.transaction(async (tx) => {
   const agentRows = [
@@ -476,6 +507,7 @@ await db.transaction(async (tx) => {
         ...(CITIES[demo.contact.location ?? ''] ?? { latitude: 48.87, longitude: 2.33 }),
         segment: demo.contact.externalId !== null ? 'Particulier' : null,
         attributes: [...(demo.contact.attributes ?? [])],
+        phone: demo.contact.phone ?? null,
       })
       .returning()
     if (!contact) throw new Error('seed: contact not inserted')
@@ -489,6 +521,7 @@ await db.transaction(async (tx) => {
         siteId: SITE.id,
         siteName: SITE.name,
         ...routeOf(demo),
+        ...(demo.channel ? { channel: demo.channel, smsNumberId: SMS_NUMBER } : {}),
         status: demo.status,
         assigneeId: demo.assignee ? idOf(demo.assignee) : null,
         priority: demo.priority,
@@ -637,6 +670,19 @@ await db.transaction(async (tx) => {
     }
   }
 })
+
+// What the demonstration wrote leaves nowhere (D23): no e-mail to its visitors, no SMS. Its
+// SMS conversation's answers read as delivered, and the last one read.
+await db.execute(sql`delete from chat.outbound`)
+await db.execute(sql`
+  insert into chat.outbound (channel, purpose, conversation_id, message_id, status, provider_id, sent_at, created_at)
+  select 'sms', 'message', m.conversation_id, m.id,
+    case when row_number() over (partition by m.conversation_id order by m.created_at desc) = 1
+      then 'read' else 'delivered' end::chat.outbound_status,
+    'SM-demo-' || left(m.id::text, 8), m.created_at, m.created_at
+  from chat.message m
+  join chat.conversation c on c.id = m.conversation_id
+  where c.channel <> 'web' and m.author in ('ai', 'agent') and m.kind = 'text'`)
 
 // The automation every messaging starts with — on from now: the demonstration's past is not
 // its business.

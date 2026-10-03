@@ -251,6 +251,11 @@
           "description": "Au-delà, une conversation est purgée avec ses pièces jointes et ses extraits indexés pour l'IA."
         },
         {
+          "label": "Répondre par e-mail",
+          "kind": "boolean",
+          "description": "Coché : les réponses qu'un visiteur parti n'a pas vues lui partent par e-mail, s'il a laissé son adresse — quand le serveur écrit des e-mails."
+        },
+        {
           "label": "Actif",
           "kind": "boolean"
         }
@@ -824,6 +829,55 @@
           "kind": "boolean"
         }
       ]
+    },
+    {
+      "key": "numeros_sms",
+      "label": "Numéros SMS",
+      "icon": "smartphone",
+      "color": "#f97316",
+      "description": "Des numéros de téléphone où les visiteurs écrivent par SMS, ou par RCS : leurs conversations arrivent dans l'inbox, et les réponses repartent sur leur téléphone.",
+      "fields": [
+        {
+          "label": "Nom",
+          "kind": "short_text",
+          "required": true
+        },
+        {
+          "label": "Numéro",
+          "kind": "short_text",
+          "description": "Le numéro où l'on écrit, au format international : +33 6 12 34 56 78."
+        },
+        {
+          "label": "Fournisseur",
+          "kind": "select",
+          "options": [
+            {
+              "label": "Twilio",
+              "color": "#f22f46"
+            }
+          ],
+          "description": "Vide : Twilio."
+        },
+        {
+          "label": "Compte Twilio",
+          "kind": "short_text",
+          "description": "L'identifiant du compte (Account SID), qui commence par AC."
+        },
+        {
+          "label": "Jeton (variable d'environnement)",
+          "kind": "short_text",
+          "description": "Le NOM de la variable d'environnement du serveur de la messagerie qui contient le jeton d'authentification (Auth Token) du compte. Jamais le jeton lui-même."
+        },
+        {
+          "label": "Service de messagerie",
+          "kind": "short_text",
+          "description": "Facultatif : l'identifiant d'un service de messagerie Twilio (MG…). Avec un expéditeur RCS, les réponses partent en RCS vers les téléphones qui le lisent, en SMS vers les autres."
+        },
+        {
+          "label": "Actif",
+          "kind": "boolean"
+        }
+      ]
     }
   ],
   "links": [
@@ -907,6 +961,13 @@
       "to": "equipes",
       "multiple": false,
       "description": "L'équipe à qui une nouvelle conversation est confiée. Vide : celle du site."
+    },
+    {
+      "from": "numeros_sms",
+      "label": "Site",
+      "to": "sites",
+      "multiple": false,
+      "description": "Le site dont les conversations arrivent par ce numéro : sa boîte de réception, son équipe, son agent IA, sa langue. Vide : le premier site actif."
     }
   ]
 }

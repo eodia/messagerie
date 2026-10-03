@@ -108,6 +108,8 @@ beforeAll(async () => {
     secret: 'a-secret-for-the-tests-of-the-chat-server',
     trustProxy: false,
     giphyKey: null,
+    mail: null,
+    pushSubject: 'mailto:tests@localhost',
   }
   ;({ app } = createApp({
     db,

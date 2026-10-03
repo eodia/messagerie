@@ -62,8 +62,8 @@ Trois variables disent qui est où :
 
 | Variable | Lue par | Ici |
 |---|---|---|
-| `CHAT_WEB_ORIGIN` | le serveur | `https://support.exemple.fr` : la seule origine admise par CORS, à l’ouverture du WebSocket et dans le cadre de l’aperçu du widget ; les liens d’invitation la prennent pour adresse |
-| `CHAT_PUBLIC_URL` | le serveur | `https://chat.exemple.fr` : son adresse publique. Le fournisseur d’identité y renvoie, et le cookie de session n’est `Secure` que si elle commence par `https:` |
+| `CHAT_WEB_ORIGIN` | le serveur | `https://support.exemple.fr` : la seule origine admise par CORS, à l’ouverture du WebSocket et dans le cadre de l’aperçu du widget ; les liens d’invitation et des e-mails la prennent pour adresse |
+| `CHAT_PUBLIC_URL` | le serveur | `https://chat.exemple.fr` : son adresse publique. Le fournisseur d’identité y renvoie, Twilio y appelle pour les SMS, et le cookie de session n’est `Secure` que si elle commence par `https:` |
 | `CHAT_API_URL` | l’inbox | `https://chat.exemple.fr` : le serveur, tel que le navigateur des conseillers le joint |
 
 Pourquoi deux noms plutôt qu’un : l’inbox et le serveur répondent tous deux à `/`, et se
@@ -115,6 +115,10 @@ x-messagerie: &messagerie
     CHAT_OIDC_CLIENT_ID: ${CHAT_OIDC_CLIENT_ID:-}
     CHAT_OIDC_CLIENT_SECRET: ${CHAT_OIDC_CLIENT_SECRET:-}
     CHAT_OIDC_NAME: ${CHAT_OIDC_NAME:-}
+    # Les e-mails : liens des comptes, réponses au visiteur parti, alertes (facultatif).
+    CHAT_SMTP_URL: ${CHAT_SMTP_URL:-}
+    CHAT_MAIL_FROM: ${CHAT_MAIL_FROM:-}
+    CHAT_PUSH_SUBJECT: ${CHAT_PUSH_SUBJECT:-}
     # L'IA : sans clé, les conversations vont droit aux conseillers.
     CHAT_AI_PROVIDER: ${CHAT_AI_PROVIDER:-}
     CHAT_AI_BASE_URL: ${CHAT_AI_BASE_URL:-}
@@ -219,6 +223,10 @@ CHAT_OIDC_ISSUER=
 CHAT_OIDC_CLIENT_ID=
 CHAT_OIDC_CLIENT_SECRET=
 CHAT_OIDC_NAME=
+
+# Les e-mails (facultatif, voir « Variables d'environnement »).
+CHAT_SMTP_URL=                      # smtps://utilisateur:motdepasse@smtp.exemple.fr:465
+CHAT_MAIL_FROM=                     # Support Acme <support@exemple.fr>
 ```
 
 ### `outils.env` (facultatif)
@@ -229,6 +237,13 @@ par exemple. Ces variables-là vont dans `outils.env`, que le serveur et le work
 
 ```bash
 METEO_TOKEN=…
+```
+
+Le jeton d’un compte Twilio, que nomme un numéro de **Administration › Numéros SMS**, y va de
+même ([SMS et RCS](/messagerie/fonctionnalites/sms-et-rcs/)) :
+
+```bash
+TWILIO_AUTH_TOKEN=…
 ```
 
 ## Première mise en service

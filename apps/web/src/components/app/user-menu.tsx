@@ -40,8 +40,10 @@ import {
   Headphones,
   KeyRound,
   LogOut,
+  Mail,
   Monitor,
   Moon,
+  Smartphone,
   Sun,
   Volume2,
 } from 'lucide-react'
@@ -59,7 +61,19 @@ export function UserMenu({ collapsed }: { readonly collapsed: boolean }) {
   const signedIn = useSession((s) => s.agent !== null)
   const [changing, setChanging] = useState(false)
   const me = useInbox((s) => s.me)
-  const { sound, desktop, permission, setSound, setDesktop } = useAlertSettings()
+  const {
+    sound,
+    desktop,
+    permission,
+    push,
+    emailAvailable,
+    email,
+    address,
+    setSound,
+    setDesktop,
+    setPush,
+    setEmail,
+  } = useAlertSettings()
   const audioMode = useSpeech((s) => s.audioMode)
   const setAudioMode = useSpeech((s) => s.setAudioMode)
   const preference = useTheme((s) => s.preference)
@@ -135,6 +149,48 @@ export function UserMenu({ collapsed }: { readonly collapsed: boolean }) {
             ? $t('Notifications bloquées par le navigateur')
             : $t('Notifications du bureau')}
         </DropdownMenuCheckboxItem>
+        {push !== 'unsupported' && (
+          <DropdownMenuCheckboxItem
+            checked={push === 'on'}
+            disabled={push === 'install' || push === 'denied'}
+            onCheckedChange={(on) => void setPush(on === true)}
+            onSelect={(event) => event.preventDefault()}
+            className="items-start"
+          >
+            <Smartphone className="mt-0.5" />
+            <span>
+              {$t('Sur cet appareil, inbox fermée')}
+              <span className="block text-xs text-muted-foreground">
+                {push === 'install'
+                  ? $t(
+                      'Ajoutez d’abord l’inbox à l’écran d’accueil : « Partager », puis « Sur l’écran d’accueil ».',
+                    )
+                  : push === 'denied'
+                    ? $t('Notifications bloquées par le navigateur')
+                    : $t('Ce qui reste non lu quinze secondes, sur ce téléphone ou cet ordinateur')}
+              </span>
+            </span>
+          </DropdownMenuCheckboxItem>
+        )}
+        {emailAvailable && (
+          <DropdownMenuCheckboxItem
+            checked={email}
+            disabled={address === null}
+            onCheckedChange={(on) => void setEmail(on === true)}
+            onSelect={(event) => event.preventDefault()}
+            className="items-start"
+          >
+            <Mail className="mt-0.5" />
+            <span>
+              {$t('Par e-mail')}
+              <span className="block text-xs text-muted-foreground">
+                {address
+                  ? $t('Ce qui reste non lu dix minutes, à {address}', { address })
+                  : $t('Votre fiche n’a pas d’adresse e-mail')}
+              </span>
+            </span>
+          </DropdownMenuCheckboxItem>
+        )}
         <DropdownMenuCheckboxItem
           checked={audioMode}
           onCheckedChange={(on) => setAudioMode(on === true)}

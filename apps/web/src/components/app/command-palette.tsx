@@ -61,6 +61,7 @@ import {
   Plus,
   Search,
   ShieldAlert,
+  Smartphone,
   Sparkles,
   StickyNote,
   Sun,
@@ -534,6 +535,13 @@ function Palette({ seed, onClose }: { readonly seed: string; readonly onClose: (
         'créer sujet sensible',
       )
       command('new-tool', $t('Nouvel outil IA'), Plus, () => go('/outils?nouveau=1'), 'créer api')
+      command(
+        'new-sms-number',
+        $t('Nouveau numéro SMS'),
+        Plus,
+        () => go('/parametrage/sms?nouveau=1'),
+        'créer téléphone rcs twilio',
+      )
     }
     const theme = useTheme.getState()
     command('light', $t('Thème clair'), Sun, () => theme.setPreference('light'), 'apparence jour')
@@ -639,6 +647,7 @@ function Palette({ seed, onClose }: { readonly seed: string; readonly onClose: (
       page('/outils', $t('Outils IA et serveurs MCP'), Wrench, 'paramétrage api')
       page('/automatisations', $t('Automatisations'), Workflow, 'règles relances flux déclencheurs')
       page('/widget', $t('Widget'), PaletteIcon, 'paramétrage apparence couleur installation')
+      page('/parametrage/sms', $t('Numéros SMS'), Smartphone, 'paramétrage téléphone rcs twilio')
       page('/parametrage/api', $t('API et MCP'), KeyRound, 'paramétrage jetons webhooks')
     }
     return out

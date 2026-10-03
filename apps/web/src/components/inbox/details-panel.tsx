@@ -47,6 +47,7 @@ import {
   Plug,
   RotateCcw,
   ShieldCheck,
+  Smartphone,
   Sparkles,
   Target,
   UserRound,
@@ -242,6 +243,18 @@ export function DetailsPanel({ conversation }: { readonly conversation: Conversa
           <Row icon={Globe} label={$t('Site')}>
             <span className="truncate">{conversation.site}</span>
           </Row>
+          {conversation.channel !== 'web' && (
+            <Row icon={Smartphone} label={$t('Canal')}>
+              <span className="truncate">
+                {conversation.channel === 'rcs' ? $t('RCS') : $t('SMS')}
+                {conversation.contact.phone && (
+                  <span className="ml-1.5 font-mono text-xs text-muted-foreground">
+                    {conversation.contact.phone}
+                  </span>
+                )}
+              </span>
+            </Row>
+          )}
           <Row icon={Target} label={$t('Intention')}>
             {conversation.intent ? (
               <>
