@@ -9,7 +9,7 @@ import {
 import { describe, expect, it } from 'vitest'
 import { phoneOf } from '../../src/channels/provider.js'
 import { smsmode } from '../../src/channels/smsmode.js'
-import { twilioSignature, validTwilioSignature } from '../../src/channels/twilio.js'
+import { twilio, twilioSignature, validTwilioSignature } from '../../src/channels/twilio.js'
 import { partsOf } from '../../src/outbound/dispatch.js'
 import { linkMail, visitorReplyMail } from '../../src/outbound/mails.js'
 import {
@@ -58,11 +58,13 @@ describe('SMS Mode', () => {
       providerId: 'm1',
       status: 'delivered',
       error: null,
+      rcs: false,
     })
     expect(smsmode.status({ messageId: 'm2', status: 'undeliverable' })).toEqual({
       providerId: 'm2',
       status: 'failed',
       error: 'SMSMODE_UNDELIVERABLE',
+      rcs: false,
     })
     expect(smsmode.status({ messageId: 'm3', status: { value: 'SOMETHING_NEW' } })).toBeNull()
   })
@@ -77,6 +79,7 @@ describe('SMS Mode', () => {
       tokenEnv: 'K',
       messagingServiceSid: null,
       sender: null,
+      rcs: false,
       siteId: null,
       active: true,
     }
@@ -91,6 +94,81 @@ describe('SMS Mode', () => {
     )
     expect(smsmode.authentic(call(null), credentials, number, 'secret')).toBe(false)
     expect(smsmode.authentic(call(key), credentials, { ...number, id: 'n2' }, 'secret')).toBe(false)
+  })
+  it('writes by RCS first when the number says so, by SMS when RCS is refused', async () => {
+    const number = {
+      id: 'n1',
+      name: 'SMS',
+      provider: 'smsmode' as const,
+      phone: '+33600000001',
+      accountSid: null,
+      tokenEnv: 'K',
+      messagingServiceSid: null,
+      sender: 'ACME',
+      rcs: true,
+      siteId: null,
+      active: true,
+    }
+    const credentials = { accountId: null, secret: 'api-key' }
+    const addresses = { inbound: 'https://chat/in', status: 'https://chat/in/status' }
+    const message = { to: '+33612345678', body: 'Bonjour', mediaUrls: [] }
+    const calls: { url: string; body: Record<string, unknown> }[] = []
+    const answering =
+      (rcs: number) =>
+      async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
+        calls.push({ url: String(url), body: JSON.parse(String(init?.body)) })
+        const status = String(url).includes('/rcs/') ? rcs : 201
+        return new Response(
+          JSON.stringify(status < 300 ? { messageId: `id-${calls.length}` } : {}),
+          {
+            status,
+          },
+        )
+      }
+
+    // RCS taken.
+    expect(await smsmode.send(credentials, number, message, addresses, answering(201))).toEqual({
+      providerId: 'id-1',
+      rcs: true,
+    })
+    expect(calls[0]?.url).toBe('https://rest.smsmode.com/rcs/v1/messages')
+    expect(calls[0]?.body).toMatchObject({
+      recipient: { to: '33612345678' },
+      body: { type: 'TEXT', text: 'Bonjour' },
+      callbackUrlStatus: addresses.status,
+    })
+
+    // RCS refused: the same words by SMS, from the sender's name.
+    calls.length = 0
+    expect(await smsmode.send(credentials, number, message, addresses, answering(400))).toEqual({
+      providerId: 'id-2',
+      rcs: false,
+    })
+    expect(calls.map((c) => c.url)).toEqual([
+      'https://rest.smsmode.com/rcs/v1/messages',
+      'https://rest.smsmode.com/sms/v1/messages',
+    ])
+    expect(calls[1]?.body).toMatchObject({ body: { text: 'Bonjour' }, from: 'ACME' })
+
+    // RCS unavailable for a moment: tried again later, never by SMS meanwhile.
+    calls.length = 0
+    await expect(
+      smsmode.send(credentials, number, message, addresses, answering(503)),
+    ).rejects.toMatchObject({ code: 'SMSMODE_503', retry: true })
+    expect(calls).toHaveLength(1)
+
+    // A number without RCS: SMS only.
+    calls.length = 0
+    await smsmode.send(credentials, { ...number, rcs: false }, message, addresses, answering(201))
+    expect(calls.map((c) => c.url)).toEqual(['https://rest.smsmode.com/sms/v1/messages'])
+  })
+
+  it('says a message went or came by RCS', () => {
+    expect(smsmode.status({ messageId: 'm1', status: 'DELIVERED', channel: 'RCS' })?.rcs).toBe(true)
+    expect(smsmode.status({ messageId: 'm1', status: 'DELIVERED' })?.rcs).toBe(false)
+    expect(
+      smsmode.inbound({ messageId: 'm2', from: '33612345678', channel: 'rcs', text: 'Oui' })?.rcs,
+    ).toBe(true)
   })
 })
 
@@ -115,6 +193,13 @@ describe('Twilio', () => {
       ),
     ).toBe(false)
     expect(validTwilioSignature('12345', url, params, undefined)).toBe(false)
+  })
+
+  it('says a message went by RCS, from its RCS sender', () => {
+    const said = (From: string) =>
+      twilio.status({ MessageSid: 'SM1', MessageStatus: 'delivered', From })
+    expect(said('rcs:acme_agent')?.rcs).toBe(true)
+    expect(said('+33600000001')?.rcs).toBe(false)
   })
 
   it('reads a number, by SMS or by RCS', () => {

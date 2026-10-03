@@ -149,7 +149,7 @@ Le fil range les messages par jour. On y lit :
 
 - les messages du visiteur, à gauche ;
 - les réponses des conseillers, à droite, signées. Une réponse partie hors du widget le dit
-  après l’heure : par SMS, **SMS en file**, **Envoyé**, **Remis**, **Lu** (RCS) ou **Non remis**
+  après l’heure : par SMS, **En file**, **Envoyé**, **Remis**, **Lu** (RCS) ou **Non remis**
   — survolé, le motif ; au visiteur parti qui a laissé son e-mail, **Par e-mail s’il ne revient
   pas**, puis **Envoyé par e-mail** ([le widget](/messagerie/fonctionnalites/widget/#la-réponse-par-e-mail)).
   Les réponses de l’IA le disent par un pictogramme, en tête ;

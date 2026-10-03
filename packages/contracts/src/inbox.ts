@@ -371,6 +371,8 @@ export interface OutreachOptions {
     readonly name: string
     readonly phone: string | null
     readonly siteId: string | null
+    /** It writes by RCS to the phones that read it — by SMS to the others. */
+    readonly rcs: boolean
   }[]
   /** The server has its own SMTP server (CHAT_SMTP_URL): a site without an address uses it. */
   readonly email: boolean

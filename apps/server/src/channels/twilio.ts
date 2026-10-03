@@ -124,6 +124,8 @@ export const twilio: SmsProvider = {
       providerId,
       status,
       error: status === 'failed' ? `TWILIO_${params.ErrorCode || 'UNDELIVERED'}` : null,
+      // Delivered by RCS, its sender is the RCS agent's: `rcs:…`.
+      rcs: /^rcs:/i.test(params.From ?? ''),
     }
   },
 
@@ -154,8 +156,15 @@ export const twilio: SmsProvider = {
     } catch {
       throw new SmsFailure('TWILIO_UNREACHABLE', true)
     }
-    const answer = (await response.json().catch(() => ({}))) as { sid?: string; code?: number }
-    if (response.ok && answer.sid) return answer.sid
+    const answer = (await response.json().catch(() => ({}))) as {
+      sid?: string
+      code?: number
+      from?: string | null
+    }
+    if (response.ok && answer.sid) {
+      // A messaging service chooses later: its status calls say RCS.
+      return { providerId: answer.sid, rcs: /^rcs:/i.test(answer.from ?? '') }
+    }
     const retry = response.status === 429 || response.status >= 500
     throw new SmsFailure(answer.code ? `TWILIO_${answer.code}` : `HTTP_${response.status}`, retry)
   },

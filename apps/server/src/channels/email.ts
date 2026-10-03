@@ -318,7 +318,7 @@ export const openImap: OpenMailbox = async (address, account) => {
     },
     async source(uid) {
       const message = await client.fetchOne(String(uid), { source: true }, { uid: true })
-      return message?.source ?? null
+      return message ? (message.source ?? null) : null
     },
     async markRead(uid) {
       await client.messageFlagsAdd(String(uid), ['\\Seen'], { uid: true })

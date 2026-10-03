@@ -1075,6 +1075,8 @@ export const smsNumbers = chat.table('sms_number', {
   messagingServiceSid: text('messaging_service_sid'),
   /** The name the messages come from, where the provider allows one (SMS Mode). */
   sender: text('sender'),
+  /** SMS Mode: messages go by RCS — its RCS agent —, by SMS where RCS is refused. */
+  rcs: boolean('rcs').notNull().default(false),
   siteId: uuid('site_id').references(() => sites.id, { onDelete: 'set null' }),
   active: boolean('active').notNull().default(true),
   createdAt: createdAt(),

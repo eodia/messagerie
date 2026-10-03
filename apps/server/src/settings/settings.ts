@@ -82,6 +82,8 @@ export interface SmsNumber {
   readonly messagingServiceSid: string | null
   /** The name its messages come from, where the provider allows one. */
   readonly sender: string | null
+  /** SMS Mode: send by RCS first, by SMS where RCS is refused. */
+  readonly rcs: boolean
   /** The site its conversations are held for; null: the first active one. */
   readonly siteId: string | null
   readonly active: boolean
@@ -679,6 +681,7 @@ export class Settings {
         tokenEnv: text(values["Jeton (variable d'environnement)"]),
         messagingServiceSid: text(values['Service de messagerie']),
         sender: text(values.Expéditeur),
+        rcs: bool(values['Envoyer en RCS']),
         siteId: one(values.Site),
         active: bool(values.Actif),
       }

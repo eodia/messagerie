@@ -14,7 +14,22 @@ Un numéro passe par un **fournisseur**, qui l’achemine :
 | Fournisseur | Ce qu’il porte |
 |---|---|
 | [Twilio](https://www.twilio.com) | SMS, MMS, et RCS avec un service de messagerie |
-| [SMS Mode](https://www.smsmode.com) | SMS, depuis la France, avec un nom d’expéditeur si l’on veut |
+| [SMS Mode](https://www.smsmode.com) | SMS, avec un nom d’expéditeur si l’on veut, et RCS avec un agent RCS |
+
+## Le RCS
+
+Le **RCS** est la messagerie enrichie des téléphones Android et, depuis iOS 18, des iPhone :
+l’entreprise y paraît sous son nom et son logo, avec une coche « vérifiée », les messages
+portent images et fichiers, et le client voit qu’on lui écrit — l’inbox, qu’il a **Lu**.
+
+- **Le RCS passe par le fournisseur**, qui demande un **expéditeur RCS** (on dit aussi
+  « agent ») à faire approuver pour votre marque : un service de messagerie avec un expéditeur
+  RCS chez Twilio, un agent RCS chez SMS Mode.
+- **Il retombe sur le SMS** : un message part en RCS vers un téléphone qui le lit, en SMS vers
+  les autres. Ni le conseiller ni l’automatisation n’ont à choisir.
+- **La conversation le dit** : elle est marquée **RCS** dès que le client écrit en RCS, ou dès
+  que le fournisseur dit qu’un message lui est parvenu en RCS. **Nouveau message** propose
+  **SMS / RCS** quand le numéro d’envoi écrit en RCS.
 
 ## Ce que vit le client
 
@@ -39,7 +54,7 @@ Un numéro passe par un **fournisseur**, qui l’achemine :
   détails dit son **Canal** et le numéro.
 - **Le composeur** le rappelle : « Répondre par SMS, en texte simple ». Les notes internes, elles,
   ne quittent jamais l’inbox.
-- **Sous chaque réponse**, ce qu’il en est advenu : **SMS en file**, **Envoyé**, **Remis**,
+- **Sous chaque réponse**, ce qu’il en est advenu : **En file**, **Envoyé**, **Remis**,
   **Lu** (RCS seulement), ou **Non remis** — survolé, le motif : le client a répondu STOP, le
   numéro ne reçoit pas de SMS, le téléphone est injoignable, le numéro de l’entreprise est mal
   réglé…
@@ -48,7 +63,8 @@ Un numéro passe par un **fournisseur**, qui l’achemine :
   numéro suffit pour répondre plus tard.
 
 Le canal d’une conversation suit le dernier message du client : un client qui passe du RCS au
-SMS — son téléphone a changé — est suivi.
+SMS — son téléphone a changé — est suivi. Une conversation par SMS devient aussi **RCS** quand
+le fournisseur dit qu’une réponse est arrivée en RCS.
 
 ## Écrire le premier
 
@@ -99,6 +115,7 @@ ou l’outil MCP `start_conversation` ; la conversation reste alors dans la file
 | **Secret (variable d’environnement)** | le **nom** de la variable du serveur qui contient le secret du compte — l’**Auth Token** de Twilio, la **clé d’API** de SMS Mode —, jamais le secret lui-même (D5) |
 | **Service de messagerie** | Twilio, facultatif : un service de messagerie (`MG…`), pour le RCS — voir plus bas |
 | **Expéditeur** | SMS Mode, facultatif : le nom affiché à la place du numéro, 11 caractères au plus |
+| **Envoyer en RCS** | SMS Mode : les messages partent en RCS, par l’agent RCS du compte, et en SMS quand SMS Mode refuse le RCS — voir plus bas |
 | **Actif** | désactivé, le numéro refuse ce qui arrive et n’envoie plus rien |
 
 À droite, l’aperçu donne, une fois le numéro enregistré, l’**adresse à donner au
@@ -163,12 +180,21 @@ Changer `CHAT_SECRET` change la clé : redonnez l’adresse à SMS Mode.
 **Expéditeur** remplace le numéro par un nom (`ACME`), sur les téléphones qui l’affichent. Un
 client ne peut pas répondre à un nom : laissez-le vide pour une conversation.
 
+**Envoyer en RCS** fait partir les messages par l’API RCS de SMS Mode
+(`https://rest.smsmode.com/rcs/v1/messages`, la même clé d’API), au nom de l’agent RCS du
+compte — à faire valider chez SMS Mode. Quand SMS Mode refuse le message en RCS, le même
+message part aussitôt en SMS, par le numéro ou son **Expéditeur**. Un message que SMS Mode a
+pris en RCS et qui n’arrive pas est **Non remis**, et lance le déclencheur
+[Message non remis](/messagerie/fonctionnalites/automatisations/#les-déclencheurs). Les fichiers
+partent en lien dans le texte, comme en SMS.
+
 :::caution[Ce que SMS Mode envoie]
 La messagerie lit les appels de SMS Mode — JSON ou formulaire — avec indulgence : l’identifiant
 du message sous `messageId` ou `id`, l’auteur sous `from` ou `originator`, le texte sous
 `body.text` ou `text`, l’état sous `status.value` ou `status` (`DELIVERED`, `UNDELIVERABLE`…).
 Un appel dont elle ne sait pas dire qui écrit, ou quel message il concerne, est refusé plutôt
-que deviné. Essayez votre numéro avant de l’ouvrir à vos clients : un message reçu doit paraître
+que deviné. Un appel qui dit `RCS` sous `channel` ou `type` marque la conversation RCS. Essayez
+votre numéro avant de l’ouvrir à vos clients — et le RCS, à part : un message reçu doit paraître
 dans l’inbox, et une réponse passer à **Remis**.
 :::
 

@@ -915,7 +915,7 @@ export function StepSettings({
               )
             }
             options={[
-              { value: 'sms', label: $t('SMS') },
+              { value: 'sms', label: $t('SMS / RCS') },
               { value: 'email', label: $t('E-mail') },
             ]}
             aria-label={$t('Canal')}
@@ -924,7 +924,7 @@ export function StepSettings({
           <p className="text-xs leading-relaxed text-muted-foreground">
             {step.channel === 'sms'
               ? $t(
-                  'Au numéro du contact. Une conversation par SMS l’envoie sur place ; sinon, celle de son téléphone, ouverte au besoin. Sans numéro, l’étape passe.',
+                  'Au numéro du contact : en RCS si le numéro d’envoi le permet et que son téléphone le lit, en SMS sinon. Une conversation par SMS ou RCS l’envoie sur place ; sinon, celle de son téléphone, ouverte au besoin. Sans numéro, l’étape passe.',
                 )
               : $t(
                   'À l’adresse du contact : par l’adresse e-mail du site, ou par les e-mails du serveur. Sans adresse, l’étape passe.',

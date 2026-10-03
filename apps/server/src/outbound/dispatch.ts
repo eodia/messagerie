@@ -3,6 +3,7 @@ import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
 import { addressMailer } from '../channels/email.js'
 import { SmsFailure } from '../channels/provider.js'
 import { ready } from '../channels/providers.js'
+import { toRcs } from '../channels/sms.js'
 import type { Config } from '../config.js'
 import type { Db } from '../db/client.js'
 import {
@@ -203,21 +204,30 @@ async function sendSms(deps: PostmanDeps, row: Row): Promise<Outcome> {
 
   const addresses = provider.addresses(deps.config.publicUrl, number, deps.config.secret)
   let last: string | null = null
+  let rcs = false
   try {
     for (const [index, part] of (parts.length > 0 ? parts : ['']).entries()) {
-      last = await provider.send(
+      const took = await provider.send(
         credentials,
         number,
         { to: phone, body: part, mediaUrls: index === 0 ? media : [] },
         addresses,
         deps.fetch,
       )
+      last = took.providerId
+      rcs ||= took.rcs
     }
   } catch (error) {
     if (!(error instanceof SmsFailure)) throw error
     // A part already gone is not sent again: what is left fails.
     if (last) return failed(error.code)
     return error.retry ? retry(error.code) : failed(error.code)
+  }
+  if (rcs) {
+    await db.transaction(async (tx) => {
+      await toRcs(tx as unknown as Db, conversation.id)
+      await signalChange(tx as unknown as Db, conversation.id)
+    })
   }
   return sent(last)
 }

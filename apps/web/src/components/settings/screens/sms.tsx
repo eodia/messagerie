@@ -8,15 +8,16 @@ import { $t } from '@/lib/i18n'
 import { Check, CircleAlert, MessageSquare, Smartphone, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { ChoiceMenu } from '../field-input'
-import { CardChoice, Field, FormSection } from '../kit/controls'
+import { CardChoice, Field, FormSection, ToggleField } from '../kit/controls'
 import { type SettingsData, type Values, bool, one, text, useSettingsData } from '../kit/data'
 import { NEW, useRowEditor } from '../kit/editor'
 import { PreviewCard, Studio } from '../kit/studio'
 import { EnvField } from './tools'
 
 /**
- * « Numéros SMS » (D23): the phone numbers visitors write to by SMS — through Twilio, and
- * by RCS with a Twilio messaging service that has an RCS sender, or through SMS Mode. The
+ * « Numéros SMS » (D23): the phone numbers visitors write to by SMS or RCS — through Twilio,
+ * by RCS with a messaging service that has an RCS sender, or through SMS Mode, by RCS with
+ * the account's RCS agent. The
  * preview says what to paste at the provider — the server gives the address —, what is
  * still missing, and plays a message coming in on a phone.
  */
@@ -24,6 +25,11 @@ import { EnvField } from './tools'
 const TWILIO = 'Twilio'
 const SMSMODE = 'SMS Mode'
 const providerOf = (values: Values) => (text(values.Fournisseur) === SMSMODE ? SMSMODE : TWILIO)
+/** Whether the number writes by RCS to the phones that read it. */
+const writesRcs = (values: Values) =>
+  providerOf(values) === TWILIO
+    ? text(values['Service de messagerie']) !== ''
+    : bool(values['Envoyer en RCS'])
 
 const PHONE = /^\+[1-9]\d{6,14}$/
 const compact = (value: string) => value.replace(/[\s.()-]/g, '')
@@ -62,7 +68,7 @@ export function SmsNumbersScreen() {
       empty={{
         title: $t('Aucun numéro'),
         text: $t(
-          'Un numéro Twilio où vos clients écrivent par SMS ou par RCS : leurs messages arrivent dans l’inbox, l’IA et les conseillers y répondent, et les réponses repartent sur leur téléphone.',
+          'Un numéro Twilio ou SMS Mode où vos clients écrivent par SMS ou par RCS : leurs messages arrivent dans l’inbox, l’IA et les conseillers y répondent, et les réponses repartent sur leur téléphone.',
         ),
       }}
       used={[
@@ -73,6 +79,7 @@ export function SmsNumbersScreen() {
         "Jeton (variable d'environnement)",
         'Service de messagerie',
         'Expéditeur',
+        'Envoyer en RCS',
         'Site',
       ]}
       searchOf={(values) => `${text(values.Nom)} ${text(values.Numéro)}`}
@@ -87,9 +94,7 @@ export function SmsNumbersScreen() {
             </span>
             <span className="block truncate font-mono text-[11px] text-muted-foreground">
               {text(values.Numéro) || '—'} · {providerOf(values)}
-              {providerOf(values) === TWILIO && text(values['Service de messagerie'])
-                ? ' · RCS'
-                : ''}
+              {writesRcs(values) ? ' · RCS' : ''}
             </span>
           </span>
         </>
@@ -162,7 +167,7 @@ export function SmsNumbersScreen() {
                 {
                   value: SMSMODE,
                   label: 'SMS Mode',
-                  hint: $t('SMS, depuis la France, avec un nom d’expéditeur si l’on veut.'),
+                  hint: $t('SMS, et RCS avec un agent RCS validé chez SMS Mode.'),
                   icon: <Smartphone />,
                 },
               ]}
@@ -240,6 +245,17 @@ export function SmsNumbersScreen() {
                 )}
               </Field>
             )}
+            {providerOf(values) === SMSMODE && (
+              <ToggleField
+                label={$t('Envoyer en RCS')}
+                hint={$t(
+                  'Les messages partent en RCS, par l’agent RCS du compte — avec son nom, son logo, les accusés de lecture —, vers les téléphones qui le lisent. Quand SMS Mode refuse le RCS, le même message part aussitôt en SMS.',
+                )}
+                checked={bool(values['Envoyer en RCS'])}
+                onChange={(v) => editor.set('Envoyer en RCS', v)}
+                disabled={!data.canEdit}
+              />
+            )}
           </FormSection>
         </>
       )}
@@ -266,7 +282,7 @@ function SmsPreview({
 }) {
   const lacks = missing(values)
   const provider = providerOf(values)
-  const rcs = provider === TWILIO && text(values['Service de messagerie']) !== ''
+  const rcs = writesRcs(values)
   const site = data.rows('sites').find((s) => s.id === one(values.Site))
   const [address, setAddress] = useState<string | null>(null)
   // The server says the address — SMS Mode's carries a key only it can draw —, for the

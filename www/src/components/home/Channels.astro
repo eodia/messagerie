@@ -1,8 +1,9 @@
 ---
 /**
- * The channels, played (D23, D24): a customer's phone, the inbox, a customer's mailbox. An
- * SMS comes in and is answered — « Remis », then « Lu » —; an e-mail comes in at the site's
- * address and is answered from it, in the same thread. One inbox for both.
+ * The channels, played (D23, D24): a customer's phone, the inbox, a customer's mailbox. A
+ * message comes in by RCS — the company's verified name, its logo — and is answered
+ * — « Remis », then « Lu » —; an e-mail comes in at the site's address and is answered from
+ * it, in the same thread. One inbox for all.
  *
  * The play runs while the section is on screen; without JavaScript, or asked for less
  * motion, the whole exchange is there.
@@ -15,7 +16,7 @@ import Icon from '../landing/Icon.astro';
 	<div class="tm-head">
 		<p class="tm-kicker tm-rise"><Icon name="message" size={20} />Tous les canaux</p>
 		<h2 class="tm-display tm-rise">
-			<span>Le widget, le SMS, l’e-mail.</span>
+			<span>Le widget, le SMS, le RCS, l’e-mail.</span>
 			<span class="tm-grad">Une seule inbox.</span>
 		</h2>
 		<p class="tm-lede tm-rise">
@@ -28,9 +29,9 @@ import Icon from '../landing/Icon.astro';
 		<!-- The customer's phone: an SMS conversation -->
 		<div class="phone">
 			<div class="phone-top">
-				<span class="ap-avatar" style="--c:#f97316"><Icon name="message" size={13} /></span>
-				<b>Acme Assurances</b>
-				<small>SMS</small>
+				<span class="brand-logo">A</span>
+				<b>Acme Assurances <span class="verified"><Icon name="check" size={9} /></span></b>
+				<small>Entreprise vérifiée · RCS</small>
 			</div>
 			<div class="phone-thread">
 				<p class="b me" data-s="1">Bonjour, mon attestation d’assurance est prête ?</p>
@@ -67,7 +68,7 @@ import Icon from '../landing/Icon.astro';
 				<div class="thread">
 					<div class="thread-head">
 						<b>+33 6 12 34 56 78</b>
-						<span class="ap-chip zinc"><Icon name="message" />SMS</span>
+						<span class="ap-chip violet"><Icon name="message" />RCS</span>
 					</div>
 					<div class="msgs">
 						<div class="m visitor" data-s="1">Bonjour, mon attestation d’assurance est prête ?</div>
@@ -80,7 +81,7 @@ import Icon from '../landing/Icon.astro';
 							<span class="read" data-s="3"><Icon name="tick" size={11} />Lu</span>
 						</p>
 					</div>
-					<div class="composer">Répondre par SMS, en texte simple — « / » pour une réponse type…</div>
+					<div class="composer">Répondre par RCS, en texte simple — « / » pour une réponse type…</div>
 				</div>
 			</div>
 		</div>
@@ -109,8 +110,8 @@ import Icon from '../landing/Icon.astro';
 			<span class="ic"><Icon name="message" size={22} /></span>
 			<h3>SMS et RCS</h3>
 			<p>
-				Un numéro Twilio ou SMS Mode par site. Les réponses partent en texte simple, et l’inbox dit sous chacune si elle est
-				remise, lue, ou pourquoi elle ne l’est pas.
+				Un numéro Twilio ou SMS Mode par site. En RCS, votre nom, votre logo et les accusés de lecture ; en SMS pour les
+				téléphones qui ne le lisent pas, sans rien choisir.
 			</p>
 		</div>
 		<div class="tm-rise">
@@ -125,7 +126,7 @@ import Icon from '../landing/Icon.astro';
 			<span class="ic"><Icon name="pen" size={22} /></span>
 			<h3>Écrire le premier</h3>
 			<p>
-				Une pièce qui manque, un rappel, une attestation prête : « Nouveau message » écrit au client par SMS ou par e-mail,
+				Une pièce qui manque, un rappel, une attestation prête : « Nouveau message » écrit au client par SMS, RCS ou e-mail,
 				et sa réponse arrive dans la conversation.
 			</p>
 		</div>
@@ -208,6 +209,28 @@ import Icon from '../landing/Icon.astro';
 		color: #0f172a;
 		border-bottom: 1px solid #f1f5f9;
 		background: #f8fafc;
+	}
+	.brand-logo {
+		display: grid;
+		place-items: center;
+		width: 30px;
+		height: 30px;
+		border-radius: 50%;
+		font-size: 13px;
+		font-weight: 700;
+		color: #fff;
+		background: #2563eb;
+	}
+	.verified {
+		display: inline-grid;
+		place-items: center;
+		width: 13px;
+		height: 13px;
+		margin-left: 2px;
+		border-radius: 50%;
+		color: #fff;
+		background: #1a73e8;
+		vertical-align: -1px;
 	}
 	.phone-top small {
 		font-size: 10.5px;

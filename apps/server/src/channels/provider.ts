@@ -33,6 +33,14 @@ export interface SmsStatus {
   readonly status: 'sent' | 'delivered' | 'read' | 'failed'
   /** Its code, when it failed: `TWILIO_21610`, `SMSMODE_UNDELIVERABLE`… */
   readonly error: string | null
+  /** It went by RCS — the provider chose it over SMS. */
+  readonly rcs?: boolean
+}
+
+/** A message the provider took: its id, and whether it goes by RCS — when known at once. */
+export interface SentSms {
+  readonly providerId: string
+  readonly rcs: boolean
 }
 
 /** Where a provider calls the chat: a message that arrives, how a sent one went. */
@@ -86,14 +94,14 @@ export interface SmsProvider {
   status(payload: Readonly<Record<string, unknown>>): SmsStatus | null
   /** Whether a message of this number carries files as files — else their links go in its words. */
   carriesFiles(number: SmsNumber): boolean
-  /** Sends one message; the provider's id of it. Throws `SmsFailure`. */
+  /** Sends one message: the provider's id of it, and whether it went by RCS. Throws `SmsFailure`. */
   send(
     credentials: Credentials,
     number: SmsNumber,
     message: OutgoingSms,
     addresses: Addresses,
     fetch?: Fetch,
-  ): Promise<string>
+  ): Promise<SentSms>
   /** A file a visitor sent, read from the provider — `maxBytes` at most; null when it cannot be. */
   fetchMedia(
     credentials: Credentials,

@@ -43,6 +43,10 @@ async function readyNumbers(deps: OutreachDeps): Promise<SmsNumber[]> {
   return (await deps.settings.smsNumbers()).filter((n) => typeof ready(n, env) !== 'string')
 }
 
+/** A number that writes by RCS where the phone reads it: Twilio's messaging service, SMS Mode's RCS. */
+const writesRcs = (n: SmsNumber): boolean =>
+  n.provider === 'smsmode' ? n.rcs : Boolean(n.messagingServiceSid)
+
 export async function outreachOptions(deps: OutreachDeps): Promise<OutreachOptions> {
   const sites = (await deps.settings.sites()).filter((s) => s.active)
   const mailboxes = new Set<string>()
@@ -55,6 +59,7 @@ export async function outreachOptions(deps: OutreachDeps): Promise<OutreachOptio
       name: n.name,
       phone: n.phone,
       siteId: n.siteId,
+      rcs: writesRcs(n),
     })),
     email: deps.email,
     sites: sites.map((s) => ({

@@ -115,6 +115,8 @@ export function NewMessageDialog() {
   }, [query, contact])
 
   const sms = channel === 'sms'
+  // The number it leaves from writes by RCS where the phone reads it.
+  const rcs = (options?.numbers.find((n) => n.id === numberId) ?? options?.numbers[0])?.rcs === true
   const canSms = (options?.numbers.length ?? 0) > 0
   const emailSites = options ? writable(options) : []
   const canEmail = emailSites.length > 0
@@ -165,9 +167,13 @@ export function NewMessageDialog() {
           <DialogTitle>{$t('Nouveau message')}</DialogTitle>
           <DialogDescription>
             {sms
-              ? $t(
-                  'Écrivez le premier au client, par SMS. Sa réponse arrive ici, dans la conversation.',
-                )
+              ? rcs
+                ? $t(
+                    'Écrivez le premier au client, en RCS si son téléphone le lit, en SMS sinon. Sa réponse arrive ici, dans la conversation.',
+                  )
+                : $t(
+                    'Écrivez le premier au client, par SMS. Sa réponse arrive ici, dans la conversation.',
+                  )
               : viaMailbox
                 ? $t(
                     'Écrivez le premier au client, par e-mail, depuis l’adresse du site. Sa réponse arrive ici, dans la conversation.',
@@ -203,7 +209,7 @@ export function NewMessageDialog() {
                   label: (
                     <span className="inline-flex items-center gap-1.5">
                       <Smartphone className="size-3.5" />
-                      {$t('SMS')}
+                      {rcs ? $t('SMS / RCS') : $t('SMS')}
                     </span>
                   ),
                 },
@@ -338,7 +344,7 @@ export function NewMessageDialog() {
                     value={numberId}
                     choices={(options?.numbers ?? []).map((n) => ({
                       id: n.id,
-                      label: n.phone ? `${n.name} · ${n.phone}` : n.name,
+                      label: [n.name, n.phone, n.rcs ? 'RCS' : null].filter(Boolean).join(' · '),
                     }))}
                     onChange={setNumberId}
                     allowNone={false}
@@ -399,7 +405,11 @@ export function NewMessageDialog() {
                 ) : (
                   <Send className="size-3.5" />
                 )}
-                {sms ? $t('Envoyer le SMS') : $t('Envoyer l’e-mail')}
+                {sms
+                  ? rcs
+                    ? $t('Envoyer le message')
+                    : $t('Envoyer le SMS')
+                  : $t('Envoyer l’e-mail')}
               </Button>
             </DialogFooter>
           </form>

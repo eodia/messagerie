@@ -275,6 +275,7 @@ export const STORES: readonly TableStore[] = [
       "Jeton (variable d'environnement)": { kind: 'column', column: 'tokenEnv' },
       'Service de messagerie': { kind: 'column', column: 'messagingServiceSid' },
       Expéditeur: { kind: 'column', column: 'sender' },
+      'Envoyer en RCS': { kind: 'column', column: 'rcs' },
       Site: { kind: 'link', column: 'siteId', target: 'sites' },
       Actif: { kind: 'column', column: 'active' },
     },

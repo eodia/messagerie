@@ -48,7 +48,7 @@ export const TRIGGER_HINTS: Readonly<Record<AutomationTriggerKind, string>> = {
   resolved: msg('Un conseiller ou l’IA clôt la conversation.'),
   reopened: msg('Une conversation résolue reprend.'),
   sentiment_changed: msg('L’IA lit une autre humeur dans les mots du visiteur.'),
-  undelivered: msg('Un SMS ou un e-mail n’a pas atteint le client.'),
+  undelivered: msg('Un SMS, un RCS ou un e-mail n’a pas atteint le client.'),
   no_reply: msg('Le visiteur attend une réponse depuis un délai choisi.'),
   schedule: msg('Chaque heure, chaque jour ou chaque semaine.'),
   button: msg('Un conseiller la lance depuis la conversation.'),
@@ -86,7 +86,7 @@ export const STEP_LABELS: Readonly<Record<AutomationStepKind, string>> = {
   reply: msg('Répondre au visiteur'),
   note: msg('Ajouter une note'),
   ask_email: msg('Demander l’e-mail du visiteur'),
-  send: msg('Écrire par SMS ou e-mail'),
+  send: msg('Écrire par SMS, RCS ou e-mail'),
   notify: msg('Prévenir'),
   webhook: msg('Appeler une adresse'),
   ai: msg('Demander à l’IA'),
@@ -629,7 +629,7 @@ export function stepSummary(step: AutomationStep, choices: AutomationChoices | n
     case 'ask_email':
       return step.text || $t('Avec les mots du widget')
     case 'send':
-      return `${step.channel === 'sms' ? $t('SMS') : $t('E-mail')} · ${step.body}`
+      return `${step.channel === 'sms' ? $t('SMS / RCS') : $t('E-mail')} · ${step.body}`
     case 'notify':
       return step.text
     case 'webhook':
