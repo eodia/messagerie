@@ -423,6 +423,8 @@ img.person-avatar { object-fit: cover; background: #fff; }
 .file-name { font-size: 13px; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px; }
 .file-size { font-size: 11.5px; color: var(--muted); }
 .foot { padding: 6px 0 2px; text-align: center; font-size: 11.5px; color: var(--muted); }
+.foot a { color: inherit; font-weight: 600; text-decoration: none; }
+.foot a:hover { text-decoration: underline; text-underline-offset: 2px; }
 .disclosure { font-size: 11.5px; color: var(--muted); margin: 4px 12px 0; }
 
 @media (prefers-reduced-motion: reduce) {

@@ -200,6 +200,23 @@ const nudgeOf = (site: WidgetSite): Preview => ({
   body: welcomeOf(site),
 })
 
+/** The product's site, which « Propulsé par … » leads to. */
+const PRODUCT_SITE = 'https://eodia.github.io/messagerie/'
+
+/** « Propulsé par Messagerie », the name a link to its site — the sentence translated whole. */
+function PoweredBy({ name }: { readonly name: string }) {
+  const [before = '', after = ''] = t('Propulsé par {name}').split('{name}')
+  return (
+    <div class="foot">
+      {before}
+      <a href={PRODUCT_SITE} target="_blank" rel="noreferrer noopener">
+        {name}
+      </a>
+      {after}
+    </div>
+  )
+}
+
 export function App({
   api,
   identity,
@@ -868,9 +885,7 @@ export function App({
                 <SendIcon />
               </button>
             </div>
-            {look.branding && (
-              <div class="foot">{t('Propulsé par {name}', { name: poweredBy })}</div>
-            )}
+            {look.branding && <PoweredBy name={poweredBy} />}
           </form>
         </dialog>
       )}

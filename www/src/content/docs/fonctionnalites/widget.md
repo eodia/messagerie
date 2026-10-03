@@ -191,7 +191,7 @@ paramétrage de la Messagerie : l’éditeur les lit, et seul un superviseur les
 | **Bulle d’accueil** | Le message d’accueil à côté du bouton, après un délai de 0 à 600 secondes (5 par défaut), une fois par visite. |
 | **Masquer sur mobile** | Aucun widget sur un écran de moins de 480 pixels. |
 | **Masquer quand personne ne répond** | Hors des horaires d’ouverture, sur un site sans IA, le widget ne s’affiche pas. |
-| **Mention « Propulsé par Messagerie »** | La mention en pied du widget. |
+| **Mention « Propulsé par Messagerie »** | La mention en pied du widget ; le nom mène au site de la Messagerie, dans un nouvel onglet. |
 
 ### Installation
 
