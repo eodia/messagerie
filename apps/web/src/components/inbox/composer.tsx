@@ -663,14 +663,16 @@ export function Composer({
                     variant="ghost"
                     size="sm"
                     aria-pressed={translating}
+                    aria-label={$t('Traduire en {language}', { language: languageName(foreign) })}
                     onClick={() => setTranslating((on) => !on)}
                     className={cn(
-                      'h-7 gap-1 px-1.5 text-xs text-muted-foreground',
+                      'h-7 min-w-7 shrink-0 gap-1 px-1.5 text-xs text-muted-foreground',
                       translating && 'bg-accent text-foreground',
                     )}
                   >
                     <Languages className="size-4" />
-                    <span className="font-medium uppercase">{foreign}</span>
+                    {/* The language's code where there is room; the hint says it anyway. */}
+                    <span className="hidden font-medium uppercase @xl:inline">{foreign}</span>
                   </Button>
                 </Hint>
               )}
