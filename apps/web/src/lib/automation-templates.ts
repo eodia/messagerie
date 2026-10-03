@@ -40,6 +40,47 @@ export const TEMPLATES: readonly Template[] = [
     }),
   },
   {
+    key: 'survey',
+    name: msg('Enquête de satisfaction à la résolution'),
+    hint: msg(
+      'Une conversation résolue : le widget demande au visiteur une note de 1 à 5, et un mot s’il le souhaite.',
+    ),
+    make: () => ({
+      name: $t('Enquête de satisfaction à la résolution'),
+      description: $t(
+        'Les notes alimentent le tableau de bord « Satisfaction », au global et par conseiller.',
+      ),
+      trigger: { kind: 'resolved' },
+      condition: none,
+      steps: [{ id: 's1', kind: 'survey', scale: 'csat', text: '' }],
+    }),
+  },
+  {
+    key: 'bad-score',
+    name: msg('Alerter sur une mauvaise note'),
+    hint: msg(
+      'Une note de 1 ou 2 sur 5 : les superviseurs sont prévenus, avec le commentaire du visiteur.',
+    ),
+    make: () => ({
+      name: $t('Alerter sur une mauvaise note'),
+      description: '',
+      trigger: { kind: 'survey_answered' },
+      condition: { match: 'all', rules: [{ field: 'score', op: 'less_than', values: ['3'] }] },
+      steps: [
+        { id: 's1', kind: 'tag', add: [$t('Insatisfait')], remove: [] },
+        {
+          id: 's2',
+          kind: 'notify',
+          to: 'supervisors',
+          agentIds: [],
+          text: $t(
+            '{{contact.nom}} a donné {{enquete.note}}/{{enquete.sur}} à {{conversation.conseiller}} : {{enquete.commentaire}}',
+          ),
+        },
+      ],
+    }),
+  },
+  {
     key: 'follow-up',
     name: msg('Relancer un visiteur silencieux'),
     hint: msg(

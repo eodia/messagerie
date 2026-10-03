@@ -63,6 +63,7 @@ const EVENTS: readonly {
   { group: 'conversation', id: 'conversation.transferred', label: $t('Transférée') },
   { group: 'conversation', id: 'conversation.resolved', label: $t('Résolue') },
   { group: 'conversation', id: 'conversation.reopened', label: $t('Rouverte') },
+  { group: 'conversation', id: 'survey.answered', label: $t('Enquête de satisfaction répondue') },
 ]
 
 const labelOf = (type: string) =>

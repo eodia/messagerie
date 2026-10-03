@@ -39,6 +39,7 @@ encore. Ce qui l’en empêche est dit sur l’étape concernée : « Choisisse
 | **Conversation résolue** | un conseiller ou l’IA la clôt |
 | **Conversation rouverte** | une conversation résolue reprend |
 | **L’humeur change** | l’IA lit une autre humeur dans les mots du visiteur |
+| **Enquête de satisfaction répondue** | le visiteur donne sa note ; la condition peut la tester (**Note donnée**) |
 | **Visiteur sans réponse** | le visiteur attend une réponse depuis N minutes |
 | **À heure fixe** | chaque heure, chaque jour, en semaine ou chaque semaine, à l’heure dite |
 | **Bouton dans la conversation** | un conseiller la lance depuis la conversation |
@@ -71,6 +72,7 @@ encore. Ce qui l’en empêche est dit sur l’étape concernée : « Choisisse
 | **Horaires du site** | ouvert en ce moment, fermé en ce moment |
 | **Message du visiteur** — celui qui a lancé l’automatisation —, **Donnée de la conversation**, **Résultat d’une étape** | contient, ne contient pas, vaut, ne vaut pas, est vide, n’est pas vide |
 | **Sans message depuis** | plus de, moins de (minutes) |
+| **Note donnée** — celle qui a lancé l’automatisation, avec le déclencheur **Enquête de satisfaction répondue** | inférieure à, supérieure à |
 
 La condition est relue au moment où l’automatisation se lance.
 
@@ -87,6 +89,7 @@ La condition est relue au moment où l’automatisation se lance.
 | **Répondre au visiteur** | un message, signé du nom de l’automatisation dans l’inbox ; le visiteur le lit au nom du site. Une conversation avec l’IA y reste |
 | **Ajouter une note** | une note que seule l’équipe lit |
 | **Demander l’e-mail du visiteur** | le widget lui propose de laisser son adresse (voir [plus bas](#demander-le-mail-du-visiteur)) |
+| **Enquête de satisfaction** | le widget lui demande une note — **CSAT** de 1 à 5, ou **NPS** de 0 à 10 — et un commentaire s’il le souhaite (voir [satisfaction](/messagerie/fonctionnalites/satisfaction/)) |
 | **Prévenir** | une ligne dans la cloche du conseiller de la conversation, d’une équipe, des superviseurs ou de personnes choisies — et sur leur bureau s’ils ont activé les notifications |
 | **Appeler une adresse** | un `POST` en JSON vers un CRM, un ERP, un outil interne |
 | **Demander à l’IA** | **Classer** — l’IA choisit une réponse parmi celles qu’on lui donne — ou **Rédiger** un texte, d’après une consigne et la conversation |
@@ -107,6 +110,7 @@ citent la conversation entre doubles accolades, choisies dans le menu **Citer** 
 | `{{contact.nom}}`, `{{contact.prenom}}`, `{{contact.nom_de_famille}}`, `{{contact.email}}`, `{{contact.telephone}}` | le contact |
 | `{{conversation.lien}}`, `{{conversation.site}}`, `{{conversation.boite}}`, `{{conversation.equipe}}`, `{{conversation.conseiller}}`, `{{conversation.priorite}}`, `{{conversation.resume}}`, `{{conversation.etiquettes}}` | la conversation |
 | `{{message.texte}}` | le message qui a lancé l’automatisation |
+| `{{enquete.note}}`, `{{enquete.sur}}`, `{{enquete.commentaire}}` | la note donnée, sur 5 ou sur 10, et le commentaire — avec le déclencheur **Enquête de satisfaction répondue** |
 | `{{donnees.<clé>}}` | une donnée de la conversation |
 | `{{etape.s2}}` | le résultat d’une étape qui vient avant : la réponse de l’IA, ce qu’a répondu une adresse |
 | `{{webhook.<champ>}}` | un champ de l’appel reçu, pour une automatisation appelée par un autre système |
@@ -169,6 +173,8 @@ alors que le site est fermé.
 | Modèle | Ce qu’il fait |
 |---|---|
 | **Demander l’e-mail quand la réponse tarde** | après 5 minutes sans réponse, le widget propose au visiteur de laisser son adresse |
+| **Enquête de satisfaction à la résolution** | une conversation résolue : le widget demande au visiteur une note de 1 à 5, et un mot s’il le souhaite |
+| **Alerter sur une mauvaise note** | une note de 1 ou 2 sur 5 : l’étiquette « Insatisfait », et les superviseurs prévenus avec le commentaire |
 | **Relancer un visiteur silencieux** | 24 heures après la réponse d’un conseiller, une relance — sauf s’il a écrit entre-temps |
 | **Escalader les clients mécontents** | une humeur négative passe en priorité haute, et les superviseurs sont prévenus |
 | **Répartir à tour de rôle** | ce que l’IA transfère va aux membres d’une équipe, chacun son tour |

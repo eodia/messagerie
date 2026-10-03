@@ -20,6 +20,7 @@ import {
   siteSecrets,
 } from '../../src/db/schema.js'
 import { requestEmail } from '../../src/inbox/email-request.js'
+import { requestSurvey } from '../../src/inbox/surveys.js'
 import { sendMessage } from '../../src/inbox/write.js'
 import {
   type PageTool,
@@ -284,6 +285,57 @@ describe('a visitor who writes', () => {
     })
     seen = (await (await call('/conversation', { token: visitor })).json()) as VisitorConversation
     expect(seen.messages.at(-1)).toMatchObject({ from: 'site', body: 'Nous revenons vers vous.' })
+  })
+
+  it('asks how it went, once, and takes one answer — its score within the scale', async () => {
+    const { visitor } = await session()
+    const { id } = (await (
+      await call('/messages', { body: { body: 'Merci pour votre aide' }, token: visitor })
+    ).json()) as VisitorConversation
+    expect(
+      await db.transaction((tx) => requestSurvey(tx, id, 'nps', 'Nous recommanderiez-vous ?', 'A')),
+    ).toBe(true)
+    expect(await db.transaction((tx) => requestSurvey(tx, id, 'csat', null, 'B'))).toBe(false)
+    let seen = (await (
+      await call('/conversation', { token: visitor })
+    ).json()) as VisitorConversation
+    const card = seen.messages.at(-1)
+    expect(card).toMatchObject({
+      from: 'survey',
+      scale: 'nps',
+      text: 'Nous recommanderiez-vous ?',
+      score: null,
+    })
+    const survey = card?.from === 'survey' ? card.survey : ''
+
+    expect((await call(`/surveys/${survey}`, { body: { score: 11 }, token: visitor })).status).toBe(
+      400,
+    )
+    // Another visitor's survey does not exist for this one.
+    const other = await session()
+    expect(
+      (await call(`/surveys/${survey}`, { body: { score: 9 }, token: other.visitor })).status,
+    ).toBe(404)
+    expect(
+      (
+        await call(`/surveys/${survey}`, {
+          body: { score: 9, comment: ' Très rapide ' },
+          token: visitor,
+        })
+      ).status,
+    ).toBe(204)
+    const again = await call(`/surveys/${survey}`, { body: { score: 2 }, token: visitor })
+    expect(again.status).toBe(409)
+    expect(await again.json()).toMatchObject({ code: 'SURVEY_ANSWERED' })
+
+    seen = (await (await call('/conversation', { token: visitor })).json()) as VisitorConversation
+    expect(seen.messages.find((m) => m.from === 'survey')).toMatchObject({ score: 9 })
+    const events = (await db.select().from(messages).where(eq(messages.conversationId, id)))
+      .map((m) => (m.meta as { event?: { type?: string } }).event)
+      .filter((e) => e?.type === 'survey_answered')
+    expect(events).toEqual([
+      { type: 'survey_answered', survey, scale: 'nps', score: 9, comment: 'Très rapide' },
+    ])
   })
 
   it('begins anew on reset(): the conversation left for the team, the next one new', async () => {

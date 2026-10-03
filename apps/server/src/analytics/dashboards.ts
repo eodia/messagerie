@@ -13,7 +13,7 @@ import type {
 import { asc, desc, eq, sql } from 'drizzle-orm'
 import type pg from 'pg'
 import type { Db } from '../db/client.js'
-import { agents, dashboards } from '../db/schema.js'
+import { agents, dashboardPresets, dashboards } from '../db/schema.js'
 import type { AgentRow } from '../inbox/read.js'
 import { Refusal } from '../refusal.js'
 import { SOURCES, sourceOf } from './catalog.js'
@@ -122,14 +122,11 @@ async function rowOf(db: Db, agent: AgentRow, id: string): Promise<Row> {
 }
 
 export async function listDashboards(db: Db, agent: AgentRow): Promise<Dashboard[]> {
-  let rows = await db
+  await installPresets(db, agent.role === 'supervisor' ? agent.id : null)
+  const rows = await db
     .select()
     .from(dashboards)
     .orderBy(desc(dashboards.isDefault), asc(dashboards.name))
-  if (rows.length === 0) {
-    await installDefaultDashboard(db, agent.role === 'supervisor' ? agent.id : null)
-    rows = await db.select().from(dashboards)
-  }
   const shown = agent.role === 'supervisor' ? rows : rows.filter((r) => r.shared)
   return Promise.all(shown.map((row) => present(db, row)))
 }
@@ -579,20 +576,247 @@ export function defaultCards(): DashboardCard[] {
   ]
 }
 
-/** Written once, while there is no dashboard: two screens opened at once make one. */
-export async function installDefaultDashboard(db: Db, createdBy: string | null): Promise<void> {
+// ── « Satisfaction » ────────────────────────────────────────────────────────
+
+const CSAT: BuilderQuery['filters'][number] = { column: 'scale', op: 'is', values: ['csat'] }
+const NPS: BuilderQuery['filters'][number] = { column: 'scale', op: 'is', values: ['nps'] }
+const ANSWERED: BuilderQuery['filters'][number] = { column: 'answered', op: 'true', values: [] }
+
+/** A key figure of the surveys, week by week. */
+const surveyKpi = (
+  x: number,
+  title: string,
+  query: Partial<BuilderQuery>,
+  viz: Partial<Visualization> = {},
+): DashboardCard =>
+  card(
+    x,
+    1,
+    3,
+    3,
+    title,
+    builder(
+      {
+        source: 'surveys',
+        filters: [LAST_30, ...(query.filters ?? [])],
+        aggregations: query.aggregations ?? [{ fn: 'count' }],
+        breakouts: [{ column: 'created_at', unit: 'week' }],
+      },
+      { type: 'trend', ...viz },
+    ),
+  )
+
+/** The satisfaction dashboard's filters: those of every dashboard, and an agent. */
+export const SATISFACTION_FILTERS: readonly DashboardFilter[] = [
+  ...DEFAULT_FILTERS,
+  {
+    id: 'conseiller',
+    label: 'Conseiller',
+    kind: 'choice',
+    source: 'surveys',
+    column: 'agent',
+    default: [],
+  },
+]
+
+/** « Satisfaction »: what the visitors said of their conversations, overall and by agent. */
+export function satisfactionCards(): DashboardCard[] {
+  return [
+    heading(0, 'Vue globale'),
+    surveyKpi(
+      0,
+      'CSAT',
+      { filters: [CSAT, ANSWERED], aggregations: [{ fn: 'share', column: 'satisfied' }] },
+      { unit: '%' },
+    ),
+    surveyKpi(3, 'Note moyenne (sur 5)', {
+      filters: [CSAT, ANSWERED],
+      aggregations: [{ fn: 'avg', column: 'score' }],
+    }),
+    surveyKpi(6, 'NPS', {
+      filters: [NPS, ANSWERED],
+      aggregations: [{ fn: 'avg', column: 'nps_points' }],
+    }),
+    surveyKpi(
+      9,
+      'Taux de réponse',
+      { aggregations: [{ fn: 'share', column: 'answered' }] },
+      { unit: '%' },
+    ),
+    card(
+      0,
+      4,
+      8,
+      7,
+      'Visiteurs satisfaits, semaine après semaine (CSAT)',
+      builder(
+        {
+          source: 'surveys',
+          filters: [LAST_30, CSAT, ANSWERED],
+          aggregations: [{ fn: 'share', column: 'satisfied' }],
+          breakouts: [{ column: 'created_at', unit: 'week' }],
+        },
+        { type: 'line', unit: '%' },
+      ),
+    ),
+    card(
+      8,
+      4,
+      4,
+      7,
+      'Notes données (CSAT)',
+      builder(
+        {
+          source: 'surveys',
+          filters: [LAST_30, CSAT, ANSWERED],
+          breakouts: [{ column: 'score_label' }],
+          sort: { column: 'score_label', desc: false },
+        },
+        { type: 'bar' },
+      ),
+    ),
+    heading(11, 'Par conseiller'),
+    card(
+      0,
+      12,
+      6,
+      8,
+      'CSAT par conseiller',
+      builder(
+        {
+          source: 'surveys',
+          filters: [LAST_30, CSAT, ANSWERED, { column: 'agent', op: 'not_empty', values: [] }],
+          aggregations: [
+            { fn: 'share', column: 'satisfied' },
+            { fn: 'avg', column: 'score' },
+            { fn: 'count' },
+          ],
+          breakouts: [{ column: 'agent' }],
+          limit: 30,
+        },
+        { type: 'table' },
+      ),
+    ),
+    card(
+      6,
+      12,
+      6,
+      8,
+      'NPS par conseiller',
+      builder(
+        {
+          source: 'surveys',
+          filters: [LAST_30, NPS, ANSWERED, { column: 'agent', op: 'not_empty', values: [] }],
+          aggregations: [{ fn: 'avg', column: 'nps_points' }, { fn: 'count' }],
+          breakouts: [{ column: 'agent' }],
+          limit: 30,
+        },
+        { type: 'table' },
+      ),
+    ),
+    card(
+      0,
+      20,
+      6,
+      7,
+      'L’IA seule, ou un conseiller (CSAT)',
+      builder(
+        {
+          source: 'surveys',
+          filters: [LAST_30, CSAT, ANSWERED],
+          aggregations: [{ fn: 'share', column: 'satisfied' }],
+          breakouts: [{ column: 'handled_by' }],
+        },
+        { type: 'bar', unit: '%' },
+      ),
+    ),
+    card(
+      6,
+      20,
+      6,
+      7,
+      'Réponses par conseiller',
+      builder(
+        {
+          source: 'surveys',
+          filters: [LAST_30, ANSWERED, { column: 'agent', op: 'not_empty', values: [] }],
+          breakouts: [{ column: 'agent' }],
+          limit: 15,
+        },
+        { type: 'row' },
+      ),
+    ),
+    heading(27, 'Ce qu’en disent les visiteurs'),
+    card(
+      0,
+      28,
+      12,
+      8,
+      'Derniers commentaires',
+      builder({ source: 'survey_comments', filters: [LAST_30], limit: 50 }, { type: 'table' }),
+    ),
+  ]
+}
+
+// ── Given once ──────────────────────────────────────────────────────────────
+
+interface Preset {
+  readonly key: string
+  readonly name: string
+  readonly description: string
+  readonly cards: () => DashboardCard[]
+  readonly filters: readonly DashboardFilter[]
+  readonly isDefault: boolean
+}
+
+/** The dashboards every messaging is given, in this order — each once. */
+const PRESETS: readonly Preset[] = [
+  {
+    key: 'overview',
+    name: 'Vue d’ensemble',
+    description: 'Ce qui se passe dans les conversations : volume, IA, délais, humeur, équipe.',
+    cards: defaultCards,
+    filters: DEFAULT_FILTERS,
+    isDefault: true,
+  },
+  {
+    key: 'satisfaction',
+    name: 'Satisfaction',
+    description:
+      'Ce que les visiteurs disent de leurs conversations : CSAT, NPS, au global et par conseiller.',
+    cards: satisfactionCards,
+    filters: SATISFACTION_FILTERS,
+    isDefault: false,
+  },
+]
+
+/**
+ * The dashboards not given yet, given — a new one added to the product reaches messagings
+ * already running. Each once: one a supervisor deleted stays deleted. Two screens opened at
+ * once give it once.
+ */
+export async function installPresets(db: Db, createdBy: string | null): Promise<void> {
+  const given = async (tx: Db) =>
+    new Set(
+      (await tx.select({ key: dashboardPresets.key }).from(dashboardPresets)).map((r) => r.key),
+    )
+  const had = await given(db)
+  if (PRESETS.every((p) => had.has(p.key))) return
   await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext('messagerie.dashboard.default'))`)
-    const [any] = await tx.select({ id: dashboards.id }).from(dashboards).limit(1)
-    if (any) return
-    await tx.insert(dashboards).values({
-      name: 'Vue d’ensemble',
-      description: 'Ce qui se passe dans les conversations : volume, IA, délais, humeur, équipe.',
-      cards: defaultCards().map((c) => ({ ...c, links: linksFor(c, DEFAULT_FILTERS) })),
-      filters: DEFAULT_FILTERS,
-      shared: true,
-      isDefault: true,
-      createdBy,
-    })
+    const done = await given(tx)
+    for (const preset of PRESETS) {
+      if (done.has(preset.key)) continue
+      await tx.insert(dashboards).values({
+        name: preset.name,
+        description: preset.description,
+        cards: preset.cards().map((c) => ({ ...c, links: linksFor(c, preset.filters) })),
+        filters: preset.filters,
+        shared: true,
+        isDefault: preset.isDefault,
+        createdBy,
+      })
+      await tx.insert(dashboardPresets).values({ key: preset.key })
+    }
   })
 }

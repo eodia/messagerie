@@ -691,6 +691,11 @@ export function documentation(base: string): DocSection[] {
         ],
         ['`conversation.resolved`', 'La conversation est résolue.', '`conversation`'],
         ['`conversation.reopened`', 'Une conversation résolue reprend.', '`conversation`'],
+        [
+          '`survey.answered`',
+          'Le visiteur répond à une enquête de satisfaction : sa note et son mot dans l’événement du message.',
+          '`conversation`, `message`',
+        ],
         ['`webhook.ping`', 'Un test envoyé depuis l’écran.', '`webhook`'],
       ],
     ),

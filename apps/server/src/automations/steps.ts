@@ -9,6 +9,7 @@ import { requestEmail } from '../inbox/email-request.js'
 import { patchConversationData } from '../inbox/metadata.js'
 import { activeAgentIds, notify } from '../inbox/notifications.js'
 import type { AgentRow } from '../inbox/read.js'
+import { requestSurvey } from '../inbox/surveys.js'
 import { addTag, removeTag } from '../inbox/tags.js'
 import { assign, resolve, snooze, transfer, wake } from '../inbox/write.js'
 import { person } from '../programs.js'
@@ -462,6 +463,19 @@ export async function runStep(
         requestEmail(tx, id, run.actor.name, render(step.text, run.scope).trim() || null),
       )
       return asked ? done() : skipped('not_needed')
+    }
+    case 'survey': {
+      const id = conversationOf(run)
+      const asked = await caused(db, run.runId, (tx) =>
+        requestSurvey(
+          tx,
+          id,
+          step.scale,
+          render(step.text, run.scope).trim() || null,
+          run.actor.name,
+        ),
+      )
+      return asked ? done(step.scale) : skipped('not_needed')
     }
     default:
       throw new Error(`step ${step.kind} is the engine's`)

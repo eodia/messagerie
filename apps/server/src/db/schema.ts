@@ -593,6 +593,46 @@ export const pageViews = chat.table(
 )
 
 /**
+ * « Enquête de satisfaction »: what a visitor was asked at the end of a conversation — a
+ * CSAT (1 to 5) or an NPS (0 to 10) — and what they answered. Asked by an automation (D20),
+ * once a conversation; it judges the agent who had the conversation then, or the AI alone.
+ */
+export const surveys = chat.table(
+  'survey',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    conversationId: uuid('conversation_id')
+      .notNull()
+      .references(() => conversations.id, { onDelete: 'cascade' }),
+    scale: text('scale', { enum: ['csat', 'nps'] }).notNull(),
+    /** The site's own words; null: the widget's. */
+    question: text('question'),
+    /** The automation that asked. */
+    askedBy: text('asked_by'),
+    /** Who had the conversation when it was asked; null: the AI alone. */
+    agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }),
+    /** 1 to 5 (CSAT), 0 to 10 (NPS); null until the visitor answers. */
+    score: integer('score'),
+    comment: text('comment'),
+    createdAt: createdAt(),
+    answeredAt: timestamp('answered_at', { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex('survey_conversation_idx').on(t.conversationId),
+    index('survey_created_idx').on(t.createdAt),
+  ],
+)
+
+/**
+ * The dashboards every messaging is given (`overview`, `satisfaction`…), once each: one a
+ * supervisor deleted is not given again.
+ */
+export const dashboardPresets = chat.table('dashboard_preset', {
+  key: text('key').primaryKey(),
+  installedAt: createdAt(),
+})
+
+/**
  * The dashboards (D22): their cards, on a twelve-column grid, each a question and how it
  * is drawn. Shared, agents see it; supervisors alone change it.
  */

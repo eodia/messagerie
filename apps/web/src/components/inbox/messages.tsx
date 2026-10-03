@@ -1,6 +1,6 @@
 'use client'
 
-import { Chip } from '@/components/app/chip'
+import { Chip, type Tint } from '@/components/app/chip'
 import { CopyButton } from '@/components/app/copy-button'
 import { Button } from '@/components/ui/button'
 import { $t, $tp, intlLocale, msg } from '@/lib/i18n'
@@ -42,6 +42,7 @@ import {
   Pencil,
   RotateCcw,
   Square,
+  Star,
   StickyNote,
   UserRoundPlus,
   Volume2,
@@ -261,6 +262,8 @@ const EVENT_ICONS = {
   priority: Flag,
   email_requested: AtSign,
   email_given: AtSign,
+  survey_requested: Star,
+  survey_answered: Star,
   page_action: MousePointerClick,
 } as const
 
@@ -338,6 +341,20 @@ function eventText(event: ConversationEvent): string {
         : $t('« {by} » a proposé au visiteur de laisser son e-mail.', { by: event.by })
     case 'email_given':
       return $t('Le visiteur a laissé son e-mail : {email}.', { email: event.email })
+    case 'survey_requested':
+      return event.by === null
+        ? $t('Le widget a demandé au visiteur sa note ({scale}).', {
+            scale: scaleName(event.scale),
+          })
+        : $t('« {by} » a demandé au visiteur sa note ({scale}).', {
+            by: event.by,
+            scale: scaleName(event.scale),
+          })
+    case 'survey_answered':
+      return $t('Le visiteur a donné sa note : {score} sur {max}.', {
+        score: event.score,
+        max: event.scale === 'nps' ? 10 : 5,
+      })
     case 'page_action': {
       const label = event.label
       switch (event.status) {
@@ -361,7 +378,51 @@ function eventText(event: ConversationEvent): string {
   }
 }
 
+const scaleName = (scale: 'csat' | 'nps') => (scale === 'nps' ? 'NPS' : 'CSAT')
+
+/** A score in its tint: satisfied, in between, or not — 4-5 of 5, 9-10 of 10 are pleased. */
+function scoreTint(scale: 'csat' | 'nps', score: number): Tint {
+  const [low, high] = scale === 'nps' ? [6, 9] : [2, 4]
+  return score >= high ? 'emerald' : score <= low ? 'rose' : 'amber'
+}
+
+/** The visitor's answer to a survey: their score, and their words beneath. */
+function SurveyAnswer({
+  message,
+  event,
+}: {
+  readonly message: EventMessage
+  readonly event: Extract<ConversationEvent, { type: 'survey_answered' }>
+}) {
+  const max = event.scale === 'nps' ? 10 : 5
+  return (
+    <div className="flex justify-center">
+      <div className="max-w-[85%] rounded-xl border bg-background px-3 py-2 text-xs shadow-xs">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Star className="size-3.5 shrink-0" />
+          <span>{$t('Note du visiteur')}</span>
+          <Chip tint={scoreTint(event.scale, event.score)}>
+            {$t('{score} sur {max}', { score: event.score, max })}
+          </Chip>
+          <span className="text-[11px] opacity-70">{scaleName(event.scale)}</span>
+          <span className="ml-auto shrink-0 pl-2 text-[11px] tabular-nums opacity-70">
+            {clockTime(message.at)}
+          </span>
+        </div>
+        {event.comment && (
+          <p className="mt-1.5 whitespace-pre-line border-l-2 pl-2 text-sm text-foreground">
+            {event.comment}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function EventLine({ message }: { readonly message: EventMessage }) {
+  if (message.event.type === 'survey_answered') {
+    return <SurveyAnswer message={message} event={message.event} />
+  }
   const Icon = EVENT_ICONS[message.event.type]
   return (
     <div className="flex justify-center">

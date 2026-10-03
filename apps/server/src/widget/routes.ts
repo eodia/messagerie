@@ -8,6 +8,7 @@ import type { TicketBook } from '../auth/tickets.js'
 import { filesOf, readUploads } from '../files/attachments.js'
 import { uploadLimit } from '../files/routes.js'
 import { readPatch, readProfile } from '../inbox/metadata.js'
+import { answerSurvey } from '../inbox/surveys.js'
 import { answerCall, claimCall, readSnapshot, refuseCall } from '../page/actions.js'
 import { cleanPageTitle, cleanPageUrl, leavePage, viewPage } from '../page/views.js'
 import { Refusal } from '../refusal.js'
@@ -181,6 +182,16 @@ export function widgetRoutes(
     const visitor = await visitorFrom(deps, bearer(c), c.req.header('origin'))
     if (!edits.allow(visitor.contactId)) throw new Refusal('RATE_LIMITED', 429)
     await leaveEmail(deps, visitor, (await jsonOf(c)).email)
+    return c.body(null, 204)
+  })
+
+  /** The visitor's answer to a satisfaction survey: a score, a word. */
+  widget.post('/surveys/:id', async (c) => {
+    const visitor = await visitorFrom(deps, bearer(c), c.req.header('origin'))
+    if (!edits.allow(visitor.contactId)) throw new Refusal('RATE_LIMITED', 429)
+    const id = c.req.param('id')
+    if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Refusal('SURVEY_NOT_FOUND', 404)
+    await answerSurvey(deps.db, visitor.contactId, id, await jsonOf(c))
     return c.body(null, 204)
   })
 

@@ -1,4 +1,5 @@
 import type { ErrorCode } from './api.js'
+import type { SurveyScale } from './widget.js'
 import type { PageCallStatus, WidgetAppearance } from './widget.js'
 
 /**
@@ -195,6 +196,21 @@ export type ConversationEvent =
   | { readonly type: 'email_requested'; readonly by: string | null; readonly text: string | null }
   /** The visitor left their e-mail in the widget's card. */
   | { readonly type: 'email_given'; readonly email: string }
+  /** An automation asked the visitor how it went (D20): `by`, its name. */
+  | {
+      readonly type: 'survey_requested'
+      readonly survey: string
+      readonly scale: SurveyScale
+      readonly by: string | null
+    }
+  /** The visitor answered: their score, and their word if they left one. */
+  | {
+      readonly type: 'survey_answered'
+      readonly survey: string
+      readonly scale: SurveyScale
+      readonly score: number
+      readonly comment: string | null
+    }
   /** The AI asked the visitor's page to act (D21) — and how it went. */
   | {
       readonly type: 'page_action'
@@ -767,6 +783,8 @@ export type WebhookEventType =
   | 'conversation.transferred'
   | 'conversation.resolved'
   | 'conversation.reopened'
+  /** The visitor answered a satisfaction survey: the message carries the score. */
+  | 'survey.answered'
 
 export interface Webhook {
   readonly id: string

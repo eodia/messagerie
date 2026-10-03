@@ -46,6 +46,7 @@ ne se retrouve pas : recréez le webhook.
 | `conversation.transferred` | **Transférée** | La conversation change de boîte ou d’équipe. | `conversation` |
 | `conversation.resolved` | **Résolue** | La conversation est résolue. | `conversation` |
 | `conversation.reopened` | **Rouverte** | Une conversation résolue reprend. | `conversation` |
+| `survey.answered` | **Enquête de satisfaction répondue** | Le visiteur répond à une [enquête de satisfaction](/messagerie/fonctionnalites/satisfaction/) : le `message` est l’événement `survey_answered`, avec `scale` (`csat` ou `nps`), `score` et `comment`. | `conversation`, `message` |
 | `webhook.ping` | **Test** | Un test envoyé depuis l’écran. | `webhook` |
 
 :::note[Les notes internes]

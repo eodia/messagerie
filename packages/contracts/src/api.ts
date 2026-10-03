@@ -90,6 +90,10 @@ export type ErrorCode =
   | 'AUTOMATION_KEY_INVALID'
   /** The model could not translate the reply: it was not sent. */
   | 'TRANSLATION_FAILED'
+  /** A satisfaction survey that is not this visitor's, or no longer exists. */
+  | 'SURVEY_NOT_FOUND'
+  /** Answered already: once a survey. */
+  | 'SURVEY_ANSWERED'
 
 /** Opens the inbox's WebSocket, once, within thirty seconds. */
 export interface Ticket {

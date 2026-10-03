@@ -37,6 +37,12 @@ export interface Subject {
   readonly tags: readonly string[]
   /** The words of the message that set it off. */
   readonly message: string | null
+  /** The survey answer that set it off (`survey_answered`). */
+  readonly survey: {
+    readonly scale: string
+    readonly score: number
+    readonly comment: string | null
+  } | null
   /** The site's hours, now: `null` when nobody can tell. */
   readonly open: boolean | null
 }
@@ -46,6 +52,7 @@ export const EMPTY_SUBJECT: Subject = {
   contact: null,
   tags: [],
   message: null,
+  survey: null,
   open: null,
 }
 
@@ -110,6 +117,7 @@ export async function loadSubjects(
       },
       tags: tags.filter((t) => t.conversationId === c.id).map((t) => t.label),
       message: null,
+      survey: null,
       open: hours.get(c.siteId) ?? null,
     })
   }
@@ -128,10 +136,18 @@ export async function loadSubject(
   if (!subject) return EMPTY_SUBJECT
   if (messageId === null) return subject
   const [message] = await db
-    .select({ body: messages.body })
+    .select({ body: messages.body, meta: messages.meta })
     .from(messages)
     .where(and(eq(messages.id, messageId), isNull(messages.deletedAt)))
-  return { ...subject, message: message?.body ?? null }
+  const event = message?.meta.event
+  return {
+    ...subject,
+    message: message?.body ?? null,
+    survey:
+      event?.type === 'survey_answered'
+        ? { scale: event.scale, score: event.score, comment: event.comment }
+        : null,
+  }
 }
 
 /** The visitor's last words in the conversation — what `visitor_message` gets when retried. */
@@ -245,6 +261,11 @@ export function ruleHolds(
     }
     case 'data':
       return textRule(rule, dataValue(c.data, rule.key ?? ''))
+    case 'score': {
+      const limit = Number(rule.values[0] ?? Number.NaN)
+      if (subject.survey === null || Number.isNaN(limit)) return false
+      return rule.op === 'more_than' ? subject.survey.score > limit : subject.survey.score < limit
+    }
     default:
       return false
   }
@@ -310,6 +331,13 @@ export function scopeOf(
         }
       : {},
     message: { texte: subject.message ?? '' },
+    enquete: subject.survey
+      ? {
+          note: subject.survey.score,
+          sur: subject.survey.scale === 'nps' ? 10 : 5,
+          commentaire: subject.survey.comment ?? '',
+        }
+      : {},
     donnees: c?.data ?? {},
     etape: outputs,
     webhook: extra.input ?? {},

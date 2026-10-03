@@ -18,6 +18,8 @@ export type AutomationTriggerKind =
   | 'reopened'
   /** The AI read the visitor's mood anew — after the message, not with it. */
   | 'sentiment_changed'
+  /** The visitor answered a satisfaction survey: its score is the `score` condition. */
+  | 'survey_answered'
   /** The visitor's last message has waited `minutes` for an answer. */
   | 'no_reply'
   /** At set times — once, or for each conversation the condition keeps. */
@@ -71,6 +73,8 @@ export type ConditionField =
   | 'data'
   /** What an earlier step gave (`key`: the step's id). */
   | 'step'
+  /** The score of the survey answer that set it off (`survey_answered`). */
+  | 'score'
 
 export type ConditionOperator =
   /** One of `values`. */
@@ -88,7 +92,7 @@ export type ConditionOperator =
   | 'no'
   | 'open'
   | 'closed'
-  /** A number of minutes, for `idle`. */
+  /** A number of minutes, for `idle`; a score, for `score`. */
   | 'more_than'
   | 'less_than'
 
@@ -191,6 +195,16 @@ export interface AskEmailStep extends StepBase {
   readonly text: string
 }
 
+/**
+ * « Enquête de satisfaction »: the widget asks the visitor for a score — once a conversation,
+ * and only while it is still theirs. `text`: the question; empty, the widget's own.
+ */
+export interface SurveyStep extends StepBase {
+  readonly kind: 'survey'
+  readonly scale: 'csat' | 'nps'
+  readonly text: string
+}
+
 export interface DataStep extends StepBase {
   readonly kind: 'data'
   readonly key: string
@@ -232,6 +246,7 @@ export type AutomationStep =
   | AiStep
   | DataStep
   | AskEmailStep
+  | SurveyStep
   | BranchStep
   | WaitStep
 

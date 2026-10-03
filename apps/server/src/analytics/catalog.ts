@@ -43,6 +43,11 @@ const RUN_STATUSES = [
   { value: 'stopped', label: 'Arrêtée' },
 ]
 
+const SCALES = [
+  { value: 'csat', label: 'CSAT (1 à 5)' },
+  { value: 'nps', label: 'NPS (0 à 10)' },
+]
+
 export const SOURCES: readonly AnalyticsSource[] = [
   {
     key: 'conversations',
@@ -160,6 +165,50 @@ export const SOURCES: readonly AnalyticsSource[] = [
       { name: 'country', label: 'Pays', type: 'text' },
       { name: 'segment', label: 'Segment', type: 'text' },
       { name: 'has_email', label: 'A laissé son e-mail', type: 'boolean' },
+    ],
+  },
+  {
+    key: 'surveys',
+    label: 'Enquêtes de satisfaction',
+    description:
+      'Une ligne par enquête posée au visiteur : CSAT (1 à 5) ou NPS (0 à 10), sa note une fois répondue, le conseiller jugé. Satisfait : 4 ou 5 sur 5, 9 ou 10 sur 10. Points NPS : +100 un promoteur (9-10), -100 un détracteur (0-6), 0 sinon ; leur moyenne est le NPS.',
+    columns: [
+      { name: 'created_at', label: 'Posée le', type: 'date' },
+      { name: 'answered_at', label: 'Répondue le', type: 'date' },
+      { name: 'scale', label: 'Échelle', type: 'text', values: SCALES },
+      { name: 'score', label: 'Note', type: 'number' },
+      { name: 'score_label', label: 'Note, en catégorie', type: 'text' },
+      { name: 'answered', label: 'Répondue', type: 'boolean' },
+      { name: 'satisfied', label: 'Satisfait', type: 'boolean' },
+      { name: 'nps_points', label: 'Points NPS', type: 'number' },
+      { name: 'agent', label: 'Conseiller', type: 'text' },
+      {
+        name: 'handled_by',
+        label: 'Traitée par',
+        type: 'text',
+        values: [
+          { value: 'ai', label: 'L’IA seule' },
+          { value: 'agent', label: 'Un conseiller' },
+        ],
+      },
+      { name: 'inbox', label: 'Boîte de réception', type: 'text' },
+      { name: 'team', label: 'Équipe', type: 'text' },
+      { name: 'site', label: 'Site', type: 'text' },
+      { name: 'comment', label: 'Commentaire', type: 'text' },
+    ],
+  },
+  {
+    key: 'survey_comments',
+    label: 'Commentaires des visiteurs',
+    description: 'Ce que les visiteurs ont écrit avec leur note, le plus récent d’abord.',
+    columns: [
+      { name: 'created_at', label: 'Le', type: 'date' },
+      { name: 'scale', label: 'Échelle', type: 'text', values: SCALES },
+      { name: 'score', label: 'Note', type: 'number' },
+      { name: 'agent', label: 'Conseiller', type: 'text' },
+      { name: 'site', label: 'Site', type: 'text' },
+      { name: 'inbox', label: 'Boîte de réception', type: 'text' },
+      { name: 'comment', label: 'Commentaire', type: 'text' },
     ],
   },
   {

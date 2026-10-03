@@ -21,7 +21,6 @@ import {
   type Draft,
   FIELD_LABELS,
   OPERATORS,
-  OPERATOR_LABELS,
   PRIORITY_CHOICES,
   STEP_LABELS,
   TRIGGER_LABELS,
@@ -29,6 +28,7 @@ import {
   allSteps,
   newRule,
   newTrigger,
+  operatorLabel,
   problemText,
   stepProblem,
   valueChoices,
@@ -120,6 +120,13 @@ const CITATIONS: readonly {
   },
 ]
 
+/** What a satisfaction survey's answer says — when one set the automation off. */
+const SURVEY_CITATIONS: readonly [string, string][] = [
+  ['enquete.note', msg('Note donnée')],
+  ['enquete.sur', msg('Note maximale (5 ou 10)')],
+  ['enquete.commentaire', msg('Commentaire du visiteur')],
+]
+
 /** The steps before `id` whose result can be cited. */
 function earlierOutputs(draft: Draft, id: string | null): AutomationStep[] {
   const steps = allSteps(draft.steps)
@@ -181,6 +188,23 @@ function CiteMenu({
               >
                 <span className="font-mono text-[11px] text-muted-foreground">{s.id}</span>
                 {$t(STEP_LABELS[s.kind])}
+              </DropdownMenuItem>
+            ))}
+          </>
+        )}
+        {draft.trigger.kind === 'survey_answered' && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+              {$t('L’enquête')}
+            </DropdownMenuLabel>
+            {SURVEY_CITATIONS.map(([path, label]) => (
+              <DropdownMenuItem
+                key={path}
+                onSelect={() => onCite(`{{${path}}}`)}
+                className="text-xs"
+              >
+                {$t(label)}
               </DropdownMenuItem>
             ))}
           </>
@@ -292,7 +316,11 @@ function RuleRow({
   const fieldId = useId()
   const named = valueChoices(rule.field, choices)
   const outputs = earlierOutputs(draft, stepId)
-  const fields = FIELDS_IN_ORDER.filter((f) => f !== 'step' || outputs.length > 0)
+  const fields: readonly ConditionField[] = [
+    // The score is that of the answer that set it off: there is none otherwise.
+    ...(draft.trigger.kind === 'survey_answered' ? (['score'] as const) : []),
+    ...FIELDS_IN_ORDER.filter((f) => f !== 'step' || outputs.length > 0),
+  ]
   return (
     <div className="space-y-2 rounded-lg border bg-muted/20 p-2.5">
       <div className="flex items-center gap-1.5">
@@ -342,7 +370,10 @@ function RuleRow({
       <Segmented
         value={rule.op}
         onValueChange={(op) => onChange({ ...rule, op, values: BARE.has(op) ? [] : rule.values })}
-        options={OPERATORS[rule.field].map((op) => ({ value: op, label: $t(OPERATOR_LABELS[op]) }))}
+        options={OPERATORS[rule.field].map((op) => ({
+          value: op,
+          label: operatorLabel(rule.field, op),
+        }))}
         className="flex h-auto w-full flex-wrap"
         itemClassName="flex-none"
         aria-label={$t('Comparaison')}
@@ -355,14 +386,15 @@ function RuleRow({
             onChange={(values) => onChange({ ...rule, values })}
             disabled={false}
           />
-        ) : rule.field === 'idle' ? (
+        ) : rule.field === 'idle' || rule.field === 'score' ? (
           <Input
             type="number"
-            min={1}
+            min={rule.field === 'idle' ? 1 : 0}
+            max={rule.field === 'score' ? 10 : undefined}
             value={rule.values[0] ?? ''}
             onChange={(e) => onChange({ ...rule, values: [e.target.value] })}
             className="h-8 w-28 text-xs"
-            aria-label={$t('Minutes')}
+            aria-label={rule.field === 'idle' ? $t('Minutes') : $t('Note')}
           />
         ) : (
           <LinesField
@@ -913,6 +945,53 @@ export function StepSettings({
             placeholder={$t('Laissez-nous votre e-mail : nous vous répondons dès que possible.')}
             hint={$t(
               'Le widget montre une carte pour laisser son adresse — une fois par conversation, et seulement si le contact n’en a pas.',
+            )}
+          />
+        </div>
+      )
+    case 'survey':
+      return (
+        <div className="space-y-4">
+          {warning}
+          <Field
+            label={$t('Échelle')}
+            hint={
+              step.scale === 'nps'
+                ? $t(
+                    'De 0 à 10 : recommanderait-il votre service ? 9 et 10 sont des promoteurs, 0 à 6 des détracteurs ; le NPS est leur écart.',
+                  )
+                : $t(
+                    'De 1 à 5 : est-il satisfait de la conversation ? Le CSAT est la part des 4 et des 5.',
+                  )
+            }
+          >
+            {() => (
+              <Segmented
+                value={step.scale}
+                onValueChange={(scale) => onChange({ ...step, scale })}
+                options={[
+                  { value: 'csat', label: $t('CSAT · de 1 à 5') },
+                  { value: 'nps', label: $t('NPS · de 0 à 10') },
+                ]}
+                className="w-full"
+                aria-label={$t('Échelle')}
+              />
+            )}
+          </Field>
+          <CitingText
+            label={$t('La question')}
+            value={step.text}
+            onChange={(text) => onChange({ ...step, text })}
+            draft={draft}
+            stepId={step.id}
+            rows={2}
+            placeholder={
+              step.scale === 'nps'
+                ? $t('Recommanderiez-vous {site} à un proche ?', { site: '{{conversation.site}}' })
+                : $t('Comment s’est passée cette conversation ?')
+            }
+            hint={$t(
+              'Vide, les mots du widget, dans sa langue. Le widget demande une note, puis un commentaire s’il le souhaite — une fois par conversation, et seulement si le visiteur ne l’a pas quittée.',
             )}
           />
         </div>

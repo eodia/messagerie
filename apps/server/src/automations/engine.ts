@@ -156,7 +156,7 @@ export async function drainEvents(deps: EngineDeps): Promise<number> {
           tx,
           deps.settings,
           row.conversation_id,
-          kind === 'visitor_message' ? row.message_id : null,
+          kind === 'visitor_message' || kind === 'survey_answered' ? row.message_id : null,
         )
         for (const automation of candidates) {
           if (cause?.automationId === automation.id) continue
@@ -391,7 +391,7 @@ export async function workRun(deps: EngineDeps, run: RunRow): Promise<void> {
   const refresh = async () => {
     if (stale) {
       const fresh = await loadSubject(db, deps.settings, run.conversationId, null)
-      subject = { ...fresh, message: subject.message }
+      subject = { ...fresh, message: subject.message, survey: subject.survey }
       stale = false
     }
     const [inboxes, teams] = await Promise.all([deps.settings.inboxes(), deps.settings.teams()])

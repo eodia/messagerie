@@ -278,6 +278,39 @@ img.person-avatar { object-fit: cover; background: #fff; }
 .email-row button:disabled { opacity: .5; cursor: default; }
 .email-wrong { font-size: 12.5px; color: #dc2626; }
 
+/* « Enquête de satisfaction »: a score, then a word. */
+.survey-card {
+  margin: 10px 0 4px 36px; padding: 12px; border-radius: 14px; background: var(--bubble);
+  border: 1px solid var(--line); border-left: 3px solid var(--accent);
+  display: flex; flex-direction: column; gap: 10px; font-size: 14px; color: var(--ink);
+}
+.survey-card p { margin: 0; }
+.survey-question, .survey-card.done { display: flex; flex-direction: row; gap: 8px; align-items: flex-start; line-height: 1.45; }
+.survey-card svg { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--accent); }
+.survey-scale { display: flex; gap: 4px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.survey-scale button {
+  flex: 1; min-width: 0; height: 36px; padding: 0; border-radius: 10px; font: inherit;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer;
+  transition: background .15s, border-color .15s, transform .15s;
+}
+.survey-scale.csat button { font-size: 20px; }
+.survey-scale.nps button { font-size: 13px; font-weight: 600; height: 32px; border-radius: 8px; }
+.survey-scale button:hover { border-color: var(--accent); }
+.survey-scale button.on {
+  background: var(--accent); color: var(--accent-ink); border-color: var(--accent); transform: scale(1.06);
+}
+.survey-ends { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); margin-top: -6px; }
+.survey-card textarea {
+  resize: none; padding: 8px 10px; border-radius: 10px; font: inherit; font-size: 13.5px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink); outline: none;
+}
+.survey-card textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.survey-send {
+  align-self: flex-end; height: 34px; padding: 0 14px; border-radius: 10px; border: 0; font: inherit;
+  font-weight: 600; background: var(--accent); color: var(--accent-ink); cursor: pointer;
+}
+.survey-send:disabled { opacity: .5; cursor: default; }
+
 /* What the visitor might say, where they would say it: one tap sends it. */
 .replies { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; margin: 12px 0 4px 36px; }
 .reply {

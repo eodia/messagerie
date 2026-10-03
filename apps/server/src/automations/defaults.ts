@@ -4,11 +4,11 @@ import type { Db } from '../db/client.js'
 import { agents, automations } from '../db/schema.js'
 
 /**
- * What a new messaging starts with (D20): an automation already on, which the supervisors
- * read, change or stop like any other. Written once, while there is none.
+ * What a new messaging starts with (D20): automations the supervisors read, change, start
+ * or stop like any other — one on, one ready to be. Written once, while there is none.
  */
 
-const DEFAULTS: readonly AutomationDefinition[] = [
+const DEFAULTS: readonly (AutomationDefinition & { readonly active: boolean })[] = [
   {
     name: 'Demander l’e-mail quand la réponse tarde',
     description:
@@ -22,13 +22,23 @@ const DEFAULTS: readonly AutomationDefinition[] = [
         text: 'Nos conseillers sont occupés. Laissez votre e-mail : nous vous répondons dès que possible.',
       },
     ],
+    active: true,
+  },
+  {
+    name: 'Enquête de satisfaction à la résolution',
+    description:
+      'Une conversation résolue : le widget demande au visiteur une note de 1 à 5, et un mot s’il le souhaite. À allumer quand vous le voulez.',
+    trigger: { kind: 'resolved' },
+    condition: { match: 'all', rules: [] },
+    steps: [{ id: 's1', kind: 'survey', scale: 'csat', text: '' }],
+    active: false,
   },
 ]
 
 export async function installDefaultAutomations(db: Db, createdBy: string): Promise<void> {
   const [any] = await db.select({ id: automations.id }).from(automations).limit(1)
   if (any) return
-  for (const definition of DEFAULTS) {
+  for (const { active, ...definition } of DEFAULTS) {
     const id = randomUUID()
     await db.transaction(async (tx) => {
       const [actor] = await tx
@@ -39,8 +49,8 @@ export async function installDefaultAutomations(db: Db, createdBy: string): Prom
       await tx.insert(automations).values({
         id,
         ...definition,
-        isActive: true,
-        activatedAt: new Date(),
+        isActive: active,
+        activatedAt: active ? new Date() : null,
         agentId: actor.id,
         createdBy,
       })

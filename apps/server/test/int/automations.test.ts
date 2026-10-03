@@ -32,9 +32,11 @@ import {
   conversations,
   messages,
   notifications,
+  surveys,
 } from '../../src/db/schema.js'
 import { Access } from '../../src/inbox/access.js'
 import type { AgentRow } from '../../src/inbox/read.js'
+import { answerSurvey } from '../../src/inbox/surveys.js'
 import { assign } from '../../src/inbox/write.js'
 import { Refusal } from '../../src/refusal.js'
 import { MemorySource } from '../../src/settings/demo.js'
@@ -351,6 +353,71 @@ describe('an automation', () => {
       (m) => (m.meta as { event?: { type?: string } }).event?.type === 'email_requested',
     )
     expect(asked).toHaveLength(1)
+  })
+
+  it('asks the visitor how it went once resolved, and tells of a bad score', async () => {
+    const asking = await automation({
+      name: 'Enquête',
+      trigger: { kind: 'resolved' },
+      steps: [
+        { id: 's1', kind: 'survey', scale: 'csat', text: 'Votre avis, {{contact.prenom}} ?' },
+      ],
+    })
+    const alerting = await automation({
+      name: 'Mauvaise note',
+      trigger: { kind: 'survey_answered' },
+      condition: { match: 'all', rules: [{ field: 'score', op: 'less_than', values: ['3'] }] },
+      steps: [
+        {
+          id: 's1',
+          kind: 'notify',
+          to: 'supervisors',
+          text: '{{contact.nom}} : {{enquete.note}}/{{enquete.sur}} — {{enquete.commentaire}}',
+        },
+      ],
+    })
+    const id = await conversation({ assigneeId: julie.id })
+    await db.update(conversations).set({ status: 'resolved' }).where(eq(conversations.id, id))
+    await automationPass(engine)
+    expect((await runsOf(asking.id))[0]?.status).toBe('succeeded')
+    const [survey] = await db.select().from(surveys).where(eq(surveys.conversationId, id))
+    expect(survey).toMatchObject({
+      scale: 'csat',
+      question: 'Votre avis, Léa ?',
+      askedBy: 'Enquête',
+      agentId: julie.id,
+      score: null,
+    })
+
+    // Reopened and resolved again: not asked twice.
+    await db.update(conversations).set({ status: 'open' }).where(eq(conversations.id, id))
+    await db.update(conversations).set({ status: 'resolved' }).where(eq(conversations.id, id))
+    await automationPass(engine)
+    const [second] = await runsOf(asking.id)
+    expect(second?.steps[0]).toMatchObject({ status: 'skipped' })
+
+    const [row] = await db.select().from(conversations).where(eq(conversations.id, id))
+    await answerSurvey(db, row?.contactId ?? '', survey?.id ?? '', {
+      score: 2,
+      comment: 'Trop long',
+    })
+    await automationPass(engine)
+    expect((await runsOf(alerting.id))[0]?.status).toBe('succeeded')
+    const bell = await db
+      .select()
+      .from(notifications)
+      .where(and(eq(notifications.agentId, marc.id), eq(notifications.conversationId, id)))
+    expect(bell.map((b) => b.text)).toContain('Léa Martin : 2/5 — Trop long')
+
+    // A good score is no alert.
+    const happy = await conversation({ assigneeId: julie.id })
+    await db.update(conversations).set({ status: 'resolved' }).where(eq(conversations.id, happy))
+    await automationPass(engine)
+    const [asked] = await db.select().from(surveys).where(eq(surveys.conversationId, happy))
+    const [happyRow] = await db.select().from(conversations).where(eq(conversations.id, happy))
+    await answerSurvey(db, happyRow?.contactId ?? '', asked?.id ?? '', { score: 5 })
+    await automationPass(engine)
+    expect(await runsOf(alerting.id)).toHaveLength(1)
   })
 
   it('goes off on its schedule, for each conversation its condition keeps', async () => {

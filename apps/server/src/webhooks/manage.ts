@@ -28,6 +28,7 @@ export const EVENT_TYPES: readonly WebhookEventType[] = [
   'conversation.transferred',
   'conversation.resolved',
   'conversation.reopened',
+  'survey.answered',
 ]
 
 const LABEL_MAX = 200

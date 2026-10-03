@@ -60,6 +60,21 @@ const EN: Readonly<Record<string, string>> = {
   '{label} : refusé': '{label}: declined',
   '{label} : n’a pas pu être fait': '{label}: could not be done',
   '{label}…': '{label}…',
+  'Comment s’est passée cette conversation ?': 'How did this conversation go?',
+  'Recommanderiez-vous {site} à un proche ?': 'Would you recommend {site} to a friend?',
+  'Votre note, de {min} à {max}': 'Your score, from {min} to {max}',
+  'Très insatisfait': 'Very dissatisfied',
+  Insatisfait: 'Dissatisfied',
+  'Moyennement satisfait': 'Neutral',
+  Satisfait: 'Satisfied',
+  'Très satisfait': 'Very satisfied',
+  'Pas du tout': 'Not at all likely',
+  'Tout à fait': 'Extremely likely',
+  'Un mot sur votre note ? (facultatif)': 'A word about your score? (optional)',
+  'Votre commentaire': 'Your comment',
+  'Envoyer ma note': 'Send my score',
+  'Votre note n’est pas partie. Réessayez.': 'Your score was not sent. Please try again.',
+  'Merci pour votre note : {score} sur {max}.': 'Thank you for your score: {score} out of {max}.',
 }
 
 let language = 'fr'

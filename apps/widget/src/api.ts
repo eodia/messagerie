@@ -37,6 +37,8 @@ export interface Backend {
   forgetVisitor(): void
   /** The address left in the « Laissez-nous votre e-mail » card. */
   leaveEmail(email: string): Promise<void>
+  /** The visitor's score in a satisfaction survey's card, and their word. */
+  answerSurvey(id: string, score: number, comment: string): Promise<void>
   /** Takes an action the AI asked of the page, to run it here — `false`: another tab did. */
   claimAction(id: string, tab: string): Promise<boolean>
   answerAction(id: string, tab: string, answer: PageActionResultBody): Promise<void>
@@ -188,6 +190,13 @@ export class WidgetApi implements Backend {
 
   async leaveEmail(email: string): Promise<void> {
     await this.call('POST', '/email', { email })
+  }
+
+  async answerSurvey(id: string, score: number, comment: string): Promise<void> {
+    await this.call('POST', `/surveys/${encodeURIComponent(id)}`, {
+      score,
+      ...(comment.trim() ? { comment: comment.trim() } : {}),
+    })
   }
 
   /**

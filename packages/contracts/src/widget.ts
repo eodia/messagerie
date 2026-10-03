@@ -78,6 +78,21 @@ export type WidgetMessage =
       readonly text: string | null
       readonly email: string | null
     }
+  /**
+   * « Enquête de satisfaction » (D20): a score to give — 1 to 5 (`csat`), 0 to 10 (`nps`)
+   * — and a word, if the visitor likes. `score` once they answered: the card thanks them.
+   */
+  | {
+      readonly id: string
+      readonly at: string
+      readonly from: 'survey'
+      /** What the answer is sent to. */
+      readonly survey: string
+      readonly scale: SurveyScale
+      /** The site's own question; null: the widget's. */
+      readonly text: string | null
+      readonly score: number | null
+    }
 
 export interface VisitorConversation {
   readonly id: string
@@ -159,6 +174,16 @@ export interface WidgetSession {
   readonly site: WidgetSite
   readonly availability: WidgetAvailability
   readonly conversation: VisitorConversation | null
+}
+
+/** CSAT: 1 to 5, « satisfied » from 4. NPS: 0 to 10, a promoter from 9, a detractor to 6. */
+export type SurveyScale = 'csat' | 'nps'
+
+/** What the visitor answers in the survey card. */
+export interface WidgetSurveyBody {
+  readonly score: number
+  /** A word on it — optional, 1000 characters at most. */
+  readonly comment?: string
 }
 
 /** The address the visitor leaves in the e-mail card. */

@@ -1,6 +1,6 @@
 ---
 title: Tableaux de bord
-description: Des cartes sur une grille — indicateurs, tableaux, graphiques —, chacune une question posée aux conversations, assistée ou en SQL, sous des titres de section, avec « Vue d’ensemble » pour commencer.
+description: Des cartes sur une grille — indicateurs, tableaux, graphiques —, chacune une question posée aux conversations, assistée ou en SQL, sous des titres de section, avec « Vue d’ensemble » et « Satisfaction » pour commencer.
 ---
 
 L’écran **Tableaux de bord** remplace les anciennes statistiques (D22). Un tableau de bord est
@@ -46,8 +46,28 @@ conseillers — « Ce qui se passe dans les conversations : volume, IA, délais
   conseillers sur l’IA ;
 - sous **Équipe**, les conversations par conseiller et les heures où les visiteurs écrivent.
 
-C’est un tableau comme les autres : un superviseur le modifie ou le supprime. S’il ne reste plus
-aucun tableau, l’écran le recrée à sa prochaine ouverture.
+## Satisfaction
+
+Avec elle, la messagerie crée **Satisfaction**, visible des conseillers — « Ce que les
+visiteurs disent de leurs conversations : CSAT, NPS, au global et par conseiller. » Elle lit
+les notes des [enquêtes de satisfaction](/messagerie/fonctionnalites/satisfaction/) :
+
+- quatre filtres : **Période**, **Boîte de réception**, **Site**, et **Conseiller** ;
+- sous **Vue globale**, quatre indicateurs de la semaine comparée à la précédente : le
+  **CSAT** (la part des visiteurs satisfaits, 4 ou 5 sur 5), la **note moyenne** sur 5, le
+  **NPS** et le **taux de réponse** ; puis la part des satisfaits semaine après semaine, et les
+  notes données, de 1 à 5 ;
+- sous **Par conseiller**, le CSAT, la note moyenne et le nombre de réponses de chaque
+  conseiller ; son NPS ; la satisfaction quand l’IA a traité seule la conversation, et quand un
+  conseiller l’a eue ; le nombre de réponses par conseiller ;
+- sous **Ce qu’en disent les visiteurs**, les derniers commentaires, avec leur note.
+
+Une note juge le conseiller qui avait la conversation quand l’enquête a été posée — ou, si elle
+était revenue dans la file, le dernier qui a répondu au visiteur ; sans conseiller, l’IA seule.
+
+Ce sont des tableaux comme les autres : un superviseur les modifie ou les supprime. Chacun est
+donné une fois : supprimé, il ne revient pas. Une messagerie qui avait déjà ses tableaux reçoit
+**Satisfaction** à sa mise à jour.
 
 ## Les cartes
 
@@ -177,9 +197,12 @@ ont un libellé en français.
 | **Étiquettes** | étiquette posée | étiquette, posée par (conseiller, IA), posée le, boîte |
 | **Contacts** | contact | venu le, client identifié, pays, segment, a laissé son e-mail |
 | **Exécutions d’automatisations** | exécution | le, automatisation, déclencheur, statut, durée |
+| **Enquêtes de satisfaction** | enquête posée | posée le, répondue le, échelle (CSAT, NPS), note, note en catégorie, répondue, satisfait, points NPS, conseiller, traitée par (l’IA seule, un conseiller), boîte, équipe, site, commentaire |
+| **Commentaires des visiteurs** | commentaire laissé avec une note | le, échelle, note, conseiller, site, boîte, commentaire |
 
 **Résolue par l’IA** : l’IA a répondu, sans transfert, et sans qu’un conseiller écrive au
-visiteur. **Première réponse** : le délai entre le premier message du visiteur et la première
+visiteur. **Satisfait** : 4 ou 5 sur 5, 9 ou 10 sur 10. **Points NPS** : +100 un promoteur
+(9 ou 10), -100 un détracteur (0 à 6), 0 sinon — leur moyenne est le NPS. **Première réponse** : le délai entre le premier message du visiteur et la première
 réponse, de l’IA ou d’un conseiller.
 
 ## Une question en SQL

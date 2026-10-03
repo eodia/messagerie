@@ -52,6 +52,7 @@ export default defineConfig({
 						{ slug: 'fonctionnalites/alertes' },
 						{ slug: 'fonctionnalites/tableaux-de-bord' },
 						{ slug: 'fonctionnalites/automatisations' },
+						{ slug: 'fonctionnalites/satisfaction' },
 						{ slug: 'fonctionnalites/parametrage' },
 						{ slug: 'fonctionnalites/conseillers-et-droits' },
 					],

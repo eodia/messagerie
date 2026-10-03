@@ -28,6 +28,7 @@ export const TRIGGER_KINDS: readonly AutomationTriggerKind[] = [
   'resolved',
   'reopened',
   'sentiment_changed',
+  'survey_answered',
   'no_reply',
   'schedule',
   'button',
@@ -45,6 +46,7 @@ export const EVENT_TRIGGERS: Readonly<Record<string, AutomationTriggerKind>> = {
   'conversation.resolved': 'resolved',
   'conversation.reopened': 'reopened',
   'conversation.sentiment': 'sentiment_changed',
+  'survey.answered': 'survey_answered',
 }
 
 const FIELDS: Readonly<Record<ConditionField, readonly ConditionOperator[]>> = {
@@ -62,6 +64,7 @@ const FIELDS: Readonly<Record<ConditionField, readonly ConditionOperator[]>> = {
   idle: ['more_than', 'less_than'],
   data: ['contains', 'not_contains', 'equals', 'not_equals', 'empty', 'not_empty'],
   step: ['contains', 'not_contains', 'equals', 'not_equals', 'empty', 'not_empty'],
+  score: ['less_than', 'more_than'],
 }
 
 const MAX_STEPS = 60
@@ -261,6 +264,13 @@ function readStep(raw: unknown, depth: number, ids: Ids): AutomationStep {
       return { id, kind, body: text(value.body, TEXT, 'body', id) }
     case 'ask_email':
       return { id, kind, text: text(value.text, 500, 'body', id) }
+    case 'survey':
+      return {
+        id,
+        kind,
+        scale: oneOf(value.scale ?? 'csat', ['csat', 'nps'] as const, 'survey', id),
+        text: text(value.text, 500, 'body', id),
+      }
     case 'notify': {
       const to = oneOf(
         value.to ?? 'assignee',
@@ -379,6 +389,7 @@ const NEEDS_CONVERSATION = new Set([
   'notify',
   'data',
   'ask_email',
+  'survey',
 ])
 
 /** The first thing that would keep the automation from running, or `null`. */

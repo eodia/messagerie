@@ -22,6 +22,7 @@ import {
   SendIcon,
   SmileIcon,
   SparkIcon,
+  StarIcon,
 } from './icons'
 import { Markdown } from './markdown'
 import type { Commands, Data, PageBridge, PageEvent } from './page-api'
@@ -132,6 +133,14 @@ type Item =
       readonly text: string | null
       readonly email: string | null
     }
+  | {
+      readonly kind: 'survey'
+      readonly key: string
+      readonly survey: string
+      readonly scale: 'csat' | 'nps'
+      readonly text: string | null
+      readonly score: number | null
+    }
 
 function eventText(message: Extract<WidgetMessage, { from: 'event' }>): string {
   if (message.event === 'joined')
@@ -166,6 +175,17 @@ function itemsOf(welcome: Line & { from: Speaker }, messages: readonly WidgetMes
     }
     if (message.from === 'email') {
       items.push({ kind: 'email', key: message.id, text: message.text, email: message.email })
+      continue
+    }
+    if (message.from === 'survey') {
+      items.push({
+        kind: 'survey',
+        key: message.id,
+        survey: message.survey,
+        scale: message.scale,
+        text: message.text,
+        score: message.score,
+      })
       continue
     }
     const author = message.from === 'agent' ? message.author : null
@@ -712,6 +732,18 @@ export function App({
                     apply(await api.conversation())
                   }}
                 />
+              ) : item.kind === 'survey' ? (
+                <SurveyCard
+                  key={item.key}
+                  scale={item.scale}
+                  text={item.text}
+                  score={item.score}
+                  site={site.name}
+                  onAnswer={async (score, comment) => {
+                    await api.answerSurvey(item.survey, score, comment)
+                    apply(await api.conversation())
+                  }}
+                />
               ) : (
                 <Group
                   key={item.key}
@@ -1145,6 +1177,118 @@ function EmailCard({
         </button>
       </div>
       {wrong && <p class="email-wrong">{t('Cette adresse ne semble pas valable.')}</p>}
+    </form>
+  )
+}
+
+/** CSAT's five faces, from « very dissatisfied » to « very satisfied ». */
+const FACES = ['😞', '🙁', '😐', '🙂', '😄'] as const
+const FACE_WORDS = [
+  'Très insatisfait',
+  'Insatisfait',
+  'Moyennement satisfait',
+  'Satisfait',
+  'Très satisfait',
+] as const
+
+/**
+ * « Enquête de satisfaction »: a score — five faces, or 0 to 10 —, then a word if the
+ * visitor likes, and it goes. Answered, the card thanks them.
+ */
+function SurveyCard({
+  scale,
+  text,
+  score,
+  site,
+  onAnswer,
+}: {
+  readonly scale: 'csat' | 'nps'
+  readonly text: string | null
+  readonly score: number | null
+  readonly site: string
+  readonly onAnswer: (score: number, comment: string) => Promise<void>
+}) {
+  const [chosen, setChosen] = useState<number | null>(null)
+  const [comment, setComment] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const max = scale === 'nps' ? 10 : 5
+  if (score !== null) {
+    return (
+      <output class="survey-card done">
+        <StarIcon />
+        <p>{t('Merci pour votre note : {score} sur {max}.', { score, max })}</p>
+      </output>
+    )
+  }
+  const question =
+    text ??
+    (scale === 'nps'
+      ? t('Recommanderiez-vous {site} à un proche ?', { site })
+      : t('Comment s’est passée cette conversation ?'))
+  const send = async (event: Event) => {
+    event.preventDefault()
+    if (chosen === null) return
+    setBusy(true)
+    setFailed(false)
+    try {
+      await onAnswer(chosen, comment)
+    } catch {
+      setFailed(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+  const scores = scale === 'nps' ? Array.from({ length: 11 }, (_, i) => i) : [1, 2, 3, 4, 5]
+  return (
+    <form class="survey-card" onSubmit={(e) => void send(e)}>
+      <p class="survey-question">
+        <StarIcon />
+        <span>{question}</span>
+      </p>
+      <fieldset
+        class={`survey-scale ${scale}`}
+        aria-label={t('Votre note, de {min} à {max}', { min: scores[0] ?? 0, max })}
+      >
+        {scores.map((value) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={chosen === value}
+            aria-label={
+              scale === 'csat'
+                ? `${value} / 5 — ${t(FACE_WORDS[value - 1] ?? '')}`
+                : `${value} / 10`
+            }
+            class={chosen === value ? 'on' : ''}
+            onClick={() => setChosen(value)}
+          >
+            {scale === 'csat' ? FACES[value - 1] : value}
+          </button>
+        ))}
+      </fieldset>
+      {scale === 'nps' && (
+        <div class="survey-ends" aria-hidden="true">
+          <span>{t('Pas du tout')}</span>
+          <span>{t('Tout à fait')}</span>
+        </div>
+      )}
+      {chosen !== null && (
+        <>
+          <textarea
+            rows={2}
+            maxLength={1000}
+            value={comment}
+            placeholder={t('Un mot sur votre note ? (facultatif)')}
+            aria-label={t('Votre commentaire')}
+            onInput={(e) => setComment((e.target as HTMLTextAreaElement).value)}
+          />
+          <button type="submit" class="survey-send" disabled={busy}>
+            {t('Envoyer ma note')}
+          </button>
+        </>
+      )}
+      {failed && <p class="email-wrong">{t('Votre note n’est pas partie. Réessayez.')}</p>}
     </form>
   )
 }

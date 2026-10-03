@@ -32,6 +32,7 @@ export const TRIGGER_LABELS: Readonly<Record<AutomationTriggerKind, string>> = {
   resolved: msg('Conversation résolue'),
   reopened: msg('Conversation rouverte'),
   sentiment_changed: msg('L’humeur change'),
+  survey_answered: msg('Enquête de satisfaction répondue'),
   no_reply: msg('Visiteur sans réponse'),
   schedule: msg('À heure fixe'),
   button: msg('Bouton dans la conversation'),
@@ -47,6 +48,7 @@ export const TRIGGER_HINTS: Readonly<Record<AutomationTriggerKind, string>> = {
   resolved: msg('Un conseiller ou l’IA clôt la conversation.'),
   reopened: msg('Une conversation résolue reprend.'),
   sentiment_changed: msg('L’IA lit une autre humeur dans les mots du visiteur.'),
+  survey_answered: msg('Le visiteur donne sa note : sa valeur se teste dans la condition.'),
   no_reply: msg('Le visiteur attend une réponse depuis un délai choisi.'),
   schedule: msg('Chaque heure, chaque jour ou chaque semaine.'),
   button: msg('Un conseiller la lance depuis la conversation.'),
@@ -68,6 +70,7 @@ export const TRIGGER_GROUPS: readonly {
       'resolved',
       'reopened',
       'sentiment_changed',
+      'survey_answered',
     ],
   },
   { label: msg('Avec le temps'), kinds: ['no_reply', 'schedule'] },
@@ -83,6 +86,7 @@ export const STEP_LABELS: Readonly<Record<AutomationStepKind, string>> = {
   reply: msg('Répondre au visiteur'),
   note: msg('Ajouter une note'),
   ask_email: msg('Demander l’e-mail du visiteur'),
+  survey: msg('Enquête de satisfaction'),
   notify: msg('Prévenir'),
   webhook: msg('Appeler une adresse'),
   ai: msg('Demander à l’IA'),
@@ -100,6 +104,7 @@ export const STEP_HINTS: Readonly<Record<AutomationStepKind, string>> = {
   reply: msg('Un message au visiteur, signé de l’automatisation.'),
   note: msg('Une note que seule l’équipe lit.'),
   ask_email: msg('Le widget lui propose de laisser son adresse.'),
+  survey: msg('Le widget lui demande une note, CSAT ou NPS.'),
   notify: msg('Une ligne dans la cloche des conseillers choisis.'),
   webhook: msg('Envoyer la conversation à un CRM, un ERP, un outil interne.'),
   ai: msg('Classer la demande, ou rédiger un texte.'),
@@ -116,7 +121,7 @@ export const STEP_GROUPS: readonly {
     label: msg('La conversation'),
     kinds: ['assign', 'transfer', 'tag', 'priority', 'status', 'data'],
   },
-  { label: msg('Écrire'), kinds: ['reply', 'note', 'ask_email', 'notify'] },
+  { label: msg('Écrire'), kinds: ['reply', 'note', 'ask_email', 'survey', 'notify'] },
   { label: msg('Autres systèmes et IA'), kinds: ['webhook', 'ai'] },
   { label: msg('Le déroulement'), kinds: ['branch', 'wait'] },
 ]
@@ -138,6 +143,7 @@ export const FIELD_LABELS: Readonly<Record<ConditionField, string>> = {
   idle: msg('Sans message depuis'),
   data: msg('Donnée de la conversation'),
   step: msg('Résultat d’une étape'),
+  score: msg('Note donnée'),
 }
 
 export const OPERATORS: Readonly<Record<ConditionField, readonly ConditionOperator[]>> = {
@@ -155,6 +161,7 @@ export const OPERATORS: Readonly<Record<ConditionField, readonly ConditionOperat
   idle: ['more_than', 'less_than'],
   data: ['contains', 'not_contains', 'equals', 'not_equals', 'empty', 'not_empty'],
   step: ['contains', 'not_contains', 'equals', 'not_equals', 'empty', 'not_empty'],
+  score: ['less_than', 'more_than'],
 }
 
 export const OPERATOR_LABELS: Readonly<Record<ConditionOperator, string>> = {
@@ -174,6 +181,13 @@ export const OPERATOR_LABELS: Readonly<Record<ConditionOperator, string>> = {
   closed: msg('fermé en ce moment'),
   more_than: msg('plus de (minutes)'),
   less_than: msg('moins de (minutes)'),
+}
+
+/** An operator as the rule on `field` says it: a score is no number of minutes. */
+export function operatorLabel(field: ConditionField, op: ConditionOperator): string {
+  if (field === 'score' && op === 'less_than') return $t('inférieure à')
+  if (field === 'score' && op === 'more_than') return $t('supérieure à')
+  return $t(OPERATOR_LABELS[op])
 }
 
 /** The operators that ask for no value. */
@@ -238,13 +252,13 @@ export function valueChoices(
 export const newRule = (field: ConditionField = 'inbox'): ConditionRule => ({
   field,
   op: OPERATORS[field][0] as ConditionOperator,
-  values: field === 'idle' ? ['30'] : [],
+  values: field === 'idle' ? ['30'] : field === 'score' ? ['3'] : [],
 })
 
 /** A rule in a few words: « Boîte de réception est Service client ». */
 export function ruleText(rule: ConditionRule, choices: AutomationChoices | null): string {
   const field = $t(FIELD_LABELS[rule.field])
-  const op = $t(OPERATOR_LABELS[rule.op])
+  const op = operatorLabel(rule.field, rule.op)
   if (BARE.has(rule.op)) return `${field} ${op}`
   const named = valueChoices(rule.field, choices)
   const values = rule.values.map((v) => named?.find((c) => c.id === v)?.label ?? v).join(', ')
@@ -428,6 +442,8 @@ export function newStep(
       return { id, kind, body: '' }
     case 'ask_email':
       return { id, kind, text: '' }
+    case 'survey':
+      return { id, kind, scale: 'csat', text: '' }
     case 'notify':
       return { id, kind, to: 'assignee', agentIds: [], text: '' }
     case 'webhook':
@@ -512,6 +528,7 @@ const NEEDS_CONVERSATION = new Set<AutomationStepKind>([
   'notify',
   'data',
   'ask_email',
+  'survey',
 ])
 
 export const aboutConversation = (trigger: AutomationTrigger): boolean =>
@@ -609,6 +626,10 @@ export function stepSummary(step: AutomationStep, choices: AutomationChoices | n
       return step.body
     case 'ask_email':
       return step.text || $t('Avec les mots du widget')
+    case 'survey':
+      return [step.scale === 'nps' ? $t('NPS, de 0 à 10') : $t('CSAT, de 1 à 5'), step.text]
+        .filter(Boolean)
+        .join(' · ')
     case 'notify':
       return step.text
     case 'webhook':

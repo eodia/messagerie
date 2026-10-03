@@ -107,6 +107,18 @@ La carte paraît dans deux cas :
 Elle ne paraît qu’une fois par conversation, et jamais pour un contact dont l’adresse est déjà
 connue. Un client que le site a signé garde l’adresse de sa signature.
 
+### L’enquête de satisfaction
+
+Quand une automatisation le demande — d’ordinaire à la résolution —, le fil montre une carte qui
+demande sa note au visiteur : « Comment s’est passée cette conversation ? » et cinq visages, du
+plus mécontent au plus content (**CSAT**) ; ou « Recommanderiez-vous Acme Assurances à un
+proche ? » et une échelle de 0 à 10, de **Pas du tout** à **Tout à fait** (**NPS**). Une fois la
+note choisie, il peut ajouter un mot (« Un mot sur votre note ? (facultatif) »), puis **Envoyer
+ma note** ; la carte le remercie : « Merci pour votre note : 4 sur 5. »
+
+La carte ne paraît qu’une fois par conversation, et ne prend qu’une réponse. Voir
+[satisfaction](/messagerie/fonctionnalites/satisfaction/).
+
 ### Ce que l’IA propose de faire sur la page
 
 Quand la page a déclaré des [actions](/messagerie/integrations/actions-de-page/) et qu’un

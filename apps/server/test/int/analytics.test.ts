@@ -1,4 +1,5 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql'
+import { eq } from 'drizzle-orm'
 import type pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
@@ -12,10 +13,18 @@ import {
   runCard,
   runDraft,
   runQuestion,
+  satisfactionCards,
   saveDashboard,
 } from '../../src/analytics/dashboards.js'
 import { type Db, connect, migrateDatabase } from '../../src/db/client.js'
-import { agents, contacts, conversations, messages } from '../../src/db/schema.js'
+import {
+  agents,
+  contacts,
+  conversations,
+  dashboards,
+  messages,
+  surveys,
+} from '../../src/db/schema.js'
 import type { AgentRow } from '../../src/inbox/read.js'
 
 /**
@@ -171,7 +180,74 @@ describe('a dashboard', () => {
     const trend = first?.cards.find((c) => c.title === 'Conversations')
     const weeks = await runCard(deps, julie, first?.id ?? '', trend?.id ?? '', 'Europe/Paris')
     expect(weeks.rows.at(-1)?.[1]).toBeGreaterThan(0)
-    expect((await listDashboards(db, marc)).length).toBe(1)
+    expect((await listDashboards(db, marc)).map((d) => d.name)).toEqual([
+      'Vue d’ensemble',
+      'Satisfaction',
+    ])
+  })
+
+  it('gives « Satisfaction »: CSAT and NPS, overall and by agent', async () => {
+    const all = await db.select({ id: conversations.id }).from(conversations)
+    const at = new Date()
+    await db.insert(surveys).values([
+      {
+        conversationId: all[0]?.id ?? '',
+        scale: 'csat',
+        agentId: julie.id,
+        score: 5,
+        answeredAt: at,
+      },
+      {
+        conversationId: all[1]?.id ?? '',
+        scale: 'csat',
+        agentId: julie.id,
+        score: 2,
+        comment: 'Trop long',
+        answeredAt: at,
+      },
+      {
+        conversationId: all[2]?.id ?? '',
+        scale: 'nps',
+        agentId: marc.id,
+        score: 10,
+        answeredAt: at,
+      },
+      { conversationId: all[3]?.id ?? '', scale: 'csat', agentId: null },
+    ])
+    const satisfaction = (await listDashboards(db, julie)).find((d) => d.name === 'Satisfaction')
+    expect(satisfaction?.cards.length).toBe(satisfactionCards().length)
+    const run = async (title: string) => {
+      const card = satisfaction?.cards.find((c) => c.title === title)
+      return runCard(deps, julie, satisfaction?.id ?? '', card?.id ?? '', 'Europe/Paris')
+    }
+    for (const card of satisfaction?.cards.filter((c) => c.question) ?? []) {
+      await run(card.title)
+    }
+    expect((await run('CSAT')).rows.at(-1)?.[1]).toBe(50)
+    expect((await run('NPS')).rows.at(-1)?.[1]).toBe(100)
+    expect((await run('Taux de réponse')).rows.at(-1)?.[1]).toBe(75)
+    expect((await run('CSAT par conseiller')).rows).toEqual([['Julie', 50, 3.5, 2]])
+    expect((await run('NPS par conseiller')).rows).toEqual([['Marc', 100, 1]])
+    expect((await run('Derniers commentaires')).rows).toEqual([
+      [expect.any(String), 'csat', 2, 'Julie', 'Acme', null, 'Trop long'],
+    ])
+    // The agent filter, tied to the cards of the surveys.
+    const card = satisfaction?.cards.find((c) => c.title === 'Réponses par conseiller')
+    const julia = await runCard(
+      deps,
+      julie,
+      satisfaction?.id ?? '',
+      card?.id ?? '',
+      'Europe/Paris',
+      {
+        conseiller: ['Julie'],
+      },
+    )
+    expect(julia.rows).toEqual([['Julie', 2]])
+
+    // Deleted, it is not given again.
+    await db.delete(dashboards).where(eq(dashboards.id, satisfaction?.id ?? ''))
+    expect((await listDashboards(db, marc)).map((d) => d.name)).toEqual(['Vue d’ensemble'])
   })
 
   it('is changed by supervisors; an agent sees the shared ones, and runs their cards only', async () => {
@@ -193,6 +269,7 @@ describe('a dashboard', () => {
       ],
     })
     expect((await listDashboards(db, julie)).map((d) => d.name)).toEqual(['Vue d’ensemble'])
+    expect(made.shared).toBe(false)
     await expect(getDashboard(db, julie, made.id)).rejects.toMatchObject({
       code: 'DASHBOARD_NOT_FOUND',
     })

@@ -9,7 +9,7 @@ import type {
 import { and, asc, desc, eq } from 'drizzle-orm'
 import type { Config } from '../config.js'
 import type { Db } from '../db/client.js'
-import { agents, contacts, conversations, messages, siteSecrets } from '../db/schema.js'
+import { agents, contacts, conversations, messages, siteSecrets, surveys } from '../db/schema.js'
 import { type Upload, attachmentsOf, forVisitor, keeping } from '../files/attachments.js'
 import type { FileStore } from '../files/store.js'
 import { generatedName } from '../inbox/contact-name.js'
@@ -253,6 +253,10 @@ export async function visitorConversation(
     .select({ email: contacts.email })
     .from(contacts)
     .where(eq(contacts.id, contactId))
+  const [survey] = await db
+    .select()
+    .from(surveys)
+    .where(eq(surveys.conversationId, conversation.id))
 
   const files = await attachmentsOf(
     db,
@@ -305,6 +309,15 @@ export async function visitorConversation(
         })
       } else if (event?.type === 'email_requested') {
         shown.push({ ...base, from: 'email', text: event.text, email: contact?.email ?? null })
+      } else if (event?.type === 'survey_requested' && survey?.id === event.survey) {
+        shown.push({
+          ...base,
+          from: 'survey',
+          survey: survey.id,
+          scale: survey.scale,
+          text: survey.question,
+          score: survey.score,
+        })
       }
     }
   }
