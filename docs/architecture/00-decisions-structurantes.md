@@ -37,7 +37,8 @@ démarrage (D8) :
   identités chez un fournisseur OIDC (D4) ;
 - **le flux** — contacts, conversations, messages, `ai_runs`, `ai_feedback`, `kb_chunks` et
   leurs vecteurs, pièces jointes, notifications, journal des accès, jetons, webhooks, ce qui
-  sort (D23) et les appareils des conseillers.
+  sort (D23) et les appareils des conseillers ;
+- **les adresses e-mail des sites** (D24), avec le paramétrage.
 
 Une conversation garde l'identifiant texte de son site, de sa boîte et de son équipe, et
 le nom du site au moment où elle a commencé : l'historique survit à une ligne supprimée.
@@ -490,13 +491,16 @@ une carte par étape, un « + » sur chaque lien), dans « Administration › Au
 
 - **Déclencheurs :** une conversation commence ; le visiteur écrit ; l'IA passe la main ;
   attribuée, transférée, résolue, rouverte ; l'humeur change ; le visiteur attend une
-  réponse depuis N minutes ; à heure fixe — une fois, ou pour chaque conversation que la
+  réponse depuis N minutes ; une réponse n'a pas atteint le client (SMS non remis, e-mail
+  refusé — D23) ; à heure fixe — une fois, ou pour chaque conversation que la
   condition retient ; un bouton dans la conversation ; l'appel d'un autre système, à
   l'adresse de l'automatisation et avec sa clé.
 - **Étapes :** attribuer (à quelqu'un, au moins occupé d'une équipe, à tour de rôle),
   transférer, étiqueter, priorité, statut, répondre, noter, demander l'e-mail du visiteur,
-  prévenir, appeler une adresse, demander à l'IA (classer ou rédiger), noter une donnée ;
-  une condition ouvre des chemins ; une attente reprend plus tard, sauf si le visiteur a
+  prévenir, appeler une adresse, demander à l'IA (classer ou rédiger), noter une donnée,
+  écrire au contact par SMS ou par e-mail — une nouvelle conversation, comme « Nouveau
+  message » (D23), dont l'événement garde l'exécution ; la condition lit aussi le canal de la
+  conversation (widget, SMS, RCS, e-mail) ; une condition ouvre des chemins ; une attente reprend plus tard, sauf si le visiteur a
   écrit. Les textes citent la conversation : `{{contact.prenom}}`, `{{etape.s2}}`.
 - **Le moteur** lit les événements que captent les déclencheurs de la base (D17), crée les
   exécutions de celles qui écoutent, et les mène étape par étape, toutes les deux secondes,
@@ -658,6 +662,41 @@ d'e-mails à ses clients le refuse (`EMAIL_REPLIES_OFF`). La nouvelle conversati
 la boîte de son site, que l'auteur doit voir ; elle est à lui, comme s'il avait répondu, et
 l'IA n'y répond pas la première. Un jeton la laisse dans la file.
 
+## D24 — Le canal e-mail : une adresse par site, lue en IMAP, servie en SMTP
+
+Un client écrit aussi par e-mail. Un site a son adresse — une ligne d'« Adresses e-mail » :
+l'adresse, ses serveurs IMAP et SMTP, l'identifiant, la variable du mot de passe (D5), le site.
+Une adresse sans site sert le premier site actif. Le mot de passe n'est jamais en base : un
+mot de passe d'application, de préférence.
+
+- **Ce qui arrive.** Le serveur relève chaque minute les adresses actives où « Lire la boîte »
+  est coché (`channels/email.ts`, `imapflow`) : les messages non lus de la boîte de réception,
+  cinquante à la fois, marqués lus une fois écrits. L'expéditeur est un contact du site, par
+  son adresse ; sa conversation, celle à laquelle l'e-mail répond (`In-Reply-To`,
+  `References` contre l'identifiant de nos envois et des siens) — résolue, elle rouvre ; une
+  conversation du widget que le visiteur a quittée pour une autre n'est plus suivie —, sinon une
+  nouvelle — dans la boîte, l'équipe, l'IA et la langue du site. Un e-mail relu
+  (même `Message-ID`) n'est écrit qu'une fois. Le texte cité de la réponse est coupé ; le
+  sujet est gardé (`meta.email.subject`). Une réponse automatique, une liste de diffusion, un
+  avis de non-remise (`Auto-Submitted`, `Precedence`, `List-Id`, `mailer-daemon@`) n'ouvrent
+  rien. Les pièces jointes suivent D14.
+- **Ce qui repart.** Une réponse dans une conversation `email` entre dans la file (D23) par le
+  même déclencheur que le SMS, et part tout de suite, en texte et en HTML, du serveur SMTP de
+  l'adresse, au nom du site, sous le sujet de la conversation (« Re : … »), avec ses en-têtes
+  de fil : la réponse du client revient dans la conversation. Ses fichiers partent en pièces
+  jointes.
+- **Les réponses du widget** à un visiteur parti (D23) partent aussi de l'adresse du site
+  quand il en a une : le client peut alors répondre par e-mail, et sa réponse rejoint la
+  conversation du widget.
+- **Écrire le premier** par e-mail (D23) depuis un site qui a son adresse ouvre une
+  conversation `email` ; sans adresse, `CHAT_SMTP_URL` et le widget, comme avant.
+- **Ce qui n'arrive pas** : un SMS non remis, un e-mail que le serveur refuse, deviennent
+  l'événement `message.undelivered` — un webhook (D17), et un déclencheur des automatisations
+  (D20), qui peuvent alors écrire par l'autre canal.
+
+« Essayer la connexion » ouvre les deux serveurs avec ce qui est enregistré, et dit, par un
+code, ce qui répond ou non ; le mot de passe n'est jamais renvoyé.
+
 ## Questions ouvertes
 
 Reprises du cadrage :
@@ -665,7 +704,6 @@ Reprises du cadrage :
 - Quel modèle LLM est autorisé, et avec quelles données ?
 - Quels sites embarquent le widget au lancement, et leurs clients y sont-ils connectés ?
 - Quels outils métier l'agent peut-il appeler en phase 4 ?
-- Faut-il le canal e-mail dès le MVP ? (D23 envoie des e-mails ; les recevoir reste ouvert.)
 - Quelle durée de conservation impose la conformité ?
 - Quel volume à dimensionner (conversations par jour, conseillers simultanés) ?
 

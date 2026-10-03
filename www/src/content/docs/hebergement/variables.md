@@ -95,8 +95,9 @@ vont aux conseillers`.
 
 ## E-mails
 
-Facultatives : sans serveur SMTP, la messagerie n’écrit aucun e-mail — les liens des comptes se
-transmettent à la main, et rien ne part au visiteur. Voir
+Facultatives : sans serveur SMTP, la messagerie n’écrit aucun e-mail de son propre chef — les
+liens des comptes se transmettent à la main, et rien ne part au visiteur d’un site qui n’a pas
+son [adresse e-mail](#adresses-e-mail-des-sites). Voir
 [Comptes et connexion](/messagerie/hebergement/comptes/#inviter-un-conseiller) et
 [le widget](/messagerie/fonctionnalites/widget/#laissez-nous-votre-e-mail).
 
@@ -127,6 +128,18 @@ ce qui arrive et ne répond pas. Voir [SMS et RCS](/messagerie/fonctionnalites/s
 | Variable | Défaut | Rôle |
 |---|---|---|
 | le nom que donne le numéro | — | Twilio : l’**Auth Token** du compte, qui vérifie la signature de chaque appel de Twilio et signe les envois. SMS Mode : la **clé d’API**, envoyée dans `X-Api-Key` |
+
+## Adresses e-mail des sites
+
+Une adresse de **Administration › Adresses e-mail** ne porte pas son mot de passe : elle nomme
+la variable qui le contient. Le nom est libre — la démonstration dit `SUPPORT_MAIL_PASSWORD` —
+et la variable se définit à côté des autres. Sans elle, l’adresse n’est pas relevée et ses
+réponses ne partent pas. Ces adresses ne dépendent pas de `CHAT_SMTP_URL`. Voir
+[E-mail](/messagerie/fonctionnalites/e-mail/).
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| le nom que donne l’adresse | — | le mot de passe — ou le mot de passe d’application — du compte, pour ses serveurs IMAP et SMTP |
 
 ## Webhooks
 

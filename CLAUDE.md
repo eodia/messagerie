@@ -98,6 +98,9 @@ tient tout elle-même (D19). Les décisions qui font autorité sont dans
   `SmsProvider` (`channels/provider.ts`), s'inscrit dans `channels/providers.ts` et dans les
   choix de « Fournisseur » du modèle. Son appel est authentifié avant tout : signature, ou
   clé de l'adresse. « Nouveau message » (écrire le premier) : `inbox/outreach.ts`.
+- **E-mail** (D24) : `channels/email.ts`. Une adresse par site (« Adresses e-mail ») relevée en
+  IMAP chaque minute, servie en SMTP ; une réponse y part par `capture_outbound` comme un SMS.
+  Un fil se retrouve par ses en-têtes (`Message-ID`, `In-Reply-To`), jamais par le sujet.
 - **Tableaux de bord** (D22) : `src/analytics`. Une vue d'analyse s'ajoute au schéma
   `analytics` par une migration qui l'accorde aussi à `chat_analytics`, et au catalogue
   (`catalog.ts`). Jamais une table de comptes, de sessions ou de secrets dans une vue.

@@ -403,7 +403,10 @@ export function documentation(base: string): DocSection[] {
           '`site`, `siteId`, `inboxId`, `teamId`',
           'Le site d’où elle vient — son nom à l’arrivée, puis son identifiant —, sa boîte, son équipe.',
         ],
-        ['`channel`', '`web` : le widget · `sms` · `rcs` : le téléphone du visiteur.'],
+        [
+          '`channel`',
+          '`web` : le widget · `sms` · `rcs` : le téléphone du visiteur · `email` : sa messagerie.',
+        ],
         ['`status`', '`ai` : l’IA répond · `open` · `pending` · `resolved`.'],
         ['`assignee`, `assigneeId`', 'Le conseiller qui l’a, ou `null` : la file.'],
         ['`unread`', 'Un message du visiteur attend.'],

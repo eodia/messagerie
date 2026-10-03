@@ -58,7 +58,7 @@ palette (<kbd>Ctrl</kbd>+<kbd>K</kbd>), ou **Écrire** sur la fiche d’un conta
 dialogue :
 
 1. **SMS** ou **E-mail**. Un canal que la messagerie ne peut pas utiliser le dit : aucun
-   numéro prêt, ou pas de serveur d’e-mail.
+   numéro prêt, ou ni adresse de site ni serveur d’e-mail.
 2. **Destinataire** : un nom, que la messagerie cherche parmi les contacts, ou directement un
    numéro (`06 12 34 56 78` se lit `+33612345678`) ou une adresse. Un contact sans numéro — ou
    sans adresse — en demande un, qui va sur sa fiche. Un nouveau contact peut recevoir un **nom**.
@@ -72,7 +72,10 @@ une boîte qu’il voit ; l’IA n’y répond pas la première.
 
 - **Par SMS**, c’est la conversation de ce téléphone sur ce numéro : quand le client répond, sa
   réponse y arrive, et le conseiller est appelé comme pour tout message.
-- **Par e-mail**, c’est la conversation du widget du contact, encore en cours, ou une nouvelle.
+- **Par e-mail, depuis un site qui a son [adresse](/messagerie/fonctionnalites/e-mail/)**,
+  c’est une conversation par e-mail : l’e-mail part de cette adresse, et la réponse du client
+  arrive dans la conversation.
+- **Par e-mail, sinon**, c’est la conversation du widget du contact, encore en cours, ou une nouvelle.
   L’e-mail part tout de suite, signé du site, avec un bouton **Reprendre la conversation**
   ([le widget](/messagerie/fonctionnalites/widget/#la-réponse-par-e-mail)) : le client répond
   en revenant sur le site, où le widget lui montre la conversation s’il revient du même
@@ -197,9 +200,11 @@ surtout : la messagerie envoie ce qu’on lui demande.
 ## Dans les automatisations, l’API et les tableaux de bord
 
 - Une conversation par SMS déclenche les [automatisations](/messagerie/fonctionnalites/automatisations/)
-  comme une autre ; une étape **Répondre** part sur le téléphone.
+  comme une autre ; une étape **Répondre** part sur le téléphone. L’étape **Écrire par SMS ou
+  e-mail** écrit au contact d’une autre conversation, et le déclencheur **Message non remis**
+  reprend par e-mail un SMS qui n’arrive pas.
 - Une réponse envoyée par l’[API REST](/messagerie/integrations/api-rest/) ou le serveur MCP
-  aussi. Une conversation y porte `channel` (`web`, `sms`, `rcs`), et une réponse partie hors du
+  aussi. Une conversation y porte `channel` (`web`, `sms`, `rcs`, `email`), et une réponse partie hors du
   widget, `delivery`.
 - Les [tableaux de bord](/messagerie/fonctionnalites/tableaux-de-bord/) lisent le **Canal** de
-  chaque conversation : Widget, SMS ou RCS.
+  chaque conversation : Widget, SMS, RCS ou E-mail.

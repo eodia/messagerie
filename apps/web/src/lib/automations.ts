@@ -718,6 +718,8 @@ const SKIPS: Readonly<Record<string, string>> = {
   nobody: msg('personne à prévenir'),
   empty: msg('message vide'),
   not_needed: msg('le visiteur a déjà une adresse, ou on la lui a demandée'),
+  no_phone: msg('le contact n’a pas de numéro'),
+  no_email: msg('le contact n’a pas d’adresse e-mail'),
 }
 
 export function stepRecordText(record: RunStepRecord): string {

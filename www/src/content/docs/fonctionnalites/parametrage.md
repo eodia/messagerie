@@ -23,6 +23,7 @@ superviseurs voient. Elle se replie ; barre latérale réduite, c’est un menu.
 | **Automatisations** | `/automatisations` | les automatisations et leurs exécutions (D20) |
 | **Widget** | `/widget` | « Sites » : l’apparence et les textes du widget ; les actions que déclarent ses pages (D21) |
 | **Numéros SMS** | `/parametrage/sms` | « Numéros SMS » (D23) |
+| **Adresses e-mail** | `/parametrage/email` | « Adresses e-mail » (D24) |
 | **API et MCP** | `/parametrage/api` | les jetons et les webhooks (D16, D17) |
 
 La base de connaissance a son écran à part, dans la barre latérale de tous :
@@ -225,6 +226,8 @@ conseillers, quelles que soient leurs équipes.
   [actions de la page](/messagerie/integrations/actions-de-page/).
 - **Numéros SMS** : les numéros Twilio ou SMS Mode où les clients écrivent par SMS ou RCS. Voir
   [SMS et RCS](/messagerie/fonctionnalites/sms-et-rcs/).
+- **Adresses e-mail** : l’adresse de chaque site, lue en IMAP et servie en SMTP, où les clients
+  écrivent par e-mail. Voir [E-mail](/messagerie/fonctionnalites/e-mail/).
 - **API et MCP** : les jetons des programmes et des agents, onglet **Jetons**, et les
   webhooks, onglet **Webhooks**. Voir l’[API REST](/messagerie/integrations/api-rest/), le
   [serveur MCP](/messagerie/integrations/mcp/) et les [webhooks](/messagerie/integrations/webhooks/).

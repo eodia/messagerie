@@ -208,7 +208,7 @@ curl "https://chat.exemple.fr/api/v1/conversations?status=open&assignee=none&lim
 |---|---|
 | `contact` | `id`, `name`, `email`, et `identified` : `true` quand le site a signé l’identité (voir [Identité signée](/messagerie/integrations/identite-signee/)). |
 | `site`, `siteId` | Le nom du site à l’arrivée de la conversation, et son identifiant. |
-| `channel` | D’où écrit le visiteur : `web` — le widget —, `sms` ou `rcs` — son téléphone ([SMS et RCS](/messagerie/fonctionnalites/sms-et-rcs/)). |
+| `channel` | D’où écrit le visiteur : `web` — le widget —, `sms` ou `rcs` — son téléphone ([SMS et RCS](/messagerie/fonctionnalites/sms-et-rcs/)) —, `email` — sa messagerie ([E-mail](/messagerie/fonctionnalites/e-mail/)). |
 | `inboxId`, `teamId` | Sa boîte et son équipe ; `null` si elle n’en a pas. |
 | `status` | `ai` : l’IA répond seule · `open` : des conseillers répondent · `pending` : en attente · `resolved` : résolue. |
 | `assignee`, `assigneeId` | Le conseiller qui l’a, ou `null` : elle est dans la file. |
@@ -370,8 +370,9 @@ La réponse est la conversation telle qu’elle est ensuite, comme `GET /convers
 `POST /api/v1/conversations` · **écriture** · réponse `201`
 
 Écrit à un client qui n’a rien demandé : par SMS, depuis un numéro de
-[Numéros SMS](/messagerie/fonctionnalites/sms-et-rcs/#écrire-le-premier), ou par e-mail, quand le
-serveur en écrit.
+[Numéros SMS](/messagerie/fonctionnalites/sms-et-rcs/#écrire-le-premier), ou par e-mail : depuis
+l’[adresse du site](/messagerie/fonctionnalites/e-mail/) s’il en a une — la réponse du client
+revient dans la conversation —, sinon par le serveur d’e-mails (`CHAT_SMTP_URL`).
 
 | Champ du corps | Type | Requis | Rôle |
 |---|---|---|---|
