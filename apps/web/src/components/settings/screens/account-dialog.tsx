@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { $t } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
-import { Link2, LoaderCircle } from 'lucide-react'
+import { Link2, LoaderCircle, MailCheck } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { codeOf } from '../kit/data'
 
@@ -29,13 +29,16 @@ export function AccountDialog({
   children,
   onClose,
   done,
+  recipient = null,
 }: {
   readonly title: string
   readonly description: string
   /** The button that runs it: « Inviter », « Créer le lien »… */
   readonly action: string
-  /** The link to hand over. */
-  readonly run: () => Promise<string>
+  /** The link to hand over — and whether the server sent it by e-mail too (D23). */
+  readonly run: () => Promise<{ readonly link: string; readonly emailed: boolean }>
+  /** Where an e-mailed link went. */
+  readonly recipient?: string | null
   readonly ready?: boolean
   readonly children?: ReactNode
   readonly onClose: () => void
@@ -45,12 +48,15 @@ export function AccountDialog({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [link, setLink] = useState<string | null>(null)
+  const [emailed, setEmailed] = useState(false)
 
   async function attempt() {
     setBusy(true)
     setError(null)
     try {
-      setLink(await run())
+      const made = await run()
+      setEmailed(made.emailed)
+      setLink(made.link)
     } catch (failure) {
       setError(messageFor(codeOf(failure)))
     } finally {
@@ -91,11 +97,25 @@ export function AccountDialog({
                       {$t('Copier')}
                     </CopyButton>
                   </div>
-                  <p className="text-xs text-amber-700 dark:text-amber-400">
-                    {$t(
-                      'Il ne s’affichera plus, et vaut sept jours, une seule fois : transmettez-le maintenant.',
-                    )}
-                  </p>
+                  {emailed ? (
+                    <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                      <MailCheck className="mt-px size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      {recipient
+                        ? $t(
+                            'Envoyé par e-mail à {email}. Il vaut sept jours, une seule fois, et ne s’affichera plus ici.',
+                            { email: recipient },
+                          )
+                        : $t(
+                            'Envoyé par e-mail. Il vaut sept jours, une seule fois, et ne s’affichera plus ici.',
+                          )}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                      {$t(
+                        'Il ne s’affichera plus, et vaut sept jours, une seule fois : transmettez-le maintenant.',
+                      )}
+                    </p>
+                  )}
                 </div>
                 {done}
               </div>

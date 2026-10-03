@@ -354,5 +354,28 @@
       "Copilote": true,
       "Actif": true
     }
+  ],
+  "numeros_sms": [
+    {
+      "Nom": "Acme Assurances — SMS (démo)",
+      "Numéro": "+33 7 00 00 00 00",
+      "Fournisseur": "Twilio",
+      "Jeton (variable d'environnement)": "TWILIO_AUTH_TOKEN",
+      "Actif": false,
+      "Site": "@acme",
+      "Identifiant du compte": "AC00000000000000000000000000000000"
+    }
+  ],
+  "adresses_email": [
+    {
+      "Nom": "Acme Assurances — support (démo)",
+      "Adresse": "support@acme-assurances.example",
+      "Serveur IMAP": "imap.acme-assurances.example",
+      "Serveur SMTP": "smtp.acme-assurances.example:465",
+      "Mot de passe (variable d'environnement)": "SUPPORT_MAIL_PASSWORD",
+      "Site": "@acme",
+      "Lire la boîte": true,
+      "Actif": false
+    }
   ]
 }

@@ -32,6 +32,7 @@ export const TRIGGER_LABELS: Readonly<Record<AutomationTriggerKind, string>> = {
   resolved: msg('Conversation résolue'),
   reopened: msg('Conversation rouverte'),
   sentiment_changed: msg('L’humeur change'),
+  undelivered: msg('Message non remis'),
   no_reply: msg('Visiteur sans réponse'),
   schedule: msg('À heure fixe'),
   button: msg('Bouton dans la conversation'),
@@ -47,6 +48,7 @@ export const TRIGGER_HINTS: Readonly<Record<AutomationTriggerKind, string>> = {
   resolved: msg('Un conseiller ou l’IA clôt la conversation.'),
   reopened: msg('Une conversation résolue reprend.'),
   sentiment_changed: msg('L’IA lit une autre humeur dans les mots du visiteur.'),
+  undelivered: msg('Un SMS ou un e-mail n’a pas atteint le client.'),
   no_reply: msg('Le visiteur attend une réponse depuis un délai choisi.'),
   schedule: msg('Chaque heure, chaque jour ou chaque semaine.'),
   button: msg('Un conseiller la lance depuis la conversation.'),
@@ -68,6 +70,7 @@ export const TRIGGER_GROUPS: readonly {
       'resolved',
       'reopened',
       'sentiment_changed',
+      'undelivered',
     ],
   },
   { label: msg('Avec le temps'), kinds: ['no_reply', 'schedule'] },
@@ -83,6 +86,7 @@ export const STEP_LABELS: Readonly<Record<AutomationStepKind, string>> = {
   reply: msg('Répondre au visiteur'),
   note: msg('Ajouter une note'),
   ask_email: msg('Demander l’e-mail du visiteur'),
+  send: msg('Écrire par SMS ou e-mail'),
   notify: msg('Prévenir'),
   webhook: msg('Appeler une adresse'),
   ai: msg('Demander à l’IA'),
@@ -100,6 +104,7 @@ export const STEP_HINTS: Readonly<Record<AutomationStepKind, string>> = {
   reply: msg('Un message au visiteur, signé de l’automatisation.'),
   note: msg('Une note que seule l’équipe lit.'),
   ask_email: msg('Le widget lui propose de laisser son adresse.'),
+  send: msg('Un message au contact, sur son téléphone ou dans sa boîte e-mail.'),
   notify: msg('Une ligne dans la cloche des conseillers choisis.'),
   webhook: msg('Envoyer la conversation à un CRM, un ERP, un outil interne.'),
   ai: msg('Classer la demande, ou rédiger un texte.'),
@@ -116,7 +121,7 @@ export const STEP_GROUPS: readonly {
     label: msg('La conversation'),
     kinds: ['assign', 'transfer', 'tag', 'priority', 'status', 'data'],
   },
-  { label: msg('Écrire'), kinds: ['reply', 'note', 'ask_email', 'notify'] },
+  { label: msg('Écrire'), kinds: ['reply', 'send', 'note', 'ask_email', 'notify'] },
   { label: msg('Autres systèmes et IA'), kinds: ['webhook', 'ai'] },
   { label: msg('Le déroulement'), kinds: ['branch', 'wait'] },
 ]
@@ -135,6 +140,7 @@ export const FIELD_LABELS: Readonly<Record<ConditionField, string>> = {
   identified: msg('Client identifié'),
   hours: msg('Horaires du site'),
   message: msg('Message du visiteur'),
+  channel: msg('Canal'),
   idle: msg('Sans message depuis'),
   data: msg('Donnée de la conversation'),
   step: msg('Résultat d’une étape'),
@@ -152,6 +158,7 @@ export const OPERATORS: Readonly<Record<ConditionField, readonly ConditionOperat
   identified: ['yes', 'no'],
   hours: ['open', 'closed'],
   message: ['contains', 'not_contains', 'equals', 'not_equals', 'empty', 'not_empty'],
+  channel: ['is', 'is_not'],
   idle: ['more_than', 'less_than'],
   data: ['contains', 'not_contains', 'equals', 'not_equals', 'empty', 'not_empty'],
   step: ['contains', 'not_contains', 'equals', 'not_equals', 'empty', 'not_empty'],
@@ -200,6 +207,13 @@ export const PRIORITY_CHOICES = [
   { id: 'urgent', label: msg('Urgente') },
 ] as const
 
+export const CHANNEL_CHOICES = [
+  { id: 'web', label: msg('Widget') },
+  { id: 'sms', label: msg('SMS') },
+  { id: 'rcs', label: msg('RCS') },
+  { id: 'email', label: msg('E-mail') },
+] as const
+
 export const SENTIMENT_CHOICES = [
   { id: 'positive', label: msg('Positive') },
   { id: 'neutral', label: msg('Neutre') },
@@ -230,6 +244,8 @@ export function valueChoices(
       return PRIORITY_CHOICES.map((c) => ({ id: c.id, label: $t(c.label) }))
     case 'sentiment':
       return SENTIMENT_CHOICES.map((c) => ({ id: c.id, label: $t(c.label) }))
+    case 'channel':
+      return CHANNEL_CHOICES.map((c) => ({ id: c.id, label: $t(c.label) }))
     default:
       return null
   }
@@ -428,6 +444,8 @@ export function newStep(
       return { id, kind, body: '' }
     case 'ask_email':
       return { id, kind, text: '' }
+    case 'send':
+      return { id, kind, channel: 'sms', body: '' }
     case 'notify':
       return { id, kind, to: 'assignee', agentIds: [], text: '' }
     case 'webhook':
@@ -512,6 +530,7 @@ const NEEDS_CONVERSATION = new Set<AutomationStepKind>([
   'notify',
   'data',
   'ask_email',
+  'send',
 ])
 
 export const aboutConversation = (trigger: AutomationTrigger): boolean =>
@@ -609,6 +628,8 @@ export function stepSummary(step: AutomationStep, choices: AutomationChoices | n
       return step.body
     case 'ask_email':
       return step.text || $t('Avec les mots du widget')
+    case 'send':
+      return `${step.channel === 'sms' ? $t('SMS') : $t('E-mail')} · ${step.body}`
     case 'notify':
       return step.text
     case 'webhook':
@@ -697,6 +718,8 @@ const SKIPS: Readonly<Record<string, string>> = {
   nobody: msg('personne à prévenir'),
   empty: msg('message vide'),
   not_needed: msg('le visiteur a déjà une adresse, ou on la lui a demandée'),
+  no_phone: msg('le contact n’a pas de numéro'),
+  no_email: msg('le contact n’a pas d’adresse e-mail'),
 }
 
 export function stepRecordText(record: RunStepRecord): string {

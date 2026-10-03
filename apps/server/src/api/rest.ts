@@ -20,6 +20,7 @@ import {
   inboxes,
   reply,
   search,
+  startOutreach,
   tag,
   whoami,
 } from './service.js'
@@ -56,6 +57,7 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
       ...(typeof query.limit === 'number' ? { limit: query.limit } : {}),
     }),
   getConversation: (deps, token, { params }) => conversation(deps, token, params.id ?? ''),
+  startConversation: (deps, token, { body }) => startOutreach(deps, token, body),
   sendMessage: (deps, token, { params, body }) =>
     reply(deps, token, params.id ?? '', text(body.body), {
       note: body.kind === 'note',
@@ -120,6 +122,7 @@ export function restRoutes(deps: {
   readonly settings: Settings | null
   readonly access: Access
   readonly trustProxy: boolean
+  readonly email?: boolean
 }): Hono<TokenEnv> {
   const api = new Hono<TokenEnv>()
   const calls = new RateLimiter(240, 60_000)

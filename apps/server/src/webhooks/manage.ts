@@ -23,6 +23,7 @@ export const EVENT_TYPES: readonly WebhookEventType[] = [
   'conversation.created',
   'message.created',
   'message.deleted',
+  'message.undelivered',
   'conversation.handed_off',
   'conversation.assigned',
   'conversation.transferred',

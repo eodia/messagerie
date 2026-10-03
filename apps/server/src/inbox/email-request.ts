@@ -6,8 +6,8 @@ import { signalChange } from '../realtime/signals.js'
 /**
  * « Laissez-nous votre e-mail »: when nobody can answer soon — the AI handed over while the
  * agents are away, or an automation saw the visitor wait —, the widget shows a card to
- * leave an address, so that the answer reaches them later. Asked once a conversation, and
- * only of a contact without an e-mail.
+ * leave an address, so that the answer reaches them later — by e-mail (D23). Asked once a
+ * conversation, only of a contact without an e-mail, and only in the widget.
  */
 
 /** Asks, inside the caller's transaction; whether it did. */
@@ -19,11 +19,12 @@ export async function requestEmail(
   at: Date = new Date(),
 ): Promise<boolean> {
   const [row] = await tx
-    .select({ email: contacts.email })
+    .select({ email: contacts.email, channel: conversations.channel })
     .from(conversations)
     .innerJoin(contacts, eq(contacts.id, conversations.contactId))
     .where(eq(conversations.id, conversationId))
-  if (!row || row.email) return false
+  // By SMS, the visitor's phone is how the answer reaches them: no card to show (D23).
+  if (!row || row.email || row.channel !== 'web') return false
   const [asked] = await tx
     .select({ id: messages.id })
     .from(messages)

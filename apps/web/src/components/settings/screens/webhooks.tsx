@@ -57,6 +57,7 @@ const EVENTS: readonly {
 }[] = [
   { group: 'message', id: 'message.created', label: $t('Nouveau message') },
   { group: 'message', id: 'message.deleted', label: $t('Message supprimé') },
+  { group: 'message', id: 'message.undelivered', label: $t('Message non remis') },
   { group: 'conversation', id: 'conversation.created', label: $t('Nouvelle conversation') },
   { group: 'conversation', id: 'conversation.handed_off', label: $t('Passée à un conseiller') },
   { group: 'conversation', id: 'conversation.assigned', label: $t('Affectée') },

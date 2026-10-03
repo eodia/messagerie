@@ -1,5 +1,5 @@
 import { type Llm, Redactor, readJson } from '@chat/ai'
-import type { AutomationStep, ConversationEvent, MetadataValue } from '@chat/contracts'
+import type { AutomationStep, ConversationEvent, MetadataValue, SendStep } from '@chat/contracts'
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { recordRun } from '../ai/runs.js'
 import type { Db } from '../db/client.js'
@@ -8,6 +8,7 @@ import type { Access } from '../inbox/access.js'
 import { requestEmail } from '../inbox/email-request.js'
 import { patchConversationData } from '../inbox/metadata.js'
 import { activeAgentIds, notify } from '../inbox/notifications.js'
+import { startConversation } from '../inbox/outreach.js'
 import type { AgentRow } from '../inbox/read.js'
 import { addTag, removeTag } from '../inbox/tags.js'
 import { assign, resolve, snooze, transfer, wake } from '../inbox/write.js'
@@ -34,6 +35,8 @@ export interface StepDeps {
   readonly llm: Llm | null
   readonly redact: boolean
   readonly webOrigin: string
+  /** The server writes e-mails (`CHAT_SMTP_URL`): « Écrire par e-mail » without a site's address. */
+  readonly email?: boolean
 }
 
 export interface StepRun {
@@ -59,6 +62,35 @@ const done = (detail?: string, output?: string): StepOutcome => ({
   ...(output === undefined ? {} : { output }),
 })
 const skipped = (detail: string): StepOutcome => ({ status: 'skipped', detail })
+
+/**
+ * « Écrire par SMS / par e-mail » (D23): to the conversation's contact, as « Nouveau
+ * message » writes — in this conversation when it is held that way, else in the contact's
+ * conversation of that channel. Its output is that conversation's id.
+ */
+async function sendStep(deps: StepDeps, run: StepRun, step: SendStep): Promise<StepOutcome> {
+  conversationOf(run)
+  const contact = run.subject.contact
+  if (!contact) throw new Refusal('CONTACT_NOT_FOUND', 404)
+  const to = step.channel === 'sms' ? contact.phone : contact.email
+  if (!to) return skipped(step.channel === 'sms' ? 'no_phone' : 'no_email')
+  const body = render(step.body, run.scope).trim()
+  if (body === '') return skipped('empty')
+  const conversation = await caused(deps.db, run.runId, (tx) =>
+    startConversation(
+      { db: tx, settings: deps.settings, email: deps.email === true },
+      run.actor,
+      null,
+      {
+        channel: step.channel,
+        contactId: contact.id,
+        body,
+        ...(step.numberId ? { numberId: step.numberId } : {}),
+      },
+    ),
+  )
+  return done(to, conversation.id)
+}
 
 /** Runs `write` in a transaction that names the run, for the events it causes. */
 export function caused<T>(db: Db, runId: string, write: (tx: Db) => Promise<T>): Promise<T> {
@@ -456,6 +488,8 @@ export async function runStep(
       await caused(db, run.runId, (tx) => patchConversationData(tx, id, { [step.key]: value }))
       return done(value, value)
     }
+    case 'send':
+      return sendStep(deps, run, step)
     case 'ask_email': {
       const id = conversationOf(run)
       const asked = await caused(db, run.runId, (tx) =>

@@ -259,6 +259,7 @@ function CitingText({
 
 const FIELDS_IN_ORDER: readonly ConditionField[] = [
   'message',
+  'channel',
   'inbox',
   'team',
   'site',
@@ -897,6 +898,67 @@ export function StepSettings({
                 ? $t('Signé du nom de l’automatisation. Une conversation avec l’IA y reste.')
                 : undefined
             }
+          />
+        </div>
+      )
+    case 'send':
+      return (
+        <div className="space-y-4">
+          {warning}
+          <Segmented
+            value={step.channel}
+            onValueChange={(channel) =>
+              onChange(
+                channel === 'email'
+                  ? { id: step.id, kind: 'send', channel, body: step.body }
+                  : { ...step, channel },
+              )
+            }
+            options={[
+              { value: 'sms', label: $t('SMS') },
+              { value: 'email', label: $t('E-mail') },
+            ]}
+            aria-label={$t('Canal')}
+            className="w-full"
+          />
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {step.channel === 'sms'
+              ? $t(
+                  'Au numéro du contact. Une conversation par SMS l’envoie sur place ; sinon, celle de son téléphone, ouverte au besoin. Sans numéro, l’étape passe.',
+                )
+              : $t(
+                  'À l’adresse du contact : par l’adresse e-mail du site, ou par les e-mails du serveur. Sans adresse, l’étape passe.',
+                )}
+          </p>
+          {step.channel === 'sms' && (choices?.numbers.length ?? 0) > 1 && (
+            <Field label={$t('Depuis')}>
+              {(id) => (
+                <ChoiceMenu
+                  id={id}
+                  value={step.numberId ?? null}
+                  choices={(choices?.numbers ?? []).map((n) => ({ id: n.id, label: n.name }))}
+                  onChange={(numberId) =>
+                    onChange(
+                      numberId
+                        ? { ...step, numberId }
+                        : { id: step.id, kind: 'send', channel: step.channel, body: step.body },
+                    )
+                  }
+                  allowNone
+                  disabled={false}
+                />
+              )}
+            </Field>
+          )}
+          <CitingText
+            label={$t('Message')}
+            value={step.body}
+            onChange={(body) => onChange({ ...step, body })}
+            draft={draft}
+            stepId={step.id}
+            rows={5}
+            placeholder={$t('Bonjour {{contact.prenom}}, …')}
+            hint={$t('Signé du nom du site. La conversation reste dans la file.')}
           />
         </div>
       )

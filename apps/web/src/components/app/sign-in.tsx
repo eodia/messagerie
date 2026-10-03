@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { $t } from '@/lib/i18n'
-import { AuthFailure, ssoStart } from '@/lib/session'
+import { AuthFailure, forgotPassword, ssoStart } from '@/lib/session'
 import { useSession } from '@/lib/store/session'
 import { useTitle } from '@/lib/title'
 import { cn } from '@/lib/utils'
@@ -70,6 +70,7 @@ export function SignInScreen() {
 
 function SignIn() {
   const sso = useSession((s) => s.sso)
+  const forgot = useSession((s) => s.forgot)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [visible, setVisible] = useState(false)
@@ -107,20 +108,24 @@ function SignIn() {
       title={$t('Vos clients vous attendent')}
       description={$t('Connectez-vous pour retrouver vos conversations.')}
       footer={
-        <details className="group">
-          <summary className="flex w-fit cursor-pointer list-none items-center gap-1.5 rounded-sm transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
-            {$t('Première connexion, mot de passe oublié ?')}
-            <ChevronDown
-              className="size-3.5 transition-transform duration-200 group-open:rotate-180"
-              aria-hidden="true"
-            />
-          </summary>
-          <p className="mt-2 max-w-sm animate-in fade-in slide-in-from-top-1 leading-relaxed duration-300">
-            {$t(
-              'Un superviseur vous invite depuis « Équipes et conseillers » : il vous transmet un lien où choisir votre mot de passe. Le même lien, renouvelé, sert quand on l’a oublié.',
-            )}
-          </p>
-        </details>
+        forgot ? (
+          <ForgotPassword email={email} />
+        ) : (
+          <details className="group">
+            <summary className="flex w-fit cursor-pointer list-none items-center gap-1.5 rounded-sm transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+              {$t('Première connexion, mot de passe oublié ?')}
+              <ChevronDown
+                className="size-3.5 transition-transform duration-200 group-open:rotate-180"
+                aria-hidden="true"
+              />
+            </summary>
+            <p className="mt-2 max-w-sm animate-in fade-in slide-in-from-top-1 leading-relaxed duration-300">
+              {$t(
+                'Un superviseur vous invite depuis « Équipes et conseillers » : il vous transmet un lien où choisir votre mot de passe. Le même lien, renouvelé, sert quand on l’a oublié.',
+              )}
+            </p>
+          </details>
+        )
       }
     >
       <form onSubmit={(event) => void submit(event)} className="grid gap-5" aria-busy={busy}>
@@ -209,6 +214,54 @@ function SignIn() {
         </div>
       )}
     </AuthLayout>
+  )
+}
+
+/**
+ * « Mot de passe oublié ? », when the server writes e-mails (D23): a link to the address
+ * typed above. The answer is the same whoever it is — nobody learns who has an account.
+ */
+function ForgotPassword({ email }: { readonly email: string }) {
+  const [state, setState] = useState<'idle' | 'busy' | 'sent' | 'failed'>('idle')
+  const [code, setCode] = useState('')
+  const address = email.trim()
+
+  async function send() {
+    setState('busy')
+    try {
+      await forgotPassword(address)
+      setState('sent')
+    } catch (failure) {
+      setCode(codeOf(failure))
+      setState('failed')
+    }
+  }
+
+  if (state === 'sent') {
+    return (
+      <p className="max-w-sm animate-in fade-in leading-relaxed duration-300">
+        {$t(
+          'Si {email} est l’adresse d’un conseiller, un lien pour choisir un nouveau mot de passe vient d’y partir. Il vaut sept jours.',
+          { email: address },
+        )}
+      </p>
+    )
+  }
+  return (
+    <div className="grid gap-1.5">
+      <button
+        type="button"
+        disabled={state === 'busy' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)}
+        onClick={() => void send()}
+        className="w-fit rounded-sm transition-colors hover:text-foreground disabled:cursor-default disabled:opacity-60 disabled:hover:text-muted-foreground"
+      >
+        {state === 'busy' ? $t('Envoi…') : $t('Mot de passe oublié ? Recevoir un lien par e-mail')}
+      </button>
+      {address === '' && (
+        <span className="text-xs">{$t('Saisissez d’abord votre adresse e-mail ci-dessus.')}</span>
+      )}
+      {state === 'failed' && <span className="text-xs text-destructive">{sentence(code)}</span>}
+    </div>
   )
 }
 

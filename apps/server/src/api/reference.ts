@@ -60,6 +60,7 @@ const SUMMARY = {
   },
   site: 'Acme Assurances',
   siteId: UUID_SITE,
+  channel: 'web',
   inboxId: UUID_INBOX,
   teamId: null,
   status: 'open',
@@ -82,6 +83,7 @@ const CONVERSATION = {
   status: 'open',
   site: 'Acme Assurances',
   siteId: UUID_SITE,
+  channel: 'web',
   inboxId: UUID_INBOX,
   assignee: 'Claire Dubois',
   assigneeId: UUID_AGENT,
@@ -136,6 +138,37 @@ const REPLY_BODY = z.object({
     .optional()
     .describe('`reply` (par défaut) : au visiteur. `note` : à l’équipe seule.'),
   resolve: z.boolean().optional().describe('Résoudre la conversation avec cette réponse.'),
+})
+
+const START_BODY = z.object({
+  channel: z
+    .enum(['sms', 'email'])
+    .describe(
+      '`sms` : depuis un numéro de « Numéros SMS ». `email` : par e-mail, quand le serveur en écrit.',
+    ),
+  contactId: z.string().uuid().optional().describe('Un contact connu.'),
+  phone: z
+    .string()
+    .optional()
+    .describe(
+      'Pour `sms` : le numéro, au format international (`+33612345678`), si le contact n’en a pas.',
+    ),
+  email: z.string().optional().describe('Pour `email` : l’adresse, si le contact n’en a pas.'),
+  name: z
+    .string()
+    .optional()
+    .describe('Le nom d’un nouveau contact. Aucun : son numéro ou son adresse.'),
+  numberId: z
+    .string()
+    .uuid()
+    .optional()
+    .describe('Pour `sms` : le numéro d’envoi. Aucun : celui du site du contact, ou le premier.'),
+  siteId: z
+    .string()
+    .uuid()
+    .optional()
+    .describe('Pour `email` à une nouvelle adresse : le site. Aucun : le premier site actif.'),
+  body: z.string().min(1).max(4000).describe('Le message.'),
 })
 
 export const ENDPOINTS: readonly Endpoint[] = [
@@ -228,6 +261,27 @@ export const ENDPOINTS: readonly Endpoint[] = [
       path: `/conversations/${UUID_A}/messages`,
       body: { body: 'Votre dossier est **complet** : le virement part demain.', resolve: true },
       response: { data: { ...CONVERSATION, status: 'resolved' } },
+    },
+  },
+  {
+    id: 'startConversation',
+    method: 'POST',
+    path: '/conversations',
+    group: 'actions',
+    title: 'Écrire en premier',
+    description:
+      'Écrit le premier à un client : par SMS depuis un numéro de la messagerie, ou par e-mail. Un contact connu, ou un numéro, ou une adresse. La conversation est celle de ce téléphone sur ce numéro, ou celle du widget du contact — sinon une nouvelle, dans la boîte de son site. Elle reste dans la file, sans conseiller.',
+    write: true,
+    body: START_BODY,
+    status: 201,
+    example: {
+      path: '/conversations',
+      body: {
+        channel: 'sms',
+        phone: '+33612345678',
+        body: 'Bonjour, votre attestation est prête dans votre espace client.',
+      },
+      response: { data: { ...CONVERSATION, channel: 'sms' } },
     },
   },
   {

@@ -34,6 +34,11 @@ export async function createConversation(
     readonly defaultTeamId: string | null
   },
   route: { readonly inboxId: string | null; readonly teamId: string | null } | null = null,
+  /** Where the visitor writes from, when not the widget: an SMS number (D23), an address (D24). */
+  held:
+    | { readonly channel: 'sms' | 'rcs'; readonly smsNumberId: string }
+    | { readonly channel: 'email'; readonly emailAddressId: string }
+    | null = null,
 ): Promise<string> {
   const [row] = await db
     .insert(conversations)
@@ -44,6 +49,7 @@ export async function createConversation(
       status: site.aiEnabled ? 'ai' : 'open',
       inboxId: route?.inboxId ?? null,
       teamId: route ? route.teamId : site.defaultTeamId,
+      ...(held ?? {}),
     })
     .returning({ id: conversations.id })
   if (!row) throw new Refusal('INTERNAL_ERROR', 500)
@@ -61,6 +67,12 @@ export async function receiveVisitorMessage(
   body: string,
   /** The rows of the files sent with it, given the message's id. */
   attach?: AttachRows,
+  /** An SMS, an RCS, an e-mail: its id where it came from, and the channel it came by (D23, D24). */
+  inbound?: {
+    readonly providerId: string
+    readonly channel: 'sms' | 'rcs' | 'email'
+    readonly subject?: string | null
+  },
 ): Promise<void> {
   const text = body.trim()
   if (text === '' && !attach) throw new Refusal('EMPTY_MESSAGE', 400)
@@ -69,7 +81,20 @@ export async function receiveVisitorMessage(
     const at = new Date()
     const [message] = await tx
       .insert(messages)
-      .values({ conversationId: id, author: 'contact', body: text, createdAt: at })
+      .values({
+        conversationId: id,
+        author: 'contact',
+        body: text,
+        meta: inbound
+          ? {
+              providerId: inbound.providerId,
+              ...(inbound.channel === 'email'
+                ? { email: { subject: inbound.subject ?? null } }
+                : {}),
+            }
+          : {},
+        createdAt: at,
+      })
       .returning({ id: messages.id })
     if (attach && message) await tx.insert(attachments).values(attach(message.id))
     const status =
@@ -82,7 +107,15 @@ export async function receiveVisitorMessage(
           : row.status
     await tx
       .update(conversations)
-      .set({ status, snoozedUntil: null, agentUnread: true, lastMessageAt: at, updatedAt: at })
+      .set({
+        status,
+        snoozedUntil: null,
+        agentUnread: true,
+        lastMessageAt: at,
+        updatedAt: at,
+        // RCS, SMS, e-mail: the answers go back by what the visitor last wrote with.
+        ...(inbound ? { channel: inbound.channel } : {}),
+      })
       .where(eq(conversations.id, id))
     if (status === 'ai') {
       await signalChange(tx, id)

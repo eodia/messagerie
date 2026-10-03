@@ -23,6 +23,7 @@ import {
 } from '@/lib/search'
 import { concernsMe, useInbox } from '@/lib/store/inbox'
 import { useListFilters } from '@/lib/store/list-filters'
+import { useNewMessage } from '@/lib/store/new-message'
 import { usePalette } from '@/lib/store/palette'
 import { useSession } from '@/lib/store/session'
 import { useTheme } from '@/lib/theme'
@@ -38,6 +39,7 @@ import type {
 import {
   AlarmClock,
   ArrowRightLeft,
+  AtSign,
   BookOpen,
   ChartColumn,
   CircleCheck,
@@ -61,7 +63,9 @@ import {
   Plus,
   Search,
   ShieldAlert,
+  Smartphone,
   Sparkles,
+  SquarePen,
   StickyNote,
   Sun,
   Tag,
@@ -438,6 +442,13 @@ function Palette({ seed, onClose }: { readonly seed: string; readonly onClose: (
     )
     command('ai', $t('Voir les conversations de l’IA'), Sparkles, show('ai'), 'ia robot')
     command(
+      'new-message',
+      $t('Nouveau message'),
+      SquarePen,
+      () => useNewMessage.getState().show(),
+      'écrire envoyer sms email client',
+    )
+    command(
       'snoozed',
       $t('Voir les conversations en attente'),
       AlarmClock,
@@ -534,6 +545,20 @@ function Palette({ seed, onClose }: { readonly seed: string; readonly onClose: (
         'créer sujet sensible',
       )
       command('new-tool', $t('Nouvel outil IA'), Plus, () => go('/outils?nouveau=1'), 'créer api')
+      command(
+        'new-sms-number',
+        $t('Nouveau numéro SMS'),
+        Plus,
+        () => go('/parametrage/sms?nouveau=1'),
+        'créer téléphone rcs twilio',
+      )
+      command(
+        'new-email-address',
+        $t('Nouvelle adresse e-mail'),
+        Plus,
+        () => go('/parametrage/email?nouveau=1'),
+        'créer imap smtp boîte mail',
+      )
     }
     const theme = useTheme.getState()
     command('light', $t('Thème clair'), Sun, () => theme.setPreference('light'), 'apparence jour')
@@ -639,6 +664,8 @@ function Palette({ seed, onClose }: { readonly seed: string; readonly onClose: (
       page('/outils', $t('Outils IA et serveurs MCP'), Wrench, 'paramétrage api')
       page('/automatisations', $t('Automatisations'), Workflow, 'règles relances flux déclencheurs')
       page('/widget', $t('Widget'), PaletteIcon, 'paramétrage apparence couleur installation')
+      page('/parametrage/sms', $t('Numéros SMS'), Smartphone, 'paramétrage téléphone rcs twilio')
+      page('/parametrage/email', $t('Adresses e-mail'), AtSign, 'paramétrage imap smtp boîte mail')
       page('/parametrage/api', $t('API et MCP'), KeyRound, 'paramétrage jetons webhooks')
     }
     return out

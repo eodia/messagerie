@@ -4,8 +4,8 @@ import { $t, intlLocale, msg } from '@/lib/i18n'
 import { useInbox } from '@/lib/store/inbox'
 import { wakeLabel } from '@/lib/time'
 import { cn } from '@/lib/utils'
-import type { ConversationSummary, Priority, Sentiment } from '@chat/contracts'
-import { AlarmClock, Sparkles } from 'lucide-react'
+import type { Channel, ConversationSummary, Priority, Sentiment } from '@chat/contracts'
+import { AlarmClock, Mail, Smartphone, Sparkles } from 'lucide-react'
 
 type StateOf = Pick<ConversationSummary, 'status' | 'assignee' | 'handedOff'> &
   Partial<Pick<ConversationSummary, 'snoozedUntil'>>
@@ -118,6 +118,31 @@ function colorOf(name: string): string {
   return AVATAR_COLORS[hash % AVATAR_COLORS.length] ?? '#64748b'
 }
 
+/** Where a conversation is held, said: by SMS, by RCS, by e-mail — the widget says nothing. */
+export function ChannelMark({ channel }: { readonly channel: Channel }) {
+  if (channel === 'web') return null
+  if (channel === 'email') {
+    return (
+      <Hint label={$t('Par e-mail')}>
+        <Mail className="size-3.5 shrink-0 text-sky-600 dark:text-sky-400" />
+      </Hint>
+    )
+  }
+  return (
+    <Hint
+      label={
+        channel === 'rcs'
+          ? $t('Par RCS, depuis son téléphone')
+          : $t('Par SMS, depuis son téléphone')
+      }
+    >
+      <Smartphone className="size-3.5 shrink-0 text-orange-600 dark:text-orange-400" />
+    </Hint>
+  )
+}
+
+const PHONE_NAME = /^\+?[\d\s.()-]{6,}$/
+
 export function initials(name: string): string {
   const parts = name.trim().split(/\s+/)
   const first = parts[0]?.[0] ?? ''
@@ -146,7 +171,8 @@ export function ContactAvatar({
         color: `color-mix(in oklab, ${color} 70%, var(--foreground))`,
       }}
     >
-      {initials(name)}
+      {/* A visitor known by their number alone (SMS, D23): a phone, not « + ». */}
+      {PHONE_NAME.test(name.trim()) ? <Smartphone className="size-[45%]" /> : initials(name)}
       {online && (
         <span className="absolute right-0 bottom-0 size-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
       )}

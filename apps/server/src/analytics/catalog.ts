@@ -12,6 +12,12 @@ const STATUSES = [
   { value: 'pending', label: 'En attente' },
   { value: 'resolved', label: 'Résolue' },
 ]
+const CHANNELS = [
+  { value: 'web', label: 'Widget' },
+  { value: 'sms', label: 'SMS' },
+  { value: 'rcs', label: 'RCS' },
+  { value: 'email', label: 'E-mail' },
+]
 const PRIORITIES = [
   { value: 'low', label: 'Basse' },
   { value: 'normal', label: 'Normale' },
@@ -66,6 +72,7 @@ export const SOURCES: readonly AnalyticsSource[] = [
       { name: 'first_response_seconds', label: 'Première réponse (s)', type: 'number' },
       { name: 'messages', label: 'Messages', type: 'number' },
       { name: 'last_message_at', label: 'Dernier message le', type: 'date' },
+      { name: 'channel', label: 'Canal', type: 'text', values: CHANNELS },
     ],
   },
   {

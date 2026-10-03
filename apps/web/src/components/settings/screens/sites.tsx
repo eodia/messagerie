@@ -99,6 +99,7 @@ export function SitesScreen() {
       'Agent IA actif': true,
       'Seuil de confiance (%)': 70,
       'Conservation (jours)': 365,
+      'Répondre par e-mail': true,
     },
   })
   const hours = useRowEditor(data, 'horaires', {
@@ -430,6 +431,7 @@ export function SitesScreen() {
         'Seuil de confiance (%)',
         "Consignes de l'agent IA",
         'Conservation (jours)',
+        'Répondre par e-mail',
         'Boîte de réception',
         'Équipe par défaut',
       ]}
@@ -608,6 +610,18 @@ function SiteForm({
             )}
           </Field>
         </ToggleField>
+      </FormSection>
+
+      <FormSection title={$t('Le visiteur parti')}>
+        <ToggleField
+          label={$t('Répondre par e-mail')}
+          hint={$t(
+            'Les réponses qu’un visiteur n’a pas vues lui partent par e-mail, deux minutes après, s’il a laissé son adresse — quand le serveur écrit des e-mails.',
+          )}
+          checked={values['Répondre par e-mail'] !== false}
+          onChange={(on) => set('Répondre par e-mail', on)}
+          disabled={!data.canEdit}
+        />
       </FormSection>
 
       <FormSection title={$t('Conservation')}>

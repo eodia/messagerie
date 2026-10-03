@@ -24,6 +24,8 @@ export const TABLES = {
   guardrails: 'Garde-fous',
   tools: 'Outils IA',
   mcp: 'Serveurs MCP',
+  sms: 'Numéros SMS',
+  email: 'Adresses e-mail',
 } as const
 
 type TableLabel = (typeof TABLES)[keyof typeof TABLES]
@@ -57,6 +59,68 @@ export interface Inbox {
   readonly active: boolean
 }
 
+/** Who carries a number's messages (« Fournisseur »). */
+export type SmsProviderId = 'twilio' | 'smsmode'
+
+const PROVIDERS: Readonly<Record<string, SmsProviderId>> = {
+  Twilio: 'twilio',
+  'SMS Mode': 'smsmode',
+}
+
+/**
+ * A number visitors write to by SMS or RCS (D23). `tokenEnv` names the variable of the
+ * server's environment that holds the provider's secret (D5).
+ */
+export interface SmsNumber {
+  readonly id: string
+  readonly name: string
+  readonly provider: SmsProviderId
+  /** `+33612345678`, or null when the row does not say a number that reads. */
+  readonly phone: string | null
+  readonly accountSid: string | null
+  readonly tokenEnv: string | null
+  readonly messagingServiceSid: string | null
+  /** The name its messages come from, where the provider allows one. */
+  readonly sender: string | null
+  /** The site its conversations are held for; null: the first active one. */
+  readonly siteId: string | null
+  readonly active: boolean
+}
+
+/** A server, as `host` and `port` — the port the protocol's own when none is said. */
+export interface MailServer {
+  readonly host: string
+  readonly port: number
+}
+
+/**
+ * An address customers write to by e-mail (D24): its IMAP server, read for what arrives,
+ * its SMTP server, what answers leave by. `passwordEnv` names the variable that holds the
+ * password (D5).
+ */
+export interface EmailAddress {
+  readonly id: string
+  readonly name: string
+  /** Lowercased; null when the row does not say one that reads. */
+  readonly address: string | null
+  readonly siteId: string | null
+  readonly imap: MailServer | null
+  readonly smtp: MailServer | null
+  /** The account of both servers: the address when none is said. */
+  readonly login: string | null
+  readonly passwordEnv: string | null
+  readonly receive: boolean
+  readonly active: boolean
+}
+
+/** `host`, `host:port` — a name, no scheme, no path. */
+function serverOf(value: unknown, port: number): MailServer | null {
+  const raw = (text(value) ?? '').trim().toLowerCase()
+  const match = /^([a-z0-9.-]+\.[a-z]{2,})(?::(\d{2,5}))?$/.exec(raw)
+  if (!match?.[1]) return null
+  return { host: match[1], port: match[2] ? Number(match[2]) : port }
+}
+
 export interface Site {
   readonly id: string
   readonly name: string
@@ -76,6 +140,8 @@ export interface Site {
   readonly threshold: number
   readonly instructions: string | null
   readonly retentionDays: number | null
+  /** « Répondre par e-mail »: what a visitor who left did not see reaches them (D23). */
+  readonly emailReplies: boolean
   readonly active: boolean
   readonly defaultTeamId: string | null
   /** The inbox its conversations reach; null: the first active one. */
@@ -393,6 +459,8 @@ export class Settings {
       threshold: Math.min(Math.max((num(values['Seuil de confiance (%)']) ?? 75) / 100, 0), 1),
       instructions: text(values["Consignes de l'agent IA"]),
       retentionDays: num(values['Conservation (jours)']),
+      // A row of the database says it; one of memory without the field, as the column's default.
+      emailReplies: values['Répondre par e-mail'] !== false,
       active: bool(values.Actif),
       defaultTeamId: one(values['Équipe par défaut']),
       inboxId: one(values['Boîte de réception']),
@@ -596,5 +664,63 @@ export class Settings {
         },
       ]
     })
+  }
+
+  /** « Numéros SMS », every row — the inactive ones too: the inbox says they are off. */
+  async smsNumbers(): Promise<SmsNumber[]> {
+    return (await this.table(TABLES.sms)).map(({ id, values }) => {
+      const phone = (text(values.Numéro) ?? '').replace(/[\s.()-]/g, '')
+      return {
+        id,
+        name: text(values.Nom) ?? id,
+        provider: PROVIDERS[text(values.Fournisseur) ?? ''] ?? 'twilio',
+        phone: /^\+[1-9]\d{6,14}$/.test(phone) ? phone : null,
+        accountSid: text(values['Identifiant du compte']),
+        tokenEnv: text(values["Jeton (variable d'environnement)"]),
+        messagingServiceSid: text(values['Service de messagerie']),
+        sender: text(values.Expéditeur),
+        siteId: one(values.Site),
+        active: bool(values.Actif),
+      }
+    })
+  }
+
+  async smsNumber(id: string): Promise<SmsNumber | null> {
+    return (await this.smsNumbers()).find((n) => n.id === id) ?? null
+  }
+
+  /** « Adresses e-mail », every row — the inactive ones too. */
+  async emailAddresses(): Promise<EmailAddress[]> {
+    return (await this.table(TABLES.email)).map(({ id, values }) => {
+      const address = (text(values.Adresse) ?? '').trim().toLowerCase()
+      const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)
+      return {
+        id,
+        name: text(values.Nom) ?? id,
+        address: valid ? address : null,
+        siteId: one(values.Site),
+        imap: serverOf(values['Serveur IMAP'], 993),
+        smtp: serverOf(values['Serveur SMTP'], 465),
+        login: text(values.Identifiant) ?? (valid ? address : null),
+        passwordEnv: text(values["Mot de passe (variable d'environnement)"]),
+        receive: bool(values['Lire la boîte']),
+        active: bool(values.Actif),
+      }
+    })
+  }
+
+  async emailAddress(id: string): Promise<EmailAddress | null> {
+    return (await this.emailAddresses()).find((a) => a.id === id) ?? null
+  }
+
+  /** A site's address that sends — active, with its SMTP server —, or none. */
+  async siteEmailAddress(siteId: string): Promise<EmailAddress | null> {
+    const sites = await this.sites()
+    const first = sites.find((s) => s.active)?.id ?? null
+    return (
+      (await this.emailAddresses()).find(
+        (a) => a.active && a.address && a.smtp && (a.siteId ?? first) === siteId,
+      ) ?? null
+    )
   }
 }

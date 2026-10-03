@@ -234,7 +234,9 @@ export function customer(context: Context): string {
       ]
     : ['Visiteur anonyme : le site ne l’a pas identifié.']
   // « Visiteur 9F0C » tells visitors apart in the inbox: it is not a name.
-  const unnamed = !contact.identified && isGeneratedName(contact.name)
+  // Nor is the number an SMS came from (D23).
+  const unnamed =
+    !contact.identified && (isGeneratedName(contact.name) || contact.name === contact.phone)
   if (unnamed) {
     lines.push(
       'Son nom n’est pas connu : ne l’appelle par aucun nom, ni « Visiteur » suivi d’un code.',

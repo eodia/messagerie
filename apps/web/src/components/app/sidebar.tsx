@@ -15,6 +15,7 @@ import { useInbox, waitingByInbox, waitingHere } from '@/lib/store/inbox'
 import { useSidebar } from '@/lib/store/sidebar'
 import { cn } from '@/lib/utils'
 import {
+  AtSign,
   BookOpen,
   ChartColumn,
   ChevronDown,
@@ -29,6 +30,7 @@ import {
   Palette,
   Settings,
   ShieldAlert,
+  Smartphone,
   UsersRound,
   Workflow,
   Wrench,
@@ -70,6 +72,8 @@ const SETTINGS: readonly Screen[] = [
   { href: '/outils', label: msg('Outils IA'), icon: Wrench },
   { href: '/automatisations', label: msg('Automatisations'), icon: Workflow },
   { href: '/widget', label: msg('Widget'), icon: Palette },
+  { href: '/parametrage/sms', label: msg('Numéros SMS'), icon: Smartphone },
+  { href: '/parametrage/email', label: msg('Adresses e-mail'), icon: AtSign },
   { href: '/parametrage/api', label: msg('API et MCP'), icon: KeyRound },
 ]
 

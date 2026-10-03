@@ -12,6 +12,7 @@ import type { Db } from '../db/client.js'
 import { conversations } from '../db/schema.js'
 import { canSee } from '../inbox/access.js'
 import { contactDetail, listContacts } from '../inbox/extras.js'
+import { startConversation } from '../inbox/outreach.js'
 import { loadConversation, loadSummaries, searchMessages } from '../inbox/read.js'
 import { addTag, removeTag } from '../inbox/tags.js'
 import { assign, listAgents, resolve, sendMessage } from '../inbox/write.js'
@@ -28,6 +29,8 @@ import { type TokenContext, writing } from './tokens.js'
 export interface ServiceDeps {
   readonly db: Db
   readonly settings: Settings | null
+  /** The server writes e-mails (D23): a program may write first by e-mail. */
+  readonly email?: boolean
 }
 
 /** Which conversations a list asks for — not resolved ones, by default. */
@@ -125,6 +128,22 @@ export async function reply(
     kind: options.note ? 'note' : 'reply',
     resolve: options.resolve === true && !options.note,
   })
+}
+
+/** Writes first to a customer, by SMS or by e-mail (D23): the conversation, with its message. */
+export async function startOutreach(
+  deps: ServiceDeps,
+  context: TokenContext,
+  body: Readonly<Record<string, unknown>>,
+): Promise<Conversation> {
+  writing(context)
+  if (!deps.settings) throw new Refusal('NUMBER_UNAVAILABLE', 404)
+  return startConversation(
+    { db: deps.db, settings: deps.settings, email: deps.email === true },
+    context.actor,
+    context.visible,
+    { ...body },
+  )
 }
 
 export async function assignTo(

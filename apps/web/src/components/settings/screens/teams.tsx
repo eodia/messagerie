@@ -602,7 +602,8 @@ function AgentForm({
             { name: text(values.Nom) || email },
           )}
           action={$t('Créer le lien')}
-          run={async () => (await api.resetAgentPassword(id)).link}
+          run={() => api.resetAgentPassword(id)}
+          recipient={email}
           onClose={() => setResetting(false)}
           done={<SignInHint email={email} />}
         />
@@ -743,8 +744,9 @@ function InviteDialog({
       run={async () => {
         const invited = await api.inviteAgent({ name, email, role, teamIds })
         onInvited(invited.row)
-        return invited.link
+        return invited
       }}
+      recipient={email.trim()}
       onClose={onClose}
       done={<SignInHint email={email.trim()} />}
     >

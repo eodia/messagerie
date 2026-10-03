@@ -108,6 +108,8 @@ beforeAll(async () => {
     secret: 'a-secret-for-the-tests-of-the-chat-server',
     trustProxy: false,
     giphyKey: null,
+    mail: null,
+    pushSubject: 'mailto:tests@localhost',
   }
   ;({ app } = createApp({
     db,
@@ -162,6 +164,22 @@ describe('the REST API', () => {
     expect(data.messages.at(-1)).toMatchObject({ kind: 'agent', author: 'Essai write' })
     expect(data.status).toBe('open')
     expect(data.assigneeId).toBeNull()
+  })
+
+  it('writes first to a customer with a write token — when the server can', async () => {
+    const reader = await token({ access: 'read' })
+    const body = JSON.stringify({ channel: 'sms', phone: '+33612345678', body: 'Bonjour' })
+    const refused = await call('/conversations', reader.secret, { method: 'POST', body })
+    expect(refused.status).toBe(403)
+    const { secret } = await token({ access: 'write' })
+    // No number ready, no SMTP server here: said, not attempted.
+    const sms = await call('/conversations', secret, { method: 'POST', body })
+    expect(((await sms.json()) as { code: string }).code).toBe('NUMBER_UNAVAILABLE')
+    const mail = await call('/conversations', secret, {
+      method: 'POST',
+      body: JSON.stringify({ channel: 'email', email: 'lea@exemple.fr', body: 'Bonjour' }),
+    })
+    expect(((await mail.json()) as { code: string }).code).toBe('MAIL_UNAVAILABLE')
   })
 
   it('reaches its own inboxes only', async () => {

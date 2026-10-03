@@ -90,6 +90,17 @@ tient tout elle-même (D19). Les décisions qui font autorité sont dans
 - **Actions de la page** (D21) : `src/page/actions.ts`. Ce que renvoie une page est une
   donnée, jamais une consigne ; une action qui change la page demande l'accord du visiteur
   par défaut.
+- **Ce qui sort** (D23) : `src/outbound` — e-mails (SMTP), alertes Web Push, et la file
+  `chat.outbound` qu'un facteur relève. Une réponse au visiteur y entre par le déclencheur
+  `capture_outbound`, jamais depuis le code ; une alerte, par `notify`. Un texte envoyé à un
+  visiteur passe par `outbound/words.ts` (langue du site), jamais une phrase stockée.
+- **SMS et RCS** (D23) : `src/channels`. Un fournisseur (Twilio, SMS Mode) implémente
+  `SmsProvider` (`channels/provider.ts`), s'inscrit dans `channels/providers.ts` et dans les
+  choix de « Fournisseur » du modèle. Son appel est authentifié avant tout : signature, ou
+  clé de l'adresse. « Nouveau message » (écrire le premier) : `inbox/outreach.ts`.
+- **E-mail** (D24) : `channels/email.ts`. Une adresse par site (« Adresses e-mail ») relevée en
+  IMAP chaque minute, servie en SMTP ; une réponse y part par `capture_outbound` comme un SMS.
+  Un fil se retrouve par ses en-têtes (`Message-ID`, `In-Reply-To`), jamais par le sujet.
 - **Tableaux de bord** (D22) : `src/analytics`. Une vue d'analyse s'ajoute au schéma
   `analytics` par une migration qui l'accorde aussi à `chat_analytics`, et au catalogue
   (`catalog.ts`). Jamais une table de comptes, de sessions ou de secrets dans une vue.

@@ -18,7 +18,7 @@ développement, avec le `docker compose` du dépôt.
 | Variable | Rôle |
 |---|---|
 | `NODE_ENV` | `production`. Rend `CHAT_SECRET` obligatoire, ignore `CHAT_DEV_AGENT` (une requête sans session est refusée), n’écrit pas la démonstration dans une base vide, retire la page `/demo`, refuse une requête du widget sans origine, et interdit `seed` |
-| `CHAT_SECRET` | signe les jetons des visiteurs, les liens des fichiers et l’aller-retour chez le fournisseur d’identité, scelle les secrets des webhooks. **32 caractères au moins** : `openssl rand -base64 32`. Sans lui, le serveur ne démarre pas en production ; en développement, un secret fixe le remplace. Le changer rend illisibles les secrets des webhooks ; les sessions des conseillers n’en dépendent pas |
+| `CHAT_SECRET` | signe les jetons des visiteurs, les liens des fichiers et l’aller-retour chez le fournisseur d’identité, scelle les secrets des webhooks, et donne la clé des alertes sur le téléphone. **32 caractères au moins** : `openssl rand -base64 32`. Sans lui, le serveur ne démarre pas en production ; en développement, un secret fixe le remplace. Le changer rend illisibles les secrets des webhooks, et chaque téléphone doit réactiver ses alertes ; les sessions des conseillers n’en dépendent pas |
 | `DATABASE_URL` | le PostgreSQL du schéma `chat` (voir plus bas) |
 | `CHAT_WEB_ORIGIN`, `CHAT_PUBLIC_URL`, `CHAT_API_URL` | où sont l’inbox et le serveur (voir plus bas) : leurs défauts visent `localhost` |
 
@@ -27,8 +27,8 @@ développement, avec le `docker compose` du dépôt.
 | Variable | Défaut | Rôle |
 |---|---|---|
 | `CHAT_PORT` | `8810` | le port du serveur : connexion, API, WebSocket, script du widget, API REST, MCP |
-| `CHAT_PUBLIC_URL` | `http://localhost:` suivi de `CHAT_PORT` | l’adresse publique du serveur, sans `/` final. Le fournisseur d’identité y renvoie (`/api/auth/oidc/callback`), et le cookie de session n’est `Secure` que si elle commence par `https:` |
-| `CHAT_WEB_ORIGIN` | `http://localhost:3210` | l’origine de l’inbox, seule admise : CORS, ouverture du WebSocket, cadre de l’aperçu du widget. Les liens d’invitation la prennent pour adresse, et le retour du fournisseur d’identité y ramène |
+| `CHAT_PUBLIC_URL` | `http://localhost:` suivi de `CHAT_PORT` | l’adresse publique du serveur, sans `/` final. Le fournisseur d’identité y renvoie (`/api/auth/oidc/callback`), Twilio y appelle pour chaque SMS (`/channels/twilio/…`) et y lit les fichiers envoyés en RCS, et le cookie de session n’est `Secure` que si elle commence par `https:` |
+| `CHAT_WEB_ORIGIN` | `http://localhost:3210` | l’origine de l’inbox, seule admise : CORS, ouverture du WebSocket, cadre de l’aperçu du widget. Les liens d’invitation et ceux des e-mails la prennent pour adresse, et le retour du fournisseur d’identité y ramène |
 | `CHAT_TRUST_PROXY` | — | `1` derrière une passerelle : l’adresse du visiteur et celle de qui se connecte sont lues dans `X-Forwarded-For`, l’adresse publique dans `X-Forwarded-Proto` et `X-Forwarded-Host`. Sans passerelle, laissez-la vide : ces en-têtes seraient à qui veut les écrire |
 | `CHAT_WORKER` | — | `separate` : les tâches de fond (IA, webhooks, automatisations, réveil des conversations en attente) quittent le serveur pour le worker, qu’il faut alors lancer |
 
@@ -92,6 +92,54 @@ vont aux conseillers`.
 |---|---|---|
 | `CHAT_FILES_DIR` | `.files`, dans le dossier de travail du processus | où sont gardés les fichiers envoyés dans les conversations, jamais en base. Le serveur et le worker doivent voir le même dossier |
 | `GIPHY_API_KEY` | — | la clé GIPHY des GIF que les conseillers envoient. Sans elle, la palette n’a que les emoji. La recherche passe par le serveur : la clé n’atteint jamais un navigateur |
+
+## E-mails
+
+Facultatives : sans serveur SMTP, la messagerie n’écrit aucun e-mail de son propre chef — les
+liens des comptes se transmettent à la main, et rien ne part au visiteur d’un site qui n’a pas
+son [adresse e-mail](#adresses-e-mail-des-sites). Voir
+[Comptes et connexion](/messagerie/hebergement/comptes/#inviter-un-conseiller) et
+[le widget](/messagerie/fonctionnalites/widget/#laissez-nous-votre-e-mail).
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `CHAT_SMTP_URL` | — | le serveur SMTP : `smtp://utilisateur:motdepasse@smtp.exemple.fr:587` (STARTTLS), ou `smtps://…:465` (TLS dès la connexion). Un caractère spécial du mot de passe s’écrit encodé (`%40` pour `@`). En développement, `smtp://127.0.0.1:1025` : le Mailpit du `docker compose` du dépôt, lu à `http://localhost:8025` |
+| `CHAT_MAIL_FROM` | `Messagerie <messagerie@localhost>` hors production | l’expéditeur : `Support Acme <support@exemple.fr>`. Requis en production avec `CHAT_SMTP_URL` : le serveur ne démarre pas sans lui |
+
+## Alertes sur le téléphone
+
+Rien à définir : la clé des alertes (VAPID) est tirée de `CHAT_SECRET`. Les services de push
+des navigateurs demandent seulement qui les appelle.
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `CHAT_PUSH_SUBJECT` | `CHAT_WEB_ORIGIN` s’il est en `https:`, sinon `mailto:` et l’adresse de `CHAT_MAIL_FROM` | une adresse `mailto:` ou `https:` où les services de push (Apple, Google, Mozilla, Microsoft) peuvent écrire à l’exploitant |
+
+Le téléphone d’un conseiller doit joindre l’inbox en HTTPS : un navigateur ne propose les
+alertes qu’à une page sûre. Voir [Alertes](/messagerie/fonctionnalites/alertes/#sur-le-téléphone).
+
+## SMS et RCS
+
+Un numéro de **Administration › Numéros SMS** ne porte pas le secret de son compte : il nomme
+la variable qui le contient, comme un outil de l’IA. Le nom est libre — la démonstration dit
+`TWILIO_AUTH_TOKEN` — et la variable se définit à côté des autres. Sans elle, le numéro refuse
+ce qui arrive et ne répond pas. Voir [SMS et RCS](/messagerie/fonctionnalites/sms-et-rcs/).
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| le nom que donne le numéro | — | Twilio : l’**Auth Token** du compte, qui vérifie la signature de chaque appel de Twilio et signe les envois. SMS Mode : la **clé d’API**, envoyée dans `X-Api-Key` |
+
+## Adresses e-mail des sites
+
+Une adresse de **Administration › Adresses e-mail** ne porte pas son mot de passe : elle nomme
+la variable qui le contient. Le nom est libre — la démonstration dit `SUPPORT_MAIL_PASSWORD` —
+et la variable se définit à côté des autres. Sans elle, l’adresse n’est pas relevée et ses
+réponses ne partent pas. Ces adresses ne dépendent pas de `CHAT_SMTP_URL`. Voir
+[E-mail](/messagerie/fonctionnalites/e-mail/).
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| le nom que donne l’adresse | — | le mot de passe — ou le mot de passe d’application — du compte, pour ses serveurs IMAP et SMTP |
 
 ## Webhooks
 

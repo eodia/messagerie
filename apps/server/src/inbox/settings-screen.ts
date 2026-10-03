@@ -28,6 +28,8 @@ const EDITABLE = [
   'garde_fous',
   'outils_ia',
   'serveurs_mcp',
+  'numeros_sms',
+  'adresses_email',
   'categories',
   'articles',
   'conversations_promues',

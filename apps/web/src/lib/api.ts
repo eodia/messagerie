@@ -1,5 +1,6 @@
 import type {
   Agent,
+  AlertChannels,
   AnalyticsSource,
   ApiDocumentation,
   ApiError,
@@ -26,6 +27,7 @@ import type {
   Dashboard,
   DashboardBody,
   DashboardFilter,
+  EmailAddressTest,
   ErrorCode,
   FeedbackBody,
   FilterValues,
@@ -39,6 +41,7 @@ import type {
   Metadata,
   MetadataValue,
   NotificationList,
+  OutreachOptions,
   PageAction,
   PasswordReset,
   QueryResult,
@@ -48,6 +51,8 @@ import type {
   SendMessageBody,
   SettingsOverview,
   SettingsRow,
+  SmsNumberAddresses,
+  StartConversationBody,
   TagOption,
   Ticket,
   ToolTestBody,
@@ -137,10 +142,25 @@ const zone = () => Intl.DateTimeFormat().resolvedOptions().timeZone
 
 export const api = {
   me: () => request<Agent>('GET', '/me'),
+  /** Where one's alerts go beyond the open inbox: devices, mailbox (D23). */
+  alerts: () => request<AlertChannels>('GET', '/alerts'),
+  setEmailAlerts: (email: boolean) => request<void>('PATCH', '/alerts', { email }),
+  subscribeDevice: (subscription: PushSubscriptionJSON) =>
+    request<void>('PUT', '/alerts/devices', subscription),
+  unsubscribeDevice: (endpoint: string) => request<void>('DELETE', '/alerts/devices', { endpoint }),
   agents: () => request<Agent[]>('GET', '/agents'),
   ticket: () => request<Ticket>('POST', '/ticket'),
   conversations: () => request<ConversationSummary[]>('GET', '/conversations'),
   conversation: (id: string) => request<Conversation>('GET', conversation(id)),
+  /** « Nouveau message »: what it may use, and writing first to a customer (D23). */
+  outreach: () => request<OutreachOptions>('GET', '/outreach'),
+  startConversation: (body: StartConversationBody) =>
+    request<Conversation>('POST', '/conversations', body),
+  smsAddresses: (numberId: string) =>
+    request<SmsNumberAddresses>('GET', `/sms-numbers/${encodeURIComponent(numberId)}/addresses`),
+  /** « Adresses e-mail »: its IMAP and SMTP servers, tried with what is saved (D24). */
+  testEmailAddress: (addressId: string) =>
+    request<EmailAddressTest>('POST', `/email-addresses/${encodeURIComponent(addressId)}/test`),
   markRead: (id: string) => request<void>('POST', `${conversation(id)}/read`),
   typing: (id: string) => request<void>('POST', `${conversation(id)}/typing`),
   /** A message read aloud by the server's AI voice, as an MP3. */

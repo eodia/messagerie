@@ -10,7 +10,7 @@ import type {
 } from '@chat/contracts'
 import { createNodeWebSocket } from '@hono/node-ws'
 import { eq } from 'drizzle-orm'
-import { Hono } from 'hono'
+import { type Context, Hono } from 'hono'
 import { cors } from 'hono/cors'
 import type pg from 'pg'
 import { analyzeAttachment } from './ai/attachments.js'
@@ -56,6 +56,9 @@ import {
   tryAutomation,
   updateAutomation,
 } from './automations/manage.js'
+import { testAddress } from './channels/email.js'
+import type { ProviderCall } from './channels/provider.js'
+import { type SmsDeps, knownProvider, receiveSms, smsStatus } from './channels/sms.js'
 import type { Config } from './config.js'
 import type { Db } from './db/client.js'
 import { conversations } from './db/schema.js'
@@ -66,6 +69,12 @@ import { gifFile, searchGifs } from './gifs.js'
 import { homePage } from './home-page.js'
 import { Access, canSee, inboxDirectory } from './inbox/access.js'
 import { inviteAgent, resetAgentPassword } from './inbox/accounts.js'
+import {
+  alertChannels,
+  setEmailAlerts,
+  subscribeDevice,
+  unsubscribeDevice,
+} from './inbox/alert-channels.js'
 import { actOnMany } from './inbox/bulk.js'
 import {
   cannedReplies,
@@ -78,6 +87,7 @@ import {
 } from './inbox/extras.js'
 import { patchContact, patchConversationData, readPatch } from './inbox/metadata.js'
 import { listNotifications, readNotifications } from './inbox/notifications.js'
+import { numberAddresses, outreachOptions, startConversation } from './inbox/outreach.js'
 import { loadConversation, loadSummaries, searchMessages, toAgent } from './inbox/read.js'
 import {
   createRow,
@@ -103,6 +113,8 @@ import {
   transfer,
   wake,
 } from './inbox/write.js'
+import type { Mailer } from './outbound/mailer.js'
+import { vapidKeys } from './outbound/push.js'
 import { listPageActions, setPageAction } from './page/actions.js'
 import type { InboxHub } from './realtime/hub.js'
 import { signalTyping } from './realtime/signals.js'
@@ -181,6 +193,7 @@ export function createApp({
   files,
   automations,
   pool,
+  mailer = null,
 }: {
   db: Db
   hub: InboxHub
@@ -197,6 +210,8 @@ export function createApp({
   automations?: { poke(): void } | null
   /** The database's pool: the dashboards' questions run on a client of their own (D22). */
   pool?: pg.Pool
+  /** The SMTP server, when one is configured: links and alerts by e-mail (D23). */
+  mailer?: Mailer | null
 }) {
   const app = new Hono()
   const store = files ?? new DiskStore(config.filesDir)
@@ -218,7 +233,8 @@ export function createApp({
   )
 
   // Signing in: the session, the first supervisor, links, an identity provider.
-  app.route('/api/auth', authRoutes({ db, config, settings }))
+  app.route('/api/auth', authRoutes({ db, config, settings, mailer }))
+  const keys = vapidKeys(config.secret)
 
   app.get('/health', (c) => c.json({ ok: true }))
 
@@ -298,14 +314,79 @@ export function createApp({
   // Agents' accounts, from the inbox: an invitation, a new password — each a link.
   inbox.post('/agents/invite', async (c) =>
     c.json(
-      await inviteAgent(db, settings, config.webOrigin, c.get('agent'), await jsonBody(c.req.raw)),
+      await inviteAgent(
+        db,
+        settings,
+        config.webOrigin,
+        c.get('agent'),
+        await jsonBody(c.req.raw),
+        mailer,
+      ),
       201,
     ),
   )
   inbox.post('/agents/:id/password', async (c) => {
     const id = c.req.param('id')
     if (!UUID.test(id)) throw new Refusal('ROW_NOT_FOUND', 404)
-    return c.json(await resetAgentPassword(db, config.webOrigin, c.get('agent'), id))
+    return c.json(await resetAgentPassword(db, config.webOrigin, c.get('agent'), id, mailer))
+  })
+
+  // « Nouveau message »: writing first to a customer, by SMS or by e-mail (D23).
+  const outreach = { db, settings, email: mailer !== null }
+  inbox.get('/outreach', async (c) => c.json(await outreachOptions(outreach)))
+  inbox.post('/conversations', async (c) => {
+    const agent = c.get('agent')
+    return c.json(
+      await startConversation(
+        outreach,
+        agent,
+        await access.visibleTo(agent),
+        await jsonBody(c.req.raw),
+      ),
+      201,
+    )
+  })
+  // An address of « Adresses e-mail », tried: its IMAP and SMTP servers answer (D24).
+  inbox.post('/email-addresses/:id/test', async (c) => {
+    if (c.get('agent').role !== 'supervisor') throw new Refusal('NOT_ALLOWED', 403)
+    const address = await settings.emailAddress(c.req.param('id'))
+    if (!address) throw new Refusal('ROW_NOT_FOUND', 404)
+    return c.json(await testAddress(address, process.env))
+  })
+  inbox.get('/sms-numbers/:id/addresses', async (c) =>
+    c.json(
+      await numberAddresses(
+        settings,
+        c.get('agent'),
+        c.req.param('id'),
+        config.publicUrl,
+        config.secret,
+      ),
+    ),
+  )
+
+  // Where one's alerts go beyond the open inbox: this phone, one's mailbox (D23).
+  inbox.get('/alerts', async (c) =>
+    c.json(await alertChannels(db, c.get('agent'), keys, mailer !== null)),
+  )
+  inbox.put('/alerts/devices', async (c) => {
+    await subscribeDevice(
+      db,
+      c.get('agent'),
+      await jsonBody(c.req.raw),
+      c.req.header('user-agent') ?? null,
+    )
+    return c.body(null, 204)
+  })
+  inbox.delete('/alerts/devices', async (c) => {
+    await unsubscribeDevice(db, c.get('agent'), (await jsonBody(c.req.raw)).endpoint)
+    return c.body(null, 204)
+  })
+  inbox.patch('/alerts', async (c) => {
+    const body = await jsonBody(c.req.raw)
+    if (body.email === true && mailer === null) throw new Refusal('MAIL_UNAVAILABLE', 503)
+    await setEmailAlerts(db, c.get('agent'), body.email)
+    return c.body(null, 204)
   })
 
   inbox.get('/tags', async (c) => c.json(await tagOptions(settings)))
@@ -918,8 +999,60 @@ export function createApp({
   })
 
   // The public API and the MCP server: programs and agents, with a token of the chat (D16).
-  app.route('/api/v1', restRoutes({ db, settings, access, trustProxy: config.trustProxy }))
-  app.route('/mcp', mcpRoutes({ db, settings, access }))
+  app.route(
+    '/api/v1',
+    restRoutes({ db, settings, access, trustProxy: config.trustProxy, email: mailer !== null }),
+  )
+  app.route('/mcp', mcpRoutes({ db, settings, access, email: mailer !== null }))
+
+  // Visitors who write by SMS or RCS: their provider's calls, signed — or bringing the key of
+  // the number's address — (D23).
+  const phones: SmsDeps = {
+    db,
+    settings,
+    config,
+    files: store,
+    aiAvailable: ai !== null,
+    onVisitorMessage: (id) => ai?.jobs.visitorMessage(id),
+  }
+  const providerCall = async (c: Context): Promise<[string, string, ProviderCall]> => {
+    const provider = c.req.param('provider') ?? ''
+    const id = c.req.param('id') ?? ''
+    if (!knownProvider(provider) || !UUID.test(id)) throw new Refusal('NUMBER_UNAVAILABLE', 404)
+    // JSON, or a form — strings only.
+    const json = (c.req.header('content-type') ?? '').includes('application/json')
+    const raw: unknown = json ? await c.req.json().catch(() => null) : await c.req.parseBody()
+    const payload =
+      typeof raw === 'object' && raw !== null && !Array.isArray(raw)
+        ? (raw as Record<string, unknown>)
+        : {}
+    // The address the provider was given: the server's public address, and the path.
+    const called = new URL(c.req.url)
+    return [
+      provider,
+      id,
+      {
+        url: `${config.publicUrl}${called.pathname}${called.search}`,
+        payload,
+        headers: { 'x-twilio-signature': c.req.header('x-twilio-signature') },
+        key: c.req.param('key') ?? null,
+      },
+    ]
+  }
+  // Registered before the inbound routes, whose `:key` would take « status ».
+  for (const path of ['/channels/:provider/:id/status', '/channels/:provider/:id/:key/status']) {
+    app.post(path, async (c) => {
+      await smsStatus(phones, ...(await providerCall(c)))
+      return c.body(null, 204)
+    })
+  }
+  for (const path of ['/channels/:provider/:id', '/channels/:provider/:id/:key']) {
+    app.post(path, async (c) => {
+      const answer = await receiveSms(phones, ...(await providerCall(c)))
+      c.header('content-type', answer.type)
+      return c.body(answer.body)
+    })
+  }
 
   // The widget: its API, when there are settings to know the sites by, and its script.
   if (settings !== null) {

@@ -71,6 +71,8 @@ beforeAll(async () => {
     secret: 'a-secret-for-the-tests-of-the-chat-server',
     trustProxy: false,
     giphyKey: null,
+    mail: null,
+    pushSubject: 'mailto:tests@localhost',
   }
   ;({ app } = createApp({
     db,
@@ -146,7 +148,7 @@ describe('signing in', () => {
   it('starts with the first supervisor — the demonstration’s, claimed by their e-mail', async () => {
     const marc = browser()
     const state = (await (await marc('/api/auth/state')).json()) as AuthState
-    expect(state).toEqual({ agent: null, setup: true, sso: null })
+    expect(state).toEqual({ agent: null, setup: true, sso: null, forgot: false })
     expect((await marc('/api/inbox/settings')).status).toBe(401)
 
     const weak = await marc('/api/auth/setup', {

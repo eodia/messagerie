@@ -16,7 +16,17 @@ import { WidgetHub } from './widget/hub.js'
  * Starts the chat server: what `boot` starts, the change listener, then the HTTP and
  * WebSocket server. Stops cleanly on Ctrl+C and `docker stop`.
  */
-const { config, db, pool, settings, ai, mcp, automations, stop: stopBoot } = await boot('server')
+const {
+  config,
+  db,
+  pool,
+  settings,
+  ai,
+  mcp,
+  automations,
+  mailer,
+  stop: stopBoot,
+} = await boot('server')
 
 // No widget is connected to a server that starts: the pages a stop left open are left.
 await leaveAllPages(db)
@@ -110,6 +120,7 @@ const { app, injectWebSocket } = createApp({
   mcp,
   automations,
   pool,
+  mailer,
 })
 const server = serve({ fetch: app.fetch, port: config.port }, ({ port }) => {
   console.log(`chat : à l’écoute sur http://localhost:${port}`)

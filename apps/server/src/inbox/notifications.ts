@@ -3,6 +3,7 @@ import { and, count, desc, eq, isNull, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import type { Db } from '../db/client.js'
 import { agents, contacts, conversations, notifications } from '../db/schema.js'
+import { queueAlerts } from '../outbound/alerts.js'
 import { signalNotifications } from '../realtime/signals.js'
 import type { AgentRow } from './read.js'
 
@@ -27,7 +28,7 @@ export async function notify(
   const targets = [...new Set(agentIds.filter((id): id is string => id !== null))]
   if (targets.length === 0) return []
   const now = new Date()
-  await tx
+  const written = await tx
     .insert(notifications)
     .values(
       targets.map((agentId) => ({
@@ -44,6 +45,12 @@ export async function notify(
       targetWhere: sql`read_at is null`,
       set: { createdAt: now, byAgentId, text },
     })
+    .returning({ id: notifications.id })
+  // Beyond the open inbox: their phone, their mailbox (D23).
+  await queueAlerts(
+    tx,
+    written.map((row) => row.id),
+  )
   return targets
 }
 

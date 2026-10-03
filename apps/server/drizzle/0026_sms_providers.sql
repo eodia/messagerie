@@ -1,0 +1,1 @@
+ALTER TABLE "chat"."sms_number" ADD COLUMN "sender" text;

@@ -403,6 +403,10 @@ export function documentation(base: string): DocSection[] {
           '`site`, `siteId`, `inboxId`, `teamId`',
           'Le site d’où elle vient — son nom à l’arrivée, puis son identifiant —, sa boîte, son équipe.',
         ],
+        [
+          '`channel`',
+          '`web` : le widget · `sms` · `rcs` : le téléphone du visiteur · `email` : sa messagerie.',
+        ],
         ['`status`', '`ai` : l’IA répond · `open` · `pending` · `resolved`.'],
         ['`assignee`, `assigneeId`', 'Le conseiller qui l’a, ou `null` : la file.'],
         ['`unread`', 'Un message du visiteur attend.'],
@@ -443,6 +447,7 @@ export function documentation(base: string): DocSection[] {
       ],
     ),
     'Un message supprimé pour tout le monde porte `deleted` (`by`, `at`) et un `body` vide. Le texte est dans le petit Markdown de la Messagerie : **gras**, *italique*, listes, liens, citations.',
+    'Une réponse (`agent`, `ai`) partie hors du widget porte `delivery` : `by` (`sms` — SMS ou RCS — ou `email`, au visiteur parti), `status` (`pending`, `sent`, `delivered`, `read`, `failed`) et, en échec, `error` — le code du fournisseur (`TWILIO_21610`…) ou de la Messagerie.',
   )
 
   add(
@@ -686,6 +691,11 @@ export function documentation(base: string): DocSection[] {
         ],
         ['`conversation.resolved`', 'La conversation est résolue.', '`conversation`'],
         ['`conversation.reopened`', 'Une conversation résolue reprend.', '`conversation`'],
+        [
+          '`message.undelivered`',
+          'Une réponse n’a pas atteint le client : un SMS ou un e-mail refusé, ou perdu après ses essais. `message.delivery.error` dit pourquoi.',
+          '`conversation`, `message`',
+        ],
         ['`webhook.ping`', 'Un test envoyé depuis l’écran.', '`webhook`'],
       ],
     ),

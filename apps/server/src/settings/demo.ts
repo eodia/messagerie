@@ -43,6 +43,8 @@ const ORDER = [
   'garde_fous',
   'outils_ia',
   'serveurs_mcp',
+  'numeros_sms',
+  'adresses_email',
 ]
 
 function relativeDate(value: string): string | null {

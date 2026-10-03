@@ -65,6 +65,8 @@ export const aiRunKind = chat.enum('ai_run_kind', [
   /** An automation's « Demander à l'IA » step (D20). */
   'automation',
 ])
+/** Where a conversation is held: the widget, a phone — by SMS or RCS —, or e-mail (D23, D24). */
+export const channel = chat.enum('channel', ['web', 'sms', 'rcs', 'email'])
 export const feedbackAction = chat.enum('feedback_action', ['accepted', 'edited', 'rejected'])
 export const tagOrigin = chat.enum('tag_origin', ['agent', 'ai'])
 export const chunkSource = chat.enum('chunk_source', ['article', 'conversation'])
@@ -101,6 +103,8 @@ export const agents = chat.table('agent', {
   /** scrypt, `scrypt$N$r$p$salt$hash`; null: they sign in by invitation or identity provider. */
   passwordHash: text('password_hash'),
   lastSignInAt: timestamp('last_sign_in_at', { withTimezone: true }),
+  /** What stays unread in their bell ten minutes reaches them by e-mail (D23). */
+  emailAlerts: boolean('email_alerts').notNull().default(false),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 })
@@ -187,7 +191,11 @@ export const contacts = chat.table(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [unique('contact_site_external_key').on(t.siteId, t.externalId)],
+  (t) => [
+    unique('contact_site_external_key').on(t.siteId, t.externalId),
+    // An SMS finds its writer by number (D23).
+    index('contact_phone_idx').on(t.siteId, t.phone),
+  ],
 )
 
 export const conversations = chat.table(
@@ -200,6 +208,12 @@ export const conversations = chat.table(
     siteId: text('site_id').notNull(),
     /** The site's name when the conversation started — kept when the site is renamed or gone. */
     siteName: text('site_name').notNull(),
+    /** Where the visitor writes from: the widget, or their phone (D23). */
+    channel: channel('channel').notNull().default('web'),
+    /** « Numéros SMS »: the number an SMS or RCS conversation is held on — kept when gone. */
+    smsNumberId: text('sms_number_id'),
+    /** « Adresses e-mail »: the address an e-mail conversation is held at (D24). */
+    emailAddressId: text('email_address_id'),
     status: conversationStatus('status').notNull().default('ai'),
     /**
      * The visitor began anew from the page (`MessagerieChat.reset()`): no longer their
@@ -275,6 +289,13 @@ export interface MessageMeta {
     readonly assignee: string
     readonly team: string
   }
+  /**
+   * A visitor's message that came by SMS or RCS: the provider's id of it — which a webhook
+   * tried again brings a second time (D23).
+   */
+  readonly providerId?: string
+  /** A message that came by e-mail: its subject (D24). */
+  readonly email?: { readonly subject: string | null }
 }
 
 /**
@@ -762,6 +783,87 @@ export const notifications = chat.table(
   ],
 )
 
+/**
+ * A device an agent's alerts reach while the inbox is closed — a phone, mostly (Web Push,
+ * D23). The browser gives the address of its push service and the keys to encrypt for it.
+ */
+export const pushSubscriptions = chat.table(
+  'push_subscription',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    agentId: uuid('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
+    endpoint: text('endpoint').notNull().unique(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    userAgent: text('user_agent'),
+    createdAt: createdAt(),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  },
+  (t) => [index('push_subscription_agent_idx').on(t.agentId)],
+)
+
+export const outboundChannel = chat.enum('outbound_channel', ['email', 'push', 'sms'])
+export const outboundStatus = chat.enum('outbound_status', [
+  'pending',
+  'in_flight',
+  /** Handed to the provider. */
+  'sent',
+  /** The provider says it reached the phone. */
+  'delivered',
+  /** And that it was read (RCS). */
+  'read',
+  'failed',
+  /** Nothing to send any more: read meanwhile, no address, no provider. */
+  'skipped',
+])
+
+/**
+ * What leaves the chat for somewhere else (D23): a reply by SMS or RCS, a reply by e-mail
+ * to a visitor who left, an alert to an agent's phone or mailbox. A message to the visitor
+ * is captured by a trigger, in the transaction that writes it — whichever way it was
+ * written —; an alert, by `notify`. The postman (`outbound/dispatch.ts`) sends what is due.
+ */
+export const outbound = chat.table(
+  'outbound',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    channel: outboundChannel('channel').notNull(),
+    purpose: text('purpose', { enum: ['message', 'visitor_reply', 'agent_alert'] }).notNull(),
+    conversationId: uuid('conversation_id').references(() => conversations.id, {
+      onDelete: 'cascade',
+    }),
+    messageId: uuid('message_id').references(() => messages.id, { onDelete: 'cascade' }),
+    notificationId: uuid('notification_id').references(() => notifications.id, {
+      onDelete: 'cascade',
+    }),
+    agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'cascade' }),
+    status: outboundStatus('status').notNull().default('pending'),
+    attempts: integer('attempts').notNull().default(0),
+    nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }).notNull().defaultNow(),
+    leaseUntil: timestamp('lease_until', { withTimezone: true }),
+    /** The provider's id of what it sent — Twilio's `SM…` —, for its status callbacks. */
+    providerId: text('provider_id'),
+    /** Why it failed or was skipped: a code, never a sentence (D9 bis). */
+    error: text('error'),
+    createdAt: createdAt(),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index('outbound_due_idx').on(t.nextAttemptAt).where(sql`${t.status} = 'pending'`),
+    index('outbound_message_idx').on(t.messageId),
+    index('outbound_conversation_idx').on(t.conversationId, t.createdAt),
+    index('outbound_provider_idx').on(t.providerId),
+    // An alert waits once per bell line and channel; an e-mail goes once per line.
+    uniqueIndex('outbound_alert_pending_key')
+      .on(t.notificationId, t.channel)
+      .where(sql`${t.status} in ('pending', 'in_flight')`),
+    uniqueIndex('outbound_alert_email_key').on(t.notificationId).where(sql`${t.channel} = 'email'`),
+  ],
+)
+
 // <settings-tables>
 // ── Settings (D19): the chat's own tables ──────────────────────────────────────────────
 // The screens edit them by field label, through `settings/catalog.ts`.
@@ -806,6 +908,8 @@ export const sites = chat.table('site', {
   aiThreshold: integer('ai_threshold'),
   aiInstructions: text('ai_instructions'),
   retentionDays: integer('retention_days'),
+  /** The answers a visitor who left did not see reach them by e-mail (D23). */
+  emailReplies: boolean('email_replies').notNull().default(true),
   active: boolean('active').notNull().default(true),
   inboxId: uuid('inbox_id').references(() => inboxes.id, { onDelete: 'set null' }),
   defaultTeamId: uuid('default_team_id').references(() => teams.id, { onDelete: 'set null' }),
@@ -951,6 +1055,47 @@ export const mcpServers = chat.table('mcp_server', {
   allowedTools: text('allowed_tools'),
   forAi: boolean('for_ai').notNull().default(false),
   forCopilot: boolean('for_copilot').notNull().default(false),
+  active: boolean('active').notNull().default(true),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})
+
+/**
+ * A phone number visitors write to by SMS — through Twilio, and by RCS when its messaging
+ * service has an RCS sender, or through SMS Mode (D23). Its conversations are those of its
+ * site. The provider's secret stays in the environment: the row names its variable (D5).
+ */
+export const smsNumbers = chat.table('sms_number', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  phone: text('phone'),
+  provider: text('provider'),
+  accountSid: text('account_sid'),
+  tokenEnv: text('token_env'),
+  messagingServiceSid: text('messaging_service_sid'),
+  /** The name the messages come from, where the provider allows one (SMS Mode). */
+  sender: text('sender'),
+  siteId: uuid('site_id').references(() => sites.id, { onDelete: 'set null' }),
+  active: boolean('active').notNull().default(true),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})
+
+/**
+ * An address customers write to by e-mail (D24): its site, its IMAP server — read for what
+ * arrives — and its SMTP server — what the answers leave by. Its password stays in the
+ * environment: the row names its variable (D5).
+ */
+export const emailAddresses = chat.table('email_address', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  address: text('address'),
+  siteId: uuid('site_id').references(() => sites.id, { onDelete: 'set null' }),
+  imapServer: text('imap_server'),
+  smtpServer: text('smtp_server'),
+  login: text('login'),
+  passwordEnv: text('password_env'),
+  receive: boolean('receive').notNull().default(true),
   active: boolean('active').notNull().default(true),
   createdAt: createdAt(),
   updatedAt: updatedAt(),

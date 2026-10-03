@@ -1,6 +1,6 @@
 ---
 title: Comptes et connexion
-description: Le premier superviseur, les invitations par lien, les mots de passe, les sessions, et la connexion par le fournisseur d’identité de l’entreprise (OpenID Connect).
+description: Le premier superviseur, les invitations par lien et par e-mail, les mots de passe, les sessions, et la connexion par le fournisseur d’identité de l’entreprise (OpenID Connect).
 ---
 
 La messagerie tient elle-même les comptes de ses conseillers (D4, D19). Un conseiller est une
@@ -36,13 +36,16 @@ Un superviseur invite depuis **Administration › Équipes et conseillers**, ong
 e-mail**, son **Rôle** et ses **Équipes**, puis **Inviter**.
 
 1. Sa fiche est créée aussitôt, active.
-2. Un **lien à transmettre** s’affiche, avec **Copier** : « Il ne s’affichera plus, et vaut
-   sept jours, une seule fois : transmettez-le maintenant. »
+2. Un **lien à transmettre** s’affiche, avec **Copier**. Si le serveur écrit des e-mails
+   (`CHAT_SMTP_URL`), le lien part aussi à l’adresse de la personne — « Votre accès à
+   Messagerie » — et le dialogue le dit : « Envoyé par e-mail à camille@exemple.fr. » Sinon :
+   « Il ne s’affichera plus, et vaut sept jours, une seule fois : transmettez-le maintenant. »
 3. La personne ouvre le lien — **Bienvenue, Camille** —, choisit son mot de passe, puis
    **Rejoindre la messagerie** : elle est connectée.
 
-La messagerie n’envoie aucun e-mail : le lien se transmet par le canal de votre choix. Il a la
-forme `https://support.exemple.fr/invitation/…`, l’adresse de l’inbox (`CHAT_WEB_ORIGIN`). Un
+Sans serveur SMTP, le lien se transmet par le canal de votre choix. Même envoyé par e-mail, il
+reste affiché une fois : un e-mail se perd, ou s’égare dans les indésirables. Il a la forme
+`https://support.exemple.fr/invitation/…`, l’adresse de l’inbox (`CHAT_WEB_ORIGIN`). Un
 lien qui a servi, qui a expiré ou dont le conseiller a été désactivé affiche **Lien
 inutilisable**. Une adresse qui est déjà celle d’un conseiller est refusée : « Cette adresse est
 déjà celle d’un conseiller. »
@@ -52,14 +55,21 @@ directement par lui, avec la même adresse.
 
 ## Mot de passe oublié
 
-Il n’y a pas de lien « mot de passe oublié » qui parte par e-mail. Sous le formulaire de
-connexion, **Première connexion, mot de passe oublié ?** l’explique : un superviseur redonne un
-lien.
+**Quand le serveur écrit des e-mails**, l’écran de connexion propose, sous le formulaire,
+**Mot de passe oublié ? Recevoir un lien par e-mail**. Il envoie un lien à l’adresse tapée dans
+le champ **Adresse e-mail**, et répond toujours de même : « Si … est l’adresse d’un conseiller,
+un lien pour choisir un nouveau mot de passe vient d’y partir. Il vaut sept jours. » Que
+l’adresse soit celle d’un conseiller ou non, la réponse et son délai ne le disent pas. Un
+conseiller désactivé ne reçoit rien. La demande compte dans les limites d’essais.
+
+**Sans serveur SMTP**, sous le formulaire de connexion, **Première connexion, mot de passe
+oublié ?** l’explique : un superviseur redonne un lien.
 
 Sur la fiche du conseiller, section **Connexion** — « Mot de passe oublié, ou jamais choisi :
 un lien pour en choisir un. » —, **Créer un lien**, puis **Créer le lien**. C’est un lien de
-même sorte que l’invitation : sept jours, une fois. Il mène à **Nouveau mot de passe** ; une
-fois le mot de passe choisi, les autres sessions du conseiller sont fermées. Un nouveau lien
+même sorte que l’invitation : sept jours, une fois, envoyé aussi par e-mail quand le serveur en
+écrit. Il mène à **Nouveau mot de passe** ; une fois le mot de passe choisi, les autres sessions
+du conseiller sont fermées. Un nouveau lien — demandé par le conseiller ou par un superviseur —
 annule le précédent, s’il n’a pas servi.
 
 :::tip
@@ -127,9 +137,11 @@ prend un jeton de l’[API REST](/messagerie/integrations/api-rest/).
 Pour freiner qui devine un mot de passe, le serveur compte les essais sur un quart d’heure
 glissant :
 
-- **dix par adresse e-mail** — la connexion, le changement de mot de passe ;
+- **dix par adresse e-mail** — la connexion, le changement de mot de passe, le mot de passe
+  oublié ;
 - **trente par adresse IP** — toutes les opérations de la connexion : se connecter, créer le
-  premier superviseur, ouvrir ou utiliser un lien, partir chez le fournisseur d’identité.
+  premier superviseur, demander un lien, ouvrir ou utiliser un lien, partir chez le fournisseur
+  d’identité.
 
 Au-delà : « Trop d’essais : patientez un quart d’heure avant de recommencer. » Une adresse
 inconnue et un mauvais mot de passe reçoivent la même réponse, dans le même temps : « Adresse

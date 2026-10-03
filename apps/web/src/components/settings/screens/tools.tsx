@@ -344,7 +344,7 @@ function HeadersField({
   )
 }
 
-function EnvField({
+export function EnvField({
   id,
   value,
   onChange,

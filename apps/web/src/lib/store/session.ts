@@ -16,6 +16,8 @@ interface SessionState {
   readonly setup: boolean
   /** The identity provider's name, when the server has one. */
   readonly sso: string | null
+  /** The server writes e-mails: « Mot de passe oublié ? » sends a link (D23). */
+  readonly forgot: boolean
   /** The agent the session is — null in development without one. */
   readonly agent: Agent | null
   check: () => Promise<void>
@@ -31,12 +33,13 @@ export const useSession = create<SessionState>((set, get) => ({
   status: 'checking',
   setup: false,
   sso: null,
+  forgot: false,
   agent: null,
 
   check: async () => {
     try {
       const state = await authState()
-      set({ setup: state.setup, sso: state.sso, agent: state.agent })
+      set({ setup: state.setup, sso: state.sso, forgot: state.forgot, agent: state.agent })
       if (state.agent) {
         set({ status: 'signed-in' })
         return

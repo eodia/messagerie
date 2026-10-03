@@ -4,6 +4,7 @@ import type {
   Contact,
   Conversation,
   ConversationSummary,
+  Delivery,
   Feedback,
   Message,
   MessageHit,
@@ -23,6 +24,7 @@ import {
   conversations,
   hiddenMessages,
   messages,
+  outbound,
 } from '../db/schema.js'
 import { attachmentsOf, forInbox } from '../files/attachments.js'
 import { pagesOf } from '../page/views.js'
@@ -121,6 +123,7 @@ export async function loadSummaries(
       contact,
       site: conversation.siteName,
       siteId: conversation.siteId,
+      channel: conversation.channel,
       inboxId: conversation.inboxId,
       teamId: conversation.teamId,
       status: conversation.status,
@@ -271,12 +274,14 @@ export async function loadConversation(
     db,
     thread.map(({ message }) => message.id),
   )
+  const deliveries = await deliveriesOf(db, { conversationId: id })
 
   return {
     id: conversation.id,
     contact: toContact(contact),
     site: conversation.siteName,
     siteId: conversation.siteId,
+    channel: conversation.channel,
     inboxId: conversation.inboxId,
     teamId: conversation.teamId,
     data: conversation.data,
@@ -296,9 +301,55 @@ export async function loadConversation(
     messages: thread.flatMap(({ message, author, deleter, confidence, feedback }) => {
       const attached = (files.get(message.id) ?? []).map(forInbox)
       const shown = toMessage(message, author, confidence, feedback, attached, deleter)
-      return shown ? [shown] : []
+      if (!shown) return []
+      const delivery = deliveries.get(message.id)
+      return [
+        delivery && (shown.kind === 'agent' || shown.kind === 'ai')
+          ? { ...shown, delivery }
+          : shown,
+      ]
     }),
   }
+}
+
+/**
+ * How the answers of a conversation left for the visitor (D23), by message: what the
+ * postman did with each. A reply by e-mail the visitor saw on the site is no delivery.
+ */
+async function deliveriesOf(
+  db: Db,
+  where: { readonly conversationId: string } | { readonly messageIds: readonly string[] },
+): Promise<Map<string, Delivery>> {
+  const found = new Map<string, Delivery>()
+  if ('messageIds' in where && where.messageIds.length === 0) return found
+  const rows = await db
+    .select({
+      messageId: outbound.messageId,
+      purpose: outbound.purpose,
+      channel: outbound.channel,
+      status: outbound.status,
+      error: outbound.error,
+    })
+    .from(outbound)
+    .where(
+      and(
+        'conversationId' in where
+          ? eq(outbound.conversationId, where.conversationId)
+          : inArray(outbound.messageId, [...where.messageIds]),
+        inArray(outbound.purpose, ['message', 'visitor_reply']),
+      ),
+    )
+    .orderBy(asc(outbound.createdAt))
+  for (const row of rows) {
+    if (!row.messageId || row.status === 'skipped') continue
+    found.set(row.messageId, {
+      by: row.channel === 'email' ? 'email' : 'sms',
+      status: row.status === 'in_flight' ? 'pending' : (row.status as Delivery['status']),
+      error: row.status === 'failed' ? row.error : null,
+      ...(row.purpose === 'visitor_reply' ? { unlessSeen: true } : {}),
+    })
+  }
+  return found
 }
 
 /** A message deleted for everyone, as a program sees it: that it was, not what it said. */
@@ -336,10 +387,16 @@ export async function loadMessagesById(
     db,
     rows.map(({ message }) => message.id),
   )
+  const deliveries = await deliveriesOf(db, { messageIds: rows.map(({ message }) => message.id) })
   const found = new Map<string, Message>()
   for (const { message, author, deleter, confidence } of rows) {
     const attached = (files.get(message.id) ?? []).map(forInbox)
-    const shown = toMessage(message, author, confidence, null, attached, deleter)
+    const made = toMessage(message, author, confidence, null, attached, deleter)
+    const delivery = deliveries.get(message.id)
+    const shown =
+      made && delivery && (made.kind === 'agent' || made.kind === 'ai')
+        ? { ...made, delivery }
+        : made
     if (!shown) continue
     found.set(message.id, shown.deleted && 'body' in shown ? withoutWords(shown) : shown)
   }

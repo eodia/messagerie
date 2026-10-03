@@ -1,4 +1,6 @@
-# Development: PostgreSQL 16 with pgvector — the chat's one database (D19).
+# Development: PostgreSQL 16 with pgvector — the chat's one database (D19) — and Mailpit,
+# which catches the e-mails the chat writes (D23): CHAT_SMTP_URL=smtp://127.0.0.1:1025,
+# read them at http://localhost:8025.
 #
 #   corepack pnpm db:up            # `docker compose up -d`
 #
@@ -20,6 +22,12 @@ services:
       interval: 2s
       timeout: 3s
       retries: 30
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
 
 volumes:
   chat-postgres:

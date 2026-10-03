@@ -6,11 +6,14 @@ import { Knowledge } from './ai/knowledge.js'
 import { McpConnections } from './ai/mcp.js'
 import { sweepCredentials } from './auth/credentials.js'
 import { startAutomations } from './automations/engine.js'
+import { startMailboxes } from './channels/email.js'
 import { type Config, ConfigError, readConfig } from './config.js'
 import { type Db, connect, migrateDatabase } from './db/client.js'
 import { DiskStore } from './files/store.js'
 import { Access } from './inbox/access.js'
 import { startWaking } from './inbox/snooze.js'
+import { startOutbound } from './outbound/dispatch.js'
+import { type Mailer, smtpMailer } from './outbound/mailer.js'
 import { expireCalls } from './page/actions.js'
 import { DatabaseSource, settingsEmpty } from './settings/database.js'
 import { loadDemoSettings } from './settings/demo.js'
@@ -35,6 +38,8 @@ export interface Booted {
   readonly mcp: McpConnections
   /** The automations' engine, when it runs in this process (D20). */
   readonly automations: { poke(): void } | null
+  /** The SMTP server's postman, when one is configured (D23). */
+  readonly mailer: Mailer | null
   stop(): Promise<void>
 }
 
@@ -105,6 +110,20 @@ export async function boot(role: 'server' | 'worker'): Promise<Booted> {
   // in the server, or in the worker alone.
   const clockwork = role === 'worker' || process.env.CHAT_WORKER !== 'separate'
   const postman = clockwork ? startWebhooks(db, config.secret) : null
+  const mailer = config.mail ? smtpMailer(config.mail) : null
+  // What leaves the chat — SMS, e-mails, phone alerts (D23) —, there too.
+  const files = new DiskStore(config.filesDir)
+  const sender = clockwork ? startOutbound({ db, settings, config, mailer, files }) : null
+  // The mailboxes of « Adresses e-mail », read every minute (D24).
+  const mailboxes = clockwork
+    ? startMailboxes({
+        db,
+        settings,
+        files,
+        aiAvailable: ai !== null,
+        onVisitorMessage: (id) => ai?.jobs.visitorMessage(id),
+      })
+    : null
   const waking = clockwork ? startWaking(db) : null
   // A request to the visitor left unanswered half an hour: no widget asks it any more (D21).
   const expiring = clockwork
@@ -118,6 +137,7 @@ export async function boot(role: 'server' | 'worker'): Promise<Booted> {
         llm: ai?.llm ?? null,
         redact: ai?.redact ?? true,
         webOrigin: config.webOrigin,
+        email: mailer !== null,
       })
     : null
 
@@ -129,11 +149,14 @@ export async function boot(role: 'server' | 'worker'): Promise<Booted> {
     ai,
     mcp,
     automations,
+    mailer,
     stop: async () => {
       stopFollowing()
       clearInterval(sweep)
       await source.close()
       await postman?.stop()
+      await sender?.stop()
+      await mailboxes?.stop()
       await waking?.stop()
       if (expiring) clearInterval(expiring)
       await automations?.stop()

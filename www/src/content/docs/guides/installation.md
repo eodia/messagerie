@@ -158,7 +158,7 @@ rapide, et le rechargement à chaud marche. Dans VS Code, **Exécuter et débogu
 
 ```bash
 corepack pnpm install
-corepack pnpm db:up                          # PostgreSQL 16 + pgvector
+corepack pnpm db:up                          # PostgreSQL 16 + pgvector, et Mailpit
 corepack pnpm seed                           # vide le schéma chat, y met Acme Assurances et ses conversations
 corepack pnpm --filter @chat/ai build        # le paquet de l’IA, que le serveur consomme compilé
 corepack pnpm --filter @chat/widget build    # le script du widget, servi par le serveur
@@ -169,7 +169,12 @@ corepack pnpm --filter @chat/web dev         # l’inbox, http://localhost:3210
 Ce que fait chaque étape :
 
 - **`db:up`** démarre `docker compose` : un PostgreSQL 16 avec pgvector, publié sur
-  `127.0.0.1:55440` seulement. Le serveur le trouve sans configuration.
+  `127.0.0.1:55440` seulement. Le serveur le trouve sans configuration. Et Mailpit, qui
+  attrape les e-mails de la messagerie sans les envoyer : avec
+  `CHAT_SMTP_URL=smtp://127.0.0.1:1025` dans `apps/server/.env`, on les lit sur
+  http://localhost:8025.
+- **`seed`** ne laisse rien partir : ni e-mail aux visiteurs de la démonstration, ni SMS. Sa
+  conversation par SMS montre ses réponses remises et lues.
 - **`seed`** **vide** le schéma `chat` — paramétrage et comptes compris —, puis y écrit la
   démonstration : le paramétrage d’**Acme Assurances** (son site, ses boîtes de réception, ses
   équipes, ses articles…), des conversations, et l’automatisation de départ, **Demander l’e-mail
@@ -188,6 +193,7 @@ Ce que fait chaque étape :
 | http://localhost:8810/demo | une page d’Acme Assurances avec le widget, un panneau qui essaie son API JavaScript, et trois [actions de la page](/messagerie/integrations/actions-de-page/) — un tarif, un devis, une section |
 | http://localhost:8810/demo?client=sophie | la même, en cliente connectée (identité signée par le site) |
 | `127.0.0.1:55440` | PostgreSQL (`chat` / `chat`) |
+| http://localhost:8025 | Mailpit : les e-mails, si `CHAT_SMTP_URL=smtp://127.0.0.1:1025` |
 
 ### Se connecter
 

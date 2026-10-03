@@ -1,6 +1,6 @@
 ---
 title: Paramétrage
-description: Les écrans où un superviseur règle la messagerie sans quitter l’inbox — boîtes, équipes, conseillers, sites, horaires, réponses types, étiquettes, garde-fous, outils de l’IA, automatisations, widget, API — et dont les données vivent dans les tables du schéma chat.
+description: Les écrans où un superviseur règle la messagerie sans quitter l’inbox — boîtes, équipes, conseillers, sites, horaires, réponses types, étiquettes, garde-fous, outils de l’IA, automatisations, widget, numéros SMS, API — et dont les données vivent dans les tables du schéma chat.
 ---
 
 Un superviseur règle la messagerie depuis l’inbox. Les écrans de paramétrage lisent et
@@ -22,6 +22,8 @@ superviseurs voient. Elle se replie ; barre latérale réduite, c’est un menu.
 | **Outils IA** | `/outils` | « Outils IA », « Serveurs MCP » |
 | **Automatisations** | `/automatisations` | les automatisations et leurs exécutions (D20) |
 | **Widget** | `/widget` | « Sites » : l’apparence et les textes du widget ; les actions que déclarent ses pages (D21) |
+| **Numéros SMS** | `/parametrage/sms` | « Numéros SMS » (D23) |
+| **Adresses e-mail** | `/parametrage/email` | « Adresses e-mail » (D24) |
 | **API et MCP** | `/parametrage/api` | les jetons et les webhooks (D16, D17) |
 
 La base de connaissance a son écran à part, dans la barre latérale de tous :
@@ -52,6 +54,7 @@ bâtis sur le même kit, celui de l’éditeur du widget :
 | Étiquettes | l’étiquette **Sur une conversation**, et **Ce que lit l’IA** |
 | Garde-fous | **Le moment venu** — le garde-fou qui se déclenche —, et **Ce que lit l’IA** |
 | Outils | l’outil tel que l’IA le lit, et la requête qu’il envoie ([outils de l’IA](/messagerie/fonctionnalites/outils-ia/)) |
+| Numéros SMS | **Dans Twilio** ou **Dans SMS Mode** — l’adresse à y donner, ce qui manque encore —, et **Sur le téléphone du client** ([SMS et RCS](/messagerie/fonctionnalites/sms-et-rcs/)) |
 
 L’aperçu demande un écran large : sur un écran plus étroit, il n’est pas affiché.
 
@@ -165,6 +168,7 @@ Un site, ou une marque, qui embarque le widget.
 | **Le site** | **Nom**, affiché en tête du widget ; **Domaines autorisés** — le widget refuse de s’afficher ailleurs, `*.exemple.fr` vaut pour les sous-domaines ; **Langue du widget** ; **Fuseau horaire**, où se lisent les horaires |
 | **Où arrivent ses conversations** | **Boîte de réception** (aucune : la première boîte active) ; **Équipe par défaut**, qui reçoit ce que l’IA transfère |
 | **L’agent IA** | **L’IA répond en premier** ; **Seuil de confiance** ; **Consignes** — le ton, ce qu’elle doit toujours dire, ce qu’elle ne doit jamais promettre ([agent IA](/messagerie/fonctionnalites/agent-ia/)) |
+| **Le visiteur parti** | **Répondre par e-mail** (activé) : les réponses qu’un visiteur n’a pas vues lui partent par e-mail s’il a laissé son adresse ([le widget](/messagerie/fonctionnalites/widget/#la-réponse-par-e-mail)) |
 | **Conservation** | **Purger les conversations après** 1 mois, 3 mois, 6 mois, 1 an ou 2 ans — avec leurs pièces jointes et leurs extraits indexés pour l’IA |
 
 Un nouveau site part en français, au fuseau `Europe/Paris`, avec l’IA en premier, un seuil de
@@ -207,7 +211,7 @@ conseillers »). Aujourd’hui, le composeur propose toutes les réponses types
 conseillers, quelles que soient leurs équipes.
 :::
 
-## Garde-fous, outils, automatisations, widget, API
+## Garde-fous, outils, automatisations, widget, numéros SMS, API
 
 - **Garde-fous** : les sujets sur lesquels l’IA ne répond pas elle-même. Voir
   [agent IA › garde-fous](/messagerie/fonctionnalites/agent-ia/#les-garde-fous).
@@ -220,6 +224,10 @@ conseillers, quelles que soient leurs équipes.
   s’autorisent les actions que déclarent les pages du site. Voir
   [widget](/messagerie/fonctionnalites/widget/) et
   [actions de la page](/messagerie/integrations/actions-de-page/).
+- **Numéros SMS** : les numéros Twilio ou SMS Mode où les clients écrivent par SMS ou RCS. Voir
+  [SMS et RCS](/messagerie/fonctionnalites/sms-et-rcs/).
+- **Adresses e-mail** : l’adresse de chaque site, lue en IMAP et servie en SMTP, où les clients
+  écrivent par e-mail. Voir [E-mail](/messagerie/fonctionnalites/e-mail/).
 - **API et MCP** : les jetons des programmes et des agents, onglet **Jetons**, et les
   webhooks, onglet **Webhooks**. Voir l’[API REST](/messagerie/integrations/api-rest/), le
   [serveur MCP](/messagerie/integrations/mcp/) et les [webhooks](/messagerie/integrations/webhooks/).

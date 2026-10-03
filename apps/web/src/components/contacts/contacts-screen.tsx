@@ -6,6 +6,7 @@ import { Flag } from '@/components/app/flag'
 import { ScreenHeader } from '@/components/app/screen-header'
 import { FormSkeleton, RowsSkeleton } from '@/components/app/skeletons'
 import { ContactAvatar, StatusChip } from '@/components/inbox/labels'
+import { Button } from '@/components/ui/button'
 import { Hint } from '@/components/ui/tooltip'
 import { addressOf, wordOf, wordsAfter } from '@/lib/address'
 import { api } from '@/lib/api'
@@ -13,12 +14,13 @@ import { $t, $tp } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
 import { clockOf, whereInFull, whereOf } from '@/lib/place'
 import { useInbox } from '@/lib/store/inbox'
+import { useNewMessage } from '@/lib/store/new-message'
 import { dayLabel, inboxTime } from '@/lib/time'
 import { useTitle } from '@/lib/title'
 import { useAddressBar } from '@/lib/use-address-bar'
 import { cn } from '@/lib/utils'
 import type { ContactDetail, ContactListItem } from '@chat/contracts'
-import { MapPin, Search, ShieldCheck, UsersRound } from 'lucide-react'
+import { MapPin, Search, ShieldCheck, SquarePen, UsersRound } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ContactsMap, type MapPoint } from './contacts-map'
 
@@ -277,6 +279,30 @@ function ContactPanel({ detail }: { readonly detail: ContactDetail }) {
                 )}
                 {contact.segment && <Chip tint="zinc">{contact.segment}</Chip>}
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3 gap-1.5"
+                onClick={() =>
+                  useNewMessage.getState().show({
+                    id: contact.id,
+                    name: contact.name,
+                    email: contact.email,
+                    phone: contact.phone,
+                    identified: contact.identified,
+                    site: detail.site,
+                    location: contact.location,
+                    country: contact.country,
+                    timeZone: contact.timeZone,
+                    place: contact.place,
+                    conversations: detail.conversations.length,
+                    lastMessageAt: detail.conversations[0]?.at ?? null,
+                  })
+                }
+              >
+                <SquarePen className="size-3.5" />
+                {$t('Écrire')}
+              </Button>
             </div>
           </div>
 

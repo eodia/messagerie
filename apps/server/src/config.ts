@@ -29,6 +29,20 @@ export interface Config {
   readonly trustProxy: boolean
   /** GIPHY's key, for the agents' GIFs — none, no GIF. Never in the settings (D5). */
   readonly giphyKey: string | null
+  /** The SMTP server the chat writes through (D23) — none, no e-mail. */
+  readonly mail: MailConfig | null
+  /**
+   * Who sends the agents' phone alerts, as the push services want it (VAPID's `sub`): a
+   * `mailto:` or an https address they may write to.
+   */
+  readonly pushSubject: string
+}
+
+export interface MailConfig {
+  /** `smtp://user:password@host:587`, or `smtps://…:465` — nodemailer's. */
+  readonly url: string
+  /** `Messagerie <support@exemple.fr>`. */
+  readonly from: string
 }
 
 /** The configuration cannot run: said once, at start, rather than at the first request. */
@@ -67,13 +81,32 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
       'CHAT_SECRET est requis en production, 32 caractères au moins (openssl rand -base64 32).',
     )
   }
+  const smtp = env.CHAT_SMTP_URL || ''
+  if (smtp && !/^smtps?:\/\//.test(smtp)) {
+    throw new ConfigError('CHAT_SMTP_URL commence par smtp:// ou smtps://.')
+  }
+  const from = env.CHAT_MAIL_FROM || ''
+  if (smtp && production && !from) {
+    throw new ConfigError(
+      'CHAT_MAIL_FROM est requis avec CHAT_SMTP_URL : « Support <support@exemple.fr> ».',
+    )
+  }
+  const mail = smtp ? { url: smtp, from: from || 'Messagerie <messagerie@localhost>' } : null
+  const webOrigin = env.CHAT_WEB_ORIGIN || 'http://localhost:3210'
+  const sender = /<([^>]+)>/.exec(mail?.from ?? '')?.[1] ?? mail?.from
   return {
     secret,
+    mail,
+    pushSubject:
+      env.CHAT_PUSH_SUBJECT ||
+      (webOrigin.startsWith('https://')
+        ? webOrigin
+        : `mailto:${sender?.includes('@') ? sender : 'messagerie@localhost'}`),
     trustProxy: env.CHAT_TRUST_PROXY === '1',
     giphyKey: env.GIPHY_API_KEY || null,
     port,
     databaseUrl: env.DATABASE_URL || 'postgres://chat:chat@127.0.0.1:55440/chat',
-    webOrigin: env.CHAT_WEB_ORIGIN || 'http://localhost:3210',
+    webOrigin,
     filesDir: resolve(env.CHAT_FILES_DIR || '.files'),
     production,
     devAgent: production ? null : env.CHAT_DEV_AGENT?.toLowerCase() || null,

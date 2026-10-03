@@ -169,6 +169,41 @@
       "when": 1791019632448,
       "tag": "0023_page_views",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791057213087,
+      "tag": "0024_channels",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791057214599,
+      "tag": "0025_outbound_capture",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791059467032,
+      "tag": "0026_sms_providers",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1791060998415,
+      "tag": "0027_email_channel",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1791061019788,
+      "tag": "0028_email_capture",
+      "breakpoints": true
     }
   ]
 }

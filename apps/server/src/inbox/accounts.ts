@@ -3,6 +3,9 @@ import { and, eq } from 'drizzle-orm'
 import { issueLink } from '../auth/credentials.js'
 import type { Db } from '../db/client.js'
 import { agents } from '../db/schema.js'
+import type { Mailer } from '../outbound/mailer.js'
+import { linkMail } from '../outbound/mails.js'
+import { PRODUCT_NAME } from '../product.js'
 import { person } from '../programs.js'
 import { Refusal } from '../refusal.js'
 import type { Settings } from '../settings/settings.js'
@@ -37,6 +40,25 @@ function readInvite(raw: unknown): InviteBody {
 
 const linkOf = (webOrigin: string, token: string) => `${webOrigin}/invitation/${token}`
 
+/**
+ * The link, by e-mail too, when the chat writes e-mails (D23) — still shown once: a mail
+ * may be late, or land in spam. Whether it left.
+ */
+export async function mailLink(
+  mailer: Mailer | null,
+  to: string | null,
+  input: { purpose: 'invite' | 'reset'; name: string; by: string | null; link: string },
+): Promise<boolean> {
+  if (!mailer || !to) return false
+  try {
+    await mailer.send(linkMail({ to, ...input, product: PRODUCT_NAME }))
+    return true
+  } catch (error) {
+    console.error('chat : e-mail du lien', error)
+    return false
+  }
+}
+
 /** Invites an agent: their row, active, and the link to hand over. */
 export async function inviteAgent(
   db: Db,
@@ -44,6 +66,7 @@ export async function inviteAgent(
   webOrigin: string,
   agent: AgentRow,
   raw: unknown,
+  mailer: Mailer | null = null,
 ): Promise<Invited> {
   if (agent.role !== 'supervisor') throw new Refusal('NOT_ALLOWED', 403)
   const invite = readInvite(raw)
@@ -60,7 +83,14 @@ export async function inviteAgent(
     Actif: true,
   })
   const token = await issueLink(db, row.id, 'invite', agent.id)
-  return { row, link: linkOf(webOrigin, token) }
+  const link = linkOf(webOrigin, token)
+  const emailed = await mailLink(mailer, invite.email, {
+    purpose: 'invite',
+    name: invite.name,
+    by: agent.name,
+    link,
+  })
+  return { row, link, emailed }
 }
 
 /** A link for an agent to choose a new password; the previous link is void. */
@@ -69,13 +99,21 @@ export async function resetAgentPassword(
   webOrigin: string,
   agent: AgentRow,
   rowId: string,
+  mailer: Mailer | null = null,
 ): Promise<PasswordReset> {
   if (agent.role !== 'supervisor') throw new Refusal('NOT_ALLOWED', 403)
   const [target] = await db
-    .select({ id: agents.id })
+    .select({ id: agents.id, name: agents.name, email: agents.email, login: agents.login })
     .from(agents)
     .where(and(eq(agents.id, rowId), person(agents.login)))
   if (!target) throw new Refusal('ROW_NOT_FOUND', 404)
   const token = await issueLink(db, target.id, 'reset', agent.id)
-  return { link: linkOf(webOrigin, token) }
+  const link = linkOf(webOrigin, token)
+  const emailed = await mailLink(mailer, target.email ?? target.login, {
+    purpose: 'reset',
+    name: target.name,
+    by: agent.name,
+    link,
+  })
+  return { link, emailed }
 }

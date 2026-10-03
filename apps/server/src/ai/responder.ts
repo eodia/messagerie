@@ -103,10 +103,12 @@ async function systemPrompt(deps: AiDeps, context: Context, pageActions = false)
       ? `Aucun conseiller n’est disponible avant ${whenLabel(hours.nextOpening, site)}. Si tu transfères, dis-le au visiteur avec ces mots-là (« ${whenLabel(hours.nextOpening, site)} »), sans les changer en date complète.`
       : 'Aucun conseiller n’est disponible pour le moment. Si tu transfères, dis-le au visiteur.'
   return [
-    `Tu es l’assistant virtuel de ${site.name}, dans la messagerie de son site. Tu réponds au visiteur dans sa langue (par défaut : ${site.language}).`,
+    context.conversation.channel === 'web'
+      ? `Tu es l’assistant virtuel de ${site.name}, dans la messagerie de son site. Tu réponds au visiteur dans sa langue (par défaut : ${site.language}).`
+      : `Tu es l’assistant virtuel de ${site.name}. Le visiteur t’écrit par ${context.conversation.channel === 'rcs' ? 'RCS' : 'SMS'}, depuis son téléphone : tu réponds dans sa langue (par défaut : ${site.language}), en texte simple — ni markdown, ni titres, ni listes à puces —, en quelques phrases courtes.`,
     site.instructions ? `Consignes de ${site.name} :\n${site.instructions}` : '',
     'Règles :',
-    '- Réponds à partir des SOURCES, de la fiche du client et de ce que les outils te renvoient. Dès que les sources contiennent la réponse, même en partie, réponds : c’est leur rôle. Cite les numéros des sources utilisées.',
+    `- Réponds à partir des SOURCES, de la fiche du client et de ce que les outils te renvoient. Dès que les sources contiennent la réponse, même en partie, réponds : c’est leur rôle.${context.conversation.channel === 'web' ? ' Cite les numéros des sources utilisées.' : ' Donne leurs numéros dans "sources", pas dans ta réponse.'}`,
     '- Une règle générale des sources (un délai habituel, une démarche, une garantie) se donne telle quelle. Ce qui ne se promet jamais, c’est ce qui touche le dossier particulier du client : son montant, la date précise de son paiement, une décision sur son sinistre.',
     '- Transfère à un conseiller seulement si les sources ne répondent pas, si un garde-fou s’applique, ou si le visiteur demande une personne. N’invente rien.',
     '- Les valeurs entre crochets, comme [EMAIL_1], sont masquées : reprends-les telles quelles si besoin.',

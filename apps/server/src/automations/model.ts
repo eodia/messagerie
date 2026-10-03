@@ -28,6 +28,7 @@ export const TRIGGER_KINDS: readonly AutomationTriggerKind[] = [
   'resolved',
   'reopened',
   'sentiment_changed',
+  'undelivered',
   'no_reply',
   'schedule',
   'button',
@@ -45,6 +46,7 @@ export const EVENT_TRIGGERS: Readonly<Record<string, AutomationTriggerKind>> = {
   'conversation.resolved': 'resolved',
   'conversation.reopened': 'reopened',
   'conversation.sentiment': 'sentiment_changed',
+  'message.undelivered': 'undelivered',
 }
 
 const FIELDS: Readonly<Record<ConditionField, readonly ConditionOperator[]>> = {
@@ -59,6 +61,7 @@ const FIELDS: Readonly<Record<ConditionField, readonly ConditionOperator[]>> = {
   identified: ['yes', 'no'],
   hours: ['open', 'closed'],
   message: ['contains', 'not_contains', 'equals', 'not_equals', 'empty', 'not_empty'],
+  channel: ['is', 'is_not'],
   idle: ['more_than', 'less_than'],
   data: ['contains', 'not_contains', 'equals', 'not_equals', 'empty', 'not_empty'],
   step: ['contains', 'not_contains', 'equals', 'not_equals', 'empty', 'not_empty'],
@@ -261,6 +264,17 @@ function readStep(raw: unknown, depth: number, ids: Ids): AutomationStep {
       return { id, kind, body: text(value.body, TEXT, 'body', id) }
     case 'ask_email':
       return { id, kind, text: text(value.text, 500, 'body', id) }
+    case 'send': {
+      const channel = oneOf(value.channel ?? 'sms', ['sms', 'email'] as const, 'channel', id)
+      const numberId = channel === 'sms' ? optionalId(value.numberId) : undefined
+      return {
+        id,
+        kind,
+        channel,
+        body: text(value.body, TEXT, 'body', id),
+        ...(numberId ? { numberId } : {}),
+      }
+    }
     case 'notify': {
       const to = oneOf(
         value.to ?? 'assignee',
@@ -379,6 +393,7 @@ const NEEDS_CONVERSATION = new Set([
   'notify',
   'data',
   'ask_email',
+  'send',
 ])
 
 /** The first thing that would keep the automation from running, or `null`. */
@@ -412,6 +427,7 @@ function stepProblem(
       return step.add.length + step.remove.length > 0 ? null : 'tag_missing'
     case 'reply':
     case 'note':
+    case 'send':
       return step.body === '' ? 'body_missing' : null
     case 'notify':
       if (step.text === '') return 'text_missing'

@@ -48,6 +48,10 @@ la cloche ou une adresse — revient à **Tous les sites**.
 
 ## La liste des conversations
 
+En haut de la liste, à côté de la recherche et des filtres, le crayon **Nouveau message** écrit
+le premier à un client, par SMS ou par e-mail ([écrire le
+premier](/messagerie/fonctionnalites/sms-et-rcs/#écrire-le-premier)).
+
 Au-dessus de la liste, quatre onglets, chacun avec son compte :
 
 | Onglet | Ce qu’il montre |
@@ -57,7 +61,8 @@ Au-dessus de la liste, quatre onglets, chacun avec son compte :
 | **Ouvertes** | celles que les conseillers traitent |
 | **En file** | les ouvertes que personne n’a encore prises |
 
-Chaque ligne montre le contact (avec un badge quand le site l’a identifié), l’heure du dernier
+Chaque ligne montre le contact (avec un badge quand le site l’a identifié, et un téléphone
+quand il écrit [par SMS ou RCS](/messagerie/fonctionnalites/sms-et-rcs/)), l’heure du dernier
 message, ce qui a été dit en dernier et par qui — **Vous :**, le prénom d’un collègue, une
 étincelle pour l’IA, un trombone pour des fichiers —, ou **En train d’écrire…** quand le
 visiteur tape. Dessous, des pastilles : l’état, la priorité quand elle est haute ou urgente,
@@ -143,7 +148,11 @@ le numéro de contrat que le site a transmis, et où il se trouve.
 Le fil range les messages par jour. On y lit :
 
 - les messages du visiteur, à gauche ;
-- les réponses des conseillers, à droite, signées ;
+- les réponses des conseillers, à droite, signées. Une réponse partie hors du widget le dit
+  après l’heure : par SMS, **SMS en file**, **Envoyé**, **Remis**, **Lu** (RCS) ou **Non remis**
+  — survolé, le motif ; au visiteur parti qui a laissé son e-mail, **Par e-mail s’il ne revient
+  pas**, puis **Envoyé par e-mail** ([le widget](/messagerie/fonctionnalites/widget/#la-réponse-par-e-mail)).
+  Les réponses de l’IA le disent par un pictogramme, en tête ;
 - les **réponses de l’IA**, avec leur confiance, leurs sources et les boutons **Accepter**,
   **Modifier**, **Rejeter** (voir [L’agent IA](/messagerie/fonctionnalites/agent-ia/)) ;
 - la carte **Transférée à un conseiller** quand l’IA passe la main : motif, résumé, confiance,
@@ -218,6 +227,8 @@ fond jaune. Le brouillon de chaque conversation est gardé quand on passe à une
 - <kbd>Entrée</kbd> envoie, <kbd>Maj</kbd>+<kbd>Entrée</kbd> va à la ligne. Dans une liste,
   <kbd>Entrée</kbd> commence l’élément suivant, et <kbd>Ctrl</kbd>+<kbd>Entrée</kbd> envoie.
 - La flèche à côté d’**Envoyer** propose **Envoyer et résoudre**.
+- Dans une conversation par SMS ou RCS, le champ le rappelle — « Répondre par SMS, en texte
+  simple » — : la mise en forme est retirée à l’envoi, et un lien reste un lien.
 - Pendant que vous écrivez une réponse, le visiteur voit trois points et votre prénom.
 
 Au-dessus du champ, le copilote propose ses suggestions ; un clic en met une dans le champ, où
@@ -287,8 +298,8 @@ nouvel onglet —, ou la dernière qu’il a quittée, et trois cases — le nom
 Dessous, des blocs que chacun range à sa guise :
 
 - **Résumé de l’IA**, avec **Copier** ;
-- **Conversation** : boîte, équipe, conseiller (un clic pour le changer), site, intention
-  détectée par l’IA, et les étiquettes ;
+- **Conversation** : boîte, équipe, conseiller (un clic pour le changer), site, **Canal** et
+  numéro pour une conversation par SMS ou RCS, intention détectée par l’IA, et les étiquettes ;
 - **Pages vues** : les pages que le visiteur a ouvertes depuis le début de la conversation,
   la plus récente d’abord — l’heure, le titre et l’adresse, combien de temps il y est resté,
   **maintenant** pour celle qu’il a encore ouverte ;
