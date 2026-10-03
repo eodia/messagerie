@@ -105,6 +105,35 @@ choisis**. Dès trois lettres, le serveur cherche aussi dans tous les messages :
 paraît sous **Dans les messages**, avec le passage qui répond. <kbd>↑</kbd> <kbd>↓</kbd> et
 <kbd>Entrée</kbd> ouvrent un résultat ; <kbd>Échap</kbd> vide la recherche, puis la quitte.
 
+### Plusieurs conversations à la fois
+
+Au survol d’une conversation, une case remplace son avatar. Cochée, elle reste visible sur
+toutes les lignes, et une barre prend la place des onglets :
+
+- <kbd>Maj</kbd>+clic, sur une case ou sur une ligne, coche toutes les conversations depuis la
+  dernière cochée ; <kbd>Ctrl</kbd>+clic (<kbd>⌘</kbd> sur Mac) sur une ligne la coche sans
+  l’ouvrir ;
+- la case de la barre coche toute la liste affichée — la boîte, l’onglet, les filtres et la
+  recherche choisis —, ou la décoche ;
+- <kbd>Échap</kbd>, la croix de la barre, ou un changement de boîte, d’onglet ou de site
+  décochent tout.
+
+La barre agit sur toutes les conversations cochées :
+
+| Bouton | Effet |
+|---|---|
+| **Résoudre** | les résout |
+| **Attribuer** | les donne à un conseiller, cherché comme dans [Affecter](#affecter), ou les remet dans la file |
+| **Étiqueter** | leur pose une étiquette de la liste, ou une nouvelle |
+| **Transférer** | les envoie dans une autre boîte, à une autre équipe, avec une note — comme [Transférer](#transférer) |
+| **Mettre en attente** | les sort de la file jusqu’à une heure choisie |
+| **Marquer comme lues** | les marque comme lues |
+
+Chacune passe comme si on l’avait traitée seule : son fil garde l’événement, et ceux qu’il faut
+prévenir le sont. Une conversation qui ne peut pas suivre est laissée telle quelle, et le
+bandeau le dit : « 1 conversation mise en attente — 1 refusée : une conversation que l’IA
+tient, ou déjà résolue, ne se met pas en attente. » Cent conversations au plus à la fois.
+
 ## Le fil
 
 En tête, le contact : son nom, **Identifié** ou **Anonyme**, l’état de la conversation, puis
@@ -334,7 +363,8 @@ est ouvert souvent et récemment remonte.
 |---|---|
 | <kbd>Ctrl</kbd>+<kbd>K</kbd> | ouvre ou ferme la palette |
 | <kbd>/</kbd> | place le curseur dans la recherche de la liste |
-| <kbd>Échap</kbd> | vide la recherche, puis la quitte |
+| <kbd>Échap</kbd> | vide la recherche, puis la quitte ; décoche les conversations cochées |
+| <kbd>Maj</kbd>+clic, <kbd>Ctrl</kbd>+clic | cochent une plage, une conversation de plus, dans la liste |
 | <kbd>↑</kbd> <kbd>↓</kbd> <kbd>Entrée</kbd> | parcourent et ouvrent les résultats, les listes de choix |
 | <kbd>Entrée</kbd> | envoie la réponse |
 | <kbd>Maj</kbd>+<kbd>Entrée</kbd> | va à la ligne |

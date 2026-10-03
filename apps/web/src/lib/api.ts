@@ -10,6 +10,8 @@ import type {
   AutomationChoices,
   AutomationDefinition,
   AutomationRunList,
+  BulkBody,
+  BulkResult,
   CannedReply,
   CardDetailBody,
   CardLink,
@@ -148,6 +150,8 @@ export const api = {
     request<Conversation>('POST', `${conversation(id)}/messages`, body),
   takeOver: (id: string) => request<Conversation>('POST', `${conversation(id)}/takeover`),
   resolve: (id: string) => request<Conversation>('POST', `${conversation(id)}/resolve`),
+  /** The conversations ticked in the list, acted on at once. */
+  bulk: (body: BulkBody) => request<BulkResult>('POST', '/bulk', body),
   snooze: (id: string, until: string) =>
     request<Conversation>('POST', `${conversation(id)}/snooze`, { until }),
   wake: (id: string) => request<Conversation>('DELETE', `${conversation(id)}/snooze`),

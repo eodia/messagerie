@@ -9,7 +9,7 @@ import { useInbox } from '@/lib/store/inbox'
 import { cn } from '@/lib/utils'
 import type { Conversation, TagOption } from '@chat/contracts'
 import { Check, Plus, Search, Sparkles, X } from 'lucide-react'
-import { type KeyboardEvent, useEffect, useMemo, useState } from 'react'
+import { type KeyboardEvent, type ReactNode, useEffect, useMemo, useState } from 'react'
 
 /**
  * A conversation's tags: each one taken off by its cross, others put on from the list
@@ -64,14 +64,21 @@ export function Tags({ conversation }: { readonly conversation: Conversation }) 
   )
 }
 
-function TagPicker({
+export function TagPicker({
   applied,
   onPick,
   labelled,
+  trigger,
+  hint = $t('Ajouter une étiquette'),
+  align = 'start',
 }: {
   readonly applied: readonly string[]
   readonly onPick: (label: string) => void
   readonly labelled: boolean
+  /** What opens it, instead of the dashed « + » — a button of a toolbar. */
+  readonly trigger?: ReactNode
+  readonly hint?: string
+  readonly align?: 'start' | 'end'
 }) {
   const [open, setOpen] = useState(false)
   const [options, setOptions] = useState<TagOption[]>([])
@@ -116,18 +123,20 @@ function TagPicker({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <Hint label={$t('Ajouter une étiquette')}>
+      <Hint label={hint}>
         <PopoverTrigger asChild>
-          <button
-            type="button"
-            className="inline-flex h-6 items-center gap-1 rounded-md border border-dashed px-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <Plus className="size-3" />
-            {labelled && $t('Étiquette')}
-          </button>
+          {trigger ?? (
+            <button
+              type="button"
+              className="inline-flex h-6 items-center gap-1 rounded-md border border-dashed px-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <Plus className="size-3" />
+              {labelled && $t('Étiquette')}
+            </button>
+          )}
         </PopoverTrigger>
       </Hint>
-      <PopoverContent align="start" className="w-64 p-0">
+      <PopoverContent align={align} className="w-64 p-0">
         <div className="flex items-center gap-2 border-b px-2.5">
           <Search className="size-3.5 shrink-0 text-muted-foreground" />
           <input

@@ -81,7 +81,9 @@ export function messageFor(code: string): string {
     case 'NOT_AN_AGENT':
       return $t('Votre compte n’est pas, ou plus, celui d’un conseiller actif.')
     case 'CONVERSATION_NOT_FOUND':
-      return $t('Cette conversation n’existe plus.')
+      return $t('Cette conversation n’existe plus, ou n’est pas dans vos boîtes.')
+    case 'NOT_SNOOZABLE':
+      return $t('Une conversation que l’IA tient, ou déjà résolue, ne se met pas en attente.')
     case 'MESSAGE_NOT_FOUND':
       return $t('Ce message n’existe plus.')
     case 'NOT_AN_AI_ANSWER':

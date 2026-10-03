@@ -66,6 +66,7 @@ import { gifFile, searchGifs } from './gifs.js'
 import { homePage } from './home-page.js'
 import { Access, canSee, inboxDirectory } from './inbox/access.js'
 import { inviteAgent, resetAgentPassword } from './inbox/accounts.js'
+import { actOnMany } from './inbox/bulk.js'
 import {
   cannedReplies,
   contactByTail,
@@ -623,6 +624,17 @@ export function createApp({
     await wake(db, c.get('agent'), id)
     return c.json(await loadConversation(db, id, c.get('agent')))
   })
+
+  // The conversations ticked in the list, acted on at once.
+  inbox.post('/bulk', async (c) =>
+    c.json(
+      await actOnMany(
+        { db, settings, access, resolved: (id) => ai?.jobs.resolved(id) },
+        c.get('agent'),
+        await jsonBody(c.req.raw),
+      ),
+    ),
+  )
 
   inbox.post('/conversations/:id/resolve', async (c) => {
     const id = uuidParam(c.req.param('id'))

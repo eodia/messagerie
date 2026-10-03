@@ -1,6 +1,6 @@
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { WidgetSession } from '@chat/contracts'
+import type { BulkResult, WidgetSession } from '@chat/contracts'
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql'
 import { and, eq } from 'drizzle-orm'
 import type { Hono } from 'hono'
@@ -287,6 +287,69 @@ describe('a transfer', () => {
     await expect(
       transfer(db, settings, access, supervisor, id, { teamId: 'auto' }),
     ).rejects.toMatchObject({ code: 'TEAM_NOT_FOUND' })
+  })
+})
+
+describe('acting on many conversations', () => {
+  const bulk = async (body: unknown) => {
+    const response = await app.request('/api/inbox/bulk', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-chat-request': '1' },
+      body: JSON.stringify(body),
+    })
+    return { status: response.status, body: (await response.json()) as BulkResult }
+  }
+  /** Two conversations of Sinistres, which the agent sees, and one of Service, which not. */
+  const three = async () => {
+    const [a, b, hidden] = [await arrived(), await arrived(), await arrived()]
+    for (const id of [a, b]) {
+      await transfer(db, settings, access, supervisor, id, { inboxId: 'sinistres' })
+    }
+    return { a, b, hidden }
+  }
+
+  it('does each one it sees, and says which it refused and why', async () => {
+    const { a, b, hidden } = await three()
+    const given = await bulk({
+      ids: [a, b, hidden],
+      action: { type: 'assign', assigneeId: AUTO_ID },
+    })
+    expect(given.status).toBe(200)
+    expect(given.body).toEqual({
+      done: [a, b],
+      refused: [{ id: hidden, code: 'CONVERSATION_NOT_FOUND' }],
+    })
+    expect(await row(a)).toMatchObject({ assigneeId: AUTO_ID })
+    expect(await row(hidden)).toMatchObject({ assigneeId: null })
+
+    await bulk({ ids: [a, b], action: { type: 'tag', label: 'Sinistre' } })
+    const tagged = await loadConversation(db, b, autoAgent)
+    expect(tagged.tags.map((t) => t.label)).toContain('Sinistre')
+
+    expect((await bulk({ ids: [a, b], action: { type: 'resolve' } })).body.done).toEqual([a, b])
+    expect(await row(b)).toMatchObject({ status: 'resolved' })
+    // A resolved conversation is not put on hold: refused, one by one.
+    const held = await bulk({
+      ids: [a],
+      action: { type: 'snooze', until: new Date(Date.now() + 3600_000).toISOString() },
+    })
+    expect(held.body.refused).toEqual([{ id: a, code: 'NOT_SNOOZABLE' }])
+  })
+
+  it('moves them, and refuses what it cannot read', async () => {
+    const { a, b } = await three()
+    const moved = await bulk({ ids: [a, b], action: { type: 'transfer', teamId: 'habitation' } })
+    expect(moved.body.done).toEqual([a, b])
+    expect(await row(a)).toMatchObject({ inboxId: 'sinistres', teamId: 'habitation' })
+    for (const body of [
+      { ids: [], action: { type: 'resolve' } },
+      { ids: ['nope'], action: { type: 'resolve' } },
+      { ids: [a], action: { type: 'delete' } },
+      { ids: [a], action: { type: 'assign' } },
+      { ids: Array.from({ length: 101 }, () => a), action: { type: 'resolve' } },
+    ]) {
+      expect((await bulk(body)).status).toBe(400)
+    }
   })
 })
 

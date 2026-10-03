@@ -37,8 +37,19 @@ function localInput(date: Date): string {
  * and comes back by itself, or sooner when the visitor writes. A few usual times, each
  * with the hour it means; or a date of one's own.
  */
-export function SnoozeMenu({ conversationId }: { readonly conversationId: string }) {
-  const snooze = useInbox((s) => s.snooze)
+export function SnoozeMenu({
+  conversationId,
+  onSnooze,
+  variant = 'outline',
+}: {
+  readonly conversationId: string
+  /** What choosing a time does, instead of putting `conversationId` on hold. */
+  readonly onSnooze?: (until: string) => void
+  readonly variant?: 'outline' | 'ghost'
+}) {
+  const snoozeOne = useInbox((s) => s.snooze)
+  const snooze = (id: string, until: string) =>
+    onSnooze ? onSnooze(until) : void snoozeOne(id, until)
   const [choosing, setChoosing] = useState(false)
   const now = new Date()
   const choices = snoozeChoices(now)
@@ -51,7 +62,7 @@ export function SnoozeMenu({ conversationId }: { readonly conversationId: string
       <DropdownMenu>
         <Hint label={$t('Mettre en attente')}>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon-sm" aria-label={$t('Mettre en attente')}>
+            <Button variant={variant} size="icon-sm" aria-label={$t('Mettre en attente')}>
               <AlarmClock className="text-muted-foreground" />
             </Button>
           </DropdownMenuTrigger>
@@ -63,7 +74,7 @@ export function SnoozeMenu({ conversationId }: { readonly conversationId: string
           {choices.map((choice) => (
             <DropdownMenuItem
               key={choice.key}
-              onSelect={() => void snooze(conversationId, choice.until.toISOString())}
+              onSelect={() => snooze(conversationId, choice.until.toISOString())}
             >
               {choice.label}
               <span className="ml-auto text-xs text-muted-foreground tabular-nums">
@@ -107,7 +118,7 @@ export function SnoozeMenu({ conversationId }: { readonly conversationId: string
               disabled={!valid}
               onClick={() => {
                 setChoosing(false)
-                void snooze(conversationId, until.toISOString())
+                snooze(conversationId, until.toISOString())
               }}
             >
               {$t('Mettre en attente')}

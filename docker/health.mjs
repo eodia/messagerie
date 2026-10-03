@@ -20,5 +20,5 @@ const ok = async (url) => {
   }
 }
 const server = await ok(`http://127.0.0.1:${process.env.CHAT_PORT || 8810}/health`)
-const inbox = server && (await ok(`http://127.0.0.1:3210/`))
+const inbox = server && (await ok('http://127.0.0.1:3210/'))
 process.exit(server && inbox ? 0 : 1)

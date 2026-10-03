@@ -3,6 +3,8 @@
 import type {
   Agent,
   AlertKind,
+  BulkAction,
+  BulkResult,
   Conversation,
   ConversationSummary,
   Feedback,
@@ -22,7 +24,8 @@ import {
 } from '../address'
 import { chime, inView, notifyDesktop } from '../alerts'
 import { ApiFailure, api, eventsUrl } from '../api'
-import { $t } from '../i18n'
+import { $t, $tp } from '../i18n'
+import { messageFor } from '../messages'
 
 /**
  * The inbox's state, fed by the chat server.
@@ -229,6 +232,11 @@ interface InboxState {
   wake: (id: string) => Promise<void>
   assign: (id: string, assigneeId: string | null) => Promise<void>
   transfer: (id: string, body: TransferBody) => Promise<boolean>
+  /**
+   * One action on many conversations — those ticked in the list. Says how many went
+   * through, and how many were refused and why; `null` when the request itself failed.
+   */
+  actOnMany: (ids: readonly string[], action: BulkAction) => Promise<BulkResult | null>
   addTag: (id: string, label: string) => Promise<void>
   removeTag: (id: string, label: string) => Promise<void>
   /** Sets (a value) or removes (null) metadata of a conversation, or of its contact. */
@@ -244,6 +252,43 @@ interface InboxState {
   /** « Supprimer pour tout le monde »: its words and files gone, for all. */
   deleteMessage: (id: string, messageId: string) => Promise<void>
   readAllNotifications: () => Promise<void>
+}
+
+/** What a batch did, said with its count: « 3 conversations résolues ». */
+function doneSaid(action: BulkAction, n: number): string {
+  switch (action.type) {
+    case 'resolve':
+      return $tp(n, '{count} conversation résolue', '{count} conversations résolues')
+    case 'read':
+      return $tp(
+        n,
+        '{count} conversation marquée comme lue',
+        '{count} conversations marquées comme lues',
+      )
+    case 'assign':
+      return action.assigneeId === null
+        ? $tp(
+            n,
+            '{count} conversation remise dans la file',
+            '{count} conversations remises dans la file',
+          )
+        : $tp(n, '{count} conversation attribuée', '{count} conversations attribuées')
+    case 'tag':
+      return $tp(
+        n,
+        '{count} conversation étiquetée « {label} »',
+        '{count} conversations étiquetées « {label} »',
+        { label: action.label },
+      )
+    case 'snooze':
+      return $tp(
+        n,
+        '{count} conversation mise en attente',
+        '{count} conversations mises en attente',
+      )
+    case 'transfer':
+      return $tp(n, '{count} conversation transférée', '{count} conversations transférées')
+  }
 }
 
 const newestFirst = (a: ConversationSummary, b: ConversationSummary) =>
@@ -615,6 +660,33 @@ export const useInbox = create<InboxState>((set, get) => {
       // Moved to an inbox the reader may no longer see: the list is read again.
       if (done) void get().reload()
       return done
+    },
+
+    actOnMany: async (ids, action) => {
+      let result: BulkResult
+      try {
+        result = await api.bulk({ ids, action })
+      } catch (error) {
+        set({ error: codeOf(error), notice: null })
+        return null
+      }
+      const { done, refused } = result
+      const selected = get().selectedId
+      if (selected !== null && done.includes(selected)) void refreshDetail(selected)
+      // Moved to inboxes the reader may no longer see: the list is read again.
+      if (action.type === 'transfer' && done.length > 0) void get().reload()
+      const first = refused[0]
+      if (done.length === 0 && first) {
+        set({ error: first.code, notice: null })
+        return result
+      }
+      const said = doneSaid(action, done.length)
+      get().say(
+        first
+          ? `${said} — ${$tp(refused.length, '{count} refusée : {reason}', '{count} refusées : {reason}', { reason: messageFor(first.code) })}`
+          : said,
+      )
+      return result
     },
 
     setData: async (target, data) => {

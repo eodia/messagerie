@@ -54,6 +54,7 @@ export function AssignPicker({
   anchor = false,
   align = 'end',
   hint,
+  onAssign,
 }: {
   readonly conversation: Pick<Conversation, 'id' | 'assigneeId' | 'teamId'>
   readonly open: boolean
@@ -65,6 +66,8 @@ export function AssignPicker({
   readonly align?: 'start' | 'end'
   /** A tooltip on what opens it — an icon alone says nothing. */
   readonly hint?: string
+  /** What choosing does, instead of assigning `conversation` — for many at once. */
+  readonly onAssign?: (assigneeId: string | null) => void
 }) {
   const agents = useInbox((s) => s.agents)
   const me = useInbox((s) => s.me)
@@ -130,7 +133,9 @@ export function AssignPicker({
 
   function choose(choice: Choice | undefined) {
     if (!choice) return
-    void assign(conversation.id, choice.kind === 'queue' ? null : choice.agent.id)
+    const assigneeId = choice.kind === 'queue' ? null : choice.agent.id
+    if (onAssign) onAssign(assigneeId)
+    else void assign(conversation.id, assigneeId)
     onOpenChange(false)
   }
 

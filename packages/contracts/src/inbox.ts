@@ -1,3 +1,4 @@
+import type { ErrorCode } from './api.js'
 import type { PageCallStatus, WidgetAppearance } from './widget.js'
 
 /**
@@ -527,6 +528,26 @@ export interface TransferBody {
   readonly teamId?: string | null
   /** A note to whoever picks it up, kept in the thread among the notes. */
   readonly note?: string
+}
+
+/** What is done at once to the conversations ticked in the list. */
+export type BulkAction =
+  | { readonly type: 'resolve' }
+  | { readonly type: 'read' }
+  | { readonly type: 'assign'; readonly assigneeId: string | null }
+  | { readonly type: 'tag'; readonly label: string }
+  | { readonly type: 'snooze'; readonly until: string }
+  | ({ readonly type: 'transfer' } & TransferBody)
+
+export interface BulkBody {
+  readonly ids: readonly string[]
+  readonly action: BulkAction
+}
+
+/** Each conversation on its own: those done, and those refused with why. */
+export interface BulkResult {
+  readonly done: readonly string[]
+  readonly refused: readonly { readonly id: string; readonly code: ErrorCode }[]
 }
 
 /** Changes metadata: a key with a value is set, a key with `null` removed. */

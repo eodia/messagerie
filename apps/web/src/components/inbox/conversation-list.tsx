@@ -39,6 +39,7 @@ import {
   X,
 } from 'lucide-react'
 import {
+  type MouseEvent,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
   type RefObject,
@@ -48,6 +49,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { BulkBar, TickBox } from './bulk-bar'
 import { DesktopInvite } from './desktop-invite'
 import { ContactAvatar, StateChip } from './labels'
 import { ActiveFilters, FiltersButton } from './list-filters'
@@ -133,6 +135,54 @@ export function ConversationList({
   const [focused, setFocused] = useState(false)
   const scroller = useRef<HTMLDivElement>(null)
 
+  // The conversations ticked, to act on at once — among those listed, in their order.
+  const [ticked, setTicked] = useState<ReadonlySet<string>>(() => new Set())
+  const anchor = useRef<string | null>(null)
+  const listed = searching ? found : shown
+  const tickedRows = useMemo(() => listed.filter((s) => ticked.has(s.id)), [listed, ticked])
+  const ticking = tickedRows.length > 0
+  const clearTicks = () => {
+    setTicked(new Set())
+    anchor.current = null
+  }
+  /** Ticks or unticks one — or, with Shift, every row from the last one ticked to it. */
+  const tick = (id: string, range: boolean) => {
+    const ids = listed.map((s) => s.id)
+    const from = anchor.current === null ? -1 : ids.indexOf(anchor.current)
+    const to = ids.indexOf(id)
+    setTicked((before) => {
+      const next = new Set(before)
+      if (range && from >= 0 && to >= 0) {
+        for (const one of ids.slice(Math.min(from, to), Math.max(from, to) + 1)) next.add(one)
+      } else if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+    anchor.current = id
+  }
+  // Another inbox, tab or site: nothing ticked.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: cleared when the view changes
+  useEffect(() => {
+    setTicked(new Set())
+    anchor.current = null
+  }, [inbox, filter, site])
+  // Escape, outside a field or a dialog, unticks them all.
+  useEffect(() => {
+    if (!ticking) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      const target = event.target as HTMLElement | null
+      if (
+        target?.closest('input, textarea, [contenteditable="true"], [role="dialog"], [role="menu"]')
+      )
+        return
+      setTicked(new Set())
+      anchor.current = null
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [ticking])
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new search starts at the top
   useEffect(() => setActive(0), [query])
   useEffect(() => {
@@ -176,19 +226,41 @@ export function ConversationList({
     }
   }
 
-  const row = (summary: ConversationSummary, search: RowSearch = {}) => (
-    <ConversationRow
-      summary={summary}
-      me={me}
-      inbox={inboxes.find((i) => i.id === summary.inboxId) ?? null}
-      selected={summary.id === selectedId}
-      typing={typing[summary.id] === true}
-      time={inboxTime(search.hit?.at ?? summary.lastMessageAt, now)}
-      now={now}
-      onSelect={() => select(summary.id)}
-      {...search}
-    />
-  )
+  const row = (summary: ConversationSummary, search: RowSearch = {}) => {
+    const on = ticked.has(summary.id)
+    return (
+      <div className="group/row relative">
+        <ConversationRow
+          summary={summary}
+          me={me}
+          inbox={inboxes.find((i) => i.id === summary.inboxId) ?? null}
+          selected={summary.id === selectedId}
+          typing={typing[summary.id] === true}
+          time={inboxTime(search.hit?.at ?? summary.lastMessageAt, now)}
+          now={now}
+          tickable
+          ticked={on}
+          ticking={ticking}
+          onSelect={(event) => {
+            // Shift: a range; Ctrl or ⌘: one more — the conversation stays where it is.
+            if (event.shiftKey) tick(summary.id, true)
+            else if (event.ctrlKey || event.metaKey) tick(summary.id, false)
+            else select(summary.id)
+          }}
+          {...search}
+        />
+        <TickBox
+          state={on}
+          label={$t('Sélectionner la conversation de {name}', { name: summary.contact.name })}
+          onToggle={(event) => tick(summary.id, event.shiftKey)}
+          className={cn(
+            'absolute top-[22px] left-[20px] focus-visible:opacity-100',
+            on || ticking ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100',
+          )}
+        />
+      </div>
+    )
+  }
 
   return (
     <ResizablePanel panel="list" side="left" as="section" label={$t('la liste des conversations')}>
@@ -243,24 +315,37 @@ export function ConversationList({
 
       {/* Underlined, as the inbox's other tabs: short labels and quiet counts, so that the
           row fits the pane at its narrowest. « Résolues » is in the filter menu. */}
-      <Tabs
-        value={filter}
-        onValueChange={(value) => setFilter(value as InboxFilter)}
-        className="shrink-0"
-      >
-        <TabsList className="h-10 w-full justify-start gap-4 px-3">
-          {TABS.map((tab) => (
-            <TabsTrigger key={tab.filter} value={tab.filter} className="h-10 min-w-0 gap-1 text-xs">
-              <Hint label={tab.short && $t(tab.label)}>
-                <span className="truncate">{$t(tab.short ?? tab.label)}</span>
-              </Hint>
-              <span className="shrink-0 text-[11px] font-normal text-muted-foreground tabular-nums">
-                {formatCount(narrowed.filter((s) => matchesFilter(s, tab.filter)).length)}
-              </span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      {ticking ? (
+        <BulkBar
+          rows={tickedRows}
+          all={tickedRows.length === listed.length ? true : 'some'}
+          onAll={() => setTicked(new Set(listed.map((s) => s.id)))}
+          onClear={clearTicks}
+        />
+      ) : (
+        <Tabs
+          value={filter}
+          onValueChange={(value) => setFilter(value as InboxFilter)}
+          className="shrink-0"
+        >
+          <TabsList className="h-10 w-full justify-start gap-4 px-3">
+            {TABS.map((tab) => (
+              <TabsTrigger
+                key={tab.filter}
+                value={tab.filter}
+                className="h-10 min-w-0 gap-1 text-xs"
+              >
+                <Hint label={tab.short && $t(tab.label)}>
+                  <span className="truncate">{$t(tab.short ?? tab.label)}</span>
+                </Hint>
+                <span className="shrink-0 text-[11px] font-normal text-muted-foreground tabular-nums">
+                  {formatCount(narrowed.filter((s) => matchesFilter(s, tab.filter)).length)}
+                </span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      )}
       <ActiveFilters />
 
       <div ref={scroller} className="flex-1 overflow-y-auto scroll-discret">
@@ -363,6 +448,9 @@ export function ConversationRow({
   hit,
   active = false,
   index,
+  tickable = false,
+  ticked = false,
+  ticking = false,
 }: RowSearch & {
   readonly summary: ConversationSummary
   readonly me: Agent | null
@@ -373,7 +461,12 @@ export function ConversationRow({
   readonly typing?: boolean
   readonly time: string
   readonly now?: Date
-  readonly onSelect: () => void
+  readonly onSelect: (event: MouseEvent<HTMLButtonElement>) => void
+  /** A box to tick sits over its avatar — the list's, not a glimpse's. */
+  readonly tickable?: boolean
+  readonly ticked?: boolean
+  /** Some row is ticked: every box shows. */
+  readonly ticking?: boolean
 }) {
   const { contact, unread, assignee } = summary
   // Searching: the tags that answer it first, lit.
@@ -390,11 +483,13 @@ export function ConversationRow({
     <button
       type="button"
       onClick={onSelect}
+      // Shift ticks a range: no text selected on the way.
+      onMouseDown={(event) => event.shiftKey && event.preventDefault()}
       data-index={index}
       aria-current={selected ? 'true' : undefined}
       className={cn(
         'group relative flex w-full gap-3 rounded-xl px-2.5 py-2.5 text-left transition-colors',
-        selected ? 'bg-accent' : 'hover:bg-muted/60',
+        selected ? 'bg-accent' : ticked ? 'bg-primary/5' : 'hover:bg-muted/60',
         active && !selected && 'bg-muted/70',
       )}
     >
@@ -402,7 +497,12 @@ export function ConversationRow({
         <span className="absolute top-3 bottom-3 left-0 w-[3px] rounded-full bg-primary" />
       )}
 
-      <span className="relative mt-0.5 shrink-0 self-start">
+      <span
+        className={cn(
+          'relative mt-0.5 shrink-0 self-start transition-opacity',
+          tickable && (ticked || ticking ? 'opacity-0' : 'group-hover/row:opacity-0'),
+        )}
+      >
         <ContactAvatar name={contact.name} className="size-9" />
         {inbox && (
           <Hint label={inbox.name}>

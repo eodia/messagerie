@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { $t } from '@/lib/i18n'
 import { useInbox } from '@/lib/store/inbox'
 import { cn } from '@/lib/utils'
-import type { Conversation } from '@chat/contracts'
+import type { Conversation, TransferBody } from '@chat/contracts'
 import { Check, LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -27,13 +27,22 @@ export function TransferDialog({
   conversation,
   open,
   onClose,
+  count = 1,
+  onTransfer,
 }: {
-  readonly conversation: Conversation
+  /** Where it is now — for many, where they all are, or nothing when they differ. */
+  readonly conversation: Pick<Conversation, 'id' | 'inboxId' | 'teamId'>
   readonly open: boolean
   readonly onClose: () => void
+  /** How many are moved at once. */
+  readonly count?: number
+  /** What moving does, instead of transferring `conversation` — for many at once. */
+  readonly onTransfer?: (body: TransferBody) => Promise<boolean>
 }) {
   const directory = useInbox((s) => s.directory)
-  const transfer = useInbox((s) => s.transfer)
+  const transferOne = useInbox((s) => s.transfer)
+  const transfer = (id: string, body: TransferBody) =>
+    onTransfer ? onTransfer(body) : transferOne(id, body)
   const [inboxId, setInboxId] = useState<string | null>(conversation.inboxId)
   const [teamId, setTeamId] = useState<string | null>(conversation.teamId)
   const [note, setNote] = useState('')
@@ -74,11 +83,19 @@ export function TransferDialog({
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{$t('Transférer la conversation')}</DialogTitle>
+          <DialogTitle>
+            {count > 1
+              ? $t('Transférer {count} conversations', { count })
+              : $t('Transférer la conversation')}
+          </DialogTitle>
           <DialogDescription>
-            {$t(
-              'Elle revient dans la file de l’équipe choisie, qui en est prévenue. Elle quitte la personne qui l’avait.',
-            )}
+            {count > 1
+              ? $t(
+                  'Elles reviennent dans la file de l’équipe choisie, qui en est prévenue. Elles quittent la personne qui les avait.',
+                )
+              : $t(
+                  'Elle revient dans la file de l’équipe choisie, qui en est prévenue. Elle quitte la personne qui l’avait.',
+                )}
           </DialogDescription>
         </DialogHeader>
 
