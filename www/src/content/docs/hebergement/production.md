@@ -41,8 +41,13 @@ Au démarrage, le serveur applique les migrations du schéma `chat` (l’extensi
 comprise) : sur une base vide, il le crée ; ensuite, il n’ajoute que ce qui manque. Lancée avec
 la commande `worker`, l’image ne fait tourner que le worker.
 
-Les étiquettes suivent les versions : `eodia/messagerie:0.1.0` pour exactement cette version.
-Fixez-la dans `.env` (`MESSAGERIE_VERSION`) plutôt que de suivre la dernière.
+L’image est publiée sur [Docker Hub](https://hub.docker.com/r/eodia/messagerie), pour `amd64` et
+`arm64`. Les étiquettes suivent les versions : `eodia/messagerie:0.1.0` pour exactement cette
+version, `0.1` pour la dernière de la série, `latest` pour la dernière tout court. Fixez une
+version exacte dans `.env` (`MESSAGERIE_VERSION`) plutôt que de suivre la dernière.
+
+L’image tourne sous l’utilisateur `node`, sans droits ; les fichiers des conversations vont dans
+le volume `/data/files`. Son contrôle de santé interroge le serveur (`/health`) et l’inbox.
 
 ## Deux sous-domaines d’un même domaine
 

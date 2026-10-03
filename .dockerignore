@@ -1,0 +1,26 @@
+# What the image never needs: dependencies and builds are made inside it, secrets are
+# given at run time, and the documentation site has a life of its own.
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/*.tsbuildinfo
+**/coverage
+**/*.log
+**/.files
+
+.git
+.github
+.vscode
+.claude
+.playwright-mcp
+
+**/.env
+**/.env.*
+!**/.env.example
+
+www
+docs
+*.png
+Dockerfile
+docker-compose*.yml
