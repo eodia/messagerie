@@ -6,6 +6,7 @@ import { Knowledge } from './ai/knowledge.js'
 import { McpConnections } from './ai/mcp.js'
 import { sweepCredentials } from './auth/credentials.js'
 import { startAutomations } from './automations/engine.js'
+import { startMailboxes } from './channels/email.js'
 import { type Config, ConfigError, readConfig } from './config.js'
 import { type Db, connect, migrateDatabase } from './db/client.js'
 import { DiskStore } from './files/store.js'
@@ -111,7 +112,18 @@ export async function boot(role: 'server' | 'worker'): Promise<Booted> {
   const postman = clockwork ? startWebhooks(db, config.secret) : null
   const mailer = config.mail ? smtpMailer(config.mail) : null
   // What leaves the chat — SMS, e-mails, phone alerts (D23) —, there too.
-  const sender = clockwork ? startOutbound({ db, settings, config, mailer }) : null
+  const files = new DiskStore(config.filesDir)
+  const sender = clockwork ? startOutbound({ db, settings, config, mailer, files }) : null
+  // The mailboxes of « Adresses e-mail », read every minute (D24).
+  const mailboxes = clockwork
+    ? startMailboxes({
+        db,
+        settings,
+        files,
+        aiAvailable: ai !== null,
+        onVisitorMessage: (id) => ai?.jobs.visitorMessage(id),
+      })
+    : null
   const waking = clockwork ? startWaking(db) : null
   // A request to the visitor left unanswered half an hour: no widget asks it any more (D21).
   const expiring = clockwork
@@ -125,6 +137,7 @@ export async function boot(role: 'server' | 'worker'): Promise<Booted> {
         llm: ai?.llm ?? null,
         redact: ai?.redact ?? true,
         webOrigin: config.webOrigin,
+        email: mailer !== null,
       })
     : null
 
@@ -143,6 +156,7 @@ export async function boot(role: 'server' | 'worker'): Promise<Booted> {
       await source.close()
       await postman?.stop()
       await sender?.stop()
+      await mailboxes?.stop()
       await waking?.stop()
       if (expiring) clearInterval(expiring)
       await automations?.stop()

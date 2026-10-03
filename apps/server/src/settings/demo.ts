@@ -44,6 +44,7 @@ const ORDER = [
   'outils_ia',
   'serveurs_mcp',
   'numeros_sms',
+  'adresses_email',
 ]
 
 function relativeDate(value: string): string | null {

@@ -25,6 +25,7 @@ export const TABLES = {
   tools: 'Outils IA',
   mcp: 'Serveurs MCP',
   sms: 'Numéros SMS',
+  email: 'Adresses e-mail',
 } as const
 
 type TableLabel = (typeof TABLES)[keyof typeof TABLES]
@@ -84,6 +85,40 @@ export interface SmsNumber {
   /** The site its conversations are held for; null: the first active one. */
   readonly siteId: string | null
   readonly active: boolean
+}
+
+/** A server, as `host` and `port` — the port the protocol's own when none is said. */
+export interface MailServer {
+  readonly host: string
+  readonly port: number
+}
+
+/**
+ * An address customers write to by e-mail (D24): its IMAP server, read for what arrives,
+ * its SMTP server, what answers leave by. `passwordEnv` names the variable that holds the
+ * password (D5).
+ */
+export interface EmailAddress {
+  readonly id: string
+  readonly name: string
+  /** Lowercased; null when the row does not say one that reads. */
+  readonly address: string | null
+  readonly siteId: string | null
+  readonly imap: MailServer | null
+  readonly smtp: MailServer | null
+  /** The account of both servers: the address when none is said. */
+  readonly login: string | null
+  readonly passwordEnv: string | null
+  readonly receive: boolean
+  readonly active: boolean
+}
+
+/** `host`, `host:port` — a name, no scheme, no path. */
+function serverOf(value: unknown, port: number): MailServer | null {
+  const raw = (text(value) ?? '').trim().toLowerCase()
+  const match = /^([a-z0-9.-]+\.[a-z]{2,})(?::(\d{2,5}))?$/.exec(raw)
+  if (!match?.[1]) return null
+  return { host: match[1], port: match[2] ? Number(match[2]) : port }
 }
 
 export interface Site {
@@ -652,5 +687,40 @@ export class Settings {
 
   async smsNumber(id: string): Promise<SmsNumber | null> {
     return (await this.smsNumbers()).find((n) => n.id === id) ?? null
+  }
+
+  /** « Adresses e-mail », every row — the inactive ones too. */
+  async emailAddresses(): Promise<EmailAddress[]> {
+    return (await this.table(TABLES.email)).map(({ id, values }) => {
+      const address = (text(values.Adresse) ?? '').trim().toLowerCase()
+      const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)
+      return {
+        id,
+        name: text(values.Nom) ?? id,
+        address: valid ? address : null,
+        siteId: one(values.Site),
+        imap: serverOf(values['Serveur IMAP'], 993),
+        smtp: serverOf(values['Serveur SMTP'], 465),
+        login: text(values.Identifiant) ?? (valid ? address : null),
+        passwordEnv: text(values["Mot de passe (variable d'environnement)"]),
+        receive: bool(values['Lire la boîte']),
+        active: bool(values.Actif),
+      }
+    })
+  }
+
+  async emailAddress(id: string): Promise<EmailAddress | null> {
+    return (await this.emailAddresses()).find((a) => a.id === id) ?? null
+  }
+
+  /** A site's address that sends — active, with its SMTP server —, or none. */
+  async siteEmailAddress(siteId: string): Promise<EmailAddress | null> {
+    const sites = await this.sites()
+    const first = sites.find((s) => s.active)?.id ?? null
+    return (
+      (await this.emailAddresses()).find(
+        (a) => a.active && a.address && a.smtp && (a.siteId ?? first) === siteId,
+      ) ?? null
+    )
   }
 }

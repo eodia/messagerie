@@ -169,3 +169,32 @@ export function linkMail(input: {
   )
   return { to: input.to, subject, text, html }
 }
+
+/**
+ * An answer in a conversation held by e-mail (D24): the words, signed, the files attached —
+ * a mail of a thread, answered by e-mail. No footer: it is a correspondence.
+ */
+export function conversationMail(input: {
+  readonly to: string
+  readonly subject: string
+  readonly body: string
+  readonly signature: string
+  readonly inReplyTo?: string
+  readonly references?: readonly string[]
+  readonly attachments?: Mail['attachments']
+}): Mail {
+  const words = plainText(input.body)
+  const text = [words, '', input.signature].join('\n')
+  const html = `<!doctype html><html><head><meta charset="utf-8"></head><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.55;color:#18181b">${paragraphs(words)}<p style="margin:16px 0 0;color:#52525b">${escaped(input.signature)}</p></body></html>`
+  return {
+    to: input.to,
+    subject: input.subject,
+    text,
+    html,
+    ...(input.inReplyTo ? { inReplyTo: input.inReplyTo } : {}),
+    ...(input.references && input.references.length > 0 ? { references: input.references } : {}),
+    ...(input.attachments && input.attachments.length > 0
+      ? { attachments: input.attachments }
+      : {}),
+  }
+}

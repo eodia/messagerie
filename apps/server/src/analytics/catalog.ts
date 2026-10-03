@@ -16,6 +16,7 @@ const CHANNELS = [
   { value: 'web', label: 'Widget' },
   { value: 'sms', label: 'SMS' },
   { value: 'rcs', label: 'RCS' },
+  { value: 'email', label: 'E-mail' },
 ]
 const PRIORITIES = [
   { value: 'low', label: 'Basse' },

@@ -11,8 +11,8 @@ import type { PageCallStatus, WidgetAppearance } from './widget.js'
  * one list, in the order they happened. That is what makes a thread auditable as it reads.
  */
 
-/** Where the visitor writes from: the widget, or their phone — by SMS, or RCS (D23). */
-export type Channel = 'web' | 'sms' | 'rcs'
+/** Where the visitor writes from: the widget, their phone — by SMS or RCS (D23) —, or e-mail (D24). */
+export type Channel = 'web' | 'sms' | 'rcs' | 'email'
 
 /**
  * How an answer left the chat for the visitor (D23): to their phone, in an SMS or RCS
@@ -23,6 +23,8 @@ export interface Delivery {
   readonly by: 'sms' | 'email'
   readonly status: 'pending' | 'sent' | 'delivered' | 'read' | 'failed'
   readonly error: string | null
+  /** An e-mail to a visitor of the widget: it leaves only if they do not come back first. */
+  readonly unlessSeen?: boolean
 }
 
 /** `ai`: the AI answers alone. `open`: an agent has it. `pending`: waiting for the visitor. */
@@ -375,8 +377,10 @@ export interface OutreachOptions {
   readonly sites: readonly {
     readonly id: string
     readonly name: string
-    /** « Répondre par e-mail »: off, no e-mail is written to its customers. */
+    /** « Répondre par e-mail »: off, no e-mail is written to its customers of the widget. */
     readonly emailReplies: boolean
+    /** It has its own address (D24): an e-mail is a conversation they answer by e-mail. */
+    readonly mailbox: boolean
   }[]
 }
 
@@ -384,6 +388,15 @@ export interface OutreachOptions {
 export interface SmsNumberAddresses {
   readonly inbound: string
   readonly status: string
+}
+
+/**
+ * An address of « Adresses e-mail », tried (D24): `ok`, or what its server said —
+ * `IMAP_AUTH`, `SMTP_535`, `PASSWORD_MISSING`…
+ */
+export interface EmailAddressTest {
+  readonly imap: string
+  readonly smtp: string
 }
 
 /** Put a conversation on hold until a time. */
@@ -828,6 +841,8 @@ export type WebhookEventType =
   | 'conversation.created'
   | 'message.created'
   | 'message.deleted'
+  /** An answer that did not reach the customer: an SMS, an e-mail refused or lost (D23). */
+  | 'message.undelivered'
   | 'conversation.handed_off'
   | 'conversation.assigned'
   | 'conversation.transferred'

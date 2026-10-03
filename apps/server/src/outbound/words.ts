@@ -11,6 +11,7 @@ export type Language = 'fr' | 'en' | 'de' | 'es'
 
 const VISITOR: Readonly<Record<Exclude<Language, 'fr'>, Readonly<Record<string, string>>>> = {
   en: {
+    '{site} vous écrit': '{site} writes to you',
     '{site} vous a répondu': '{site} replied to you',
     'Bonjour,': 'Hello,',
     'Voici la réponse à votre message :': 'Here is the answer to your message:',
@@ -23,6 +24,7 @@ const VISITOR: Readonly<Record<Exclude<Language, 'fr'>, Readonly<Record<string, 
     'Pièce jointe : {name}': 'Attachment: {name}',
   },
   de: {
+    '{site} vous écrit': '{site} schreibt Ihnen',
     '{site} vous a répondu': '{site} hat Ihnen geantwortet',
     'Bonjour,': 'Guten Tag,',
     'Voici la réponse à votre message :': 'Hier ist die Antwort auf Ihre Nachricht:',
@@ -36,6 +38,7 @@ const VISITOR: Readonly<Record<Exclude<Language, 'fr'>, Readonly<Record<string, 
     'Pièce jointe : {name}': 'Anhang: {name}',
   },
   es: {
+    '{site} vous écrit': '{site} le escribe',
     '{site} vous a répondu': '{site} le ha respondido',
     'Bonjour,': 'Hola:',
     'Voici la réponse à votre message :': 'Esta es la respuesta a su mensaje:',

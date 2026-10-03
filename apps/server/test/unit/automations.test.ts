@@ -157,6 +157,7 @@ const subject = (over: Partial<NonNullable<Subject['conversation']>> = {}): Subj
     teamId: null,
     siteId: 'acme',
     siteName: 'Acme',
+    channel: 'web',
     priority: 'normal',
     sentiment: 'negative',
     assigneeId: null,

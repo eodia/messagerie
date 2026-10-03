@@ -9,6 +9,7 @@ import type {
   AutomationRunStatus,
 } from '@chat/contracts'
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
+import { ready } from '../channels/providers.js'
 import type { Db } from '../db/client.js'
 import { agents, automationRuns, automations, contacts, conversations } from '../db/schema.js'
 import type { AgentRow } from '../inbox/read.js'
@@ -465,5 +466,8 @@ export async function automationChoices(
     agents: people,
     tags: tags.map((t) => ({ name: t.name, color: t.color })),
     ai,
+    numbers: (await deps.settings.smsNumbers())
+      .filter((n) => typeof ready(n, process.env) !== 'string')
+      .map((n) => ({ id: n.id, name: n.phone ? `${n.name} · ${n.phone}` : n.name })),
   }
 }

@@ -688,6 +688,11 @@ export function documentation(base: string): DocSection[] {
         ],
         ['`conversation.resolved`', 'La conversation est résolue.', '`conversation`'],
         ['`conversation.reopened`', 'Une conversation résolue reprend.', '`conversation`'],
+        [
+          '`message.undelivered`',
+          'Une réponse n’a pas atteint le client : un SMS ou un e-mail refusé, ou perdu après ses essais. `message.delivery.error` dit pourquoi.',
+          '`conversation`, `message`',
+        ],
         ['`webhook.ping`', 'Un test envoyé depuis l’écran.', '`webhook`'],
       ],
     ),

@@ -65,8 +65,8 @@ export const aiRunKind = chat.enum('ai_run_kind', [
   /** An automation's « Demander à l'IA » step (D20). */
   'automation',
 ])
-/** Where a conversation is held: the widget, or a phone — by SMS, or by RCS (D23). */
-export const channel = chat.enum('channel', ['web', 'sms', 'rcs'])
+/** Where a conversation is held: the widget, a phone — by SMS or RCS —, or e-mail (D23, D24). */
+export const channel = chat.enum('channel', ['web', 'sms', 'rcs', 'email'])
 export const feedbackAction = chat.enum('feedback_action', ['accepted', 'edited', 'rejected'])
 export const tagOrigin = chat.enum('tag_origin', ['agent', 'ai'])
 export const chunkSource = chat.enum('chunk_source', ['article', 'conversation'])
@@ -212,6 +212,8 @@ export const conversations = chat.table(
     channel: channel('channel').notNull().default('web'),
     /** « Numéros SMS »: the number an SMS or RCS conversation is held on — kept when gone. */
     smsNumberId: text('sms_number_id'),
+    /** « Adresses e-mail »: the address an e-mail conversation is held at (D24). */
+    emailAddressId: text('email_address_id'),
     status: conversationStatus('status').notNull().default('ai'),
     /**
      * The visitor began anew from the page (`MessagerieChat.reset()`): no longer their
@@ -292,6 +294,8 @@ export interface MessageMeta {
    * tried again brings a second time (D23).
    */
   readonly providerId?: string
+  /** A message that came by e-mail: its subject (D24). */
+  readonly email?: { readonly subject: string | null }
 }
 
 /**
@@ -1072,6 +1076,26 @@ export const smsNumbers = chat.table('sms_number', {
   /** The name the messages come from, where the provider allows one (SMS Mode). */
   sender: text('sender'),
   siteId: uuid('site_id').references(() => sites.id, { onDelete: 'set null' }),
+  active: boolean('active').notNull().default(true),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})
+
+/**
+ * An address customers write to by e-mail (D24): its site, its IMAP server — read for what
+ * arrives — and its SMTP server — what the answers leave by. Its password stays in the
+ * environment: the row names its variable (D5).
+ */
+export const emailAddresses = chat.table('email_address', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  address: text('address'),
+  siteId: uuid('site_id').references(() => sites.id, { onDelete: 'set null' }),
+  imapServer: text('imap_server'),
+  smtpServer: text('smtp_server'),
+  login: text('login'),
+  passwordEnv: text('password_env'),
+  receive: boolean('receive').notNull().default(true),
   active: boolean('active').notNull().default(true),
   createdAt: createdAt(),
   updatedAt: updatedAt(),

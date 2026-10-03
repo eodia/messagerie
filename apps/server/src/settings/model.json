@@ -887,6 +887,54 @@
           "kind": "boolean"
         }
       ]
+    },
+    {
+      "key": "adresses_email",
+      "label": "Adresses e-mail",
+      "icon": "mail",
+      "color": "#6366f1",
+      "description": "Des adresses où les clients écrivent par e-mail : la messagerie lit leur boîte (IMAP) et répond par leur serveur d'envoi (SMTP). Leurs conversations sont celles du site.",
+      "fields": [
+        {
+          "label": "Nom",
+          "kind": "short_text",
+          "required": true
+        },
+        {
+          "label": "Adresse",
+          "kind": "short_text",
+          "description": "L'adresse où l'on écrit, et d'où partent les réponses : support@exemple.fr."
+        },
+        {
+          "label": "Serveur IMAP",
+          "kind": "short_text",
+          "description": "Où lire ce qui arrive : imap.exemple.fr, ou imap.exemple.fr:993. TLS."
+        },
+        {
+          "label": "Serveur SMTP",
+          "kind": "short_text",
+          "description": "Par où répondre : smtp.exemple.fr:465 (TLS), ou :587 (STARTTLS)."
+        },
+        {
+          "label": "Identifiant",
+          "kind": "short_text",
+          "description": "Le compte des deux serveurs. Vide : l'adresse."
+        },
+        {
+          "label": "Mot de passe (variable d'environnement)",
+          "kind": "short_text",
+          "description": "Le NOM de la variable d'environnement du serveur de la messagerie qui contient le mot de passe — ou le mot de passe d'application. Jamais le mot de passe lui-même."
+        },
+        {
+          "label": "Lire la boîte",
+          "kind": "boolean",
+          "description": "Coché : la messagerie relève la boîte chaque minute, et ce qui arrive devient une conversation. Décoché : elle n'y fait qu'envoyer."
+        },
+        {
+          "label": "Actif",
+          "kind": "boolean"
+        }
+      ]
     }
   ],
   "links": [
@@ -977,6 +1025,13 @@
       "to": "sites",
       "multiple": false,
       "description": "Le site dont les conversations arrivent par ce numéro : sa boîte de réception, son équipe, son agent IA, sa langue. Vide : le premier site actif."
+    },
+    {
+      "from": "adresses_email",
+      "label": "Site",
+      "to": "sites",
+      "multiple": false,
+      "description": "Le site dont les conversations arrivent à cette adresse — et dont les réponses par e-mail partent d'elle. Vide : le premier site actif."
     }
   ]
 }

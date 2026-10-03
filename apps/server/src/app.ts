@@ -56,6 +56,7 @@ import {
   tryAutomation,
   updateAutomation,
 } from './automations/manage.js'
+import { testAddress } from './channels/email.js'
 import type { ProviderCall } from './channels/provider.js'
 import { type SmsDeps, knownProvider, receiveSms, smsStatus } from './channels/sms.js'
 import type { Config } from './config.js'
@@ -344,6 +345,13 @@ export function createApp({
       ),
       201,
     )
+  })
+  // An address of « Adresses e-mail », tried: its IMAP and SMTP servers answer (D24).
+  inbox.post('/email-addresses/:id/test', async (c) => {
+    if (c.get('agent').role !== 'supervisor') throw new Refusal('NOT_ALLOWED', 403)
+    const address = await settings.emailAddress(c.req.param('id'))
+    if (!address) throw new Refusal('ROW_NOT_FOUND', 404)
+    return c.json(await testAddress(address, process.env))
   })
   inbox.get('/sms-numbers/:id/addresses', async (c) =>
     c.json(

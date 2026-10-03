@@ -18,6 +18,8 @@ export type AutomationTriggerKind =
   | 'reopened'
   /** The AI read the visitor's mood anew — after the message, not with it. */
   | 'sentiment_changed'
+  /** An answer did not reach the customer: an SMS, an e-mail refused or lost (D23). */
+  | 'undelivered'
   /** The visitor's last message has waited `minutes` for an answer. */
   | 'no_reply'
   /** At set times — once, or for each conversation the condition keeps. */
@@ -65,6 +67,8 @@ export type ConditionField =
   | 'hours'
   /** The words of the message that set the automation off. */
   | 'message'
+  /** Where the conversation is held: `web`, `sms`, `rcs`, `email` (D23, D24). */
+  | 'channel'
   /** Minutes since the last message. */
   | 'idle'
   /** A value of the conversation's data (`key`). */
@@ -191,6 +195,20 @@ export interface AskEmailStep extends StepBase {
   readonly text: string
 }
 
+/**
+ * « Écrire par SMS / par e-mail » (D23): a message to the conversation's contact, by that
+ * way — in this conversation when it is held there, else in the contact's conversation of
+ * that channel, opened if need be. Skipped for a contact without a number, or an address.
+ */
+export interface SendStep extends StepBase {
+  readonly kind: 'send'
+  readonly channel: 'sms' | 'email'
+  /** May cite: `{{contact.prenom}}`… */
+  readonly body: string
+  /** SMS: the number it leaves from; none: the contact's site's, or the first ready. */
+  readonly numberId?: string
+}
+
 export interface DataStep extends StepBase {
   readonly kind: 'data'
   readonly key: string
@@ -232,6 +250,7 @@ export type AutomationStep =
   | AiStep
   | DataStep
   | AskEmailStep
+  | SendStep
   | BranchStep
   | WaitStep
 
@@ -321,4 +340,6 @@ export interface AutomationChoices {
   readonly agents: readonly { readonly id: string; readonly name: string }[]
   readonly tags: readonly { readonly name: string; readonly color: string }[]
   readonly ai: boolean
+  /** The SMS numbers ready to send, for « Écrire par SMS ». */
+  readonly numbers: readonly { readonly id: string; readonly name: string }[]
 }

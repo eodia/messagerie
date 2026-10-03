@@ -40,6 +40,7 @@ ne se retrouve pas : recréez le webhook.
 |---|---|---|---|
 | `message.created` | **Nouveau message** | Un message du visiteur, de l’IA ou d’un conseiller, ou une note interne. | `conversation`, `message` |
 | `message.deleted` | **Message supprimé** | Un message supprimé pour tout le monde. | `conversation`, `message` |
+| `message.undelivered` | **Message non remis** | Une réponse n’a pas atteint le client : un SMS ou un e-mail refusé, ou perdu après ses essais. `message.delivery.error` dit pourquoi (`TWILIO_21610`, `SMTP_550`…). | `conversation`, `message` |
 | `conversation.created` | **Nouvelle conversation** | Une conversation commence. | `conversation` |
 | `conversation.handed_off` | **Passée à un conseiller** | L’IA passe la main à un conseiller. | `conversation`, `message` |
 | `conversation.assigned` | **Affectée** | Le conseiller de la conversation change : une affectation, une reprise, un retour dans la file. | `conversation` |

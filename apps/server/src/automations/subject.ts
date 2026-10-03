@@ -19,6 +19,7 @@ export interface Subject {
     readonly teamId: string | null
     readonly siteId: string
     readonly siteName: string
+    readonly channel: string
     readonly priority: string
     readonly sentiment: string | null
     readonly assigneeId: string | null
@@ -93,6 +94,7 @@ export async function loadSubjects(
         teamId: c.teamId,
         siteId: c.siteId,
         siteName: c.siteName,
+        channel: c.channel,
         priority: c.priority,
         sentiment: c.sentiment,
         assigneeId: c.assigneeId,
@@ -224,6 +226,8 @@ export function ruleHolds(
       return choiceRule(rule, c.teamId)
     case 'site':
       return choiceRule(rule, c.siteId)
+    case 'channel':
+      return choiceRule(rule, c.channel)
     case 'status':
       return choiceRule(rule, c.status)
     case 'priority':

@@ -34,8 +34,11 @@ export async function createConversation(
     readonly defaultTeamId: string | null
   },
   route: { readonly inboxId: string | null; readonly teamId: string | null } | null = null,
-  /** Where the visitor writes from, when not the widget: an SMS number (D23). */
-  held: { readonly channel: 'sms' | 'rcs'; readonly smsNumberId: string } | null = null,
+  /** Where the visitor writes from, when not the widget: an SMS number (D23), an address (D24). */
+  held:
+    | { readonly channel: 'sms' | 'rcs'; readonly smsNumberId: string }
+    | { readonly channel: 'email'; readonly emailAddressId: string }
+    | null = null,
 ): Promise<string> {
   const [row] = await db
     .insert(conversations)
@@ -64,8 +67,12 @@ export async function receiveVisitorMessage(
   body: string,
   /** The rows of the files sent with it, given the message's id. */
   attach?: AttachRows,
-  /** An SMS or RCS: the provider's id of it, and the channel it came by (D23). */
-  phone?: { readonly providerId: string; readonly channel: 'sms' | 'rcs' },
+  /** An SMS, an RCS, an e-mail: its id where it came from, and the channel it came by (D23, D24). */
+  inbound?: {
+    readonly providerId: string
+    readonly channel: 'sms' | 'rcs' | 'email'
+    readonly subject?: string | null
+  },
 ): Promise<void> {
   const text = body.trim()
   if (text === '' && !attach) throw new Refusal('EMPTY_MESSAGE', 400)
@@ -78,7 +85,14 @@ export async function receiveVisitorMessage(
         conversationId: id,
         author: 'contact',
         body: text,
-        meta: phone ? { providerId: phone.providerId } : {},
+        meta: inbound
+          ? {
+              providerId: inbound.providerId,
+              ...(inbound.channel === 'email'
+                ? { email: { subject: inbound.subject ?? null } }
+                : {}),
+            }
+          : {},
         createdAt: at,
       })
       .returning({ id: messages.id })
@@ -99,8 +113,8 @@ export async function receiveVisitorMessage(
         agentUnread: true,
         lastMessageAt: at,
         updatedAt: at,
-        // RCS or SMS: the answers go back by what the visitor last wrote with.
-        ...(phone ? { channel: phone.channel } : {}),
+        // RCS, SMS, e-mail: the answers go back by what the visitor last wrote with.
+        ...(inbound ? { channel: inbound.channel } : {}),
       })
       .where(eq(conversations.id, id))
     if (status === 'ai') {

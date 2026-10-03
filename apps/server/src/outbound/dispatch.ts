@@ -1,5 +1,6 @@
 import type { AlertKind } from '@chat/contracts'
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
+import { addressMailer } from '../channels/email.js'
 import { SmsFailure } from '../channels/provider.js'
 import { ready } from '../channels/providers.js'
 import type { Config } from '../config.js'
@@ -15,12 +16,13 @@ import {
   pushSubscriptions,
 } from '../db/schema.js'
 import { attachmentsOf, linkOf } from '../files/attachments.js'
+import type { FileStore } from '../files/store.js'
 import { PRODUCT_NAME } from '../product.js'
 import { signalChange } from '../realtime/signals.js'
 import type { Settings, Site } from '../settings/settings.js'
 import { languageCode } from '../settings/widget.js'
-import { MailFailure, type Mailer } from './mailer.js'
-import { type ReplyLine, agentAlertMail, visitorReplyMail } from './mails.js'
+import { type Mail, MailFailure, type Mailer } from './mailer.js'
+import { type ReplyLine, agentAlertMail, conversationMail, visitorReplyMail } from './mails.js'
 import { type Fetch, type VapidKeys, sendPush, vapidKeys } from './push.js'
 import { type Language, alertTitle, conversationPath, plainText, visitorWords } from './words.js'
 
@@ -58,6 +60,10 @@ export interface PostmanDeps {
   readonly fetch?: Fetch
   /** Where the tokens the settings name are read (D5). */
   readonly env?: NodeJS.ProcessEnv
+  /** Where the files are, for an e-mail that carries them (D24). */
+  readonly files?: FileStore
+  /** The mailer of an address of « Adresses e-mail » — its SMTP server, unless a test's. */
+  readonly addressMailer?: typeof addressMailer
 }
 
 type Row = typeof outbound.$inferSelect
@@ -231,9 +237,25 @@ async function wayBack(db: Db, conversationId: string, site: Site | null): Promi
   return domain ? `https://${domain}/` : null
 }
 
+/**
+ * The mailer a site writes with (D24): its own address's, whose answers come back to the
+ * conversation — else the server's.
+ */
+async function mailerOfSite(
+  deps: PostmanDeps,
+  siteId: string,
+  siteName: string,
+): Promise<Mailer | null> {
+  const address = await deps.settings.siteEmailAddress(siteId)
+  if (address) {
+    const mailer = (deps.addressMailer ?? addressMailer)(address, siteName, deps.env ?? process.env)
+    if (typeof mailer !== 'string') return mailer
+  }
+  return deps.mailer
+}
+
 async function sendVisitorReply(deps: PostmanDeps, row: Row): Promise<[Outcome, string[]]> {
-  const { db, settings, mailer } = deps
-  if (!mailer) return [skipped('MAIL_UNAVAILABLE'), []]
+  const { db, settings } = deps
   if (!row.conversationId) return [skipped('CONVERSATION_MISSING'), []]
   const conversationId = row.conversationId
   const [found] = await db
@@ -290,6 +312,8 @@ async function sendVisitorReply(deps: PostmanDeps, row: Row): Promise<[Outcome, 
   if (site && !site.emailReplies) return [skipped('SITE_OFF'), siblings]
   const language = languageOf(site)
   const siteName = site?.name ?? found.conversation.siteName
+  const mailer = await mailerOfSite(deps, found.conversation.siteId, siteName)
+  if (!mailer) return [skipped('MAIL_UNAVAILABLE'), siblings]
   const files = await attachmentsOf(
     db,
     shown.map(({ message }) => message.id),
@@ -326,6 +350,118 @@ async function sendVisitorReply(deps: PostmanDeps, row: Row): Promise<[Outcome, 
     }
     if (!(error instanceof MailFailure)) throw error
     return [error.retry ? retry(error.code) : failed(error.code), []]
+  }
+}
+
+// ── An answer in a conversation held by e-mail (D24) ──────────────────────────────────
+
+const authorOf = (
+  author: string,
+  agent: string | null,
+  login: string | null,
+  siteName: string,
+  language: Language,
+) =>
+  author === 'ai'
+    ? visitorWords(language, 'Assistant IA')
+    : login?.startsWith('automation:') || login?.startsWith('token:') || !agent
+      ? siteName
+      : (agent.split(/\s+/)[0] ?? agent)
+
+async function sendEmailMessage(deps: PostmanDeps, row: Row): Promise<Outcome> {
+  const { db, settings } = deps
+  if (!row.messageId || !row.conversationId) return failed('MESSAGE_MISSING')
+  const [found] = await db
+    .select({
+      message: messages,
+      conversation: conversations,
+      email: contacts.email,
+      agent: agents.name,
+      login: agents.login,
+    })
+    .from(messages)
+    .innerJoin(conversations, eq(conversations.id, messages.conversationId))
+    .innerJoin(contacts, eq(contacts.id, conversations.contactId))
+    .leftJoin(agents, eq(agents.id, messages.agentId))
+    .where(eq(messages.id, row.messageId))
+  if (!found) return skipped('MESSAGE_MISSING')
+  const { message, conversation } = found
+  if (message.deletedAt) return skipped('MESSAGE_DELETED')
+  if (!found.email) return failed('EMAIL_MISSING')
+  const site = await settings.site(conversation.siteId)
+  const siteName = site?.name ?? conversation.siteName
+  const language = languageOf(site)
+
+  // The address the conversation is held at — else the site's, else the server's.
+  const address = conversation.emailAddressId
+    ? await settings.emailAddress(conversation.emailAddressId)
+    : null
+  const own = address
+    ? (deps.addressMailer ?? addressMailer)(address, siteName, deps.env ?? process.env)
+    : null
+  if (typeof own === 'string') return failed(own)
+  const mailer = own ?? (await mailerOfSite(deps, conversation.siteId, siteName))
+  if (!mailer) return failed('MAIL_UNAVAILABLE')
+
+  // The thread: the customer's mails and ours, oldest first; its subject, the first said.
+  const theirs = await db
+    .select({ meta: messages.meta })
+    .from(messages)
+    .where(
+      and(
+        eq(messages.conversationId, conversation.id),
+        eq(messages.author, 'contact'),
+        sql`${messages.meta} ? 'email'`,
+      ),
+    )
+    .orderBy(asc(messages.createdAt))
+  const ours = await db
+    .select({ id: outbound.providerId })
+    .from(outbound)
+    .where(
+      and(
+        eq(outbound.conversationId, conversation.id),
+        eq(outbound.channel, 'email'),
+        inArray(outbound.status, ['sent', 'delivered', 'read']),
+      ),
+    )
+    .orderBy(asc(outbound.createdAt))
+  const subject = theirs.map((t) => t.meta.email?.subject).find(Boolean) ?? null
+  const lastTheirs = theirs.at(-1)?.meta.providerId
+  const references = [
+    ...new Set(
+      [...theirs.map((t) => t.meta.providerId), ...ours.map((o) => o.id)].filter(
+        (id): id is string => Boolean(id),
+      ),
+    ),
+  ].slice(-20)
+
+  const files = (await attachmentsOf(db, [message.id])).get(message.id) ?? []
+  const attachments: NonNullable<Mail['attachments']>[number][] = []
+  for (const file of files) {
+    const content = await deps.files?.read(file.storageKey).catch(() => null)
+    if (content) attachments.push({ filename: file.name, content, contentType: file.mime })
+  }
+  try {
+    const id = await mailer.send(
+      conversationMail({
+        to: found.email,
+        subject: subject
+          ? /^(re|tr|fw|aw)\s*:/i.test(subject)
+            ? subject
+            : `Re: ${subject}`
+          : visitorWords(language, '{site} vous écrit', { site: siteName }),
+        body: message.body,
+        signature: `${authorOf(message.author, found.agent, found.login, siteName, language)} — ${siteName}`,
+        ...(lastTheirs ? { inReplyTo: lastTheirs } : {}),
+        references,
+        attachments,
+      }),
+    )
+    return sent(id)
+  } catch (error) {
+    if (!(error instanceof MailFailure)) throw error
+    return error.retry ? retry(error.code) : failed(error.code)
   }
 }
 
@@ -453,6 +589,7 @@ export async function deliverDue(deps: PostmanDeps, keys = vapidKeys(deps.config
     try {
       if (row.channel === 'sms') outcome = await sendSms(deps, row)
       else if (row.purpose === 'visitor_reply') [outcome, also] = await sendVisitorReply(deps, row)
+      else if (row.purpose === 'message') outcome = await sendEmailMessage(deps, row)
       else outcome = await sendAgentAlert(deps, row, keys)
     } catch (error) {
       console.error('chat : envoi', error)

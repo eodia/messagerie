@@ -5,6 +5,7 @@ import type {
   StartConversationBody,
 } from '@chat/contracts'
 import { and, desc, eq, isNull, sql } from 'drizzle-orm'
+import { emailContact } from '../channels/email.js'
 import { phoneOf } from '../channels/provider.js'
 import { providerOf, ready } from '../channels/providers.js'
 import { phoneContact, phoneConversation, siteOfNumber } from '../channels/sms.js'
@@ -44,6 +45,10 @@ async function readyNumbers(deps: OutreachDeps): Promise<SmsNumber[]> {
 
 export async function outreachOptions(deps: OutreachDeps): Promise<OutreachOptions> {
   const sites = (await deps.settings.sites()).filter((s) => s.active)
+  const mailboxes = new Set<string>()
+  for (const site of sites) {
+    if (await deps.settings.siteEmailAddress(site.id)) mailboxes.add(site.id)
+  }
   return {
     numbers: (await readyNumbers(deps)).map((n) => ({
       id: n.id,
@@ -51,8 +56,13 @@ export async function outreachOptions(deps: OutreachDeps): Promise<OutreachOptio
       phone: n.phone,
       siteId: n.siteId,
     })),
-    email: deps.email,
-    sites: sites.map((s) => ({ id: s.id, name: s.name, emailReplies: s.emailReplies })),
+    email: deps.email || mailboxes.size > 0,
+    sites: sites.map((s) => ({
+      id: s.id,
+      name: s.name,
+      emailReplies: s.emailReplies,
+      mailbox: mailboxes.has(s.id),
+    })),
   }
 }
 
@@ -152,7 +162,11 @@ async function bySms(
   )
 }
 
-/** The e-mail way: the address's contact on its site, and their conversation of the widget. */
+/**
+ * The e-mail way. A site with its own address (D24): a conversation held by e-mail, which
+ * the customer answers from their mailbox. Without one: the contact's conversation of the
+ * widget, by the server's e-mail, which they answer by coming back to the site.
+ */
 async function byEmail(
   deps: OutreachDeps,
   body: StartConversationBody,
@@ -160,7 +174,6 @@ async function byEmail(
   visible: Visible,
 ): Promise<string> {
   const { db, settings } = deps
-  if (!deps.email) throw new Refusal('MAIL_UNAVAILABLE', 503)
   const sites = (await settings.sites()).filter((s) => s.active)
   const site = known
     ? sites.find((s) => s.id === known.siteId)
@@ -168,7 +181,11 @@ async function byEmail(
       ? sites.find((s) => s.id === body.siteId)
       : sites[0]
   if (!site) throw new Refusal('SITE_NOT_FOUND', 404)
-  if (!site.emailReplies) throw new Refusal('EMAIL_REPLIES_OFF', 409)
+  const mailbox = await settings.siteEmailAddress(site.id)
+  if (!mailbox) {
+    if (!deps.email) throw new Refusal('MAIL_UNAVAILABLE', 503)
+    if (!site.emailReplies) throw new Refusal('EMAIL_REPLIES_OFF', 409)
+  }
   // A signed customer keeps the address of their signature (D13).
   const email = (known?.identified ? known.email : (body.email ?? known?.email))?.toLowerCase()
   if (!email || email.length > 254 || !EMAIL.test(email)) {
@@ -185,30 +202,16 @@ async function byEmail(
         .where(eq(contacts.id, known.id))
     }
   } else {
-    const [same] = await db
-      .select({ id: contacts.id })
-      .from(contacts)
-      .where(and(eq(contacts.siteId, site.id), sql`lower(${contacts.email}) = ${email}`))
-      .orderBy(desc(contacts.updatedAt))
-      .limit(1)
-    contactId =
-      same?.id ??
-      (
-        await db
-          .insert(contacts)
-          .values({ siteId: site.id, name: body.name || email, email, identified: false })
-          .returning({ id: contacts.id })
-      )[0]?.id ??
-      ''
+    contactId = await emailContact(db, site.id, email, body.name ?? null)
   }
-  // Their conversation of the widget, still going — the widget shows it when they come back.
+  // Their conversation on that channel, still going — else a new one.
   const [latest] = await db
     .select()
     .from(conversations)
     .where(
       and(
         eq(conversations.contactId, contactId),
-        eq(conversations.channel, 'web'),
+        eq(conversations.channel, mailbox ? 'email' : 'web'),
         isNull(conversations.visitorLeftAt),
       ),
     )
@@ -218,6 +221,12 @@ async function byEmail(
     latest && !(latest.status === 'resolved' && Date.now() - latest.updatedAt.getTime() > RESUME_MS)
   if (latest && going) {
     if (!canSee(visible, latest.inboxId)) throw new Refusal('INBOX_NOT_FOUND', 403)
+    if (mailbox && !latest.emailAddressId) {
+      await db
+        .update(conversations)
+        .set({ emailAddressId: mailbox.id })
+        .where(eq(conversations.id, latest.id))
+    }
     return latest.id
   }
   return createConversation(
@@ -225,6 +234,7 @@ async function byEmail(
     contactId,
     { ...site, aiEnabled: false },
     await route(deps, site, visible),
+    mailbox ? { channel: 'email', emailAddressId: mailbox.id } : null,
   )
 }
 
@@ -242,7 +252,7 @@ export async function startConversation(
       ? await bySms(deps, body, known, visible)
       : await byEmail(deps, body, known, visible)
   const conversation = await sendMessage(deps.db, actor, id, { body: body.body, kind: 'reply' })
-  // An e-mail the sender chose leaves now, not in two minutes.
+  // An e-mail to a visitor of the widget the sender chose leaves now, not in two minutes.
   if (body.channel === 'email') {
     const mine = [...conversation.messages].reverse().find((m) => m.kind === 'agent')
     if (mine) {

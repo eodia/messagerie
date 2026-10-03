@@ -274,7 +274,7 @@ export async function loadConversation(
     db,
     thread.map(({ message }) => message.id),
   )
-  const deliveries = await deliveriesOf(db, id)
+  const deliveries = await deliveriesOf(db, { conversationId: id })
 
   return {
     id: conversation.id,
@@ -316,10 +316,16 @@ export async function loadConversation(
  * How the answers of a conversation left for the visitor (D23), by message: what the
  * postman did with each. A reply by e-mail the visitor saw on the site is no delivery.
  */
-async function deliveriesOf(db: Db, conversationId: string): Promise<Map<string, Delivery>> {
+async function deliveriesOf(
+  db: Db,
+  where: { readonly conversationId: string } | { readonly messageIds: readonly string[] },
+): Promise<Map<string, Delivery>> {
+  const found = new Map<string, Delivery>()
+  if ('messageIds' in where && where.messageIds.length === 0) return found
   const rows = await db
     .select({
       messageId: outbound.messageId,
+      purpose: outbound.purpose,
       channel: outbound.channel,
       status: outbound.status,
       error: outbound.error,
@@ -327,18 +333,20 @@ async function deliveriesOf(db: Db, conversationId: string): Promise<Map<string,
     .from(outbound)
     .where(
       and(
-        eq(outbound.conversationId, conversationId),
+        'conversationId' in where
+          ? eq(outbound.conversationId, where.conversationId)
+          : inArray(outbound.messageId, [...where.messageIds]),
         inArray(outbound.purpose, ['message', 'visitor_reply']),
       ),
     )
     .orderBy(asc(outbound.createdAt))
-  const found = new Map<string, Delivery>()
   for (const row of rows) {
     if (!row.messageId || row.status === 'skipped') continue
     found.set(row.messageId, {
       by: row.channel === 'email' ? 'email' : 'sms',
       status: row.status === 'in_flight' ? 'pending' : (row.status as Delivery['status']),
       error: row.status === 'failed' ? row.error : null,
+      ...(row.purpose === 'visitor_reply' ? { unlessSeen: true } : {}),
     })
   }
   return found
@@ -379,10 +387,16 @@ export async function loadMessagesById(
     db,
     rows.map(({ message }) => message.id),
   )
+  const deliveries = await deliveriesOf(db, { messageIds: rows.map(({ message }) => message.id) })
   const found = new Map<string, Message>()
   for (const { message, author, deleter, confidence } of rows) {
     const attached = (files.get(message.id) ?? []).map(forInbox)
-    const shown = toMessage(message, author, confidence, null, attached, deleter)
+    const made = toMessage(message, author, confidence, null, attached, deleter)
+    const delivery = deliveries.get(message.id)
+    const shown =
+      made && delivery && (made.kind === 'agent' || made.kind === 'ai')
+        ? { ...made, delivery }
+        : made
     if (!shown) continue
     found.set(message.id, shown.deleted && 'body' in shown ? withoutWords(shown) : shown)
   }

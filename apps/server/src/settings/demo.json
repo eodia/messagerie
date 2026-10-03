@@ -365,5 +365,17 @@
       "Site": "@acme",
       "Identifiant du compte": "AC00000000000000000000000000000000"
     }
+  ],
+  "adresses_email": [
+    {
+      "Nom": "Acme Assurances — support (démo)",
+      "Adresse": "support@acme-assurances.example",
+      "Serveur IMAP": "imap.acme-assurances.example",
+      "Serveur SMTP": "smtp.acme-assurances.example:465",
+      "Mot de passe (variable d'environnement)": "SUPPORT_MAIL_PASSWORD",
+      "Site": "@acme",
+      "Lire la boîte": true,
+      "Actif": false
+    }
   ]
 }
