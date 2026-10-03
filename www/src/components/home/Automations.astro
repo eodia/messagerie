@@ -1,0 +1,425 @@
+---
+/**
+ * The automations, played (D20): the flow of the template « Un SMS non remis : écrire par
+ * e-mail » as the editor draws it — the trigger, the condition, a card per step, a « + » on
+ * each link — and, beside it, its run going through the steps, written in the log.
+ *
+ * The play runs while the section is on screen; without JavaScript, or asked for less
+ * motion, the run is there, done.
+ */
+import { href } from '../../lib/site';
+import Icon from '../landing/Icon.astro';
+---
+
+<section class="tm-section night automations" id="automatisations" data-automations>
+	<div class="tm-head">
+		<p class="tm-kicker tm-rise"><Icon name="split" size={20} />Automatisations</p>
+		<h2 class="tm-display tm-rise">
+			<span>Ce que l’équipe refait à la main,</span>
+			<span class="tm-grad">la messagerie le fait seule.</span>
+		</h2>
+		<p class="tm-lede tm-rise">
+			Un déclencheur, une condition, des étapes : attribuer, étiqueter, répondre, écrire par SMS ou par e-mail, prévenir,
+			appeler votre CRM, demander à l’IA, attendre. Dessinées en flux, essayées avant d’être activées.
+		</p>
+	</div>
+
+	<div class="stage ap tm-rise" data-stage aria-hidden="true">
+		<div class="ap-frame editor">
+			<div class="ap-chrome">
+				<div class="ap-dots"><i></i><i></i><i></i></div>
+				<span class="ap-url">messagerie.acme-assurances.fr/automatisations</span>
+			</div>
+			<div class="panes">
+				<!-- The flow -->
+				<div class="flow">
+					<div class="node trigger" data-lit="1">
+						<span class="ic amber"><Icon name="bell" size={14} /></span>
+						<span class="txt"><small>Déclencheur</small><b>Message non remis</b></span>
+					</div>
+					<div class="cond" data-lit="2">Pour les conversations dont <b>Canal</b> est <b>SMS</b>, <b>RCS</b></div>
+					<i class="link"><span class="plus">+</span></i>
+					<div class="node" data-lit="3">
+						<span class="ic sky"><Icon name="send" size={14} /></span>
+						<span class="txt">
+							<small>Écrire par SMS ou e-mail</small>
+							<b>E-mail · Bonjour {'{{contact.prenom}}'}, nous n’avons pas pu vous joindre par SMS…</b>
+						</span>
+					</div>
+					<i class="link"><span class="plus">+</span></i>
+					<div class="node" data-lit="4">
+						<span class="ic zinc"><Icon name="pen" size={14} /></span>
+						<span class="txt">
+							<small>Ajouter une note</small>
+							<b>SMS non remis : un e-mail est parti à {'{{contact.email}}'}.</b>
+						</span>
+					</div>
+					<i class="link end"><span class="plus">+</span></i>
+				</div>
+
+				<!-- The log -->
+				<div class="side">
+					<div class="tabs"><span>Réglages</span><span class="on-tab">Exécutions</span></div>
+					<div class="run" data-s="1">
+						<div class="run-head">
+							<span class="ap-avatar" style="--c:#f97316">PD</span>
+							<span class="who"><b>Paul Durand</b><small>il y a quelques secondes</small></span>
+							<span class="ap-chip sky" data-until="5">En cours</span>
+							<span class="ap-chip emerald" data-s="5">Réussie</span>
+						</div>
+						<ol>
+							
+							<li data-s="3"><Icon name="check" size={12} /><span>Écrire par SMS ou e-mail — <code>paul.durand@exemple.fr</code></span></li>
+							<li data-s="4"><Icon name="check" size={12} /><span>Ajouter une note — fait</span></li>
+						</ol>
+					</div>
+					<div class="run past">
+						<div class="run-head">
+							<span class="ap-avatar" style="--c:#0ea5e9">CB</span>
+							<span class="who"><b>Claire Bernard</b><small>hier, 17:42</small></span>
+							<span class="ap-chip emerald">Réussie</span>
+						</div>
+					</div>
+					<div class="run past">
+						<div class="run-head">
+							<span class="ap-avatar" style="--c:#8b5cf6">+33</span>
+							<span class="who"><b>+33 7 81 22 09 45</b><small>lundi, 09:15</small></span>
+							<span class="ap-chip emerald">Réussie</span>
+						</div>
+						<ol>
+							<li class="skip"><Icon name="more" size={12} /><span>Écrire par SMS ou e-mail — le contact n’a pas d’adresse e-mail</span></li>
+						</ol>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="tm-points">
+		<div class="tm-rise">
+			<span class="ic"><Icon name="zap" size={22} /></span>
+			<h3>Treize déclencheurs</h3>
+			<p>
+				Une conversation commence, l’IA passe la main, le visiteur attend depuis dix minutes, un SMS n’est pas remis, chaque
+				matin à 8 h, un bouton dans la conversation, l’appel de votre CRM.
+			</p>
+		</div>
+		<div class="tm-rise">
+			<span class="ic"><Icon name="layers" size={22} /></span>
+			<h3>Des modèles, prêts à régler</h3>
+			<p>
+				Relancer un visiteur silencieux, escalader un client mécontent, répartir à tour de rôle, reprendre par e-mail un SMS
+				qui n’arrive pas : on part d’un modèle, on ajuste.
+			</p>
+		</div>
+		<div class="tm-rise">
+			<span class="ic"><Icon name="history" size={22} /></span>
+			<h3>Un journal pour chaque exécution</h3>
+			<p>
+				Ce que chaque étape a fait, ce qu’elle a passé et pourquoi. Et dans la conversation, chaque changement dit
+				l’automatisation qui l’a causé.
+			</p>
+		</div>
+	</div>
+	<p class="more tm-rise">
+		<a class="tm-link" href={href('/fonctionnalites/automatisations/')}>Les automatisations</a>
+	</p>
+</section>
+
+<script>
+	import { reducedMotion, whileVisible } from '../../lib/motion';
+
+	const section = document.querySelector<HTMLElement>('[data-automations]');
+	const stage = section?.querySelector<HTMLElement>('[data-stage]');
+	if (section && stage) {
+		const shown = [...stage.querySelectorAll<HTMLElement>('[data-s], [data-until]')];
+		const lit = [...stage.querySelectorAll<HTMLElement>('[data-lit]')];
+		const show = (step: number) => {
+			for (const el of shown) {
+				const from = el.dataset.s === undefined ? -Infinity : Number(el.dataset.s);
+				const until = el.dataset.until === undefined ? Infinity : Number(el.dataset.until);
+				el.classList.toggle('on', step >= from && step < until);
+			}
+			// The card the run is on, ringed.
+			for (const el of lit) {
+				const at = Number(el.dataset.lit);
+				el.classList.toggle('lit', step === at);
+				el.classList.toggle('done', step > at && step < 99);
+			}
+		};
+		/** How long each step waits before the next one. */
+		const PAUSES = [1000, 1300, 1300, 1500, 1300, 4200];
+		if (reducedMotion()) show(99);
+		else {
+			stage.dataset.playing = '';
+			whileVisible(section, async (sleep) => {
+				for (;;) {
+					for (let step = 0; step < PAUSES.length; step++) {
+						show(step);
+						await sleep(PAUSES[step]!);
+					}
+				}
+			});
+		}
+	}
+</script>
+
+<style>
+	.automations {
+		overflow: hidden;
+	}
+	.stage {
+		max-width: 1080px;
+		margin: 72px auto 0;
+	}
+	.editor {
+		box-shadow: 0 60px 120px -50px rgba(0, 0, 0, 0.7);
+	}
+	.panes {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 360px;
+		min-height: 470px;
+	}
+
+	/* The flow, on its dotted canvas */
+	.flow {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		padding: 34px 24px;
+		background-color: #fafafa;
+		background-image: radial-gradient(#e4e4e7 1px, transparent 1px);
+		background-size: 16px 16px;
+	}
+	.node,
+	.cond {
+		width: min(380px, 100%);
+		border: 1px solid var(--ap-border);
+		border-radius: 12px;
+		background: #fff;
+		transition:
+			border-color 0.3s ease,
+			box-shadow 0.3s ease;
+	}
+	.node {
+		display: flex;
+		align-items: flex-start;
+		gap: 10px;
+		padding: 11px 13px;
+	}
+	.node .ic {
+		display: grid;
+		flex: none;
+		place-items: center;
+		width: 28px;
+		height: 28px;
+		border-radius: 8px;
+	}
+	.ic.amber {
+		color: #92400e;
+		background: rgba(245, 158, 11, 0.15);
+	}
+	.ic.sky {
+		color: #075985;
+		background: rgba(14, 165, 233, 0.15);
+	}
+	.ic.zinc {
+		color: #3f3f46;
+		background: rgba(113, 113, 122, 0.15);
+	}
+	.txt {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+		min-width: 0;
+	}
+	.txt small {
+		font-size: 10.5px;
+		color: var(--ap-muted-fg);
+	}
+	.txt b {
+		overflow: hidden;
+		font-size: 12px;
+		font-weight: 600;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.trigger {
+		border-top: 3px solid #f59e0b;
+	}
+	.cond {
+		margin-top: 8px;
+		padding: 7px 12px;
+		font-size: 11px;
+		color: var(--ap-muted-fg);
+		border-style: dashed;
+	}
+	.cond b {
+		color: var(--ap-fg);
+		font-weight: 600;
+	}
+	.link {
+		position: relative;
+		display: block;
+		width: 1px;
+		height: 44px;
+		background: #d4d4d8;
+	}
+	.link.end {
+		height: 30px;
+	}
+	.plus {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		display: grid;
+		place-items: center;
+		width: 18px;
+		height: 18px;
+		border: 1px solid var(--ap-border);
+		border-radius: 50%;
+		font-size: 12px;
+		font-style: normal;
+		line-height: 1;
+		color: var(--ap-muted-fg);
+		background: #fff;
+		transform: translate(-50%, -50%);
+	}
+	.link.end .plus {
+		top: auto;
+		bottom: -9px;
+		transform: translateX(-50%);
+	}
+	/* The card the run is on — then done. */
+	.lit {
+		border-color: rgba(139, 92, 246, 0.65);
+		box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.16);
+	}
+	.done {
+		border-color: rgba(16, 185, 129, 0.5);
+	}
+
+	/* The log */
+	.side {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		padding: 0 14px 14px;
+		border-left: 1px solid var(--ap-border);
+	}
+	.tabs {
+		display: flex;
+		gap: 18px;
+		margin: 0 -14px 4px;
+		padding: 0 14px;
+		font-size: 11.5px;
+		color: var(--ap-muted-fg);
+		border-bottom: 1px solid var(--ap-border);
+	}
+	.tabs span {
+		padding: 11px 0 9px;
+	}
+	.tabs .on-tab {
+		font-weight: 600;
+		color: var(--ap-fg);
+		box-shadow: inset 0 -2px 0 var(--ap-fg);
+	}
+	.run {
+		padding: 10px;
+		border: 1px solid var(--ap-border);
+		border-radius: 10px;
+		background: #fff;
+	}
+	.run.past {
+		opacity: 0.75;
+	}
+	.run-head {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.run-head .ap-avatar {
+		width: 24px;
+		height: 24px;
+		font-size: 8.5px;
+	}
+	.who {
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		min-width: 0;
+	}
+	.who b {
+		font-size: 11.5px;
+		font-weight: 600;
+	}
+	.who small {
+		font-size: 10.5px;
+		color: var(--ap-muted-fg);
+	}
+	.run ol {
+		display: flex;
+		flex-direction: column;
+		gap: 5px;
+		margin: 9px 0 0;
+		padding: 9px 0 0;
+		list-style: none;
+		border-top: 1px solid var(--ap-border);
+	}
+	.run li {
+		display: grid;
+		grid-template-columns: 12px minmax(0, 1fr);
+		align-items: start;
+		gap: 6px;
+		line-height: 1.4;
+		font-size: 11px;
+	}
+	.run li :global(svg) {
+		margin-top: 2px;
+		color: #047857;
+	}
+	.run li.skip {
+		color: var(--ap-muted-fg);
+	}
+	.run code {
+		font-size: 10.5px;
+	}
+
+	/* The run appears step by step — only once the play has taken it in hand. */
+	.stage:not([data-playing]) [data-until] {
+		display: none;
+	}
+	.stage[data-playing] [data-s]:not(.on),
+	.stage[data-playing] [data-until]:not(.on) {
+		display: none;
+	}
+	.stage[data-playing] .run.on,
+	.stage[data-playing] li.on {
+		animation: rise 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+	}
+	@keyframes rise {
+		from {
+			opacity: 0;
+			transform: translateY(8px);
+		}
+	}
+	.more {
+		margin: 56px 0 0;
+		text-align: center;
+	}
+
+	@media (max-width: 900px) {
+		.panes {
+			grid-template-columns: minmax(0, 1fr);
+		}
+		.flow {
+			padding: 24px 14px;
+		}
+		.side {
+			padding-top: 4px;
+			border-top: 1px solid var(--ap-border);
+			border-left: 0;
+		}
+	}
+</style>

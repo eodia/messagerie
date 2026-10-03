@@ -1,0 +1,497 @@
+---
+/**
+ * The channels, played (D23, D24): a customer's phone, the inbox, a customer's mailbox. An
+ * SMS comes in and is answered — « Remis », then « Lu » —; an e-mail comes in at the site's
+ * address and is answered from it, in the same thread. One inbox for both.
+ *
+ * The play runs while the section is on screen; without JavaScript, or asked for less
+ * motion, the whole exchange is there.
+ */
+import { href } from '../../lib/site';
+import Icon from '../landing/Icon.astro';
+---
+
+<section class="tm-section mist channels" id="canaux" data-channels>
+	<div class="tm-head">
+		<p class="tm-kicker tm-rise"><Icon name="message" size={20} />Tous les canaux</p>
+		<h2 class="tm-display tm-rise">
+			<span>Le widget, le SMS, l’e-mail.</span>
+			<span class="tm-grad">Une seule inbox.</span>
+		</h2>
+		<p class="tm-lede tm-rise">
+			Vos clients écrivent d’où ils sont : votre site, leur téléphone, leur messagerie. Tout arrive au même endroit, l’IA
+			répond la première, un conseiller reprend — et la réponse repart par le canal d’où elle est venue.
+		</p>
+	</div>
+
+	<div class="stage tm-rise" data-stage aria-hidden="true">
+		<!-- The customer's phone: an SMS conversation -->
+		<div class="phone">
+			<div class="phone-top">
+				<span class="ap-avatar" style="--c:#f97316"><Icon name="message" size={13} /></span>
+				<b>Acme Assurances</b>
+				<small>SMS</small>
+			</div>
+			<div class="phone-thread">
+				<p class="b me" data-s="1">Bonjour, mon attestation d’assurance est prête ?</p>
+				<p class="b them" data-s="2">Bonjour ! Oui : elle vous attend dans votre espace, rubrique « Documents ». Autre chose ?</p>
+				<small class="read" data-s="3">Lu</small>
+			</div>
+		</div>
+
+		<!-- The inbox -->
+		<div class="ap ap-frame inbox">
+			<div class="ap-chrome">
+				<div class="ap-dots"><i></i><i></i><i></i></div>
+				<span class="ap-url">messagerie.acme-assurances.fr/conversations</span>
+			</div>
+			<div class="panes">
+				<div class="list">
+					<p class="ap-micro">Conversations</p>
+					<div class="row" data-s="4">
+						<span class="ap-avatar" style="--c:#0ea5e9">PD</span>
+						<span class="who"><b>Paul Durand</b><small>Re : Mon sinistre du 12 mars</small></span>
+						<span class="mark by-mail"><Icon name="send" size={12} /></span>
+					</div>
+					<div class="row picked" data-lit="1">
+						<span class="ap-avatar" style="--c:#f97316">06</span>
+						<span class="who"><b>+33 6 12 34 56 78</b><small>Mon attestation d’assurance…</small></span>
+						<span class="mark by-sms"><Icon name="message" size={12} /></span>
+					</div>
+					<div class="row">
+						<span class="ap-avatar" style="--c:#8b5cf6">LM</span>
+						<span class="who"><b>Léa Martin</b><small>Merci, c’est parfait !</small></span>
+						<span class="ap-chip emerald">Résolue</span>
+					</div>
+				</div>
+				<div class="thread">
+					<div class="thread-head">
+						<b>+33 6 12 34 56 78</b>
+						<span class="ap-chip zinc"><Icon name="message" />SMS</span>
+					</div>
+					<div class="msgs">
+						<div class="m visitor" data-s="1">Bonjour, mon attestation d’assurance est prête ?</div>
+						<div class="m ai" data-s="2">
+							<span class="by">Assistant <span class="ia">IA</span></span>
+							Bonjour ! Oui : elle vous attend dans votre espace, rubrique « Documents ». Autre chose ?
+						</div>
+						<p class="delivery" data-s="2">
+							<span data-until="3"><Icon name="check" size={11} />Remis</span>
+							<span class="read" data-s="3"><Icon name="tick" size={11} />Lu</span>
+						</p>
+					</div>
+					<div class="composer">Répondre par SMS, en texte simple — « / » pour une réponse type…</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- The customer's mailbox: an e-mail thread with the site's address -->
+		<div class="mail">
+			<div class="mail-head">
+				<span class="ap-micro">Boîte de réception</span>
+			</div>
+			<div class="mail-item" data-s="4">
+				<p class="from"><b>Paul Durand</b> → support@acme-assurances.fr</p>
+				<p class="subject">Mon sinistre du 12 mars</p>
+				<p>Bonjour, où en est le remboursement de mon pare-brise ?</p>
+			</div>
+			<div class="mail-item reply" data-s="5">
+				<p class="from"><b>Acme Assurances</b> &lt;support@acme-assurances.fr&gt;</p>
+				<p class="subject">Re : Mon sinistre du 12 mars</p>
+				<p>Bonjour Paul, le virement de 480 € est parti ce matin. Répondez simplement à cet e-mail pour la suite.</p>
+				<span class="att"><Icon name="paperclip" size={11} />decompte-sinistre.pdf</span>
+			</div>
+		</div>
+	</div>
+
+	<div class="tm-points">
+		<div class="tm-rise">
+			<span class="ic"><Icon name="message" size={22} /></span>
+			<h3>SMS et RCS</h3>
+			<p>
+				Un numéro Twilio ou SMS Mode par site. Les réponses partent en texte simple, et l’inbox dit sous chacune si elle est
+				remise, lue, ou pourquoi elle ne l’est pas.
+			</p>
+		</div>
+		<div class="tm-rise">
+			<span class="ic"><Icon name="send" size={22} /></span>
+			<h3>Une adresse e-mail par site</h3>
+			<p>
+				La messagerie relève votre boîte en IMAP et répond par votre serveur SMTP, de votre adresse : la réponse du client
+				revient dans la même conversation.
+			</p>
+		</div>
+		<div class="tm-rise">
+			<span class="ic"><Icon name="pen" size={22} /></span>
+			<h3>Écrire le premier</h3>
+			<p>
+				Une pièce qui manque, un rappel, une attestation prête : « Nouveau message » écrit au client par SMS ou par e-mail,
+				et sa réponse arrive dans la conversation.
+			</p>
+		</div>
+	</div>
+	<p class="more tm-rise">
+		<a class="tm-link" href={href('/fonctionnalites/sms-et-rcs/')}>SMS et RCS</a>
+		<span class="sep">·</span>
+		<a class="tm-link" href={href('/fonctionnalites/e-mail/')}>E-mail</a>
+	</p>
+</section>
+
+<script>
+	import { reducedMotion, whileVisible } from '../../lib/motion';
+
+	const section = document.querySelector<HTMLElement>('[data-channels]');
+	const stage = section?.querySelector<HTMLElement>('[data-stage]');
+	if (section && stage) {
+		const shown = [...stage.querySelectorAll<HTMLElement>('[data-s], [data-until]')];
+		const lit = [...stage.querySelectorAll<HTMLElement>('[data-lit]')];
+		const show = (step: number) => {
+			for (const el of shown) {
+				const from = el.dataset.s === undefined ? -Infinity : Number(el.dataset.s);
+				const until = el.dataset.until === undefined ? Infinity : Number(el.dataset.until);
+				el.classList.toggle('on', step >= from && step < until);
+			}
+			// The conversation that just moved, ringed a moment.
+			for (const el of lit) {
+				const from = Number(el.dataset.lit);
+				el.classList.toggle('lit', step >= from && step < from + 1);
+			}
+		};
+		/** How long each step waits before the next one. */
+		const PAUSES = [900, 1600, 2200, 1500, 1800, 4800];
+		if (reducedMotion()) show(99);
+		else {
+			stage.dataset.playing = '';
+			whileVisible(section, async (sleep) => {
+				for (;;) {
+					for (let step = 0; step < PAUSES.length; step++) {
+						show(step);
+						await sleep(PAUSES[step]!);
+					}
+				}
+			});
+		}
+	}
+</script>
+
+<style>
+	.channels {
+		overflow: hidden;
+	}
+	.stage {
+		display: grid;
+		grid-template-columns: 250px minmax(0, 1fr) 280px;
+		align-items: center;
+		gap: 28px;
+		max-width: 1180px;
+		margin: 72px auto 0;
+	}
+
+	/* The phone */
+	.phone {
+		display: flex;
+		flex-direction: column;
+		height: 470px;
+		border: 9px solid #0f172a;
+		border-radius: 36px;
+		background: #fff;
+		overflow: hidden;
+		box-shadow: 0 50px 100px -50px rgba(15, 23, 42, 0.45);
+	}
+	.phone-top {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 4px;
+		padding: 18px 12px 10px;
+		font-size: 12px;
+		color: #0f172a;
+		border-bottom: 1px solid #f1f5f9;
+		background: #f8fafc;
+	}
+	.phone-top small {
+		font-size: 10.5px;
+		color: #64748b;
+	}
+	.phone-thread {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		padding: 14px 10px;
+	}
+	.b {
+		max-width: 85%;
+		margin: 0;
+		padding: 8px 11px;
+		border-radius: 16px;
+		font-size: 12px;
+		line-height: 1.4;
+	}
+	.b.me {
+		align-self: flex-end;
+		color: #fff;
+		background: #2563eb;
+		border-bottom-right-radius: 5px;
+	}
+	.b.them {
+		align-self: flex-start;
+		color: #0f172a;
+		background: #e5e7eb;
+		border-bottom-left-radius: 5px;
+	}
+	.phone-thread .read {
+		align-self: flex-start;
+		margin: -4px 0 0 6px;
+		font-size: 10px;
+		color: #64748b;
+	}
+
+	/* The inbox */
+	.inbox {
+		height: 470px;
+	}
+	.panes {
+		display: grid;
+		grid-template-columns: 210px minmax(0, 1fr);
+		height: calc(100% - 34px);
+	}
+	.list {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		padding: 12px 8px;
+		border-right: 1px solid var(--ap-border);
+	}
+	.list .ap-micro {
+		margin: 0 6px 6px;
+	}
+	.row {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 7px 8px;
+		border-radius: 8px;
+		transition: background 0.35s ease;
+	}
+	.row .ap-avatar {
+		width: 26px;
+		height: 26px;
+		font-size: 9.5px;
+	}
+	.row.picked {
+		background: var(--ap-accent);
+	}
+	.row.lit {
+		background: color-mix(in srgb, var(--ap-violet) 12%, white);
+	}
+	.who {
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		min-width: 0;
+	}
+	.who b,
+	.who small {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.who b {
+		font-size: 11.5px;
+		font-weight: 600;
+	}
+	.who small {
+		font-size: 10.5px;
+		color: var(--ap-muted-fg);
+	}
+	.mark {
+		display: grid;
+		place-items: center;
+	}
+	.mark.by-sms {
+		color: #ea580c;
+	}
+	.mark.by-mail {
+		color: #0284c7;
+	}
+	.thread {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+	}
+	.thread-head {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 11px 16px;
+		font-size: 12.5px;
+		border-bottom: 1px solid var(--ap-border);
+	}
+	.msgs {
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		gap: 10px;
+		padding: 16px;
+	}
+	.m {
+		max-width: 82%;
+		padding: 8px 11px;
+		border-radius: 12px;
+		font-size: 12px;
+		line-height: 1.45;
+	}
+	.m.visitor {
+		align-self: flex-start;
+		background: var(--ap-muted);
+		border: 1px solid var(--ap-border);
+	}
+	.m.ai {
+		align-self: flex-end;
+		background: color-mix(in srgb, var(--ap-violet) 8%, white);
+		border: 1px solid color-mix(in srgb, var(--ap-violet) 20%, white);
+	}
+	.by {
+		display: block;
+		margin-bottom: 2px;
+		font-size: 10.5px;
+		font-weight: 600;
+		color: var(--ap-muted-fg);
+	}
+	.ia {
+		padding: 0 4px;
+		border-radius: 4px;
+		font-size: 9px;
+		color: #5b21b6;
+		background: rgba(139, 92, 246, 0.15);
+	}
+	.delivery {
+		align-self: flex-end;
+		margin: -6px 2px 0;
+		font-size: 10.5px;
+		color: var(--ap-muted-fg);
+	}
+	.delivery span {
+		display: inline-flex;
+		align-items: center;
+		gap: 3px;
+	}
+	.delivery .read {
+		color: #047857;
+	}
+	.composer {
+		margin: 0 12px 12px;
+		padding: 10px 12px;
+		border: 1px solid var(--ap-border);
+		border-radius: 10px;
+		font-size: 11.5px;
+		color: var(--ap-muted-fg);
+	}
+
+	/* The customer's mailbox */
+	.mail {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		min-height: 380px;
+		padding: 14px;
+		border-radius: 16px;
+		background: #fff;
+		box-shadow:
+			0 50px 100px -50px rgba(15, 23, 42, 0.35),
+			0 0 0 1px rgba(15, 23, 42, 0.06);
+	}
+	.mail-item {
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+		padding: 10px 12px;
+		border: 1px solid #e5e7eb;
+		border-radius: 12px;
+		font-size: 11.5px;
+		line-height: 1.45;
+		color: #334155;
+	}
+	.mail-item p {
+		margin: 0;
+	}
+	.mail-item .from {
+		font-size: 11px;
+		color: #64748b;
+	}
+	.mail-item .from b {
+		color: #0f172a;
+	}
+	.mail-item .subject {
+		font-weight: 600;
+		color: #0f172a;
+	}
+	.mail-item.reply {
+		border-color: rgba(14, 165, 233, 0.45);
+		background: rgba(14, 165, 233, 0.05);
+	}
+	.att {
+		display: inline-flex;
+		align-self: flex-start;
+		align-items: center;
+		gap: 4px;
+		margin-top: 4px;
+		padding: 2px 8px;
+		border: 1px solid #e5e7eb;
+		border-radius: 999px;
+		font-size: 10.5px;
+		background: #fff;
+	}
+
+	/* The steps appear one by one — only once the play has taken them in hand. */
+	.stage:not([data-playing]) [data-until] {
+		display: none;
+	}
+	.stage[data-playing] [data-s]:not(.on),
+	.stage[data-playing] [data-until]:not(.on) {
+		display: none;
+	}
+	.stage[data-playing] .on {
+		animation: rise 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+	}
+	.delivery .on {
+		animation: none;
+	}
+	@keyframes rise {
+		from {
+			opacity: 0;
+			transform: translateY(10px);
+		}
+	}
+	.more {
+		margin: 56px 0 0;
+		text-align: center;
+	}
+	.sep {
+		margin: 0 10px;
+		color: var(--tm-mute, #94a3b8);
+	}
+
+	@media (max-width: 1100px) {
+		.stage {
+			grid-template-columns: 1fr;
+			max-width: 640px;
+		}
+		.phone {
+			width: 260px;
+			height: 360px;
+			margin: 0 auto;
+		}
+		.mail {
+			min-height: 0;
+		}
+	}
+	@media (max-width: 640px) {
+		.panes {
+			grid-template-columns: 1fr;
+		}
+		.list {
+			display: none;
+		}
+	}
+</style>

@@ -22,7 +22,7 @@ npm run check     # vérification des types
 | Chemin | Contenu |
 |---|---|
 | `src/views/Home.astro` | la page d’accueil, assemblée à partir de `src/components/home/` ; sa FAQ |
-| `src/components/home/` | les scènes de l’accueil : l’inbox (`Inbox`), le widget (`Widget`), l’IA qui répond (`Agent`), le copilote, la grille de l’inbox, le paramétrage dans basedb, l’éditeur du widget (`Studio`), les intégrations, le prix |
+| `src/components/home/` | les scènes de l’accueil : l’inbox (`Inbox`), le widget (`Widget`), l’IA qui répond (`Agent`), les canaux — SMS, e-mail — (`Channels`), les automatisations (`Automations`), le copilote, la grille de l’inbox, le paramétrage dans basedb, l’éditeur du widget (`Studio`), les intégrations, le prix |
 | `src/components/landing/` | la barre, le pied de page, le logo, les pictogrammes (`icons.ts`) |
 | `src/content/docs/` | la documentation (Markdown), une page par fichier |
 | `src/styles/landing.css` | les jetons de couleur et de typographie, ceux de basedb |
