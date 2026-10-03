@@ -220,8 +220,24 @@ export async function smsStatus(
       .set({ status: said.status, error: said.error, updatedAt: new Date() })
       .where(and(eq(outbound.providerId, said.providerId), inArray(outbound.status, lesser)))
       .returning({ conversationId: outbound.conversationId })
-    if (row?.conversationId) await signalChange(tx, row.conversationId)
+    if (!row?.conversationId) return
+    if (said.rcs) await toRcs(tx, row.conversationId)
+    await signalChange(tx, row.conversationId)
   })
+}
+
+/**
+ * A conversation by SMS whose message went by RCS is held by RCS from then on: the phone
+ * reads it. Called inside the transaction that says so, which signals the change.
+ */
+export async function toRcs(tx: Db, conversationId: string): Promise<void> {
+  const [row] = await tx
+    .select({ channel: conversations.channel })
+    .from(conversations)
+    .where(eq(conversations.id, conversationId))
+    .for('update')
+  if (row?.channel !== 'sms') return
+  await tx.update(conversations).set({ channel: 'rcs' }).where(eq(conversations.id, conversationId))
 }
 
 /** Whether a provider by this id exists — the routes' first check. */

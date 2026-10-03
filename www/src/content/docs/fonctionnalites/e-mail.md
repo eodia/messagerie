@@ -85,7 +85,7 @@ non-remise (`mailer-daemon@`) n’ouvrent pas de conversation. Un e-mail relu �
   e-mail : le client répond depuis sa messagerie. Sans adresse, l’e-mail part du serveur
   (`CHAT_SMTP_URL`) et le client répond en revenant sur le site. Voir
   [Écrire le premier](/messagerie/fonctionnalites/sms-et-rcs/#écrire-le-premier).
-- Les [automatisations](/messagerie/fonctionnalites/automatisations/#écrire-par-sms-ou-e-mail)
+- Les [automatisations](/messagerie/fonctionnalites/automatisations/#écrire-par-sms-rcs-ou-e-mail)
   écrivent par e-mail de la même façon, et le déclencheur **Message non remis** permet de
   reprendre par un autre canal un e-mail ou un SMS qui n’arrive pas.
 

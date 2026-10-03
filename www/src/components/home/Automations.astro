@@ -1,6 +1,6 @@
 ---
 /**
- * The automations, played (D20): the flow of the template « Un SMS non remis : écrire par
+ * The automations, played (D20): the flow of the template « Un SMS ou un RCS non remis : écrire par
  * e-mail » as the editor draws it — the trigger, the condition, a card per step, a « + » on
  * each link — and, beside it, its run going through the steps, written in the log.
  *
@@ -42,8 +42,8 @@ import Icon from '../landing/Icon.astro';
 					<div class="node" data-lit="3">
 						<span class="ic sky"><Icon name="send" size={14} /></span>
 						<span class="txt">
-							<small>Écrire par SMS ou e-mail</small>
-							<b>E-mail · Bonjour {'{{contact.prenom}}'}, nous n’avons pas pu vous joindre par SMS…</b>
+							<small>Écrire par SMS, RCS ou e-mail</small>
+							<b>E-mail · Bonjour {'{{contact.prenom}}'}, nous n’avons pas pu vous joindre sur votre téléphone…</b>
 						</span>
 					</div>
 					<i class="link"><span class="plus">+</span></i>
@@ -51,7 +51,7 @@ import Icon from '../landing/Icon.astro';
 						<span class="ic zinc"><Icon name="pen" size={14} /></span>
 						<span class="txt">
 							<small>Ajouter une note</small>
-							<b>SMS non remis : un e-mail est parti à {'{{contact.email}}'}.</b>
+							<b>Message non remis sur le téléphone : un e-mail est parti à {'{{contact.email}}'}.</b>
 						</span>
 					</div>
 					<i class="link end"><span class="plus">+</span></i>
@@ -69,7 +69,7 @@ import Icon from '../landing/Icon.astro';
 						</div>
 						<ol>
 							
-							<li data-s="3"><Icon name="check" size={12} /><span>Écrire par SMS ou e-mail — <code>paul.durand@exemple.fr</code></span></li>
+							<li data-s="3"><Icon name="check" size={12} /><span>Écrire par SMS, RCS ou e-mail — <code>paul.durand@exemple.fr</code></span></li>
 							<li data-s="4"><Icon name="check" size={12} /><span>Ajouter une note — fait</span></li>
 						</ol>
 					</div>
@@ -87,7 +87,7 @@ import Icon from '../landing/Icon.astro';
 							<span class="ap-chip emerald">Réussie</span>
 						</div>
 						<ol>
-							<li class="skip"><Icon name="more" size={12} /><span>Écrire par SMS ou e-mail — le contact n’a pas d’adresse e-mail</span></li>
+							<li class="skip"><Icon name="more" size={12} /><span>Écrire par SMS, RCS ou e-mail — le contact n’a pas d’adresse e-mail</span></li>
 						</ol>
 					</div>
 				</div>

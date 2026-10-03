@@ -644,8 +644,12 @@ et à « Fournisseur » dans le modèle ; le reste de la messagerie ne le conna�
   est refusé. Le téléphone est un contact du site, nommé par son numéro ; sa conversation,
   celle du numéro (une conversation résolue depuis plus d'un jour est finie). Un message
   rejoué n'est écrit qu'une fois. Une image, un PDF suivent la règle des pièces jointes (D14).
+- **Le RCS chez SMS Mode** : un numéro « Envoyer en RCS » écrit par son API RCS, au nom de
+  l'agent RCS du compte ; un message qu'elle refuse part aussitôt en SMS, un message qu'elle
+  laisse en suspens est réessayé en RCS. Un message pris en RCS puis perdu est non remis.
 - **Une conversation garde son canal** (`web`, `sms`, `rcs`), celui du dernier message du
-  visiteur. L'IA y répond en texte simple ; la carte de l'e-mail n'y est pas demandée.
+  visiteur — ou `rcs` dès que le fournisseur dit qu'une réponse lui est parvenue en RCS
+  (Twilio : l'expéditeur `rcs:…` de l'appel d'état). L'IA y répond en texte simple ; la carte de l'e-mail n'y est pas demandée.
 - **Ce qui repart** : chaque réponse, dans l'ordre de la conversation, en texte simple, en
   plusieurs messages au-delà de 1 600 caractères. Un fichier part tel quel où le fournisseur
   et le numéro le portent (RCS) ; ailleurs, son lien signé, valable un jour, est dans le texte.

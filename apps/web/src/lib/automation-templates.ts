@@ -19,12 +19,12 @@ const none = { match: 'all' as const, rules: [] }
 export const TEMPLATES: readonly Template[] = [
   {
     key: 'undelivered-sms',
-    name: msg('Un SMS non remis : écrire par e-mail'),
+    name: msg('Un SMS ou un RCS non remis : écrire par e-mail'),
     hint: msg(
-      'Une réponse par SMS n’a pas atteint le client : un e-mail lui écrit depuis l’adresse du site, s’il en a une.',
+      'Une réponse par SMS ou RCS n’a pas atteint le client : un e-mail lui écrit depuis l’adresse du site, s’il en a une.',
     ),
     make: () => ({
-      name: $t('Un SMS non remis : écrire par e-mail'),
+      name: $t('Un SMS ou un RCS non remis : écrire par e-mail'),
       description: $t('Le téléphone est injoignable, ou le client a répondu STOP.'),
       trigger: { kind: 'undelivered' },
       condition: {
@@ -37,13 +37,13 @@ export const TEMPLATES: readonly Template[] = [
           kind: 'send',
           channel: 'email',
           body: $t(
-            'Bonjour {{contact.prenom}}, nous n’avons pas pu vous joindre par SMS. Répondez simplement à cet e-mail : nous reprenons votre demande.',
+            'Bonjour {{contact.prenom}}, nous n’avons pas pu vous joindre sur votre téléphone. Répondez simplement à cet e-mail : nous reprenons votre demande.',
           ),
         },
         {
           id: 's2',
           kind: 'note',
-          body: $t('SMS non remis : un e-mail est parti à {{contact.email}}.'),
+          body: $t('Message non remis sur le téléphone : un e-mail est parti à {{contact.email}}.'),
         },
       ],
     }),

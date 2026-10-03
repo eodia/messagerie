@@ -883,6 +883,11 @@
           "description": "SMS Mode, facultatif : le nom qui s'affiche à la place du numéro, 11 caractères au plus. Un client ne peut pas répondre à un nom : vide, les messages partent du numéro."
         },
         {
+          "label": "Envoyer en RCS",
+          "kind": "boolean",
+          "description": "SMS Mode : les messages partent en RCS, par l'agent RCS du compte, vers les téléphones qui le lisent — avec images et fichiers —, en SMS quand SMS Mode refuse le RCS. Demande un agent RCS validé chez SMS Mode."
+        },
+        {
           "label": "Actif",
           "kind": "boolean"
         }

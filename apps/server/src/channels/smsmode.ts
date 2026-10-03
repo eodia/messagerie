@@ -1,5 +1,7 @@
 import { timingSafeEqual } from 'node:crypto'
+import type { Fetch } from '../outbound/push.js'
 import {
+  type Credentials,
   SmsFailure,
   type SmsProvider,
   type SmsStatus,
@@ -14,11 +16,15 @@ import {
  * (`callbackUrlMo`) and how it went (`callbackUrlStatus`). SMS Mode signs nothing: its
  * addresses carry a key drawn from `CHAT_SECRET`, which a call must bring.
  *
+ * A number set to « Envoyer en RCS » writes through the RCS API (`/rcs/v1/messages`, the
+ * account's RCS agent) first; a message that API refuses goes by SMS at once.
+ *
  * What it posts is read leniently — a field under one name or another, in JSON or as a
  * form —: what is not understood is refused, never guessed.
  */
 
 const API = 'https://rest.smsmode.com/sms/v1/messages'
+const RCS_API = 'https://rest.smsmode.com/rcs/v1/messages'
 
 const str = (value: unknown): string =>
   typeof value === 'string' ? value : typeof value === 'number' ? String(value) : ''
@@ -50,6 +56,41 @@ const STATUSES: Readonly<Record<string, SmsStatus['status']>> = {
   ERROR: 'failed',
   FAILED: 'failed',
   CANCELLED: 'failed',
+}
+
+/** A message SMS Mode says went, or came, by RCS. */
+const isRcs = (p: Readonly<Record<string, unknown>>): boolean =>
+  /rcs/i.test(str(p.channel) || str(p.channelType) || str(p.type)) ||
+  /^rcs:/i.test(str(p.from) || str(obj(p.recipient).to))
+
+/** One request to SMS Mode's API: the id of the message it took. Throws `SmsFailure`. */
+async function post(
+  doFetch: Fetch,
+  url: string,
+  credentials: Credentials,
+  request: Readonly<Record<string, unknown>>,
+): Promise<string> {
+  let response: Response
+  try {
+    response = await doFetch(url, {
+      method: 'POST',
+      headers: {
+        'X-Api-Key': credentials.secret,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(request),
+      signal: AbortSignal.timeout(15_000),
+    })
+  } catch {
+    throw new SmsFailure('SMSMODE_UNREACHABLE', true)
+  }
+  const answer = obj(await response.json().catch(() => ({})))
+  const id = idOf(answer)
+  if (response.ok && id) return id
+  if (response.ok) throw new SmsFailure('SMSMODE_NO_ID', false)
+  const retry = response.status === 429 || response.status >= 500
+  throw new SmsFailure(`SMSMODE_${response.status}`, retry)
 }
 
 export const smsmode: SmsProvider = {
@@ -85,7 +126,7 @@ export const smsmode: SmsProvider = {
     const providerId = idOf(p)
     if (!from || !providerId) return null
     const text = str(body.text) || str(p.text) || str(p.message) || str(p.body)
-    return { from: from.phone, rcs: false, body: text, providerId, media: [] }
+    return { from: from.phone, rcs: isRcs(p), body: text, providerId, media: [] }
   },
 
   status(payload) {
@@ -94,41 +135,41 @@ export const smsmode: SmsProvider = {
     const status = STATUSES[value]
     const providerId = idOf(p)
     if (!status || !providerId) return null
-    return { providerId, status, error: status === 'failed' ? `SMSMODE_${value}` : null }
+    return {
+      providerId,
+      status,
+      error: status === 'failed' ? `SMSMODE_${value}` : null,
+      rcs: isRcs(p),
+    }
   },
 
   carriesFiles: () => false,
 
   async send(credentials, number, message, addresses, doFetch = fetch) {
+    // The number as SMS Mode writes it: international, without its « + ».
+    const to = message.to.replace(/^\+/, '')
+    const callbacks = { callbackUrlStatus: addresses.status, callbackUrlMo: addresses.inbound }
+    if (number.rcs) {
+      try {
+        const providerId = await post(doFetch, RCS_API, credentials, {
+          recipient: { to },
+          body: { type: 'TEXT', text: message.body },
+          ...callbacks,
+        })
+        return { providerId, rcs: true }
+      } catch (error) {
+        // Refused — no RCS for this phone, or for this account —: by SMS. A failure that
+        // may pass is tried again later, by RCS still.
+        if (!(error instanceof SmsFailure) || error.retry) throw error
+      }
+    }
     const request: Record<string, unknown> = {
-      // The number as SMS Mode writes it: international, without its « + ».
-      recipient: { to: message.to.replace(/^\+/, '') },
+      recipient: { to },
       body: { text: message.body },
-      callbackUrlStatus: addresses.status,
-      callbackUrlMo: addresses.inbound,
+      ...callbacks,
     }
     if (number.sender) request.from = number.sender
-    let response: Response
-    try {
-      response = await doFetch(API, {
-        method: 'POST',
-        headers: {
-          'X-Api-Key': credentials.secret,
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify(request),
-        signal: AbortSignal.timeout(15_000),
-      })
-    } catch {
-      throw new SmsFailure('SMSMODE_UNREACHABLE', true)
-    }
-    const answer = obj(await response.json().catch(() => ({})))
-    const id = idOf(answer)
-    if (response.ok && id) return id
-    if (response.ok) throw new SmsFailure('SMSMODE_NO_ID', false)
-    const retry = response.status === 429 || response.status >= 500
-    throw new SmsFailure(`SMSMODE_${response.status}`, retry)
+    return { providerId: await post(doFetch, API, credentials, request), rcs: false }
   },
 
   // SMS carries no file: its links go in the words.

@@ -57,8 +57,8 @@ encore. Ce qui l’en empêche est dit sur l’étape concernée : « Choisisse
   **Automatisations**, celles dont la conversation remplit la condition. « « … » est lancée. »
 - **Message non remis** part une fois par réponse perdue, quand le facteur renonce ou que le
   fournisseur répond « non remis » (voir [SMS et RCS](/messagerie/fonctionnalites/sms-et-rcs/)). Avec la
-  condition **Canal**, il écrit par l’autre canal : le modèle **Un SMS non remis : écrire par
-  e-mail** le fait.
+  condition **Canal**, il écrit par l’autre canal : le modèle **Un SMS ou un RCS non remis :
+  écrire par e-mail** le fait.
 - **Appel d’un autre système** : voir [plus bas](#appelée-par-un-autre-système).
 
 ## La condition
@@ -91,7 +91,7 @@ La condition est relue au moment où l’automatisation se lance.
 | **Changer le statut** | **Aux conseillers** (sortie des mains de l’IA, rouverte ou réveillée : elle revient dans la file), **Résolue**, ou **En attente** pendant un nombre d’heures |
 | **Noter une donnée** | une valeur jointe à la conversation, que le panneau des conseillers montre et que l’IA lit |
 | **Répondre au visiteur** | un message, signé du nom de l’automatisation dans l’inbox ; le visiteur le lit au nom du site. Une conversation avec l’IA y reste |
-| **Écrire par SMS ou e-mail** | un message au contact de la conversation, sur son téléphone ou à son adresse, comme **Nouveau message** dans l’inbox (voir plus bas) |
+| **Écrire par SMS, RCS ou e-mail** | un message au contact de la conversation, sur son téléphone ou à son adresse, comme **Nouveau message** dans l’inbox (voir plus bas) |
 | **Ajouter une note** | une note que seule l’équipe lit |
 | **Demander l’e-mail du visiteur** | le widget lui propose de laisser son adresse (voir [plus bas](#demander-le-mail-du-visiteur)) |
 | **Prévenir** | une ligne dans la cloche du conseiller de la conversation, d’une équipe, des superviseurs ou de personnes choisies — et sur leur bureau s’ils ont activé les notifications |
@@ -104,13 +104,15 @@ Soixante étapes au plus, quatre conditions imbriquées au plus. Une étape qui 
 est passée, et le journal le dit : « déjà fait », « personne de libre dans l’équipe », « le
 visiteur a déjà une adresse, ou on la lui a demandée ».
 
-### Écrire par SMS ou e-mail
+### Écrire par SMS, RCS ou e-mail
 
 L’étape écrit au **contact** de la conversation — y compris quand elle n’est pas sur ce canal :
-c’est ainsi qu’une conversation du widget se poursuit par SMS.
+c’est ainsi qu’une conversation du widget se poursuit sur le téléphone du client.
 
-- **SMS** : au numéro du contact, depuis le numéro choisi sous **Depuis** (s’il y en a plusieurs),
-  sinon celui de son site. Sa réponse arrive dans la conversation de son téléphone.
+- **SMS / RCS** : au numéro du contact, depuis le numéro choisi sous **Depuis** (s’il y en a
+  plusieurs), sinon celui de son site. Le message part **en RCS** si ce numéro l’envoie
+  (service de messagerie Twilio, ou **Envoyer en RCS** chez SMS Mode) et que le téléphone du
+  client le lit, **en SMS** sinon. Sa réponse arrive dans la conversation de son téléphone.
 - **E-mail** : à l’adresse du contact, depuis l’[adresse e-mail du site](/messagerie/fonctionnalites/e-mail/)
   s’il en a une — sa réponse revient alors dans la conversation —, sinon par le serveur
   d’e-mails de la messagerie (`CHAT_SMTP_URL`), et le client répond en revenant sur le site.
@@ -197,7 +199,7 @@ alors que le site est fermé.
 | **Répartir à tour de rôle** | ce que l’IA transfère va aux membres d’une équipe, chacun son tour |
 | **Hors horaires : prévenir et étiqueter** | une conversation qui commence site fermé reçoit un mot, et l’étiquette « À rappeler » |
 | **Clore les conversations en attente depuis 7 jours** | chaque matin, ce qui dort depuis une semaine est résolu |
-| **Un SMS non remis : écrire par e-mail** | une réponse par SMS ou RCS qui n’arrive pas part par e-mail, et une note le dit à l’équipe |
+| **Un SMS ou un RCS non remis : écrire par e-mail** | une réponse par SMS ou RCS qui n’arrive pas part par e-mail, et une note le dit à l’équipe |
 | **Trier par sujet avec l’IA** | l’IA classe la première demande, puis la conversation part vers la bonne boîte |
 
 ## Essayer, et le journal

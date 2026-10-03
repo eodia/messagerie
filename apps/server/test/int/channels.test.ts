@@ -335,6 +335,35 @@ describe('SMS and RCS, from Twilio', () => {
     ])
   })
 
+  it('hold a conversation by RCS once Twilio says its message went by RCS', async () => {
+    await sms({ From: '+33698765432', Body: 'Bonjour', MessageSid: 'SMr9' })
+    const { conversation } = await smsConversation('+33698765432')
+    const id = conversation?.id ?? ''
+    await sendMessage(db, supervisor, id, { body: 'Bonjour !', kind: 'reply' })
+    await postman()
+    const [sent] = await db
+      .select()
+      .from(outbound)
+      .where(and(eq(outbound.conversationId, id), eq(outbound.status, 'sent')))
+    const path = `/channels/twilio/${numberId}/status`
+    const all = {
+      AccountSid: ACCOUNT,
+      MessageSid: sent?.providerId ?? '',
+      MessageStatus: 'delivered',
+      From: 'rcs:acme_agent',
+    }
+    const response = await app.request(path, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        'x-twilio-signature': twilioSignature(TOKEN, `${PUBLIC}${path}`, all),
+      },
+      body: new URLSearchParams(all).toString(),
+    })
+    expect(response.status).toBe(204)
+    expect((await loadConversation(db, id, supervisor)).channel).toBe('rcs')
+  })
+
   it('fail an answer Twilio refuses, with its code — and go on with the next', async () => {
     await sms({ From: '+33622222222', Body: 'Allô', MessageSid: 'SMc1' })
     const { conversation } = await smsConversation('+33622222222')

@@ -173,7 +173,7 @@ function deliveryFailure(code: string | null): string {
 /** A delivery still waiting: a queued SMS or e-mail, or one held until the visitor's return. */
 const pendingWords = (delivery: Delivery) =>
   delivery.by === 'sms'
-    ? $t('SMS en file')
+    ? $t('En file')
     : delivery.unlessSeen
       ? $t('Par e-mail s’il ne revient pas')
       : $t('E-mail en file')
