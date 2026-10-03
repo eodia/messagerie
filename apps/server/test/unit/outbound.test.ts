@@ -7,7 +7,9 @@ import {
   verify,
 } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
-import { phoneOf, twilioSignature, validTwilioSignature } from '../../src/channels/twilio.js'
+import { phoneOf } from '../../src/channels/provider.js'
+import { smsmode } from '../../src/channels/smsmode.js'
+import { twilioSignature, validTwilioSignature } from '../../src/channels/twilio.js'
 import { partsOf } from '../../src/outbound/dispatch.js'
 import { linkMail, visitorReplyMail } from '../../src/outbound/mails.js'
 import {
@@ -22,6 +24,75 @@ import { conversationPath, plainText, visitorWords } from '../../src/outbound/wo
  * What leaves the chat (D23), without a network: Twilio's signatures, Web Push's keys and
  * encryption — decrypted here as a phone would —, the parts of a long SMS, the words.
  */
+
+describe('SMS Mode', () => {
+  it('reads a reply under the names it may give', () => {
+    expect(
+      smsmode.inbound({ messageId: 'a1', from: '33612345678', body: { text: 'Oui' } }),
+    ).toEqual({
+      from: '+33612345678',
+      rcs: false,
+      body: 'Oui',
+      providerId: 'a1',
+      media: [],
+    })
+    expect(
+      smsmode.inbound({ data: { id: 'a2', originator: '+33612345678', text: 'Non' } }),
+    ).toMatchObject({
+      providerId: 'a2',
+      body: 'Non',
+    })
+    expect(
+      smsmode.inbound({ smsID: 'a3', numero: '0033612345678', message: 'Peut-être' }),
+    ).toMatchObject({
+      from: '+33612345678',
+      body: 'Peut-être',
+    })
+    // Who wrote cannot be told: refused, not guessed.
+    expect(smsmode.inbound({ messageId: 'a4', body: { text: 'x' } })).toBeNull()
+    expect(smsmode.inbound({ from: '33612345678', body: { text: 'x' } })).toBeNull()
+  })
+
+  it('reads how a message went, and says why one failed', () => {
+    expect(smsmode.status({ messageId: 'm1', status: { value: 'DELIVERED' } })).toEqual({
+      providerId: 'm1',
+      status: 'delivered',
+      error: null,
+    })
+    expect(smsmode.status({ messageId: 'm2', status: 'undeliverable' })).toEqual({
+      providerId: 'm2',
+      status: 'failed',
+      error: 'SMSMODE_UNDELIVERABLE',
+    })
+    expect(smsmode.status({ messageId: 'm3', status: { value: 'SOMETHING_NEW' } })).toBeNull()
+  })
+
+  it('carries a key in its addresses, which a call must bring', () => {
+    const number = {
+      id: 'n1',
+      name: 'SMS',
+      provider: 'smsmode' as const,
+      phone: '+33600000001',
+      accountSid: null,
+      tokenEnv: 'K',
+      messagingServiceSid: null,
+      sender: null,
+      siteId: null,
+      active: true,
+    }
+    const { inbound, status } = smsmode.addresses('https://chat.exemple.fr', number, 'secret')
+    expect(status).toBe(`${inbound}/status`)
+    const key = inbound.split('/').pop() ?? ''
+    const call = (k: string | null) => ({ url: inbound, payload: {}, headers: {}, key: k })
+    const credentials = { accountId: null, secret: 'api-key' }
+    expect(smsmode.authentic(call(key), credentials, number, 'secret')).toBe(true)
+    expect(smsmode.authentic(call(`${key.slice(0, -1)}x`), credentials, number, 'secret')).toBe(
+      false,
+    )
+    expect(smsmode.authentic(call(null), credentials, number, 'secret')).toBe(false)
+    expect(smsmode.authentic(call(key), credentials, { ...number, id: 'n2' }, 'secret')).toBe(false)
+  })
+})
 
 describe('Twilio', () => {
   it('signs as its documentation says', () => {
@@ -51,6 +122,7 @@ describe('Twilio', () => {
     expect(phoneOf('rcs:+33612345678')).toEqual({ phone: '+33612345678', rcs: true })
     expect(phoneOf('+33 6 12 34 56 78')).toEqual({ phone: '+33612345678', rcs: false })
     expect(phoneOf('0612345678')).toBeNull()
+    expect(phoneOf('33612345678')).toEqual({ phone: '+33612345678', rcs: false })
     expect(phoneOf('whatsapp:hello')).toBeNull()
   })
 

@@ -1,7 +1,13 @@
 import { createECDH } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { AlertChannels, AuthState, Invited } from '@chat/contracts'
+import type {
+  AlertChannels,
+  AuthState,
+  Conversation,
+  Invited,
+  OutreachOptions,
+} from '@chat/contracts'
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql'
 import { and, eq, sql } from 'drizzle-orm'
 import type { Hono } from 'hono'
@@ -11,6 +17,7 @@ import { McpConnections } from '../../src/ai/mcp.js'
 import { createApp } from '../../src/app.js'
 import { openSession } from '../../src/auth/credentials.js'
 import { TicketBook } from '../../src/auth/tickets.js'
+import { smsmode } from '../../src/channels/smsmode.js'
 import { twilioSignature } from '../../src/channels/twilio.js'
 import type { Config } from '../../src/config.js'
 import { type Db, connect, migrateDatabase } from '../../src/db/client.js'
@@ -57,6 +64,8 @@ let settings: Settings
 let app: Hono
 let supervisor: AgentRow
 let numberId: string
+let modeId: string
+const MODE_KEY = 'smsmode-api-key-of-the-tests'
 let siteId: string
 
 const mails: Mail[] = []
@@ -93,6 +102,13 @@ const fakeFetch: typeof fetch = async (input, init) => {
       { status: 201 },
     )
   }
+  if (url.startsWith('https://rest.smsmode.com/')) {
+    sid += 1
+    return Response.json(
+      { messageId: `mode-${sid}`, status: { value: 'ENROUTE' } },
+      { status: 201 },
+    )
+  }
   if (url.includes('/gone')) return new Response(null, { status: 410 })
   return new Response(null, { status: 201 })
 }
@@ -120,7 +136,7 @@ const postman = () =>
     config,
     mailer,
     fetch: fakeFetch,
-    env: { TWILIO_TEST_TOKEN: TOKEN },
+    env: { TWILIO_TEST_TOKEN: TOKEN, SMSMODE_TEST_KEY: MODE_KEY },
   })
 
 /** Everything waiting is due now. */
@@ -168,11 +184,20 @@ beforeAll(async () => {
     Nom: 'Acme — SMS',
     Numéro: '+33 7 00 00 00 00',
     Fournisseur: 'Twilio',
-    'Compte Twilio': ACCOUNT,
+    'Identifiant du compte': ACCOUNT,
     "Jeton (variable d'environnement)": 'TWILIO_TEST_TOKEN',
     Site: siteId,
     Actif: true,
   })
+  modeId = await source.create('Numéros SMS', {
+    Nom: 'Acme — SMS Mode',
+    Numéro: '+33 6 00 00 00 01',
+    Fournisseur: 'SMS Mode',
+    "Jeton (variable d'environnement)": 'SMSMODE_TEST_KEY',
+    Site: siteId,
+    Actif: true,
+  })
+  process.env.SMSMODE_TEST_KEY = MODE_KEY
   const [me] = await db.select().from(agents).where(eq(agents.role, 'supervisor'))
   if (!me) throw new Error('no supervisor in the demonstration')
   supervisor = me
@@ -327,6 +352,67 @@ describe('SMS and RCS, from Twilio', () => {
     })
     const [row] = await db.select().from(outbound).where(eq(outbound.conversationId, id))
     expect(row).toMatchObject({ status: 'failed', error: 'TWILIO_21610' })
+  })
+})
+
+describe('SMS, from SMS Mode', () => {
+  /** What SMS Mode posts — JSON, to the number's address and its key. */
+  const post = (path: string, body: unknown) =>
+    app.request(path, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+
+  it('takes a message to the address with its key, and refuses one without', async () => {
+    const numbers = await settings.smsNumbers()
+    const number = numbers.find((n) => n.id === modeId)
+    if (!number) throw new Error('no SMS Mode number')
+    const { inbound } = smsmode.addresses(PUBLIC, number, SECRET)
+    const path = new URL(inbound).pathname
+    expect(path).toMatch(new RegExp(`^/channels/smsmode/${modeId}/[A-Za-z0-9_-]{32}$`))
+    const message = {
+      messageId: 'mo-1',
+      from: '33633333333',
+      body: { text: 'Bonjour par SMS Mode' },
+    }
+    expect((await post(`/channels/smsmode/${modeId}/${'x'.repeat(32)}`, message)).status).toBe(403)
+    expect((await post(`/channels/twilio/${modeId}`, message)).status).toBe(404)
+    expect((await post(path, message)).status).toBe(200)
+    expect((await post(path, message)).status).toBe(200)
+    const { conversation } = await smsConversation('+33633333333')
+    expect(conversation).toMatchObject({ channel: 'sms', smsNumberId: modeId })
+    const said = await db
+      .select()
+      .from(messages)
+      .where(eq(messages.conversationId, conversation?.id ?? ''))
+    expect(said.map((m) => m.body)).toEqual(['Bonjour par SMS Mode'])
+
+    await sendMessage(db, supervisor, conversation?.id ?? '', { body: 'Bien reçu.', kind: 'reply' })
+    await postman()
+    const sent = calls.find((c) => c.url.startsWith('https://rest.smsmode.com/'))
+    expect(sent?.url).toBe('https://rest.smsmode.com/sms/v1/messages')
+    expect(sent?.headers['x-api-key']).toBe(MODE_KEY)
+    expect(JSON.parse(sent?.body ?? '{}')).toEqual({
+      recipient: { to: '33633333333' },
+      body: { text: 'Bien reçu.' },
+      callbackUrlStatus: `${inbound}/status`,
+      callbackUrlMo: inbound,
+    })
+    const [row] = await db
+      .select()
+      .from(outbound)
+      .where(eq(outbound.conversationId, conversation?.id ?? ''))
+    expect(row?.status).toBe('sent')
+    expect(
+      (await post(`${path}/status`, { messageId: row?.providerId, status: { value: 'DELIVERED' } }))
+        .status,
+    ).toBe(204)
+    const [after] = await db
+      .select()
+      .from(outbound)
+      .where(eq(outbound.id, row?.id ?? ''))
+    expect(after?.status).toBe('delivered')
   })
 })
 
@@ -538,6 +624,67 @@ describe('the routes of an agent’s alerts, and the links by e-mail', () => {
         })
       ).status,
     ).toBe(204)
+  })
+
+  const sms0 = () => sms({ From: '+33644444444', Body: 'Merci !', MessageSid: 'SMreply1' })
+
+  it('write first to a customer by SMS, from the number chosen', async () => {
+    const options = (await (await asSupervisor('/api/inbox/outreach')).json()) as OutreachOptions
+    expect(options.email).toBe(true)
+    expect(options.numbers.map((n) => n.id).sort()).toEqual([numberId, modeId].sort())
+
+    const response = await asSupervisor('/api/inbox/conversations', {
+      body: {
+        channel: 'sms',
+        phone: '+33 6 44 44 44 44',
+        numberId,
+        body: 'Votre attestation est prête.',
+      },
+    })
+    expect(response.status).toBe(201)
+    const started = (await response.json()) as Conversation
+    expect(started).toMatchObject({ channel: 'sms', status: 'open', assigneeId: supervisor.id })
+    expect(started.contact.phone).toBe('+33644444444')
+    await postman()
+    const sms = calls.filter((c) => c.url.startsWith('https://api.twilio.com/'))
+    expect(new URLSearchParams(sms[0]?.body).get('To')).toBe('+33644444444')
+    expect(new URLSearchParams(sms[0]?.body).get('Body')).toBe('Votre attestation est prête.')
+
+    // The customer answers: the same conversation.
+    await sms0()
+    const { conversation } = await smsConversation('+33644444444')
+    expect(conversation?.id).toBe(started.id)
+    const refused = await asSupervisor('/api/inbox/conversations', {
+      body: { channel: 'sms', phone: '0123', body: 'x' },
+    })
+    expect(refused.status).toBe(400)
+  })
+
+  it('write first by e-mail: at once, in the conversation the widget will show', async () => {
+    const response = await asSupervisor('/api/inbox/conversations', {
+      body: {
+        channel: 'email',
+        email: 'Noemie@Exemple.fr',
+        name: 'Noémie',
+        siteId,
+        body: 'Bonjour Noémie.',
+      },
+    })
+    expect(response.status).toBe(201)
+    const started = (await response.json()) as Conversation
+    expect(started).toMatchObject({ channel: 'web' })
+    expect(started.contact).toMatchObject({ name: 'Noémie', email: 'noemie@exemple.fr' })
+    await postman()
+    expect(mails.map((m) => m.to)).toEqual(['noemie@exemple.fr'])
+    expect(mails[0]?.text).toContain('Bonjour Noémie.')
+
+    await settings.updateSite(siteId, { 'Répondre par e-mail': false })
+    const off = await asSupervisor('/api/inbox/conversations', {
+      body: { channel: 'email', email: 'autre@exemple.fr', body: 'x' },
+    })
+    expect(off.status).toBe(409)
+    expect(((await off.json()) as { code: string }).code).toBe('EMAIL_REPLIES_OFF')
+    await settings.updateSite(siteId, { 'Répondre par e-mail': true })
   })
 
   it('send an invitation’s link by e-mail, and a new password’s to who forgot it', async () => {

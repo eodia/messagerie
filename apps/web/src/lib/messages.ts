@@ -52,6 +52,12 @@ export function messageFor(code: string): string {
       return $t('Ce navigateur ne propose pas de notifications utilisables ici.')
     case 'NUMBER_UNAVAILABLE':
       return $t('Ce numéro SMS est inactif, ou il lui manque son compte ou son jeton.')
+    case 'SITE_NOT_FOUND':
+      return $t('Ce site n’existe plus, ou n’est plus actif.')
+    case 'EMAIL_REPLIES_OFF':
+      return $t(
+        'Ce site n’écrit pas d’e-mails à ses clients : « Répondre par e-mail » est désactivé dans Sites et horaires.',
+      )
     case 'SIGNATURE_INVALID':
       return $t('Signature invalide.')
     case 'WEBHOOK_NOT_FOUND':

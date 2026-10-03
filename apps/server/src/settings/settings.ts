@@ -58,18 +58,29 @@ export interface Inbox {
   readonly active: boolean
 }
 
+/** Who carries a number's messages (« Fournisseur »). */
+export type SmsProviderId = 'twilio' | 'smsmode'
+
+const PROVIDERS: Readonly<Record<string, SmsProviderId>> = {
+  Twilio: 'twilio',
+  'SMS Mode': 'smsmode',
+}
+
 /**
- * A number visitors write to by SMS or RCS (D23), through Twilio. `tokenEnv` names the
- * variable of the server's environment that holds the auth token (D5).
+ * A number visitors write to by SMS or RCS (D23). `tokenEnv` names the variable of the
+ * server's environment that holds the provider's secret (D5).
  */
 export interface SmsNumber {
   readonly id: string
   readonly name: string
+  readonly provider: SmsProviderId
   /** `+33612345678`, or null when the row does not say a number that reads. */
   readonly phone: string | null
   readonly accountSid: string | null
   readonly tokenEnv: string | null
   readonly messagingServiceSid: string | null
+  /** The name its messages come from, where the provider allows one. */
+  readonly sender: string | null
   /** The site its conversations are held for; null: the first active one. */
   readonly siteId: string | null
   readonly active: boolean
@@ -627,10 +638,12 @@ export class Settings {
       return {
         id,
         name: text(values.Nom) ?? id,
+        provider: PROVIDERS[text(values.Fournisseur) ?? ''] ?? 'twilio',
         phone: /^\+[1-9]\d{6,14}$/.test(phone) ? phone : null,
-        accountSid: text(values['Compte Twilio']),
+        accountSid: text(values['Identifiant du compte']),
         tokenEnv: text(values["Jeton (variable d'environnement)"]),
         messagingServiceSid: text(values['Service de messagerie']),
+        sender: text(values.Expéditeur),
         siteId: one(values.Site),
         active: bool(values.Actif),
       }

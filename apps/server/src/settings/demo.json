@@ -360,10 +360,10 @@
       "Nom": "Acme Assurances — SMS (démo)",
       "Numéro": "+33 7 00 00 00 00",
       "Fournisseur": "Twilio",
-      "Compte Twilio": "AC00000000000000000000000000000000",
       "Jeton (variable d'environnement)": "TWILIO_AUTH_TOKEN",
       "Actif": false,
-      "Site": "@acme"
+      "Site": "@acme",
+      "Identifiant du compte": "AC00000000000000000000000000000000"
     }
   ]
 }

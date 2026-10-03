@@ -114,6 +114,7 @@ texte.
 | `search_messages` | lecture | Les messages qui contiennent tous ces mots. |
 | `list_contacts` | lecture | Les contacts, cherchés par nom, e-mail ou identifiant client. |
 | `get_contact` | lecture | Une fiche de contact et ses conversations. |
+| `start_conversation` | **écriture** | Écrire le premier à un client, par SMS ou par e-mail. |
 | `send_reply` | **écriture** | Répondre au visiteur. |
 | `add_note` | **écriture** | Écrire une note interne. |
 | `assign_conversation` | **écriture** | Affecter à un conseiller, ou remettre dans la file. |
@@ -226,6 +227,21 @@ qu’elle est ensuite, sous la forme de `get_conversation`.
 l’agent de vous montrer sa réponse avant de l’envoyer, ou de la poser en note (`add_note`) pour
 qu’un conseiller la relise.
 :::
+
+#### `start_conversation`
+
+Écrit le premier à un client : par SMS depuis un numéro de la messagerie, ou par e-mail — voir
+[Écrire en premier](/messagerie/integrations/api-rest/#écrire-en-premier). La conversation reste
+dans la file.
+
+| Argument | Type | Requis | Description |
+|---|---|---|---|
+| `channel` | texte | oui | `sms` ou `email`. |
+| `text` | texte | oui | Le message. |
+| `contact_id` | UUID | non | Un contact connu (`list_contacts`). |
+| `phone` | texte | non | Pour un SMS : le numéro, `+33612345678`. |
+| `email` | texte | non | Pour un e-mail : l’adresse. |
+| `name` | texte | non | Le nom d’un nouveau contact. |
 
 #### `send_reply`
 

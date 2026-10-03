@@ -835,7 +835,7 @@
       "label": "Numéros SMS",
       "icon": "smartphone",
       "color": "#f97316",
-      "description": "Des numéros de téléphone où les visiteurs écrivent par SMS, ou par RCS : leurs conversations arrivent dans l'inbox, et les réponses repartent sur leur téléphone.",
+      "description": "Des numéros de téléphone où les visiteurs écrivent par SMS — ou par RCS avec Twilio : leurs conversations arrivent dans l'inbox, et les réponses repartent sur leur téléphone. Les conseillers y écrivent aussi les premiers.",
       "fields": [
         {
           "label": "Nom",
@@ -854,24 +854,33 @@
             {
               "label": "Twilio",
               "color": "#f22f46"
+            },
+            {
+              "label": "SMS Mode",
+              "color": "#0ea5e9"
             }
           ],
-          "description": "Vide : Twilio."
+          "description": "Qui achemine les messages. Vide : Twilio."
         },
         {
-          "label": "Compte Twilio",
+          "label": "Identifiant du compte",
           "kind": "short_text",
-          "description": "L'identifiant du compte (Account SID), qui commence par AC."
+          "description": "Twilio : l'identifiant du compte (Account SID), qui commence par AC. SMS Mode : inutile."
         },
         {
           "label": "Jeton (variable d'environnement)",
           "kind": "short_text",
-          "description": "Le NOM de la variable d'environnement du serveur de la messagerie qui contient le jeton d'authentification (Auth Token) du compte. Jamais le jeton lui-même."
+          "description": "Le NOM de la variable d'environnement du serveur de la messagerie qui contient le secret du compte : l'Auth Token chez Twilio, la clé d'API chez SMS Mode. Jamais le secret lui-même."
         },
         {
           "label": "Service de messagerie",
           "kind": "short_text",
-          "description": "Facultatif : l'identifiant d'un service de messagerie Twilio (MG…). Avec un expéditeur RCS, les réponses partent en RCS vers les téléphones qui le lisent, en SMS vers les autres."
+          "description": "Twilio, facultatif : l'identifiant d'un service de messagerie (MG…). Avec un expéditeur RCS, les réponses partent en RCS vers les téléphones qui le lisent, en SMS vers les autres."
+        },
+        {
+          "label": "Expéditeur",
+          "kind": "short_text",
+          "description": "SMS Mode, facultatif : le nom qui s'affiche à la place du numéro, 11 caractères au plus. Un client ne peut pas répondre à un nom : vide, les messages partent du numéro."
         },
         {
           "label": "Actif",

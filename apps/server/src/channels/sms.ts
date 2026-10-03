@@ -13,24 +13,25 @@ import {
 } from '../files/attachments.js'
 import type { FileStore } from '../files/store.js'
 import { createConversation, receiveVisitorMessage } from '../inbox/incoming.js'
-import { accountOf } from '../outbound/dispatch.js'
 import type { Fetch } from '../outbound/push.js'
 import { signalChange } from '../realtime/signals.js'
 import { Refusal } from '../refusal.js'
 import type { Settings, Site, SmsNumber } from '../settings/settings.js'
-import { type TwilioAccount, fetchTwilioMedia, phoneOf, validTwilioSignature } from './twilio.js'
+import type { Credentials, ProviderCall, SmsProvider } from './provider.js'
+import { PROVIDERS, ready } from './providers.js'
 
 /**
- * Visitors who write by SMS or RCS (D23): Twilio calls the number's address with each
- * message — signed by the account's token —, and the chat makes it a visitor's message in
- * the conversation of that phone, on the number's site: its inbox, its team, its AI. The
- * answers go back by the postman (`outbound/dispatch.ts`), and Twilio says how they went.
+ * Visitors who write by SMS or RCS (D23): the number's provider calls its address with each
+ * message — signed, or with the key of the address —, and the chat makes it a visitor's
+ * message in the conversation of that phone, on the number's site: its inbox, its team, its
+ * AI. The answers go back by the postman (`outbound/dispatch.ts`), and the provider says how
+ * they went.
  */
 
 export interface SmsDeps {
   readonly db: Db
   readonly settings: Settings
-  readonly config: Pick<Config, 'publicUrl'>
+  readonly config: Pick<Config, 'publicUrl' | 'secret'>
   readonly files: FileStore
   /** A model is configured: the site's AI answers first, as in the widget. */
   readonly aiAvailable: boolean
@@ -43,32 +44,28 @@ export interface SmsDeps {
 /** A conversation resolved more than a day ago is over: the phone starts a new one. */
 const RESUME_MS = 24 * 60 * 60 * 1000
 
-/** The address Twilio calls for a number — what the settings screen tells to paste. */
-export const smsAddress = (publicUrl: string, numberId: string) =>
-  `${publicUrl}/channels/twilio/${numberId}`
-
-/** The number, its account, and the call checked against the account's token. */
+/**
+ * The number a provider calls about, its credentials, and the call checked — the route's
+ * provider must be the number's.
+ */
 async function checked(
   deps: SmsDeps,
+  providerId: string,
   numberId: string,
-  url: string,
-  params: Readonly<Record<string, string>>,
-  signature: string | undefined,
-): Promise<{ number: SmsNumber; account: TwilioAccount }> {
-  const number = await deps.settings.smsNumber(numberId)
-  const account = accountOf(number, deps.env ?? process.env)
-  if (!number || typeof account === 'string') throw new Refusal('NUMBER_UNAVAILABLE', 404)
-  if (!validTwilioSignature(account.authToken, url, params, signature)) {
+  call: ProviderCall,
+): Promise<{ number: SmsNumber; provider: SmsProvider; credentials: Credentials }> {
+  const found = ready(await deps.settings.smsNumber(numberId), deps.env ?? process.env)
+  if (typeof found === 'string' || found.provider.id !== providerId) {
+    throw new Refusal('NUMBER_UNAVAILABLE', 404)
+  }
+  if (!found.provider.authentic(call, found.credentials, found.number, deps.config.secret)) {
     throw new Refusal('SIGNATURE_INVALID', 403)
   }
-  // Another account's message, signed with this token, is still not this number's.
-  if (params.AccountSid && params.AccountSid !== account.accountSid) {
-    throw new Refusal('SIGNATURE_INVALID', 403)
-  }
-  return { number, account }
+  return found
 }
 
-async function siteOf(settings: Settings, number: SmsNumber): Promise<Site> {
+/** The site of a number: its own, or the first active one. */
+export async function siteOfNumber(settings: Settings, number: SmsNumber): Promise<Site> {
   const sites = await settings.sites()
   const site = number.siteId
     ? sites.find((s) => s.id === number.siteId)
@@ -78,7 +75,12 @@ async function siteOf(settings: Settings, number: SmsNumber): Promise<Site> {
 }
 
 /** The contact of a phone on a site: the one already known, or a new one named by the number. */
-async function contactOf(db: Db, siteId: string, phone: string): Promise<string> {
+export async function phoneContact(
+  db: Db,
+  siteId: string,
+  phone: string,
+  name: string | null = null,
+): Promise<string> {
   const [known] = await db
     .select({ id: contacts.id })
     .from(contacts)
@@ -88,14 +90,14 @@ async function contactOf(db: Db, siteId: string, phone: string): Promise<string>
   if (known) return known.id
   const [made] = await db
     .insert(contacts)
-    .values({ siteId, name: phone, phone, identified: false })
+    .values({ siteId, name: name || phone, phone, identified: false })
     .returning({ id: contacts.id })
   if (!made) throw new Refusal('INTERNAL_ERROR', 500)
   return made.id
 }
 
 /** The phone's conversation on this number: one still going, or resolved within a day. */
-async function currentOf(db: Db, contactId: string, numberId: string) {
+export async function phoneConversation(db: Db, contactId: string, numberId: string) {
   const [latest] = await db
     .select()
     .from(conversations)
@@ -125,20 +127,18 @@ const EXTENSIONS: Readonly<Record<string, string>> = {
   'text/csv': 'csv',
 }
 
-/** The files of an MMS or an RCS, read from Twilio and checked as any file (D14). */
+/** The files of an MMS or an RCS, read from the provider and checked as any file (D14). */
 async function mediaOf(
   deps: SmsDeps,
-  account: TwilioAccount,
-  params: Readonly<Record<string, string>>,
+  provider: SmsProvider,
+  credentials: Credentials,
+  media: readonly { readonly url: string; readonly type: string }[],
 ): Promise<Upload[]> {
-  const count = Math.min(Number(params.NumMedia ?? 0) || 0, MAX_FILES)
   const uploads: Upload[] = []
-  for (let index = 0; index < count; index++) {
-    const url = params[`MediaUrl${index}`]
-    if (!url) continue
-    const bytes = await fetchTwilioMedia(account, url, MAX_BYTES, deps.fetch)
+  for (const [index, item] of media.slice(0, MAX_FILES).entries()) {
+    const bytes = await provider.fetchMedia(credentials, item.url, MAX_BYTES, deps.fetch)
     if (!bytes) continue
-    const declared = (params[`MediaContentType${index}`] ?? '').split(';')[0]?.trim() ?? ''
+    const declared = item.type.split(';')[0]?.trim() ?? ''
     const name = cleanName(`fichier-${index + 1}.${EXTENSIONS[declared] ?? 'bin'}`)
     const mime = sniff(bytes, name)
     // What the chat does not take is left with the provider, as in the widget.
@@ -148,26 +148,24 @@ async function mediaOf(
 }
 
 /**
- * A message from a phone. Nothing written twice: a message Twilio sends again — it did not
- * hear the answer in time — is recognized by its id.
+ * A message from a phone. Nothing written twice: a message the provider sends again — it
+ * did not hear the answer in time — is recognized by its id. Returns what to answer it.
  */
 export async function receiveSms(
   deps: SmsDeps,
+  providerId: string,
   numberId: string,
-  url: string,
-  params: Readonly<Record<string, string>>,
-  signature: string | undefined,
-): Promise<void> {
+  call: ProviderCall,
+): Promise<{ readonly body: string; readonly type: string }> {
   const { db } = deps
-  const { number, account } = await checked(deps, numberId, url, params, signature)
-  const from = phoneOf(params.From ?? '')
-  const providerId = params.MessageSid ?? params.SmsSid ?? ''
-  if (!from || !providerId) throw new Refusal('INVALID_REQUEST', 400, { field: 'From' })
-  const site = await siteOf(deps.settings, number)
-  const channel = from.rcs ? 'rcs' : 'sms'
+  const { number, provider, credentials } = await checked(deps, providerId, numberId, call)
+  const message = provider.inbound(call.payload)
+  if (!message) throw new Refusal('INVALID_REQUEST', 400, { field: 'from' })
+  const site = await siteOfNumber(deps.settings, number)
+  const channel = message.rcs ? 'rcs' : 'sms'
 
-  const contactId = await contactOf(db, site.id, from.phone)
-  const current = await currentOf(db, contactId, number.id)
+  const contactId = await phoneContact(db, site.id, message.from)
+  const current = await phoneConversation(db, contactId, number.id)
   if (current) {
     const [seen] = await db
       .select({ id: messages.id })
@@ -175,15 +173,15 @@ export async function receiveSms(
       .where(
         and(
           eq(messages.conversationId, current.id),
-          sql`${messages.meta}->>'providerId' = ${providerId}`,
+          sql`${messages.meta}->>'providerId' = ${message.providerId}`,
         ),
       )
       .limit(1)
-    if (seen) return
+    if (seen) return provider.answer
   }
-  const uploads = await mediaOf(deps, account, params)
-  const body = (params.Body ?? '').slice(0, 4000)
-  if (body.trim() === '' && uploads.length === 0) return
+  const uploads = await mediaOf(deps, provider, credentials, message.media)
+  const body = message.body.slice(0, 4000)
+  if (body.trim() === '' && uploads.length === 0) return provider.answer
   const id =
     current?.id ??
     (await createConversation(
@@ -194,46 +192,37 @@ export async function receiveSms(
       { channel, smsNumberId: number.id },
     ))
   await keeping(deps.files, id, uploads, (attach) =>
-    receiveVisitorMessage(db, id, body, attach, { providerId, channel }),
+    receiveVisitorMessage(db, id, body, attach, { providerId: message.providerId, channel }),
   )
   deps.onVisitorMessage?.(id)
+  return provider.answer
 }
 
-/** Twilio's word on a message, as the chat keeps it — never back to a lesser one. */
-const STATUSES: Readonly<Record<string, 'sent' | 'delivered' | 'read' | 'failed'>> = {
-  sent: 'sent',
-  delivered: 'delivered',
-  read: 'read',
-  failed: 'failed',
-  undelivered: 'failed',
-}
+/** How far a message went: a word never goes back to a lesser one. */
 const RANK = { sent: 1, delivered: 2, read: 3, failed: 4 } as const
 
-/** How a message went: sent, delivered, read (RCS) — or not delivered, and Twilio's code. */
+/** How a message went: sent, delivered, read (RCS) — or not delivered, and the provider's code. */
 export async function smsStatus(
   deps: SmsDeps,
+  providerId: string,
   numberId: string,
-  url: string,
-  params: Readonly<Record<string, string>>,
-  signature: string | undefined,
+  call: ProviderCall,
 ): Promise<void> {
-  await checked(deps, numberId, url, params, signature)
-  const status = STATUSES[params.MessageStatus ?? '']
-  const sid = params.MessageSid ?? params.SmsSid
-  if (!status || !sid) return
+  const { provider } = await checked(deps, providerId, numberId, call)
+  const said = provider.status(call.payload)
+  if (!said) return
   await deps.db.transaction(async (tx) => {
     const lesser = Object.entries(RANK)
-      .filter(([, rank]) => rank < RANK[status])
+      .filter(([, rank]) => rank < RANK[said.status])
       .map(([name]) => name as keyof typeof RANK)
     const [row] = await tx
       .update(outbound)
-      .set({
-        status,
-        error: status === 'failed' ? `TWILIO_${params.ErrorCode || 'UNDELIVERED'}` : null,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(outbound.providerId, sid), inArray(outbound.status, lesser)))
+      .set({ status: said.status, error: said.error, updatedAt: new Date() })
+      .where(and(eq(outbound.providerId, said.providerId), inArray(outbound.status, lesser)))
       .returning({ conversationId: outbound.conversationId })
     if (row?.conversationId) await signalChange(tx, row.conversationId)
   })
 }
+
+/** Whether a provider by this id exists — the routes' first check. */
+export const knownProvider = (id: string): boolean => id in PROVIDERS

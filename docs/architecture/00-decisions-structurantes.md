@@ -620,23 +620,43 @@ serveur n'appelle que les services de push des navigateurs (Google, Mozilla, App
 et oublie un appareil que son service dit parti. Un iPhone ne reçoit les alertes que de l'inbox
 ajoutée à l'écran d'accueil.
 
-**SMS et RCS** passent par Twilio, derrière une interface à lui (`channels/twilio.ts`) :
+**SMS et RCS** passent par un fournisseur — Twilio ou SMS Mode —, derrière une interface
+commune (`channels/provider.ts`) : ses identifiants, les adresses où il appelle, comment
+reconnaître ses appels, ce qu'ils disent, comment envoyer. Un autre fournisseur s'y ajoute,
+et à « Fournisseur » dans le modèle ; le reste de la messagerie ne le connaît pas.
 
-- **Un numéro** est une ligne de « Numéros SMS » : son compte, la variable de son jeton (D5),
-  son site — dont les conversations prennent la boîte, l'équipe, l'IA et la langue — et, pour
-  le RCS, un service de messagerie Twilio avec un expéditeur RCS, qui écrit en RCS aux
-  téléphones qui le lisent et en SMS aux autres.
-- **Ce qui arrive** est un appel de Twilio à `/channels/twilio/<numéro>`, signé par le jeton
-  du compte et refusé sinon. Le téléphone est un contact du site, nommé par son numéro ; sa
-  conversation, celle du numéro (une conversation résolue depuis plus d'un jour est finie). Un
-  message rejoué par Twilio n'est écrit qu'une fois. Une image, un PDF suivent la règle des
-  pièces jointes (D14).
+- **Un numéro** est une ligne de « Numéros SMS » : son fournisseur, la variable de son secret
+  (D5) — l'Auth Token de Twilio, la clé d'API de SMS Mode —, son site, dont les conversations
+  prennent la boîte, l'équipe, l'IA et la langue. Chez Twilio, l'identifiant du compte et,
+  pour le RCS, un service de messagerie avec un expéditeur RCS, qui écrit en RCS aux téléphones
+  qui le lisent et en SMS aux autres. Chez SMS Mode, un nom d'expéditeur, facultatif — auquel
+  un client ne peut pas répondre.
+- **Ce qui arrive** est un appel du fournisseur à `/channels/<fournisseur>/<numéro>`. Twilio
+  le signe avec le jeton du compte. SMS Mode ne signe rien : l'adresse porte une clé tirée de
+  `CHAT_SECRET` pour ce numéro, donnée à chaque envoi (`callbackUrlMo`, `callbackUrlStatus`) et
+  dans l'espace SMS Mode ; le serveur dit l'adresse à l'écran, puisque lui seul tire la clé. Un
+  appel sans signature ou sans clé est refusé. Ce que SMS Mode poste est lu avec indulgence — un
+  champ sous un nom ou un autre —, jamais deviné : un message dont on ne sait pas qui l'écrit
+  est refusé. Le téléphone est un contact du site, nommé par son numéro ; sa conversation,
+  celle du numéro (une conversation résolue depuis plus d'un jour est finie). Un message
+  rejoué n'est écrit qu'une fois. Une image, un PDF suivent la règle des pièces jointes (D14).
 - **Une conversation garde son canal** (`web`, `sms`, `rcs`), celui du dernier message du
   visiteur. L'IA y répond en texte simple ; la carte de l'e-mail n'y est pas demandée.
 - **Ce qui repart** : chaque réponse, dans l'ordre de la conversation, en texte simple, en
-  plusieurs messages au-delà de 1 600 caractères. Un fichier part en RCS ; en SMS, son lien
-  signé, valable un jour, est dans le texte. Twilio dit ensuite remis, lu (RCS) ou non remis,
-  avec son code : l'inbox l'écrit sous la réponse.
+  plusieurs messages au-delà de 1 600 caractères. Un fichier part tel quel où le fournisseur
+  et le numéro le portent (RCS) ; ailleurs, son lien signé, valable un jour, est dans le texte.
+  Le fournisseur dit ensuite remis, lu (RCS) ou non remis, avec son code : l'inbox l'écrit sous
+  la réponse.
+
+**Écrire le premier.** Un conseiller — « Nouveau message » — ou un programme — l'API,
+`POST /conversations`, et l'outil MCP `start_conversation` — écrit à un client qui n'a rien
+demandé : un contact connu, un numéro ou une adresse. Par SMS, depuis un numéro prêt à
+envoyer : la conversation de ce téléphone sur ce numéro, celle où sa réponse arrivera. Par
+e-mail : la conversation du widget du contact, encore en cours, ou une nouvelle — l'e-mail part
+sans attendre, et le widget la lui montre s'il revient sur le site ; un site qui n'écrit pas
+d'e-mails à ses clients le refuse (`EMAIL_REPLIES_OFF`). La nouvelle conversation arrive dans
+la boîte de son site, que l'auteur doit voir ; elle est à lui, comme s'il avait répondu, et
+l'IA n'y répond pas la première. Un jeton la laisse dans la file.
 
 ## Questions ouvertes
 

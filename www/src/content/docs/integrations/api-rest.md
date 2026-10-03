@@ -134,6 +134,7 @@ admise par CORS. Un jeton dans le code d’une page serait lisible par tous ses 
 | `GET` | `/me` | lecture | le jeton : nom, droits, accès, boîtes, expiration |
 | `GET` | `/conversations` | lecture | lister les conversations |
 | `GET` | `/conversations/{id}` | lecture | lire une conversation et tous ses messages |
+| `POST` | `/conversations` | **écriture** | écrire le premier à un client, par SMS ou par e-mail |
 | `POST` | `/conversations/{id}/messages` | **écriture** | répondre au visiteur, ou écrire une note |
 | `POST` | `/conversations/{id}/assign` | **écriture** | affecter à un conseiller, ou remettre dans la file |
 | `POST` | `/conversations/{id}/resolve` | **écriture** | résoudre |
@@ -364,6 +365,46 @@ La réponse est la conversation telle qu’elle est ensuite, comme `GET /convers
 - Une **note** n’est vue que de l’équipe ; elle ne change ni l’état ni le conseiller.
 - Un texte vide, ou fait d’espaces, est refusé (`EMPTY_MESSAGE`).
 
+### Écrire en premier
+
+`POST /api/v1/conversations` · **écriture** · réponse `201`
+
+Écrit à un client qui n’a rien demandé : par SMS, depuis un numéro de
+[Numéros SMS](/messagerie/fonctionnalites/sms-et-rcs/#écrire-le-premier), ou par e-mail, quand le
+serveur en écrit.
+
+| Champ du corps | Type | Requis | Rôle |
+|---|---|---|---|
+| `channel` | texte | oui | `sms` ou `email`. |
+| `body` | texte | oui | Le message, 4 000 caractères au plus. |
+| `contactId` | UUID | non | Un contact connu. |
+| `phone` | texte | non | Pour `sms` : le numéro, au format international (`+33612345678`), si le contact n’en a pas. |
+| `email` | texte | non | Pour `email` : l’adresse, si le contact n’en a pas. |
+| `name` | texte | non | Le nom d’un nouveau contact. Aucun : son numéro ou son adresse. |
+| `numberId` | UUID | non | Pour `sms` : le numéro d’envoi. Aucun : celui du site du contact, ou le premier prêt. |
+| `siteId` | UUID | non | Pour `email` à une nouvelle adresse : le site. Aucun : le premier site actif. |
+
+```bash
+curl -X POST https://chat.exemple.fr/api/v1/conversations \
+  -H "Authorization: Bearer $MESSAGERIE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"channel": "sms", "phone": "+33612345678", "body": "Votre attestation est prête dans votre espace client."}'
+```
+
+La réponse est la conversation, comme `GET /conversations/{id}`. Par SMS, c’est celle de ce
+téléphone sur ce numéro — où la réponse du client arrivera ; par e-mail, la conversation du
+widget du contact, encore en cours, ou une nouvelle : l’e-mail part aussitôt. Une nouvelle
+conversation arrive dans la boîte de son site, qui doit être l’une de celles du jeton. Signée
+du nom du jeton, elle reste dans la file, sans conseiller.
+
+| Refus | Quand |
+|---|---|
+| `NUMBER_UNAVAILABLE` | aucun numéro prêt à envoyer — ou celui de `numberId` ne l’est pas |
+| `MAIL_UNAVAILABLE` | le serveur n’écrit pas d’e-mails (`CHAT_SMTP_URL`) |
+| `EMAIL_REPLIES_OFF` | le site n’écrit pas d’e-mails à ses clients (**Répondre par e-mail** décoché) |
+| `INBOX_NOT_FOUND` | la boîte du site n’est pas l’une de celles du jeton |
+| `INVALID_REQUEST` | un numéro ou une adresse qui ne se lit pas : `details.field` |
+
 ### Affecter
 
 `POST /api/v1/conversations/{id}/assign` · **écriture**
@@ -430,7 +471,7 @@ Les contacts — visiteurs anonymes et clients identifiés par leur site —, le
 
 | Paramètre | Type | Rôle |
 |---|---|---|
-| `q` | texte | Un morceau de nom, d’e-mail ou d’identifiant client. |
+| `q` | texte | Un morceau de nom, d’e-mail, de numéro de téléphone ou d’identifiant client. |
 
 ```json title="200 OK"
 {
@@ -605,6 +646,7 @@ Un refus est un objet JSON, avec le statut HTTP qui convient :
 | `CONVERSATION_NOT_FOUND` | 404 | Une conversation qui n’existe pas, ou que le jeton n’atteint pas. |
 | `CONTACT_NOT_FOUND` | 404 | Un contact qui n’existe pas, ou que le jeton n’atteint pas. |
 | `AGENT_NOT_FOUND` | 404 | Un conseiller inconnu, ou qui n’est plus actif. |
+| `NUMBER_UNAVAILABLE`, `MAIL_UNAVAILABLE`, `EMAIL_REPLIES_OFF` | 404, 503, 409 | [Écrire en premier](#écrire-en-premier) : pas de numéro prêt, pas d’e-mail, ou pas pour ce site. |
 | `RATE_LIMITED` | 429 | Plus de 240 requêtes en une minute pour ce jeton. |
 | `INTERNAL_ERROR` | 500 | Une erreur du serveur — elle est journalisée de son côté. |
 

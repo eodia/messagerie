@@ -94,8 +94,10 @@ tient tout elle-même (D19). Les décisions qui font autorité sont dans
   `chat.outbound` qu'un facteur relève. Une réponse au visiteur y entre par le déclencheur
   `capture_outbound`, jamais depuis le code ; une alerte, par `notify`. Un texte envoyé à un
   visiteur passe par `outbound/words.ts` (langue du site), jamais une phrase stockée.
-- **SMS et RCS** (D23) : `src/channels`. Un fournisseur s'ajoute derrière l'interface de
-  `channels/twilio.ts` ; son webhook vérifie sa signature avant tout.
+- **SMS et RCS** (D23) : `src/channels`. Un fournisseur (Twilio, SMS Mode) implémente
+  `SmsProvider` (`channels/provider.ts`), s'inscrit dans `channels/providers.ts` et dans les
+  choix de « Fournisseur » du modèle. Son appel est authentifié avant tout : signature, ou
+  clé de l'adresse. « Nouveau message » (écrire le premier) : `inbox/outreach.ts`.
 - **Tableaux de bord** (D22) : `src/analytics`. Une vue d'analyse s'ajoute au schéma
   `analytics` par une migration qui l'accorde aussi à `chat_analytics`, et au catalogue
   (`catalog.ts`). Jamais une table de comptes, de sessions ou de secrets dans une vue.

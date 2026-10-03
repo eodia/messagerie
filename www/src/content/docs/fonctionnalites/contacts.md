@@ -29,7 +29,7 @@ transmis aucune identité signée ».
 La liste montre les contacts dont la dernière conversation est la plus récente d’abord : nom,
 drapeau du pays, bouclier vert pour un client identifié, adresse e-mail, heure du dernier
 message et nombre de conversations. **Nom, e-mail ou identifiant client…** la filtre — un
-identifiant client est celui que le site a signé. Le [menu des
+numéro de téléphone aussi ; un identifiant client est celui que le site a signé. Le [menu des
 sites](/messagerie/fonctionnalites/inbox/#le-menu-des-sites) la restreint aux contacts d’un
 site.
 
@@ -47,6 +47,9 @@ Un clic sur un contact ouvre sa fiche, sous une bande de carte centrée sur lui 
 - ses **conversations**, la plus récente d’abord, avec leur sujet — l’intention que l’IA a
   détectée, ou la première question du visiteur —, leur état et leur date. Un clic ouvre la
   conversation dans l’inbox.
+
+**Écrire**, sous son nom, lui écrit le premier, par SMS ou par e-mail
+([écrire le premier](/messagerie/fonctionnalites/sms-et-rcs/#écrire-le-premier)).
 
 L’adresse de la fiche se partage : `/contacts/lea-martin-a9ce42ba3084`. Le nom ne sert qu’à
 lire ; la fin de l’identifiant retrouve le contact, même s’il a changé de nom depuis.

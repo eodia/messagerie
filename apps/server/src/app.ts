@@ -56,7 +56,8 @@ import {
   tryAutomation,
   updateAutomation,
 } from './automations/manage.js'
-import { type SmsDeps, receiveSms, smsStatus } from './channels/sms.js'
+import type { ProviderCall } from './channels/provider.js'
+import { type SmsDeps, knownProvider, receiveSms, smsStatus } from './channels/sms.js'
 import type { Config } from './config.js'
 import type { Db } from './db/client.js'
 import { conversations } from './db/schema.js'
@@ -85,6 +86,7 @@ import {
 } from './inbox/extras.js'
 import { patchContact, patchConversationData, readPatch } from './inbox/metadata.js'
 import { listNotifications, readNotifications } from './inbox/notifications.js'
+import { numberAddresses, outreachOptions, startConversation } from './inbox/outreach.js'
 import { loadConversation, loadSummaries, searchMessages, toAgent } from './inbox/read.js'
 import {
   createRow,
@@ -327,6 +329,33 @@ export function createApp({
     if (!UUID.test(id)) throw new Refusal('ROW_NOT_FOUND', 404)
     return c.json(await resetAgentPassword(db, config.webOrigin, c.get('agent'), id, mailer))
   })
+
+  // « Nouveau message »: writing first to a customer, by SMS or by e-mail (D23).
+  const outreach = { db, settings, email: mailer !== null }
+  inbox.get('/outreach', async (c) => c.json(await outreachOptions(outreach)))
+  inbox.post('/conversations', async (c) => {
+    const agent = c.get('agent')
+    return c.json(
+      await startConversation(
+        outreach,
+        agent,
+        await access.visibleTo(agent),
+        await jsonBody(c.req.raw),
+      ),
+      201,
+    )
+  })
+  inbox.get('/sms-numbers/:id/addresses', async (c) =>
+    c.json(
+      await numberAddresses(
+        settings,
+        c.get('agent'),
+        c.req.param('id'),
+        config.publicUrl,
+        config.secret,
+      ),
+    ),
+  )
 
   // Where one's alerts go beyond the open inbox: this phone, one's mailbox (D23).
   inbox.get('/alerts', async (c) =>
@@ -962,10 +991,14 @@ export function createApp({
   })
 
   // The public API and the MCP server: programs and agents, with a token of the chat (D16).
-  app.route('/api/v1', restRoutes({ db, settings, access, trustProxy: config.trustProxy }))
-  app.route('/mcp', mcpRoutes({ db, settings, access }))
+  app.route(
+    '/api/v1',
+    restRoutes({ db, settings, access, trustProxy: config.trustProxy, email: mailer !== null }),
+  )
+  app.route('/mcp', mcpRoutes({ db, settings, access, email: mailer !== null }))
 
-  // Visitors who write by SMS or RCS: Twilio's calls, signed by the number's account (D23).
+  // Visitors who write by SMS or RCS: their provider's calls, signed — or bringing the key of
+  // the number's address — (D23).
   const phones: SmsDeps = {
     db,
     settings,
@@ -974,35 +1007,44 @@ export function createApp({
     aiAvailable: ai !== null,
     onVisitorMessage: (id) => ai?.jobs.visitorMessage(id),
   }
-  const twilioCall = async (c: Context) => {
+  const providerCall = async (c: Context): Promise<[string, string, ProviderCall]> => {
+    const provider = c.req.param('provider') ?? ''
     const id = c.req.param('id') ?? ''
-    if (!UUID.test(id)) throw new Refusal('NUMBER_UNAVAILABLE', 404)
-    const form = await c.req.parseBody()
-    const params = Object.fromEntries(
-      Object.entries(form).filter(
-        (entry): entry is [string, string] => typeof entry[1] === 'string',
-      ),
-    )
-    // The address Twilio signed: the one it was given — the server's public address.
+    if (!knownProvider(provider) || !UUID.test(id)) throw new Refusal('NUMBER_UNAVAILABLE', 404)
+    // JSON, or a form — strings only.
+    const json = (c.req.header('content-type') ?? '').includes('application/json')
+    const raw: unknown = json ? await c.req.json().catch(() => null) : await c.req.parseBody()
+    const payload =
+      typeof raw === 'object' && raw !== null && !Array.isArray(raw)
+        ? (raw as Record<string, unknown>)
+        : {}
+    // The address the provider was given: the server's public address, and the path.
     const called = new URL(c.req.url)
-    return {
+    return [
+      provider,
       id,
-      url: `${config.publicUrl}${called.pathname}${called.search}`,
-      params,
-      signature: c.req.header('x-twilio-signature'),
-    }
+      {
+        url: `${config.publicUrl}${called.pathname}${called.search}`,
+        payload,
+        headers: { 'x-twilio-signature': c.req.header('x-twilio-signature') },
+        key: c.req.param('key') ?? null,
+      },
+    ]
   }
-  app.post('/channels/twilio/:id', async (c) => {
-    const call = await twilioCall(c)
-    await receiveSms(phones, call.id, call.url, call.params, call.signature)
-    c.header('content-type', 'text/xml; charset=utf-8')
-    return c.body('<?xml version="1.0" encoding="UTF-8"?><Response></Response>')
-  })
-  app.post('/channels/twilio/:id/status', async (c) => {
-    const call = await twilioCall(c)
-    await smsStatus(phones, call.id, call.url, call.params, call.signature)
-    return c.body(null, 204)
-  })
+  // Registered before the inbound routes, whose `:key` would take « status ».
+  for (const path of ['/channels/:provider/:id/status', '/channels/:provider/:id/:key/status']) {
+    app.post(path, async (c) => {
+      await smsStatus(phones, ...(await providerCall(c)))
+      return c.body(null, 204)
+    })
+  }
+  for (const path of ['/channels/:provider/:id', '/channels/:provider/:id/:key']) {
+    app.post(path, async (c) => {
+      const answer = await receiveSms(phones, ...(await providerCall(c)))
+      c.header('content-type', answer.type)
+      return c.body(answer.body)
+    })
+  }
 
   // The widget: its API, when there are settings to know the sites by, and its script.
   if (settings !== null) {

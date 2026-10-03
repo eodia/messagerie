@@ -48,6 +48,10 @@ la cloche ou une adresse — revient à **Tous les sites**.
 
 ## La liste des conversations
 
+En haut de la liste, à côté de la recherche et des filtres, le crayon **Nouveau message** écrit
+le premier à un client, par SMS ou par e-mail ([écrire le
+premier](/messagerie/fonctionnalites/sms-et-rcs/#écrire-le-premier)).
+
 Au-dessus de la liste, quatre onglets, chacun avec son compte :
 
 | Onglet | Ce qu’il montre |

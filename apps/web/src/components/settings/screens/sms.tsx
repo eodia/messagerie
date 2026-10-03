@@ -3,21 +3,27 @@
 import { Chip } from '@/components/app/chip'
 import { CopyButton } from '@/components/app/copy-button'
 import { Input } from '@/components/ui/input'
-import { apiAddress } from '@/lib/api'
+import { api } from '@/lib/api'
 import { $t } from '@/lib/i18n'
 import { Check, CircleAlert, MessageSquare, Smartphone, Sparkles } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { ChoiceMenu } from '../field-input'
-import { Field, FormSection } from '../kit/controls'
+import { CardChoice, Field, FormSection } from '../kit/controls'
 import { type SettingsData, type Values, bool, one, text, useSettingsData } from '../kit/data'
 import { NEW, useRowEditor } from '../kit/editor'
 import { PreviewCard, Studio } from '../kit/studio'
 import { EnvField } from './tools'
 
 /**
- * « Numéros SMS » (D23): the phone numbers visitors write to by SMS — and by RCS, through
- * a Twilio messaging service with an RCS sender. The preview says what to paste in Twilio,
- * what is still missing, and plays a message coming in on a phone.
+ * « Numéros SMS » (D23): the phone numbers visitors write to by SMS — through Twilio, and
+ * by RCS with a Twilio messaging service that has an RCS sender, or through SMS Mode. The
+ * preview says what to paste at the provider — the server gives the address —, what is
+ * still missing, and plays a message coming in on a phone.
  */
+
+const TWILIO = 'Twilio'
+const SMSMODE = 'SMS Mode'
+const providerOf = (values: Values) => (text(values.Fournisseur) === SMSMODE ? SMSMODE : TWILIO)
 
 const PHONE = /^\+[1-9]\d{6,14}$/
 const compact = (value: string) => value.replace(/[\s.()-]/g, '')
@@ -28,11 +34,14 @@ function missing(values: Values): string[] {
   if (!PHONE.test(compact(text(values.Numéro)))) {
     lacks.push($t('un numéro au format international (+33…)'))
   }
-  if (!/^AC[0-9a-f]{32}$/i.test(text(values['Compte Twilio']))) {
+  if (
+    providerOf(values) === TWILIO &&
+    !/^AC[0-9a-f]{32}$/i.test(text(values['Identifiant du compte']))
+  ) {
     lacks.push($t('l’identifiant du compte Twilio (AC…)'))
   }
   if (!text(values["Jeton (variable d'environnement)"])) {
-    lacks.push($t('la variable d’environnement du jeton'))
+    lacks.push($t('la variable d’environnement du secret'))
   }
   return lacks
 }
@@ -40,7 +49,7 @@ function missing(values: Values): string[] {
 export function SmsNumbersScreen() {
   const data = useSettingsData(['numeros_sms', 'sites'])
   const editor = useRowEditor(data, 'numeros_sms', {
-    defaults: { Fournisseur: 'Twilio', Actif: true },
+    defaults: { Fournisseur: TWILIO, Actif: true },
   })
 
   return (
@@ -60,9 +69,10 @@ export function SmsNumbersScreen() {
         'Nom',
         'Numéro',
         'Fournisseur',
-        'Compte Twilio',
+        'Identifiant du compte',
         "Jeton (variable d'environnement)",
         'Service de messagerie',
+        'Expéditeur',
         'Site',
       ]}
       searchOf={(values) => `${text(values.Nom)} ${text(values.Numéro)}`}
@@ -76,8 +86,10 @@ export function SmsNumbersScreen() {
               {text(values.Nom) || $t('Nouveau numéro')}
             </span>
             <span className="block truncate font-mono text-[11px] text-muted-foreground">
-              {text(values.Numéro) || '—'}
-              {text(values['Service de messagerie']) ? ' · RCS' : ''}
+              {text(values.Numéro) || '—'} · {providerOf(values)}
+              {providerOf(values) === TWILIO && text(values['Service de messagerie'])
+                ? ' · RCS'
+                : ''}
             </span>
           </span>
         </>
@@ -98,7 +110,7 @@ export function SmsNumbersScreen() {
             </Field>
             <Field
               label={$t('Numéro')}
-              hint={$t('Le numéro Twilio où l’on écrit, au format international.')}
+              hint={$t('Le numéro où l’on écrit, chez le fournisseur, au format international.')}
               warn={text(values.Numéro) !== '' && !PHONE.test(compact(text(values.Numéro)))}
             >
               {(id) => (
@@ -131,28 +143,58 @@ export function SmsNumbersScreen() {
             </Field>
           </FormSection>
           <FormSection
-            title={$t('Le compte Twilio')}
+            title={$t('Le fournisseur')}
             hint={$t(
-              'Le jeton reste dans l’environnement du serveur : la messagerie n’en garde que le nom.',
+              'Son secret reste dans l’environnement du serveur : la messagerie n’en garde que le nom.',
             )}
           >
-            <Field label={$t('Compte Twilio')} hint={$t('Account SID, dans la console Twilio.')}>
-              {(id) => (
-                <Input
-                  id={id}
-                  value={text(values['Compte Twilio'])}
-                  onChange={(e) => editor.set('Compte Twilio', e.target.value.trim())}
-                  placeholder="AC…"
-                  className="font-mono text-xs"
-                  maxLength={34}
-                />
-              )}
-            </Field>
+            <CardChoice
+              value={providerOf(values)}
+              onChange={(provider) => editor.set('Fournisseur', provider)}
+              disabled={!data.canEdit}
+              options={[
+                {
+                  value: TWILIO,
+                  label: 'Twilio',
+                  hint: $t('SMS et MMS, et RCS avec un service de messagerie.'),
+                  icon: <MessageSquare />,
+                },
+                {
+                  value: SMSMODE,
+                  label: 'SMS Mode',
+                  hint: $t('SMS, depuis la France, avec un nom d’expéditeur si l’on veut.'),
+                  icon: <Smartphone />,
+                },
+              ]}
+            />
+            {providerOf(values) === TWILIO && (
+              <Field
+                label={$t('Identifiant du compte')}
+                hint={$t('Account SID, dans la console Twilio.')}
+              >
+                {(id) => (
+                  <Input
+                    id={id}
+                    value={text(values['Identifiant du compte'])}
+                    onChange={(e) => editor.set('Identifiant du compte', e.target.value.trim())}
+                    placeholder="AC…"
+                    className="font-mono text-xs"
+                    maxLength={34}
+                  />
+                )}
+              </Field>
+            )}
             <Field
-              label={$t('Jeton (variable d’environnement)')}
-              hint={$t(
-                'Le NOM de la variable du serveur qui contient l’Auth Token du compte — jamais le jeton lui-même.',
-              )}
+              label={$t('Secret (variable d’environnement)')}
+              hint={
+                providerOf(values) === TWILIO
+                  ? $t(
+                      'Le NOM de la variable du serveur qui contient l’Auth Token du compte — jamais le jeton lui-même.',
+                    )
+                  : $t(
+                      'Le NOM de la variable du serveur qui contient la clé d’API SMS Mode — jamais la clé elle-même.',
+                    )
+              }
             >
               {(id) => (
                 <EnvField
@@ -162,23 +204,42 @@ export function SmsNumbersScreen() {
                 />
               )}
             </Field>
-            <Field
-              label={$t('Service de messagerie')}
-              hint={$t(
-                'Facultatif (MG…). Avec un expéditeur RCS, les réponses partent en RCS — avec images et fichiers — vers les téléphones qui le lisent, en SMS vers les autres.',
-              )}
-            >
-              {(id) => (
-                <Input
-                  id={id}
-                  value={text(values['Service de messagerie'])}
-                  onChange={(e) => editor.set('Service de messagerie', e.target.value.trim())}
-                  placeholder="MG…"
-                  className="font-mono text-xs"
-                  maxLength={34}
-                />
-              )}
-            </Field>
+            {providerOf(values) === TWILIO ? (
+              <Field
+                label={$t('Service de messagerie')}
+                hint={$t(
+                  'Facultatif (MG…). Avec un expéditeur RCS, les réponses partent en RCS — avec images et fichiers — vers les téléphones qui le lisent, en SMS vers les autres.',
+                )}
+              >
+                {(id) => (
+                  <Input
+                    id={id}
+                    value={text(values['Service de messagerie'])}
+                    onChange={(e) => editor.set('Service de messagerie', e.target.value.trim())}
+                    placeholder="MG…"
+                    className="font-mono text-xs"
+                    maxLength={34}
+                  />
+                )}
+              </Field>
+            ) : (
+              <Field
+                label={$t('Expéditeur')}
+                hint={$t(
+                  'Facultatif : le nom affiché à la place du numéro, 11 caractères au plus. Un client ne peut pas répondre à un nom : vide, les messages partent du numéro.',
+                )}
+              >
+                {(id) => (
+                  <Input
+                    id={id}
+                    value={text(values.Expéditeur)}
+                    onChange={(e) => editor.set('Expéditeur', e.target.value)}
+                    placeholder="ACME"
+                    maxLength={11}
+                  />
+                )}
+              </Field>
+            )}
           </FormSection>
         </>
       )}
@@ -204,24 +265,47 @@ function SmsPreview({
   readonly id: string | null
 }) {
   const lacks = missing(values)
-  const rcs = text(values['Service de messagerie']) !== ''
+  const provider = providerOf(values)
+  const rcs = provider === TWILIO && text(values['Service de messagerie']) !== ''
   const site = data.rows('sites').find((s) => s.id === one(values.Site))
-  const address = id ? `${apiAddress()}/channels/twilio/${id}` : null
+  const [address, setAddress] = useState<string | null>(null)
+  // The server says the address — SMS Mode's carries a key only it can draw —, for the
+  // provider saved: a provider changed in the draft waits for « Enregistrer ».
+  const saved = providerOf(data.rows('numeros_sms').find((r) => r.id === id)?.values ?? {})
+  useEffect(() => {
+    setAddress(null)
+    if (!id || !saved) return
+    let live = true
+    void api
+      .smsAddresses(id)
+      .then((addresses) => live && setAddress(addresses.inbound))
+      .catch(() => undefined)
+    return () => {
+      live = false
+    }
+  }, [id, saved])
 
   return (
     <>
-      <PreviewCard label={$t('Dans Twilio')} hint={text(values.Numéro) || undefined}>
+      <PreviewCard
+        label={provider === TWILIO ? $t('Dans Twilio') : $t('Dans SMS Mode')}
+        hint={text(values.Numéro) || undefined}
+      >
         <div className="space-y-3 p-5 text-xs">
           <p className="text-muted-foreground">
-            {rcs
+            {provider === SMSMODE
               ? $t(
-                  'Dans le service de messagerie, « Integration » : envoyez les messages entrants à cette adresse (HTTP POST).',
+                  'Chaque réponse donne cette adresse à SMS Mode, pour ce que le client répond. Donnez-la aussi comme URL de réception des réponses (MO) dans l’espace SMS Mode, pour un client qui écrit le premier.',
                 )
-              : $t(
-                  'Dans la configuration du numéro, « A message comes in » : Webhook, HTTP POST, à cette adresse.',
-                )}
+              : rcs
+                ? $t(
+                    'Dans le service de messagerie, « Integration » : envoyez les messages entrants à cette adresse (HTTP POST).',
+                  )
+                : $t(
+                    'Dans la configuration du numéro, « A message comes in » : Webhook, HTTP POST, à cette adresse.',
+                  )}
           </p>
-          {address ? (
+          {address && saved === provider ? (
             <div className="flex items-center gap-2 rounded-lg border bg-muted/40 py-2 pr-2 pl-3">
               <code className="min-w-0 flex-1 truncate font-mono text-xs">{address}</code>
               <CopyButton text={address} label={$t('Copier l’adresse')}>
@@ -230,13 +314,17 @@ function SmsPreview({
             </div>
           ) : (
             <p className="rounded-lg border border-dashed px-3 py-2 text-muted-foreground">
-              {$t('L’adresse paraît ici une fois le numéro enregistré.')}
+              {$t('L’adresse paraît ici une fois le numéro enregistré, avec son fournisseur.')}
             </p>
           )}
           <p className="text-muted-foreground">
-            {$t(
-              'Elle doit joindre le serveur de la messagerie depuis Internet (CHAT_PUBLIC_URL) : Twilio signe chaque appel avec le jeton du compte, et la messagerie refuse les autres.',
-            )}
+            {provider === TWILIO
+              ? $t(
+                  'Elle doit joindre le serveur de la messagerie depuis Internet (CHAT_PUBLIC_URL) : Twilio signe chaque appel avec le jeton du compte, et la messagerie refuse les autres.',
+                )
+              : $t(
+                  'Elle doit joindre le serveur de la messagerie depuis Internet (CHAT_PUBLIC_URL). Gardez-la pour vous : sa clé est ce qui distingue SMS Mode d’un inconnu.',
+                )}
           </p>
           {lacks.length > 0 ? (
             <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-amber-800 dark:text-amber-300">
@@ -247,7 +335,7 @@ function SmsPreview({
             <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
               <Check className="size-3.5" />
               {bool(values.Actif)
-                ? $t('Prêt à recevoir, si le serveur a la variable du jeton.')
+                ? $t('Prêt à recevoir, si le serveur a la variable du secret.')
                 : $t('Complet, mais désactivé : les messages sont refusés.')}
             </div>
           )}

@@ -5,6 +5,7 @@ import { Lit } from '@/components/app/lit'
 import { InboxGlyph } from '@/components/app/look'
 import { ResizablePanel } from '@/components/app/resizable-panel'
 import { RowsSkeleton } from '@/components/app/skeletons'
+import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Hint } from '@/components/ui/tooltip'
@@ -22,6 +23,7 @@ import { plainOf } from '@/lib/rich-text'
 import { excerpt } from '@/lib/search'
 import { type InboxFilter, inInbox, inSite, matchesFilter, useInbox } from '@/lib/store/inbox'
 import { type Sort, matchesFilters, sorted, useListFilters } from '@/lib/store/list-filters'
+import { useNewMessage } from '@/lib/store/new-message'
 import { inboxTime } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import type { Agent, ConversationSummary, InboxItem, MessageHit } from '@chat/contracts'
@@ -35,6 +37,7 @@ import {
   Paperclip,
   Search,
   Sparkles,
+  SquarePen,
   StickyNote,
   X,
 } from 'lucide-react'
@@ -297,6 +300,17 @@ export function ConversationList({
           )}
         </div>
         <FiltersButton rows={inThisInbox} />
+        <Hint label={$t('Nouveau message')}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 shrink-0"
+            aria-label={$t('Nouveau message')}
+            onClick={() => useNewMessage.getState().show()}
+          >
+            <SquarePen className="size-4" />
+          </Button>
+        </Hint>
       </div>
 
       {focused && !searching && (

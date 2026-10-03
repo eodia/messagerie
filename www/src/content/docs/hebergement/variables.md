@@ -119,14 +119,14 @@ alertes qu’à une page sûre. Voir [Alertes](/messagerie/fonctionnalites/alert
 
 ## SMS et RCS
 
-Un numéro de **Administration › Numéros SMS** ne porte pas le jeton de son compte Twilio : il
-nomme la variable qui le contient, comme un outil de l’IA. Le nom est libre — la
-démonstration dit `TWILIO_AUTH_TOKEN` — et la variable se définit à côté des autres. Sans elle,
-le numéro refuse ce qui arrive et ne répond pas. Voir [SMS et RCS](/messagerie/fonctionnalites/sms-et-rcs/).
+Un numéro de **Administration › Numéros SMS** ne porte pas le secret de son compte : il nomme
+la variable qui le contient, comme un outil de l’IA. Le nom est libre — la démonstration dit
+`TWILIO_AUTH_TOKEN` — et la variable se définit à côté des autres. Sans elle, le numéro refuse
+ce qui arrive et ne répond pas. Voir [SMS et RCS](/messagerie/fonctionnalites/sms-et-rcs/).
 
 | Variable | Défaut | Rôle |
 |---|---|---|
-| le nom que donne le numéro | — | l’**Auth Token** du compte Twilio : il vérifie la signature de chaque appel de Twilio, et signe les envois |
+| le nom que donne le numéro | — | Twilio : l’**Auth Token** du compte, qui vérifie la signature de chaque appel de Twilio et signe les envois. SMS Mode : la **clé d’API**, envoyée dans `X-Api-Key` |
 
 ## Webhooks
 

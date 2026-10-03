@@ -183,6 +183,13 @@
       "when": 1791057214599,
       "tag": "0025_outbound_capture",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791059467032,
+      "tag": "0026_sms_providers",
+      "breakpoints": true
     }
   ]
 }

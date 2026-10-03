@@ -1,6 +1,7 @@
 'use client'
 
 import { RowsSkeleton, ScreenSkeletonFor } from '@/components/app/skeletons'
+import { NewMessageDialog } from '@/components/inbox/new-message'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { showWaiting, unlockSound } from '@/lib/alerts'
@@ -123,6 +124,7 @@ export function AppShell({
         <main className="flex min-w-0 flex-1 flex-col">{children}</main>
       </div>
       <CommandPalette />
+      <NewMessageDialog />
     </TooltipProvider>
   )
 }

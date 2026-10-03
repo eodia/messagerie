@@ -23,6 +23,7 @@ import {
 } from '@/lib/search'
 import { concernsMe, useInbox } from '@/lib/store/inbox'
 import { useListFilters } from '@/lib/store/list-filters'
+import { useNewMessage } from '@/lib/store/new-message'
 import { usePalette } from '@/lib/store/palette'
 import { useSession } from '@/lib/store/session'
 import { useTheme } from '@/lib/theme'
@@ -63,6 +64,7 @@ import {
   ShieldAlert,
   Smartphone,
   Sparkles,
+  SquarePen,
   StickyNote,
   Sun,
   Tag,
@@ -438,6 +440,13 @@ function Palette({ seed, onClose }: { readonly seed: string; readonly onClose: (
       'en file attente personne',
     )
     command('ai', $t('Voir les conversations de l’IA'), Sparkles, show('ai'), 'ia robot')
+    command(
+      'new-message',
+      $t('Nouveau message'),
+      SquarePen,
+      () => useNewMessage.getState().show(),
+      'écrire envoyer sms email client',
+    )
     command(
       'snoozed',
       $t('Voir les conversations en attente'),

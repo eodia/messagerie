@@ -1057,9 +1057,9 @@ export const mcpServers = chat.table('mcp_server', {
 })
 
 /**
- * A phone number visitors write to by SMS — and by RCS when its Twilio messaging service
- * has an RCS sender (D23). Its conversations are those of its site. The auth token stays in
- * the environment: the row names its variable (D5).
+ * A phone number visitors write to by SMS — through Twilio, and by RCS when its messaging
+ * service has an RCS sender, or through SMS Mode (D23). Its conversations are those of its
+ * site. The provider's secret stays in the environment: the row names its variable (D5).
  */
 export const smsNumbers = chat.table('sms_number', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -1069,6 +1069,8 @@ export const smsNumbers = chat.table('sms_number', {
   accountSid: text('account_sid'),
   tokenEnv: text('token_env'),
   messagingServiceSid: text('messaging_service_sid'),
+  /** The name the messages come from, where the provider allows one (SMS Mode). */
+  sender: text('sender'),
   siteId: uuid('site_id').references(() => sites.id, { onDelete: 'set null' }),
   active: boolean('active').notNull().default(true),
   createdAt: createdAt(),

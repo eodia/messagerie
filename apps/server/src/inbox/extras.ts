@@ -74,6 +74,7 @@ export async function listContacts(
               ilike(contacts.name, `%${needle}%`),
               ilike(contacts.email, `%${needle}%`),
               ilike(contacts.externalId, `%${needle}%`),
+              ilike(contacts.phone, `%${needle.replace(/[\s.()-]/g, '')}%`),
             )
           : undefined,
         visible === null ? undefined : wroteIn(visible),
@@ -86,6 +87,7 @@ export async function listContacts(
     id: contact.id,
     name: contact.name,
     email: contact.email,
+    phone: contact.phone,
     identified: contact.identified,
     site,
     location: contact.location,

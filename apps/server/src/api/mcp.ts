@@ -21,6 +21,7 @@ import {
   inboxes,
   reply,
   search,
+  startOutreach,
   tag,
   whoami,
 } from './service.js'
@@ -289,6 +290,37 @@ export const TOOLS: readonly Tool[] = [
       ),
   }),
   tool({
+    name: 'start_conversation',
+    title: 'Écrire en premier',
+    description:
+      'Écrit le premier à un client : par SMS depuis un numéro de la messagerie, ou par e-mail. Un contact connu (contact_id), ou un numéro (phone, au format +33…), ou une adresse (email). Rend la conversation.',
+    write: true,
+    input: {
+      channel: z.enum(['sms', 'email']).describe('`sms` ou `email`.'),
+      contact_id: z.string().uuid().optional().describe('Un contact connu (search_contacts).'),
+      phone: z.string().optional().describe('Pour un SMS : le numéro, +33612345678.'),
+      email: z.string().optional().describe('Pour un e-mail : l’adresse.'),
+      name: z.string().optional().describe('Le nom d’un nouveau contact.'),
+      text: z.string().min(1).describe('Le message.'),
+    },
+    example: {
+      channel: 'sms',
+      phone: '+33612345678',
+      text: 'Bonjour, votre attestation est prête dans votre espace client.',
+    },
+    run: async (deps, token, args) =>
+      conversationView(
+        await startOutreach(deps, token, {
+          channel: args.channel,
+          contactId: args.contact_id,
+          phone: args.phone,
+          email: args.email,
+          name: args.name,
+          body: args.text,
+        }),
+      ),
+  }),
+  tool({
     name: 'add_note',
     title: 'Note interne',
     description: 'Ajoute une note que seule l’équipe voit — jamais le visiteur.',
@@ -382,6 +414,7 @@ export function mcpRoutes(deps: {
   readonly db: Db
   readonly settings: Settings | null
   readonly access: Access
+  readonly email?: boolean
 }): Hono {
   const mcp = new Hono()
   const calls = new RateLimiter(240, 60_000)

@@ -239,11 +239,12 @@ par exemple. Ces variables-là vont dans `outils.env`, que le serveur et le work
 METEO_TOKEN=…
 ```
 
-Le jeton d’un compte Twilio, que nomme un numéro de **Administration › Numéros SMS**, y va de
-même ([SMS et RCS](/messagerie/fonctionnalites/sms-et-rcs/)) :
+Le secret d’un compte Twilio ou SMS Mode, que nomme un numéro de **Administration › Numéros
+SMS**, y va de même ([SMS et RCS](/messagerie/fonctionnalites/sms-et-rcs/)) :
 
 ```bash
 TWILIO_AUTH_TOKEN=…
+SMSMODE_API_KEY=…
 ```
 
 ## Première mise en service

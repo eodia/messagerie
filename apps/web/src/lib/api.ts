@@ -40,6 +40,7 @@ import type {
   Metadata,
   MetadataValue,
   NotificationList,
+  OutreachOptions,
   PageAction,
   PasswordReset,
   QueryResult,
@@ -49,6 +50,8 @@ import type {
   SendMessageBody,
   SettingsOverview,
   SettingsRow,
+  SmsNumberAddresses,
+  StartConversationBody,
   TagOption,
   Ticket,
   ToolTestBody,
@@ -148,6 +151,12 @@ export const api = {
   ticket: () => request<Ticket>('POST', '/ticket'),
   conversations: () => request<ConversationSummary[]>('GET', '/conversations'),
   conversation: (id: string) => request<Conversation>('GET', conversation(id)),
+  /** « Nouveau message »: what it may use, and writing first to a customer (D23). */
+  outreach: () => request<OutreachOptions>('GET', '/outreach'),
+  startConversation: (body: StartConversationBody) =>
+    request<Conversation>('POST', '/conversations', body),
+  smsAddresses: (numberId: string) =>
+    request<SmsNumberAddresses>('GET', `/sms-numbers/${encodeURIComponent(numberId)}/addresses`),
   markRead: (id: string) => request<void>('POST', `${conversation(id)}/read`),
   typing: (id: string) => request<void>('POST', `${conversation(id)}/typing`),
   /** A message read aloud by the server's AI voice, as an MP3. */

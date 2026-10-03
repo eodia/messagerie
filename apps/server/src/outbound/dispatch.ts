@@ -1,6 +1,7 @@
 import type { AlertKind } from '@chat/contracts'
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
-import { type TwilioAccount, TwilioFailure, sendTwilioMessage } from '../channels/twilio.js'
+import { SmsFailure } from '../channels/provider.js'
+import { ready } from '../channels/providers.js'
 import type { Config } from '../config.js'
 import type { Db } from '../db/client.js'
 import {
@@ -16,7 +17,7 @@ import {
 import { attachmentsOf, linkOf } from '../files/attachments.js'
 import { PRODUCT_NAME } from '../product.js'
 import { signalChange } from '../realtime/signals.js'
-import type { Settings, Site, SmsNumber } from '../settings/settings.js'
+import type { Settings, Site } from '../settings/settings.js'
 import { languageCode } from '../settings/widget.js'
 import { MailFailure, type Mailer } from './mailer.js'
 import { type ReplyLine, agentAlertMail, visitorReplyMail } from './mails.js'
@@ -45,7 +46,7 @@ const BATCH = 50
 const LEASE = '2 minutes'
 /** Seconds before the next try, after the 1st, 2nd… failed one. */
 const BACKOFF = [10, 30, 120, 600, 3600]
-/** Twilio takes 1600 characters a message; longer is sent in parts. */
+/** 1 600 characters a message — Twilio's limit, ten SMS —; longer is sent in parts. */
 const SMS_MAX = 1600
 
 export interface PostmanDeps {
@@ -146,21 +147,9 @@ async function conclude(db: Db, row: Row, outcome: Outcome, also: readonly strin
 
 // ── SMS and RCS ───────────────────────────────────────────────────────────────────────
 
-/** The account of a number, its token read from the environment (D5) — or why not. */
-export function accountOf(
-  number: SmsNumber | null,
-  env: NodeJS.ProcessEnv,
-): TwilioAccount | string {
-  if (!number || !number.active) return 'NUMBER_UNAVAILABLE'
-  if (!number.accountSid) return 'ACCOUNT_MISSING'
-  const token = number.tokenEnv ? env[number.tokenEnv.replace(/^\$\{(.+)\}$/, '$1')] : undefined
-  if (!token) return 'TOKEN_MISSING'
-  return { accountSid: number.accountSid, authToken: token }
-}
-
 const languageOf = (site: Site | null): Language => (site ? languageCode(site.language) : 'fr')
 
-/** A body cut where Twilio takes it: at a line, a space, or the limit. */
+/** A body cut where the providers take it: at a line, a space, or the limit. */
 export function partsOf(text: string, max = SMS_MAX): string[] {
   const parts: string[] = []
   let rest = text.trim()
@@ -188,41 +177,38 @@ async function sendSms(deps: PostmanDeps, row: Row): Promise<Outcome> {
   const { message, conversation, phone } = found
   if (message.deletedAt) return skipped('MESSAGE_DELETED')
   if (!phone) return failed('PHONE_MISSING')
-  const number = conversation.smsNumberId
-    ? await settings.smsNumber(conversation.smsNumberId)
-    : null
-  const account = accountOf(number, deps.env ?? process.env)
-  if (typeof account === 'string' || !number) return failed(account as string)
+  const sender = ready(
+    conversation.smsNumberId ? await settings.smsNumber(conversation.smsNumberId) : null,
+    deps.env ?? process.env,
+  )
+  if (typeof sender === 'string') return failed(sender)
+  const { number, provider, credentials } = sender
 
   const files = (await attachmentsOf(db, [message.id])).get(message.id) ?? []
   const links = files.map((f) => `${deps.config.publicUrl}${linkOf(f.id)}`)
-  // A messaging service may write by RCS, which carries files; a bare number writes SMS,
-  // which carries none in Europe: their links, a day good, in the words.
-  const media = number.messagingServiceSid ? links : []
+  // Files as files where the provider and the number carry them (RCS); elsewhere their
+  // links, a day good, in the words.
+  const media = provider.carriesFiles(number) ? links : []
   const body = [plainText(message.body), ...(media.length > 0 ? [] : links)]
     .filter(Boolean)
     .join('\n')
   const parts = partsOf(body)
   if (parts.length === 0 && media.length === 0) return skipped('EMPTY_MESSAGE')
 
+  const addresses = provider.addresses(deps.config.publicUrl, number, deps.config.secret)
   let last: string | null = null
   try {
     for (const [index, part] of (parts.length > 0 ? parts : ['']).entries()) {
-      last = await sendTwilioMessage(
-        account,
-        {
-          to: phone,
-          from: number.phone,
-          messagingServiceSid: number.messagingServiceSid,
-          body: part,
-          mediaUrls: index === 0 ? media : [],
-          statusCallback: `${deps.config.publicUrl}/channels/twilio/${number.id}/status`,
-        },
+      last = await provider.send(
+        credentials,
+        number,
+        { to: phone, body: part, mediaUrls: index === 0 ? media : [] },
+        addresses,
         deps.fetch,
       )
     }
   } catch (error) {
-    if (!(error instanceof TwilioFailure)) throw error
+    if (!(error instanceof SmsFailure)) throw error
     // A part already gone is not sent again: what is left fails.
     if (last) return failed(error.code)
     return error.retry ? retry(error.code) : failed(error.code)

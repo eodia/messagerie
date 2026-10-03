@@ -53,7 +53,7 @@ bâtis sur le même kit, celui de l’éditeur du widget :
 | Étiquettes | l’étiquette **Sur une conversation**, et **Ce que lit l’IA** |
 | Garde-fous | **Le moment venu** — le garde-fou qui se déclenche —, et **Ce que lit l’IA** |
 | Outils | l’outil tel que l’IA le lit, et la requête qu’il envoie ([outils de l’IA](/messagerie/fonctionnalites/outils-ia/)) |
-| Numéros SMS | **Dans Twilio** — l’adresse à y coller, ce qui manque encore —, et **Sur le téléphone du client** ([SMS et RCS](/messagerie/fonctionnalites/sms-et-rcs/)) |
+| Numéros SMS | **Dans Twilio** ou **Dans SMS Mode** — l’adresse à y donner, ce qui manque encore —, et **Sur le téléphone du client** ([SMS et RCS](/messagerie/fonctionnalites/sms-et-rcs/)) |
 
 L’aperçu demande un écran large : sur un écran plus étroit, il n’est pas affiché.
 
@@ -223,7 +223,7 @@ conseillers, quelles que soient leurs équipes.
   s’autorisent les actions que déclarent les pages du site. Voir
   [widget](/messagerie/fonctionnalites/widget/) et
   [actions de la page](/messagerie/integrations/actions-de-page/).
-- **Numéros SMS** : les numéros Twilio où les clients écrivent par SMS ou RCS. Voir
+- **Numéros SMS** : les numéros Twilio ou SMS Mode où les clients écrivent par SMS ou RCS. Voir
   [SMS et RCS](/messagerie/fonctionnalites/sms-et-rcs/).
 - **API et MCP** : les jetons des programmes et des agents, onglet **Jetons**, et les
   webhooks, onglet **Webhooks**. Voir l’[API REST](/messagerie/integrations/api-rest/), le

@@ -96,6 +96,8 @@ export type ErrorCode =
   | 'NUMBER_UNAVAILABLE'
   /** A provider's webhook whose signature does not hold. */
   | 'SIGNATURE_INVALID'
+  /** The site writes no e-mail to its customers (« Répondre par e-mail » off). */
+  | 'EMAIL_REPLIES_OFF'
 
 /** Opens the inbox's WebSocket, once, within thirty seconds. */
 export interface Ticket {

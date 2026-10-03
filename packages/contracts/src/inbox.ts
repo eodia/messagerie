@@ -344,6 +344,48 @@ export interface ConversationSummary {
   readonly snoozedUntil: string | null
 }
 
+/**
+ * « Nouveau message »: an agent — or a program — writes first to a customer (D23): by SMS
+ * from one of the numbers, or by e-mail. An existing contact, or a number or an address.
+ */
+export interface StartConversationBody {
+  readonly channel: 'sms' | 'email'
+  readonly contactId?: string
+  readonly phone?: string
+  readonly email?: string
+  /** A new contact's name; none: their number or address. */
+  readonly name?: string
+  /** SMS: the number it leaves from; none: the contact's site's, or the first. */
+  readonly numberId?: string
+  /** E-mail to a new address: the site it writes for; none: the first active one. */
+  readonly siteId?: string
+  readonly body: string
+}
+
+/** What « Nouveau message » may use: the numbers ready to send, e-mail, the sites. */
+export interface OutreachOptions {
+  readonly numbers: readonly {
+    readonly id: string
+    readonly name: string
+    readonly phone: string | null
+    readonly siteId: string | null
+  }[]
+  /** The server writes e-mails. */
+  readonly email: boolean
+  readonly sites: readonly {
+    readonly id: string
+    readonly name: string
+    /** « Répondre par e-mail »: off, no e-mail is written to its customers. */
+    readonly emailReplies: boolean
+  }[]
+}
+
+/** Where an SMS number's provider calls the chat — what « Numéros SMS » tells to paste. */
+export interface SmsNumberAddresses {
+  readonly inbound: string
+  readonly status: string
+}
+
 /** Put a conversation on hold until a time. */
 export interface SnoozeBody {
   readonly until: string
@@ -418,6 +460,7 @@ export interface ContactListItem {
   readonly id: string
   readonly name: string
   readonly email: string | null
+  readonly phone: string | null
   readonly identified: boolean
   readonly site: string | null
   readonly location: string | null
