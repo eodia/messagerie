@@ -39,6 +39,23 @@ Les décisions qui expliquent le reste sont dans
 | Tableaux de bord | Des cartes sur une grille : nombre, tableau, barres, courbes, camembert ; des questions assistées ou en SQL — lu par un rôle qui ne voit que les vues d'analyse, en lecture seule —, l'IA pour écrire la requête ; « Vue d'ensemble » par défaut (D22) |
 | Contacts | Drapeau, heure locale et carte OpenStreetMap de chaque contact, tirés du fuseau horaire de son navigateur — sans géolocalisation par IP (D18) |
 
+## Installer avec Docker
+
+La messagerie est publiée en une image, [`eodia/messagerie`](https://hub.docker.com/r/eodia/messagerie)
+(amd64 et arm64), qui sert le serveur (port 8810) et l'inbox (port 3210), à côté d'un
+PostgreSQL 16 avec pgvector :
+
+```bash
+echo "CHAT_SECRET=$(openssl rand -base64 32)" > .env
+docker compose up -d       # avec le docker-compose.yml de « Essayer avec Docker »
+```
+
+puis http://localhost:3210, qui crée le premier superviseur. Le `docker-compose.yml` d'essai
+est dans [Installation](https://eodia.github.io/messagerie/guides/installation/#essayer-avec-docker) ;
+la mise en service, derrière HTTPS, dans
+[Mise en production](https://eodia.github.io/messagerie/hebergement/production/). Une étiquette
+`vX.Y.Z` publie l'image (`.github/workflows/docker-publish.yml`).
+
 ## Développer
 
 Prérequis : Node 22 ou plus, Docker, et `corepack enable`.

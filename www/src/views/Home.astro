@@ -20,7 +20,7 @@ import { BASEDB, href } from '../lib/site';
 const FAQ = [
 	{
 		q: 'Que faut-il pour l’installer ?',
-		a: 'Un PostgreSQL 16 avec pgvector, et l’image de la Messagerie. Elle crée son schéma au premier démarrage ; l’écran de connexion fait de vous le premier superviseur, et tout le reste se règle dans l’inbox.',
+		a: 'Docker et un PostgreSQL 16 avec pgvector : l’image eodia/messagerie, sur Docker Hub, sert le serveur et l’inbox, et un docker-compose.yml de vingt lignes les lance tous deux. Elle crée son schéma au premier démarrage ; l’écran de connexion fait de vous le premier superviseur, et tout le reste se règle dans l’inbox.',
 	},
 	{
 		q: 'Comment se connectent les conseillers ?',

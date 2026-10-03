@@ -1,14 +1,148 @@
 ---
 title: Installation
-description: Lancer la messagerie sur votre machine pour l’essayer ou la développer, puis la mettre en service.
+description: Lancer la messagerie avec Docker en deux minutes, la mettre en service, ou la faire tourner depuis ses sources pour la développer.
 ---
 
-La messagerie tient en trois applications d’un même dépôt — le **serveur** (`apps/server`),
-l’**inbox** (`apps/web`) et le **widget** (`apps/widget`) — et ne demande qu’une chose à côté :
-**PostgreSQL 16 avec pgvector**. Pour l’essayer, `docker compose` le fournit ; pour la mettre
-en service, voir [plus bas](#mettre-en-service).
+La messagerie est publiée en **une image Docker**, [`eodia/messagerie`](https://hub.docker.com/r/eodia/messagerie),
+qui sert le **serveur** et l’**inbox**. À côté, elle ne demande qu’une chose : **PostgreSQL 16
+avec pgvector**. Ni Redis, ni file de messages : le temps réel et les tâches de fond passent par
+PostgreSQL lui-même.
 
-## Prérequis
+| Pour… | Le chemin |
+|---|---|
+| l’essayer sur votre machine | [Essayer avec Docker](#essayer-avec-docker) : un `docker-compose.yml`, deux minutes |
+| la mettre en service | [Mise en production](/messagerie/hebergement/production/) : la même image, derrière HTTPS |
+| la développer | [Depuis les sources](#depuis-les-sources) : Node 22, pnpm et le dépôt |
+
+## Essayer avec Docker
+
+Il ne faut que **Docker**, avec Compose v2. Dans un dossier vide, créez ce `docker-compose.yml` :
+
+```yaml
+# La Messagerie sur votre machine : PostgreSQL et la messagerie, sur localhost.
+name: messagerie-essai
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: messagerie
+      POSTGRES_PASSWORD: messagerie
+      POSTGRES_DB: messagerie
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U messagerie -d messagerie"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  messagerie:
+    image: eodia/messagerie:${MESSAGERIE_VERSION:-latest}
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      DATABASE_URL: postgres://messagerie:messagerie@postgres:5432/messagerie
+      CHAT_SECRET: ${CHAT_SECRET:?définissez CHAT_SECRET dans .env}
+      # L'inbox sur le port 3210, le serveur sur le port 8810.
+      CHAT_WEB_ORIGIN: http://localhost:3210
+      CHAT_PUBLIC_URL: http://localhost:8810
+      CHAT_API_URL: http://localhost:8810
+      # L'IA (facultatif) : sans clé, les conversations vont aux conseillers.
+      CHAT_AI_API_KEY: ${CHAT_AI_API_KEY:-}
+    ports:
+      - "127.0.0.1:3210:3210"
+      - "127.0.0.1:8810:8810"
+    volumes:
+      - files:/data/files
+
+volumes:
+  postgres-data:
+  files:
+```
+
+Puis, dans le même dossier :
+
+```bash
+echo "CHAT_SECRET=$(openssl rand -base64 32)" > .env   # la clé de l'instance, une fois pour toutes
+docker compose up -d
+docker compose logs -f messagerie                      # jusqu'à « à l'écoute sur … »
+```
+
+Au premier démarrage, le serveur crée son schéma dans PostgreSQL ; l’image se dit saine
+(`docker compose ps`) dès que le serveur et l’inbox répondent. Ouvrez alors
+**http://localhost:3210** : l’écran **Bienvenue dans la messagerie** crée le premier superviseur
+— **Nom**, **Adresse e-mail**, **Mot de passe** deux fois (8 caractères au moins), puis **Créer
+le compte**. La base est vide : réglez un site, une boîte et une équipe dans **Administration**,
+comme le montrent les [premiers pas](/messagerie/guides/premiers-pas/).
+
+Pour que l’IA réponde, ajoutez une clé Mistral au `.env`, puis relancez :
+
+```bash
+echo "CHAT_AI_API_KEY=…" >> .env
+docker compose up -d
+```
+
+Pour un autre fournisseur — OpenAI, Ollama, tout serveur compatible OpenAI —, ajoutez ses
+variables au bloc `environment` (voir
+[Variables d’environnement](/messagerie/hebergement/variables/#intelligence-artificielle)).
+
+| Commande | Pour |
+|---|---|
+| `docker compose ps` | l’état et la santé des services |
+| `docker compose logs -f messagerie` | suivre le serveur et l’inbox |
+| `docker compose pull && docker compose up -d` | passer à la dernière version ; le serveur applique ses migrations au démarrage |
+| `docker compose down` | arrêter, en gardant les données |
+| `docker compose down -v` | tout effacer, base et fichiers compris |
+
+:::note[Sur localhost seulement]
+Ce fichier publie les ports sur `127.0.0.1`, en HTTP : il sert à essayer. Pour des conseillers
+et des visiteurs venus d’ailleurs, il faut HTTPS, deux noms de domaine et une sauvegarde : c’est
+la [mise en production](/messagerie/hebergement/production/), avec la même image.
+:::
+
+### Avec votre PostgreSQL
+
+L’image se lance aussi seule, à côté d’un PostgreSQL 16 qui a l’extension **pgvector** :
+
+```bash
+docker run -d --name messagerie \
+  -p 3210:3210 -p 8810:8810 \
+  -v messagerie-files:/data/files \
+  -e DATABASE_URL=postgres://messagerie:…@db.exemple.fr:5432/messagerie \
+  -e CHAT_SECRET="$(openssl rand -base64 32)" \
+  -e CHAT_WEB_ORIGIN=http://localhost:3210 \
+  -e CHAT_PUBLIC_URL=http://localhost:8810 \
+  -e CHAT_API_URL=http://localhost:8810 \
+  eodia/messagerie
+```
+
+L’utilisateur de `DATABASE_URL` doit pouvoir créer l’extension `vector` (ou la trouver déjà
+créée) et, pour les questions en SQL des tableaux de bord, le rôle `chat_analytics`. Gardez la
+valeur de `CHAT_SECRET` : la changer invalide les liens déjà donnés.
+
+### L’image
+
+| | |
+|---|---|
+| Image | `eodia/messagerie`, sur Docker Hub, pour `amd64` et `arm64` |
+| Étiquettes | `0.1.0` (une version exacte), `0.1` (la dernière de la série), `latest` |
+| Ports | `3210` l’inbox, `8810` le serveur — l’API, la connexion, le temps réel, `/widget.js` |
+| Volume | `/data/files` : les pièces jointes des conversations |
+| Commande | aucune : le serveur et l’inbox ; `worker` : le [worker](/messagerie/hebergement/production/#le-worker) seul |
+| Utilisateur | `node`, sans droits |
+| Santé | le serveur (`/health`) et l’inbox répondent |
+
+Toute la configuration passe par des variables d’environnement : voir
+[Variables d’environnement](/messagerie/hebergement/variables/).
+
+## Depuis les sources
+
+Pour développer la messagerie, ou la lire de près. Elle tient en trois applications d’un même
+dépôt — le **serveur** (`apps/server`), l’**inbox** (`apps/web`) et le **widget**
+(`apps/widget`) —, et PostgreSQL vient de `docker compose`.
+
+### Prérequis
 
 - **Node 22** ou plus, et `corepack enable` (le dépôt utilise pnpm).
 - **Docker**, avec Compose v2.
@@ -20,7 +154,7 @@ rapide, et le rechargement à chaud marche. Dans VS Code, **Exécuter et débogu
 (`~/…`).
 :::
 
-## Pour essayer et développer
+### Lancer
 
 ```bash
 corepack pnpm install
@@ -111,9 +245,8 @@ corepack pnpm test:int             # un vrai PostgreSQL par Testcontainers (Dock
 
 ## Mettre en service
 
-En production, la messagerie est publiée en une image Docker, `eodia/messagerie`, qui sert le
-serveur et l’inbox, à côté d’un PostgreSQL avec pgvector. Quelques points à retenir avant de
-commencer :
+En production, c’est [la même image](#limage), `eodia/messagerie`, derrière une passerelle
+HTTPS, à côté d’un PostgreSQL avec pgvector. Quelques points à retenir avant de commencer :
 
 - **`CHAT_SECRET`** est obligatoire, 32 caractères au moins : le serveur refuse de démarrer
   sans lui.

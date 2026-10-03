@@ -107,7 +107,9 @@ ultérieure** (`AGPL-3.0-or-later`). Qui modifie la messagerie et la propose à 
 travers un réseau leur doit le code source de sa version.
 
 :::tip[Essayer]
-Le dépôt cloné, quelques commandes lancent tout : PostgreSQL, le serveur, le widget et l’inbox,
-avec les données de démonstration d’Acme Assurances. Voir
-[l’installation](/messagerie/guides/installation/).
+Avec Docker, un `docker-compose.yml` et `docker compose up -d` lancent PostgreSQL et la
+messagerie en deux minutes, sur votre machine : voir
+[Essayer avec Docker](/messagerie/guides/installation/#essayer-avec-docker). Pour la
+développer, le dépôt cloné lance tout depuis les sources, avec la démonstration d’Acme
+Assurances.
 :::
