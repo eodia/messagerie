@@ -1,0 +1,478 @@
+---
+/**
+ * The chat and the site, played (D21): a quote page of Acme, its widget open. The visitor
+ * asks a price; the assistant asks the page, which works it out and shows it; it offers to
+ * fill the quote, the visitor accepts, and the page's fields fill in — what the page
+ * declared, authorised, accepted.
+ *
+ * The play runs while the section is on screen; without JavaScript, or asked for less
+ * motion, the whole exchange is there, the quote filled.
+ */
+import { href } from '../../lib/site';
+import Icon from '../landing/Icon.astro';
+import Widget from './Widget.astro';
+---
+
+<section class="tm-section page-actions" id="site" data-site>
+	<div class="tm-head">
+		<p class="tm-kicker tm-rise"><Icon name="zap" size={20} />Le chat et votre site</p>
+		<h2 class="tm-display tm-rise">
+			<span>Il ne fait pas que répondre.</span>
+			<span class="tm-grad">Il agit sur votre page.</span>
+		</h2>
+		<p class="tm-lede tm-rise">
+			Votre page dit ce qu’elle sait faire — tarifer, pré-remplir un devis, ouvrir une étape — et où en est le visiteur.
+			L’assistant s’en sert pour lui répondre sur sa page, avec ses chiffres, et la remplit pour lui quand il l’accepte.
+		</p>
+	</div>
+
+	<div class="stage tm-rise" data-stage aria-hidden="true">
+		<div class="site">
+			<div class="site-bar">
+				<span class="logo"></span><b>Acme Assurances</b>
+				<span class="nav">Auto</span><span class="nav">Habitation</span><span class="nav">Sinistres</span>
+				<span class="grow"></span><span class="pill">Mon espace</span>
+			</div>
+			<div class="quote">
+				<p class="crumb">Assurance auto · Devis</p>
+				<h3>Votre devis en deux minutes</h3>
+				<div class="fields">
+					<div class="field" data-lit="7">
+						<span>Valeur du véhicule</span>
+						<i><em class="empty" data-until="7">—</em><em data-s="7">15 000 €</em></i>
+					</div>
+					<div class="field" data-lit="7">
+						<span>Formule</span>
+						<i class="choice">
+							<em class="opt" data-until="7">Tiers</em><em class="opt off" data-s="7">Tiers</em>
+							<em class="opt off" data-until="7">Tous risques</em><em class="opt picked" data-s="7">Tous risques</em>
+						</i>
+					</div>
+					<div class="field" data-lit="8">
+						<span>Âge du conducteur</span>
+						<i><em class="empty">—</em></i>
+					</div>
+					<div class="field" data-lit="8">
+						<span>Code postal</span>
+						<i><em class="empty">—</em></i>
+					</div>
+				</div>
+				<div class="price" data-lit="2" data-lit-until="4">
+					<span class="ap-micro">Votre tarif</span>
+					<b><span data-until="3">— €</span><span data-s="3">42,50 €</span><small> / mois</small></b>
+					<small class="year" data-s="3">soit 510 € par an</small>
+					<span class="asked" data-s="2" data-until="4"><Icon name="sparkles" size={11} />Demandé par l’assistant</span>
+				</div>
+				<span class="submit">Valider le devis</span>
+			</div>
+
+			<Widget class="w" status="Notre assistant répond à toute heure">
+				<div class="m me" data-s="1">Combien pour une Clio de 15 000 € en tous risques ?</div>
+				<div class="act" data-s="2" data-until="3">Calculer un tarif…</div>
+				<div class="act done" data-s="3">Calculer un tarif : fait</div>
+				<div class="m them" data-s="4">
+					<span class="by">Assistant <span class="ia">IA</span></span>
+					Pour une Clio de 15 000 € en tous risques : 42,50 € par mois, soit 510 € par an. Je vous pré-remplis le devis ?
+				</div>
+				<div class="m me" data-s="5">Oui, volontiers.</div>
+				<div class="card" data-s="6" data-until="7">
+					<p><Icon name="sparkles" size={13} />L’assistant propose : Pré-remplir le devis auto</p>
+					<dl><dt>valeur</dt><dd>15000</dd><dt>formule</dt><dd>tous_risques</dd></dl>
+					<div class="buttons"><span class="no">Non merci</span><span class="yes" data-press>Accepter</span></div>
+				</div>
+				<div class="act done" data-s="7">Pré-remplir le devis auto : fait</div>
+				<div class="m them" data-s="8">
+					<span class="by">Assistant <span class="ia">IA</span></span>
+					C’est prêt : il reste votre âge et votre code postal, puis « Valider le devis ».
+				</div>
+			</Widget>
+		</div>
+	</div>
+
+	<div class="tm-points">
+		<div class="tm-rise">
+			<span class="ic"><Icon name="code" size={22} /></span>
+			<h3>La page sait faire, l’IA demande</h3>
+			<p>
+				Quelques lignes de JavaScript déclarent ce que la page sait faire. C’est elle qui calcule : un tarif ne se recopie
+				jamais dans la messagerie, l’assistant le lui demande.
+			</p>
+		</div>
+		<div class="tm-rise">
+			<span class="ic"><Icon name="eye" size={22} /></span>
+			<h3>Elle sait où en est le visiteur</h3>
+			<p>L’étape, le panier, ce que contient le formulaire : la page le dit à chaque message, et l’assistant répond avec ces valeurs-là.</p>
+		</div>
+		<div class="tm-rise">
+			<span class="ic"><Icon name="shield" size={22} /></span>
+			<h3>Le visiteur garde la main</h3>
+			<p>
+				Un superviseur autorise chaque action. Quand la page doit changer, le visiteur accepte d’abord ; et jamais « c’est
+				fait » sans la réponse de la page.
+			</p>
+		</div>
+	</div>
+	<p class="more tm-rise">
+		<a class="tm-link" href={href('/integrations/actions-de-page/')}>Relier le chat à votre page</a>
+	</p>
+</section>
+
+<script>
+	import { reducedMotion, whileVisible } from '../../lib/motion';
+
+	const section = document.querySelector<HTMLElement>('[data-site]');
+	const stage = section?.querySelector<HTMLElement>('[data-stage]');
+	if (section && stage) {
+		const shown = [...stage.querySelectorAll<HTMLElement>('[data-s], [data-until]')];
+		const lit = [...stage.querySelectorAll<HTMLElement>('[data-lit]')];
+		const show = (step: number) => {
+			for (const el of shown) {
+				const from = el.dataset.s === undefined ? -Infinity : Number(el.dataset.s);
+				const until = el.dataset.until === undefined ? Infinity : Number(el.dataset.until);
+				el.classList.toggle('on', step >= from && step < until);
+			}
+			// What the assistant just did to the page, ringed a moment.
+			for (const el of lit) {
+				const from = Number(el.dataset.lit);
+				const until = el.dataset.litUntil === undefined ? from + 1 : Number(el.dataset.litUntil);
+				el.classList.toggle('lit', step >= from && step < until);
+			}
+		};
+		/** How long each step waits before the next one. */
+		const PAUSES = [900, 1300, 1500, 1100, 2600, 1100, 2100, 1700, 4600];
+		if (reducedMotion()) show(99);
+		else {
+			stage.dataset.playing = '';
+			whileVisible(section, async (sleep) => {
+				for (;;) {
+					for (let step = 0; step < PAUSES.length; step++) {
+						show(step);
+						// « Accepter », pressed before the page fills.
+						if (step === 6) {
+							await sleep(PAUSES[step]! - 250);
+							stage.dataset.press = '';
+							await sleep(250);
+							delete stage.dataset.press;
+							continue;
+						}
+						await sleep(PAUSES[step]!);
+					}
+				}
+			});
+		}
+	}
+</script>
+
+<style>
+	.page-actions {
+		overflow: hidden;
+	}
+	.stage {
+		max-width: 1080px;
+		margin: 72px auto 0;
+	}
+
+	/* The client's quote page */
+	.site {
+		position: relative;
+		height: 600px;
+		border-radius: 20px;
+		background: #f5f6f8;
+		overflow: hidden;
+		box-shadow:
+			0 50px 100px -50px rgba(15, 23, 42, 0.35),
+			0 0 0 1px rgba(15, 23, 42, 0.06);
+	}
+	.site-bar {
+		display: flex;
+		align-items: center;
+		gap: 18px;
+		padding: 16px 24px;
+		font-size: 14px;
+		color: #0f172a;
+		background: #fff;
+		border-bottom: 1px solid #e5e7eb;
+	}
+	.site-bar b,
+	.pill {
+		white-space: nowrap;
+	}
+	.site-bar b {
+		margin-right: 10px;
+	}
+	.logo {
+		width: 22px;
+		height: 22px;
+		margin-right: -8px;
+		border-radius: 6px;
+		background: #2563eb;
+	}
+	.nav {
+		font-size: 13px;
+		color: #64748b;
+	}
+	.grow {
+		flex: 1;
+	}
+	.pill {
+		padding: 5px 12px;
+		border-radius: 8px;
+		font-size: 12px;
+		font-weight: 600;
+		color: #fff;
+		background: #0f172a;
+	}
+	.quote {
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+		width: calc(100% - 440px);
+		min-width: 360px;
+		padding: 36px 40px;
+	}
+	.crumb {
+		margin: 0;
+		font-size: 12px;
+		color: #64748b;
+	}
+	.quote h3 {
+		margin: -8px 0 4px;
+		font-size: 26px;
+		font-weight: 700;
+		letter-spacing: -0.02em;
+		color: #0f172a;
+	}
+	.fields {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 14px;
+	}
+	.field {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		padding: 10px 12px;
+		border: 1px solid #e2e8f0;
+		border-radius: 12px;
+		background: #fff;
+		transition:
+			border-color 0.35s ease,
+			box-shadow 0.35s ease;
+	}
+	.field > span {
+		font-size: 11.5px;
+		color: #64748b;
+	}
+	.field i {
+		display: flex;
+		gap: 6px;
+		font-style: normal;
+		font-size: 15px;
+		font-weight: 600;
+		color: #0f172a;
+	}
+	.field em {
+		font-style: normal;
+	}
+	.field .empty {
+		font-weight: 400;
+		color: #cbd5e1;
+	}
+	.choice .opt {
+		padding: 2px 9px;
+		border: 1px solid #e2e8f0;
+		border-radius: 999px;
+		font-size: 12px;
+		font-weight: 500;
+		color: #475569;
+	}
+	.choice .opt.picked {
+		border-color: #2563eb;
+		color: #fff;
+		background: #2563eb;
+	}
+	.price {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		padding: 16px 18px;
+		border: 1px solid #e2e8f0;
+		border-radius: 14px;
+		background: #fff;
+		transition:
+			border-color 0.35s ease,
+			box-shadow 0.35s ease;
+	}
+	.price b {
+		font-size: 30px;
+		letter-spacing: -0.02em;
+		color: #0f172a;
+	}
+	.price b small {
+		font-size: 14px;
+		font-weight: 500;
+		color: #64748b;
+	}
+	.price .year {
+		font-size: 12.5px;
+		color: #64748b;
+	}
+	.asked {
+		position: absolute;
+		top: 14px;
+		right: 14px;
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		padding: 3px 9px;
+		border-radius: 999px;
+		font-size: 11px;
+		font-weight: 600;
+		color: #6d28d9;
+		background: rgba(139, 92, 246, 0.12);
+	}
+	.submit {
+		align-self: flex-start;
+		padding: 10px 18px;
+		border-radius: 10px;
+		font-size: 13.5px;
+		font-weight: 600;
+		color: #fff;
+		background: #2563eb;
+	}
+	/* What the assistant asked of the page, ringed in its colour. */
+	.lit {
+		border-color: rgba(139, 92, 246, 0.6);
+		box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.16);
+	}
+
+	.site :global(.w) {
+		position: absolute;
+		right: 22px;
+		bottom: 22px;
+		height: 540px;
+	}
+	/* The widget's lines for what the AI asked of the page — as the widget draws them. */
+	.act {
+		align-self: center;
+		padding: 4px 10px;
+		border-radius: 999px;
+		font-size: 11px;
+		color: #71717a;
+		background: rgba(124, 58, 237, 0.07);
+	}
+	.act.done {
+		color: #5b21b6;
+	}
+	.card {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		margin-left: 18px;
+		padding: 10px 11px;
+		border: 1px solid #e4e4e7;
+		border-left: 3px solid #7c3aed;
+		border-radius: 12px;
+		font-size: 12px;
+		background: #f4f4f5;
+	}
+	.card p {
+		display: flex;
+		gap: 6px;
+		margin: 0;
+		font-weight: 600;
+		line-height: 1.4;
+	}
+	.card p :global(svg) {
+		flex: none;
+		margin-top: 2px;
+		color: #7c3aed;
+	}
+	.card dl {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: 2px 10px;
+		margin: 0;
+		font-size: 11.5px;
+	}
+	.card dt {
+		color: #71717a;
+	}
+	.card dd {
+		margin: 0;
+	}
+	.buttons {
+		display: flex;
+		justify-content: flex-end;
+		gap: 6px;
+	}
+	.buttons span {
+		padding: 6px 11px;
+		border-radius: 8px;
+		font-weight: 600;
+		transition: transform 0.15s ease;
+	}
+	.buttons .no {
+		border: 1px solid #e4e4e7;
+		background: #fff;
+	}
+	.buttons .yes {
+		color: #fff;
+		background: #2563eb;
+	}
+	.stage[data-press] [data-press] {
+		transform: scale(0.92);
+	}
+
+	/* The steps appear one by one — only once the play has taken them in hand; without it,
+	   the end of the exchange. */
+	.stage:not([data-playing]) [data-until] {
+		display: none;
+	}
+	.stage[data-playing] [data-s]:not(.on),
+	.stage[data-playing] [data-until]:not(.on) {
+		display: none;
+	}
+	.stage[data-playing] .m.on,
+	.stage[data-playing] .act.on,
+	.stage[data-playing] .card.on {
+		animation: rise 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+	}
+	@keyframes rise {
+		from {
+			opacity: 0;
+			transform: translateY(10px);
+		}
+	}
+	.more {
+		margin: 56px 0 0;
+		text-align: center;
+	}
+
+	@media (max-width: 900px) {
+		.site {
+			height: auto;
+			padding-bottom: 20px;
+		}
+		.nav {
+			display: none;
+		}
+		.quote {
+			width: auto;
+			min-width: 0;
+			padding: 24px 20px;
+		}
+		.fields {
+			grid-template-columns: 1fr;
+		}
+		.site :global(.w) {
+			position: relative;
+			right: auto;
+			bottom: auto;
+			width: min(340px, calc(100% - 24px));
+			height: 520px;
+			margin: 0 auto;
+		}
+	}
+</style>

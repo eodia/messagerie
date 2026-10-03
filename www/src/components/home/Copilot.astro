@@ -1,8 +1,9 @@
 ---
 /**
  * The copilot, played in the inbox: a conversation the AI handed over with its summary, a
- * customer's question, the copilot's three suggestions; the agent picks one, the draft
- * fills the composer, the proofreading offers a word in green, the reply leaves.
+ * customer's question, the copilot's three suggestions; the agent picks one and types,
+ * the AI reads the draft over at the pause — each mistake struck in red, the right word in
+ * green beside it —, « Tout accepter », and the reply leaves.
  *
  * Runs while on screen; without JavaScript or asked for less motion, the sent reply.
  */
@@ -25,8 +26,9 @@ const PICKED = 1;
 			<span class="tm-grad">Le copilote souffle la suite.</span>
 		</h2>
 		<p class="tm-lede tm-rise">
-			Le résumé de ce qui s’est dit, trois réponses possibles, une relecture pendant la frappe. Le conseiller choisit,
-			corrige, envoie : il garde la main, et son avis sur chaque réponse de l’IA nourrit son évaluation.
+			Le résumé de ce qui s’est dit, trois réponses possibles, et l’orthographe relue en direct, pendant la frappe. Le
+			conseiller choisit, corrige, envoie : il garde la main, et son avis sur chaque réponse de l’IA nourrit son
+			évaluation.
 		</p>
 	</div>
 
@@ -71,9 +73,9 @@ const PICKED = 1;
 			<div class="box">
 				<p class="draft">
 					<span class="placeholder">Écrire au visiteur — « / » pour une réponse type…</span>
-					<span class="text" data-draft></span><span class="fix" data-show="4" data-hide="5"><s>demenagement</s><em>déménagement</em></span><span class="caret"></span>
+					<span class="text" data-draft></span><span class="caret"></span>
 				</p>
-				<p class="hint" data-show="4" data-hide="5">Un clic sur un mot en vert l’accepte.</p>
+				<p class="hint" data-show="4" data-hide="5">Relu par l’IA : un clic sur un mot en vert l’accepte.</p>
 				<div class="tools">
 					<Icon name="paperclip" size={14} />
 					<Icon name="smile" size={14} />
@@ -84,6 +86,11 @@ const PICKED = 1;
 					<Icon name="wand" size={14} />
 					<Icon name="mic" size={14} />
 					<span class="grow"></span>
+					<span class="proof" data-show="4" data-hide="5">
+						<b><Icon name="check" size={13} />2 corrections</b>
+						<span class="ap-btn ghost">Ignorer</span>
+						<span class="ap-btn" data-accept>Tout accepter</span>
+					</span>
 					<span class="ap-btn primary" data-press><Icon name="send" />Envoyer</span>
 				</div>
 			</div>
@@ -98,8 +105,11 @@ const PICKED = 1;
 		</div>
 		<div class="tm-rise">
 			<span class="ic"><Icon name="wand" size={22} /></span>
-			<h3>Suggérer, reformuler, relire</h3>
-			<p>Des réponses à choisir, un brouillon reformulé, l’orthographe relue après chaque pause.</p>
+			<h3>L’orthographe relue en direct</h3>
+			<p>
+				À chaque pause, l’IA relit le brouillon : la faute barrée en rouge, le bon mot en vert à côté. Un clic l’accepte,
+				ou tout d’un coup. Et la baguette reformule : plus clair, plus court, plus chaleureux.
+			</p>
 		</div>
 		<div class="tm-rise">
 			<span class="ic"><Icon name="checkCircle" size={22} /></span>
@@ -119,8 +129,19 @@ const PICKED = 1;
 	const picked = panel?.querySelector<HTMLElement>('.card.picked');
 	if (section && panel && draft && picked) {
 		const full = picked.textContent ?? '';
-		// The draft is typed with one word misspelled, which the proofreading then offers.
-		const typo = `${full.replace(/ \?$/, '')} `;
+		// The draft is typed with two words misspelled, which the proofreading then offers.
+		const FIXES: ReadonlyArray<readonly [string, string]> = [
+			['adresse', 'addresse'],
+			['déménagement', 'demenagement'],
+		];
+		const typo = FIXES.reduce((text, [right, wrong]) => text.replace(right, wrong), full);
+		const escape = (text: string) =>
+			text.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c] ?? c);
+		const proofread = FIXES.reduce(
+			(html, [right, wrong]) => html.replace(wrong, `<span class="fix"><s>${wrong}</s><em>${right}</em></span>`),
+			escape(typo),
+		);
+		const accept = panel.querySelector<HTMLElement>('[data-accept]');
 		const show = (step: number) => {
 			panel.dataset.step = String(step);
 			for (const el of panel.querySelectorAll<HTMLElement>('[data-show]')) {
@@ -147,15 +168,21 @@ const PICKED = 1;
 					await sleep(1800);
 					show(3);
 					await sleep(700);
-					// The draft fills, up to the word the proofreading will offer.
-					const head = typo.split('déménagement')[0] ?? '';
-					for (let i = 0; i <= head.length; i += 2) {
-						draft.textContent = head.slice(0, i);
-						await sleep(28);
+					// The draft is typed, mistakes and all.
+					for (let i = 0; i <= typo.length; i += 2) {
+						draft.textContent = typo.slice(0, i);
+						await sleep(26);
 					}
+					draft.textContent = typo;
+					// The pause: the AI reads it over, its corrections in the text itself.
+					await sleep(700);
+					draft.innerHTML = proofread;
 					show(4);
-					await sleep(1900);
-					draft.textContent = `${head}déménagement ?`;
+					await sleep(2600);
+					accept?.setAttribute('data-down', '');
+					await sleep(220);
+					accept?.removeAttribute('data-down');
+					draft.textContent = full;
 					show(5);
 					await sleep(1100);
 					panel.dataset.press = '';
@@ -361,17 +388,52 @@ const PICKED = 1;
 	.panel[data-step='5'] .placeholder {
 		display: none;
 	}
-	.fix s {
-		text-decoration: underline wavy #16a34a;
-		text-decoration-skip-ink: none;
+	/* The proofreading, as the inbox draws it: struck in red, the right word in green. */
+	.draft :global(.fix s) {
+		border-radius: 3px;
+		text-decoration: line-through;
+		text-decoration-color: #f43f5e;
+		background: rgba(244, 63, 94, 0.12);
 	}
-	.fix em {
-		margin-left: 4px;
-		padding: 0 4px;
-		border-radius: 4px;
+	.draft :global(.fix em) {
+		margin-left: 2px;
+		padding: 0 2px;
+		border-radius: 3px;
 		font-style: normal;
-		color: #15803d;
-		background: rgba(34, 197, 94, 0.14);
+		color: #065f46;
+		background: rgba(16, 185, 129, 0.16);
+	}
+	.draft :global(.fix) {
+		animation: rise 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+	}
+	.proof {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 11px;
+	}
+	.proof b {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		font-weight: 500;
+		color: var(--ap-fg);
+	}
+	.proof b :global(svg) {
+		color: #047857;
+	}
+	.proof .ap-btn {
+		height: 24px;
+		padding: 0 8px;
+		font-size: 11px;
+		transition: transform 0.15s ease;
+	}
+	.proof .ap-btn.ghost {
+		border-color: transparent;
+		background: transparent;
+	}
+	.proof [data-down] {
+		transform: scale(0.92);
 	}
 	.caret {
 		display: none;
@@ -420,7 +482,7 @@ const PICKED = 1;
 	/* What the play shows step by step; without it, everything but the passing states. */
 	.panel:not([data-playing]) .suggest,
 	.panel:not([data-playing]) .hint,
-	.panel:not([data-playing]) .fix,
+	.panel:not([data-playing]) .proof,
 	.panel[data-playing] [data-show]:not(.on) {
 		display: none;
 	}
