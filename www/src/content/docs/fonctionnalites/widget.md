@@ -142,6 +142,10 @@ espagnol), qui règle aussi l’écriture des heures et des jours. Aujourd’hui
 sont traduits en anglais ; en allemand et en espagnol, ils restent en français. Le titre, le
 message d’accueil et les questions suggérées sont ceux que le site a écrits.
 
+La langue du widget n’est pas celle de la conversation : un visiteur peut écrire dans la sienne.
+L’IA lui répond dans sa langue, et, quand le site a la **Traduction automatique**, les réponses
+des conseillers lui parviennent traduites ([copilote](/messagerie/fonctionnalites/copilote/#la-traduction-automatique)).
+
 ## Horaires
 
 Les horaires d’ouverture et les fermetures exceptionnelles se règlent dans **Administration ›

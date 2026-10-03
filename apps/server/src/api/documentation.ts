@@ -417,6 +417,10 @@ export function documentation(base: string): DocSection[] {
       ['Champ', 'Sens'],
       [
         ['`intent`, `summary`', 'L’intention et le résumé qu’en a faits l’IA.'],
+        [
+          '`language`',
+          'La langue du visiteur (`de`, `en`…), lue par l’IA quand son site traduit ; `null` sinon.',
+        ],
         ['`data`', 'Les métadonnées que la page ou un conseiller a jointes.'],
         ['`contact`', 'La fiche entière.'],
         [
@@ -442,6 +446,7 @@ export function documentation(base: string): DocSection[] {
         ['`handoff`', 'L’IA a passé la main, avec son résumé.'],
       ],
     ),
+    'Dans une conversation dans une autre langue, un message `visitor` ou `ai` porte `translation` (`from`, `language`, `body`) : ses mots en français. Une réponse `agent` envoyée traduite porte les mots du conseiller dans `translation`, et dans `body` ce qu’a lu le visiteur.',
     'Un message supprimé pour tout le monde porte `deleted` (`by`, `at`) et un `body` vide. Le texte est dans le petit Markdown de la Messagerie : **gras**, *italique*, listes, liens, citations.',
   )
 

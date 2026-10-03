@@ -308,6 +308,7 @@ En plus des champs de la liste :
 | `contact` | La fiche entière : `phone`, `location`, `country`, `timeZone`, `place` (un point, `approximate` quand il vient du fuseau horaire), `segment`, `attributes` transmis par le site, `data` déclarées par la page ou un conseiller. |
 | `data` | Les métadonnées jointes à la conversation par la page ou un conseiller. |
 | `intent`, `summary` | L’intention et le résumé qu’en a faits l’IA, ou `null`. |
+| `language` | La langue du visiteur (`de`, `en`…), lue par l’IA quand son site traduit ([traduction automatique](/messagerie/fonctionnalites/copilote/#la-traduction-automatique)) ; `null` sinon. |
 | `suggestions` | Les réponses que le copilote propose pour la suite, de 0 à 3. |
 | `history` | Les autres conversations du contact : `subject`, `at`, `status`. |
 | `pages` | Les pages que le visiteur a ouvertes depuis le début de la conversation, la plus récente d’abord, vingt au plus : `url`, `title`, `at`, `leftAt` — `null` tant qu’elle est ouverte. Ce que dit son widget, non vérifié. |
@@ -327,6 +328,11 @@ Chaque message a un `id`, une date `at` et un `kind` :
 Un fichier joint (`attachments`) porte `id`, `name`, `mime`, `size`, `analysis` (ce qu’en a dit
 l’IA, à la demande d’un conseiller, ou `null`) et `url` : un chemin signé, relatif à l’adresse du
 serveur, qui lit le fichier sans jeton pendant environ un jour.
+
+Dans une conversation dans une autre langue, un message `visitor` ou `ai` porte `translation` :
+`from` (la langue de `body`), `language` (`fr`) et `body`, ses mots en français. Une réponse
+`agent` envoyée traduite porte dans `body` ce qu’a lu le visiteur, et dans `translation` les
+mots du conseiller.
 
 Un message supprimé pour tout le monde porte `deleted` (`by`, `at`) et un `body` vide.
 

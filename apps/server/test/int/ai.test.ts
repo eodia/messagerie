@@ -9,6 +9,7 @@ import { Knowledge } from '../../src/ai/knowledge.js'
 import { McpConnections } from '../../src/ai/mcp.js'
 import { type AiDeps, answerVisitor } from '../../src/ai/responder.js'
 import { purgeExpired } from '../../src/ai/retention.js'
+import { translateReply, translateThread } from '../../src/ai/translate.js'
 import { type Db, connect, migrateDatabase } from '../../src/db/client.js'
 import {
   agents,
@@ -21,6 +22,8 @@ import {
   notifications,
 } from '../../src/db/schema.js'
 import { createConversation, receiveVisitorMessage } from '../../src/inbox/incoming.js'
+import { loadConversation } from '../../src/inbox/read.js'
+import { sendMessage } from '../../src/inbox/write.js'
 import { MemorySource } from '../../src/settings/demo.js'
 import { Settings } from '../../src/settings/settings.js'
 
@@ -311,6 +314,116 @@ describe('the reading of a conversation', () => {
     await enrich(deps, id)
     const [row] = await db.select().from(conversations).where(eq(conversations.id, id))
     expect(row).toMatchObject({ sentiment: 'negative', priority: 'high', intent: 'Insulte' })
+  })
+})
+
+describe('the automatic translation', () => {
+  const agent = async () => {
+    const [row] = await db.select().from(agents).where(eq(agents.login, 'dev-marc'))
+    if (!row) throw new Error('no agent')
+    return row
+  }
+
+  it('reads the visitor’s language, and translates their words and the AI’s for the agents', async () => {
+    llm.script = decide({ intent: 'Remboursement', tags: [], sentiment: 'neutral', language: 'DE' })
+    const id = await visitorAsks('Wann werde ich erstattet?')
+    await db
+      .insert(messages)
+      .values({ conversationId: id, author: 'ai', body: 'Innerhalb von 5 bis 10 Werktagen.' })
+    await enrich(deps, id)
+    const [row] = await db.select().from(conversations).where(eq(conversations.id, id))
+    expect(row?.language).toBe('de')
+
+    llm.script = (request) => {
+      const asked = String(request.messages[1]?.content ?? '')
+      expect(asked).toContain('[m1]\nWann werde ich erstattet?')
+      return {
+        text: JSON.stringify({
+          messages: [
+            { id: 'm1', language: 'de', text: 'Quand serai-je remboursé ?' },
+            { id: 'm2', language: 'de', text: 'Sous 5 à 10 jours ouvrés.' },
+          ],
+        }),
+      }
+    }
+    await translateThread(deps, id)
+    const seen = await loadConversation(db, id, await agent())
+    expect(seen.language).toBe('de')
+    const [visitor, ai] = seen.messages
+    expect(visitor).toMatchObject({
+      kind: 'visitor',
+      body: 'Wann werde ich erstattet?',
+      translation: { from: 'de', language: 'fr', body: 'Quand serai-je remboursé ?' },
+    })
+    expect(ai).toMatchObject({
+      kind: 'ai',
+      translation: { from: 'de', language: 'fr', body: 'Sous 5 à 10 jours ouvrés.' },
+    })
+
+    // Read once: the model is not asked again for the same words.
+    const asked = llm.requests.length
+    await translateThread(deps, id)
+    expect(llm.requests.length).toBe(asked)
+    const [run] = await db
+      .select()
+      .from(aiRuns)
+      .where(and(eq(aiRuns.conversationId, id), eq(aiRuns.kind, 'translation')))
+    expect(run?.output).toMatchObject({ translated: 2 })
+  })
+
+  it('costs nothing in the agents’ language', async () => {
+    llm.script = decide({ intent: 'Attestation', tags: [], sentiment: 'neutral', language: 'fr' })
+    const id = await visitorAsks('Où trouver mon attestation ?')
+    await enrich(deps, id)
+    const asked = llm.requests.length
+    await translateThread(deps, id)
+    expect(llm.requests.length).toBe(asked)
+    const seen = await loadConversation(db, id, await agent())
+    expect(seen.messages[0]).not.toHaveProperty('translation')
+  })
+
+  it('sends the agent’s reply in the visitor’s language, and keeps the agent’s words', async () => {
+    const id = await visitorAsks('Where is my certificate?')
+    await db.update(conversations).set({ language: 'en' }).where(eq(conversations.id, id))
+    llm.script = (request) => {
+      expect(String(request.messages[0]?.content)).toContain('anglais')
+      return {
+        text: JSON.stringify({ language: 'fr', text: 'It is in your customer area.' }),
+      }
+    }
+    const reply = await translateReply(
+      { db, llm, redact: true },
+      id,
+      'Elle est dans votre espace client.',
+      'en',
+    )
+    expect(reply).toEqual({
+      body: 'It is in your customer area.',
+      meta: {
+        language: 'en',
+        translation: { from: 'en', language: 'fr', body: 'Elle est dans votre espace client.' },
+      },
+    })
+    const sent = await sendMessage(
+      db,
+      await agent(),
+      id,
+      { body: reply.body, kind: 'reply' },
+      undefined,
+      reply.meta,
+    )
+    expect(sent.messages.at(-1)).toMatchObject({
+      kind: 'agent',
+      body: 'It is in your customer area.',
+      translation: { body: 'Elle est dans votre espace client.' },
+    })
+
+    // Words already in the visitor's language — a suggestion of the copilot — go as they are.
+    llm.script = decide({ language: 'en', text: 'Hello there.' })
+    expect(await translateReply({ db, llm, redact: true }, id, 'Hello!', 'en')).toEqual({
+      body: 'Hello!',
+      meta: { language: 'en' },
+    })
   })
 })
 

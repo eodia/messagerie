@@ -103,11 +103,26 @@ export interface Attachment {
   readonly analysis: AttachmentAnalysis | null
 }
 
+/**
+ * « Traduction automatique »: a message in the agents' language when its words are in
+ * another. The visitor's and the AI's words, translated for the agents; or an agent's reply
+ * as they wrote it, before it went out translated in `body`.
+ */
+export interface Translation {
+  /** The language of the message's `body` — ISO 639-1: `de`, `en`… */
+  readonly from: string
+  /** The language of `body` here. */
+  readonly language: string
+  readonly body: string
+}
+
 export interface VisitorMessage extends MessageBase {
   readonly kind: 'visitor'
   /** Empty when the visitor only sent files. */
   readonly body: string
   readonly attachments: readonly Attachment[]
+  /** Their words in the agents' language. */
+  readonly translation?: Translation
 }
 
 export interface AgentMessage extends MessageBase {
@@ -115,13 +130,18 @@ export interface AgentMessage extends MessageBase {
   readonly author: string
   /** Who wrote it — they may delete it for everyone. */
   readonly authorId: string | null
+  /** What the visitor read. */
   readonly body: string
   readonly attachments: readonly Attachment[]
+  /** Sent translated: the agent's own words. */
+  readonly translation?: Translation
 }
 
 export interface AiMessage extends MessageBase {
   readonly kind: 'ai'
   readonly body: string
+  /** Its words in the agents' language. */
+  readonly translation?: Translation
   /** 0 to 1: under the site's threshold, the AI hands over instead of answering. */
   readonly confidence: number
   readonly sources: readonly Source[]
@@ -242,6 +262,11 @@ export interface Conversation {
   readonly assigneeId: string | null
   readonly unread: boolean
   readonly intent: string | null
+  /**
+   * The visitor's language, read by the AI where their site translates — ISO 639-1. Not
+   * the agents' language: their messages read translated, and replies may go out in it.
+   */
+  readonly language: string | null
   readonly tags: readonly Tag[]
   readonly sentiment: Sentiment | null
   readonly priority: Priority

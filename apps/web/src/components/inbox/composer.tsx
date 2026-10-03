@@ -15,6 +15,7 @@ import { Kbd } from '@/components/ui/kbd'
 import { Hint } from '@/components/ui/tooltip'
 import { ApiFailure, api } from '@/lib/api'
 import { $t, $tp, msg } from '@/lib/i18n'
+import { languageName, teamLanguage } from '@/lib/languages'
 import { plainOf } from '@/lib/rich-text'
 import { canDictate, useDictation } from '@/lib/speech'
 import { useInbox } from '@/lib/store/inbox'
@@ -25,6 +26,7 @@ import {
   BookText,
   ChevronDown,
   CircleCheck,
+  Languages,
   LoaderCircle,
   MessageSquare,
   Mic,
@@ -147,12 +149,19 @@ export function Composer({
 
   const suggestions = conversation.suggestions
   const canSend = (draft.trim() !== '' || files.length > 0) && !sending
+  // « Traduction automatique »: a visitor in another language reads the reply in theirs.
+  const foreign =
+    conversation.language !== null && conversation.language !== teamLanguage()
+      ? conversation.language
+      : null
+  const [translating, setTranslating] = useState(true)
 
   // Another conversation: the files chosen for this one are not carried over.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the conversation is the trigger
   useEffect(() => {
     setFiles([])
     setRefused(null)
+    setTranslating(true)
   }, [conversation.id])
 
   function addFiles(chosen: readonly File[]) {
@@ -313,7 +322,8 @@ export function Composer({
   async function submit(andResolve = false) {
     if (!canSend) return
     // A refused send keeps the draft and the files; the inbox says why.
-    if (await send(conversation.id, draft.trim(), mode, andResolve, files)) {
+    const translate = mode === 'reply' && foreign !== null && translating
+    if (await send(conversation.id, draft.trim(), mode, andResolve, files, translate)) {
       setFromCopilot(false)
       setFiles([])
       setRefused(null)
@@ -637,6 +647,33 @@ export function Composer({
                   </DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              {mode === 'reply' && foreign && (
+                <Hint
+                  label={
+                    translating
+                      ? $t('Envoyé traduit en {language} — cliquez pour envoyer tel quel', {
+                          language: languageName(foreign),
+                        })
+                      : $t('Envoyé tel quel — cliquez pour traduire en {language}', {
+                          language: languageName(foreign),
+                        })
+                  }
+                >
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-pressed={translating}
+                    onClick={() => setTranslating((on) => !on)}
+                    className={cn(
+                      'h-7 gap-1 px-1.5 text-xs text-muted-foreground',
+                      translating && 'bg-accent text-foreground',
+                    )}
+                  >
+                    <Languages className="size-4" />
+                    <span className="font-medium uppercase">{foreign}</span>
+                  </Button>
+                </Hint>
+              )}
               {dictable && (
                 <Hint
                   label={

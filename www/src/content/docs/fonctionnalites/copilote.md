@@ -1,6 +1,6 @@
 ---
 title: Copilote
-description: Ce que l’IA fait pour le conseiller — suggestions de réponse, résumé, étiquettes, reformulation et relecture pendant la frappe, outils lancés depuis le panneau — et l’avis du conseiller sur chaque réponse de l’IA, qui forme le jeu d’évaluation.
+description: Ce que l’IA fait pour le conseiller — suggestions de réponse, résumé, étiquettes, traduction automatique, reformulation et relecture pendant la frappe, outils lancés depuis le panneau — et l’avis du conseiller sur chaque réponse de l’IA, qui forme le jeu d’évaluation.
 ---
 
 Quand un conseiller a la conversation, l’IA ne répond plus au visiteur : elle l’aide. Elle
@@ -60,6 +60,33 @@ L’IA ne pose que les étiquettes dont la case **L’IA peut la poser seule** e
 d’après leur champ **Quand l’appliquer**. Elle remplace les siennes à chaque passage ; celles
 d’un conseiller restent. La priorité est haute quand le client est bloqué ou mécontent, urgente
 en cas de danger ou de délai légal.
+
+## La traduction automatique
+
+Un visiteur qui écrit dans une autre langue que celle des conseillers est lu traduit, et les
+réponses lui parviennent dans la sienne. Le conseiller écrit en français ; le visiteur lit en
+allemand, en anglais, en polonais : toute langue que le modèle connaît.
+
+- **La langue du visiteur.** L’IA la lit avec l’intention et le sentiment, à chaque message
+  du visiteur. Elle est retenue sur la conversation quand son site a la case **Traduction
+  automatique** cochée ([paramétrage](/messagerie/fonctionnalites/parametrage/)), ce qu’il a
+  par défaut.
+- **Ce que le conseiller lit.** Dans une conversation dans une autre langue, les messages du
+  visiteur et les réponses de l’IA paraissent traduits en français. Sous chacun, **Écrit en
+  allemand · Voir l’original** montre les mots tels qu’ils ont été écrits ; **Voir la
+  traduction** revient au français. Une conversation en français ne coûte aucun appel de plus.
+- **Ce que le conseiller envoie.** Sous le champ, le bouton de traduction dit la langue du
+  visiteur (**DE**). Allumé — c’est le cas à l’ouverture de chaque conversation —, la réponse
+  part traduite : le visiteur lit l’allemand, le conseiller garde son français dans le fil, sous
+  **Envoyé en allemand · Voir l’envoi**. Éteint, elle part telle qu’elle est écrite. Une
+  suggestion du copilote, déjà dans la langue du client, part telle quelle.
+- **Si la traduction échoue**, la réponse ne part pas : le composeur le dit et garde le
+  brouillon, à renvoyer ou à envoyer sans traduire.
+
+Les notes ne sont jamais traduites. Chaque traduction est un appel au modèle, tracé comme les
+autres (`chat.ai_run`, raison `translation`) et masqué de la même façon
+([données personnelles](/messagerie/fonctionnalites/agent-ia/#les-données-personnelles)).
+L’API et les webhooks donnent les messages avec leur traduction (`translation`).
 
 ## Reformuler et relire
 

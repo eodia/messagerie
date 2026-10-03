@@ -210,16 +210,13 @@ export const api = {
     request<void>('DELETE', `/settings/${encodeURIComponent(table)}/${encodeURIComponent(id)}`),
   inviteAgent: (body: InviteBody) => request<Invited>('POST', '/agents/invite', body),
   /** A reply or a note with files — words optional. */
-  sendFiles: (
-    id: string,
-    files: readonly File[],
-    message: { readonly body: string; readonly kind: 'reply' | 'note'; readonly resolve?: boolean },
-  ) => {
+  sendFiles: (id: string, files: readonly File[], message: SendMessageBody) => {
     const form = new FormData()
     for (const file of files) form.append('file', file, file.name)
     form.append('body', message.body)
     form.append('kind', message.kind)
     if (message.resolve) form.append('resolve', 'true')
+    if (message.translate) form.append('translate', 'true')
     return request<Conversation>('POST', `${conversation(id)}/attachments`, form)
   },
   gifs: (query: string, offset = 0) =>

@@ -64,6 +64,8 @@ export const aiRunKind = chat.enum('ai_run_kind', [
   'speech',
   /** An automation's « Demander à l'IA » step (D20). */
   'automation',
+  /** The visitor's words in the agents' language, and the agent's in the visitor's. */
+  'translation',
 ])
 export const feedbackAction = chat.enum('feedback_action', ['accepted', 'edited', 'rejected'])
 export const tagOrigin = chat.enum('tag_origin', ['agent', 'ai'])
@@ -222,6 +224,11 @@ export const conversations = chat.table(
     priority: priority('priority').notNull().default('normal'),
     sentiment: sentiment('sentiment'),
     intent: text('intent'),
+    /**
+     * The visitor's language, as the AI reads it (ISO 639-1: `de`, `en`…): the agents read a
+     * conversation in another language translated, and their replies go out in it.
+     */
+    language: text('language'),
     /** Written by the AI when an agent picks the conversation up, and at its close. */
     summary: text('summary'),
     /** Something new for the agents since one last opened it. */
@@ -267,6 +274,14 @@ export interface MessageMeta {
   readonly sources?: readonly Source[]
   /** An event: what happened. */
   readonly event?: ConversationEvent
+  /**
+   * The message in the agents' language, when its words are in another — the visitor's,
+   * the AI's, translated for the agents; or the agent's own words, as written before they
+   * went out translated in `body`. `from` is the language of `body`.
+   */
+  readonly translation?: { readonly from: string; readonly language: string; readonly body: string }
+  /** The language of `body`, once the AI read it — `fr`, `de`… */
+  readonly language?: string
   /** A handoff: why, and what the agent needs to pick the conversation up. */
   readonly handoff?: {
     readonly reason: string
@@ -805,6 +820,8 @@ export const sites = chat.table('site', {
   aiEnabled: boolean('ai_enabled').notNull().default(true),
   aiThreshold: integer('ai_threshold'),
   aiInstructions: text('ai_instructions'),
+  /** The agents read the visitors in their language, and answer in the visitors'. */
+  translate: boolean('translate').notNull().default(true),
   retentionDays: integer('retention_days'),
   active: boolean('active').notNull().default(true),
   inboxId: uuid('inbox_id').references(() => inboxes.id, { onDelete: 'set null' }),

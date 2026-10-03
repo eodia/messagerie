@@ -9,6 +9,7 @@ import type {
 import { and, asc, eq, isNull } from 'drizzle-orm'
 import type { Db } from '../db/client.js'
 import {
+  type MessageMeta,
   accessLog,
   agents,
   aiFeedback,
@@ -95,6 +96,8 @@ export async function sendMessage(
   request: SendMessageBody,
   /** The rows of the files sent with it, given the message's id. */
   attach?: AttachRows,
+  /** A reply sent translated: the agent's own words, and the language it went out in. */
+  meta?: MessageMeta,
 ): Promise<Conversation> {
   const body = request.body.trim()
   if (body === '' && !attach) throw new Refusal('EMPTY_MESSAGE', 400)
@@ -137,6 +140,7 @@ export async function sendMessage(
           kind: 'text',
           agentId: agent.id,
           body,
+          ...(meta ? { meta } : {}),
           createdAt: sentAt,
         })
         .returning({ id: messages.id })

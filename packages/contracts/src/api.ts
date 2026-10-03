@@ -88,6 +88,8 @@ export type ErrorCode =
   | 'AUTOMATION_INVALID'
   /** An automation's own address, called with a wrong key, or while it is off. */
   | 'AUTOMATION_KEY_INVALID'
+  /** The model could not translate the reply: it was not sent. */
+  | 'TRANSLATION_FAILED'
 
 /** Opens the inbox's WebSocket, once, within thirty seconds. */
 export interface Ticket {
@@ -100,6 +102,11 @@ export interface SendMessageBody {
   readonly kind: 'reply' | 'note'
   /** Resolve the conversation once the reply is sent. */
   readonly resolve?: boolean
+  /**
+   * A reply in a conversation in another language (`Conversation.language`): sent
+   * translated into it — the agent's words kept beside the translation.
+   */
+  readonly translate?: boolean
 }
 
 export interface AssignBody {

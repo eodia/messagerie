@@ -98,6 +98,7 @@ export function SitesScreen() {
       'Fuseau horaire': 'Europe/Paris',
       'Agent IA actif': true,
       'Seuil de confiance (%)': 70,
+      'Traduction automatique': true,
       'Conservation (jours)': 365,
     },
   })
@@ -429,6 +430,7 @@ export function SitesScreen() {
         'Agent IA actif',
         'Seuil de confiance (%)',
         "Consignes de l'agent IA",
+        'Traduction automatique',
         'Conservation (jours)',
         'Boîte de réception',
         'Équipe par défaut',
@@ -608,6 +610,15 @@ function SiteForm({
             )}
           </Field>
         </ToggleField>
+        <ToggleField
+          label={$t('Traduction automatique')}
+          hint={$t(
+            'Un visiteur qui écrit dans une autre langue est lu traduit, et vos réponses lui parviennent dans la sienne.',
+          )}
+          checked={bool(values['Traduction automatique'])}
+          onChange={(on) => set('Traduction automatique', on)}
+          disabled={!data.canEdit}
+        />
       </FormSection>
 
       <FormSection title={$t('Conservation')}>

@@ -83,6 +83,7 @@ export const STORES: readonly TableStore[] = [
       'Agent IA actif': { kind: 'column', column: 'aiEnabled' },
       'Seuil de confiance (%)': { kind: 'column', column: 'aiThreshold' },
       "Consignes de l'agent IA": { kind: 'column', column: 'aiInstructions' },
+      'Traduction automatique': { kind: 'column', column: 'translate' },
       'Conservation (jours)': { kind: 'column', column: 'retentionDays' },
       Actif: { kind: 'column', column: 'active' },
       'Boîte de réception': { kind: 'link', column: 'inboxId', target: 'boites' },

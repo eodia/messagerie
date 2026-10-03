@@ -4,6 +4,7 @@ import { copilotAvailable } from './available.js'
 import { enrich, suggest, summarize } from './copilot.js'
 import { type AiDeps, answerVisitor } from './responder.js'
 import { purgeExpired } from './retention.js'
+import { translateThread } from './translate.js'
 
 /**
  * The AI's work, off the request path (D7, D8): queues in PostgreSQL (pg-boss), worked by
@@ -73,6 +74,12 @@ export async function startJobs(
       .catch((error: unknown) => console.error(`chat : tâche ${queue}`, error))
   }
 
+  // A translation that fails is not the answer's failure: the job is not tried again for it.
+  const translating = (conversationId: string) =>
+    translateThread(deps, conversationId).catch((error: unknown) =>
+      console.error('chat : traduction', error),
+    )
+
   if (options.work) {
     const each =
       (handler: (job: ConversationJob) => Promise<void>) =>
@@ -82,14 +89,20 @@ export async function startJobs(
     await boss.work<ConversationJob>(
       QUEUES.answer,
       { localConcurrency: 4 },
-      each(({ conversationId, continuing }) =>
-        answerVisitor(deps, conversationId, continuing === true),
-      ),
+      each(async ({ conversationId, continuing }) => {
+        await answerVisitor(deps, conversationId, continuing === true)
+        // The AI answered in the visitor's language: the agents read it translated.
+        await translating(conversationId)
+      }),
     )
     await boss.work<ConversationJob>(
       QUEUES.enrich,
       { localConcurrency: 2 },
-      each(({ conversationId }) => enrich(deps, conversationId)),
+      each(async ({ conversationId }) => {
+        await enrich(deps, conversationId)
+        // The visitor's language read: their words translated for the agents, if need be.
+        await translating(conversationId)
+      }),
     )
     await boss.work<ConversationJob>(
       QUEUES.suggest,

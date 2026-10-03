@@ -4,6 +4,7 @@ import { Chip } from '@/components/app/chip'
 import { CopyButton } from '@/components/app/copy-button'
 import { Button } from '@/components/ui/button'
 import { $t, $tp, intlLocale, msg } from '@/lib/i18n'
+import { languageName } from '@/lib/languages'
 import { useSpeech } from '@/lib/speech'
 import { clockTime } from '@/lib/time'
 import { cn } from '@/lib/utils'
@@ -17,6 +18,7 @@ import type {
   Message,
   NoteMessage,
   Source,
+  Translation,
   VisitorMessage,
 } from '@chat/contracts'
 import {
@@ -34,6 +36,7 @@ import {
   Forward,
   Hand,
   Inbox,
+  Languages,
   MessagesSquare,
   MousePointerClick,
   Pencil,
@@ -116,6 +119,48 @@ export function SpeakButton({ id, text }: { readonly id: string; readonly text: 
   )
 }
 
+/**
+ * « Traduction automatique »: the words in the agents' language first, the others a click
+ * away.
+ */
+function useTranslated(body: string, translation: Translation | undefined) {
+  const [original, setOriginal] = useState(false)
+  return {
+    text: translation && !original ? translation.body : body,
+    toggle: translation ? () => setOriginal((o) => !o) : null,
+    original,
+  }
+}
+
+/** Which language the words were in — `sent`: an agent's reply, read by the visitor in it. */
+function TranslationToggle({
+  translation,
+  original,
+  sent = false,
+  onToggle,
+}: {
+  readonly translation: Translation
+  readonly original: boolean
+  readonly sent?: boolean
+  readonly onToggle: () => void
+}) {
+  const language = languageName(translation.from)
+  return (
+    <span className="inline-flex items-center gap-1">
+      <Languages className="size-3" />
+      {sent ? $t('Envoyé en {language}', { language }) : $t('Écrit en {language}', { language })}
+      {' · '}
+      <button
+        type="button"
+        onClick={onToggle}
+        className="font-medium underline-offset-2 hover:text-foreground hover:underline"
+      >
+        {original ? $t('Voir la traduction') : sent ? $t('Voir l’envoi') : $t('Voir l’original')}
+      </button>
+    </span>
+  )
+}
+
 export function VisitorBubble({
   message,
   name,
@@ -123,18 +168,29 @@ export function VisitorBubble({
   readonly message: VisitorMessage
   readonly name: string
 }) {
+  const { text, toggle, original } = useTranslated(message.body, message.translation)
   return (
     <div className="group/message flex items-end gap-2.5">
       <ContactAvatar name={name} className="mb-5 size-7 text-[10px]" />
       <div className="max-w-[75%]">
         {message.body && (
           <div className="whitespace-pre-line rounded-2xl rounded-bl-md border bg-background px-3.5 py-2 text-sm shadow-xs">
-            {message.body}
+            {text}
           </div>
         )}
         <AttachmentList items={message.attachments} />
         <Meta>
           {clockTime(message.at)} <SpeakButton id={message.id} text={message.body} />
+          {message.translation && toggle && (
+            <>
+              {' · '}
+              <TranslationToggle
+                translation={message.translation}
+                original={original}
+                onToggle={toggle}
+              />
+            </>
+          )}
         </Meta>
       </div>
     </div>
@@ -142,17 +198,29 @@ export function VisitorBubble({
 }
 
 export function AgentBubble({ message }: { readonly message: AgentMessage }) {
+  const { text, toggle, original } = useTranslated(message.body, message.translation)
   return (
     <div className="group/message flex justify-end">
       <div className="flex max-w-[75%] flex-col items-end">
         {message.body && (
           <RichText
-            text={message.body}
+            text={text}
             className="rounded-2xl rounded-br-md bg-primary px-3.5 py-2 text-sm text-primary-foreground"
           />
         )}
         <AttachmentList items={message.attachments} align="right" />
         <Meta align="right">
+          {message.translation && toggle && (
+            <>
+              <TranslationToggle
+                translation={message.translation}
+                original={original}
+                sent
+                onToggle={toggle}
+              />
+              {' · '}
+            </>
+          )}
           <SpeakButton id={message.id} text={message.body} /> {message.author} ·{' '}
           {clockTime(message.at)}
         </Meta>
@@ -386,6 +454,7 @@ export function AiAnswer({
   readonly onFeedback: (feedback: Feedback) => void
 }) {
   const [sourcesOpen, setSourcesOpen] = useState(true)
+  const { text, toggle, original } = useTranslated(message.body, message.translation)
   return (
     <div className="group/message flex justify-end">
       <article className="w-full max-w-[75%] overflow-hidden rounded-xl border bg-card shadow-xs">
@@ -401,7 +470,16 @@ export function AiAnswer({
           </span>
         </header>
 
-        <RichText text={message.body} className="px-3.5 py-3 text-sm leading-relaxed" />
+        <RichText text={text} className="px-3.5 py-3 text-sm leading-relaxed" />
+        {message.translation && toggle && (
+          <div className="-mt-1.5 px-3.5 pb-2.5 text-[11px] text-muted-foreground">
+            <TranslationToggle
+              translation={message.translation}
+              original={original}
+              onToggle={toggle}
+            />
+          </div>
+        )}
 
         {message.sources.length > 0 && (
           <div className="border-t px-3.5 py-2.5">

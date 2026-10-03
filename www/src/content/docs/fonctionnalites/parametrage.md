@@ -164,7 +164,7 @@ Un site, ou une marque, qui embarque le widget.
 |---|---|
 | **Le site** | **Nom**, affiché en tête du widget ; **Domaines autorisés** — le widget refuse de s’afficher ailleurs, `*.exemple.fr` vaut pour les sous-domaines ; **Langue du widget** ; **Fuseau horaire**, où se lisent les horaires |
 | **Où arrivent ses conversations** | **Boîte de réception** (aucune : la première boîte active) ; **Équipe par défaut**, qui reçoit ce que l’IA transfère |
-| **L’agent IA** | **L’IA répond en premier** ; **Seuil de confiance** ; **Consignes** — le ton, ce qu’elle doit toujours dire, ce qu’elle ne doit jamais promettre ([agent IA](/messagerie/fonctionnalites/agent-ia/)) |
+| **L’agent IA** | **L’IA répond en premier** ; **Seuil de confiance** ; **Consignes** — le ton, ce qu’elle doit toujours dire, ce qu’elle ne doit jamais promettre ([agent IA](/messagerie/fonctionnalites/agent-ia/)) ; **Traduction automatique** — un visiteur dans une autre langue est lu traduit, et les réponses lui parviennent dans la sienne ([copilote](/messagerie/fonctionnalites/copilote/#la-traduction-automatique)) |
 | **Conservation** | **Purger les conversations après** 1 mois, 3 mois, 6 mois, 1 an ou 2 ans — avec leurs pièces jointes et leurs extraits indexés pour l’IA |
 
 Un nouveau site part en français, au fuseau `Europe/Paris`, avec l’IA en premier, un seuil de

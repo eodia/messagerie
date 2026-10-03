@@ -286,6 +286,7 @@ export async function loadConversation(
     assigneeId: conversation.assigneeId,
     unread: conversation.agentUnread,
     intent: conversation.intent,
+    language: conversation.language,
     tags: tags.map((t) => ({ label: t.label, color: t.color, byAi: t.origin === 'ai' })),
     sentiment: conversation.sentiment,
     priority: conversation.priority,
@@ -378,10 +379,12 @@ function toMessage(
   }
   const meta: MessageMeta = row.meta
   const agent = author ?? '—'
+  // Deleted, its words are gone: their translation with them.
+  const translated = meta.translation && !row.deletedAt ? { translation: meta.translation } : {}
   switch (row.kind) {
     case 'text':
       if (row.author === 'contact') {
-        return { ...base, kind: 'visitor', body: row.body, attachments }
+        return { ...base, kind: 'visitor', body: row.body, attachments, ...translated }
       }
       if (row.author === 'agent') {
         return {
@@ -391,6 +394,7 @@ function toMessage(
           authorId: row.agentId,
           body: row.body,
           attachments,
+          ...translated,
         }
       }
       if (row.author === 'ai') {
@@ -398,6 +402,7 @@ function toMessage(
           ...base,
           kind: 'ai',
           body: row.body,
+          ...translated,
           confidence: confidence ?? 0,
           sources: meta.sources ?? [],
           feedback,

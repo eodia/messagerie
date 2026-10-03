@@ -8,6 +8,7 @@ import { Refusal } from '../refusal.js'
 import { type Context, customer, loadContext, numbered } from './context.js'
 import type { AiDeps } from './responder.js'
 import { recordRun } from './runs.js'
+import { languageCode } from './translate.js'
 
 /**
  * The agent's copilot (framing, phase 3): what to answer, with its sources; the
@@ -82,8 +83,8 @@ const PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const
 
 /**
  * What the conversation is about, as each visitor message makes it clearer: its intent,
- * the tags the AI may set, the visitor's mood and a priority. The agents' own tags
- * are never touched.
+ * the tags the AI may set, the visitor's mood, a priority — and their language, where
+ * the site translates. The agents' own tags are never touched.
  *
  * It reads the whole conversation, answered or not: the AI answers within a second or two,
  * and the visitor's words are no less angry for having been answered.
@@ -106,7 +107,7 @@ export async function enrich(deps: AiDeps, conversationId: string): Promise<void
         role: 'system',
         content: [
           'Tu classes une conversation de service client. Réponds UNIQUEMENT en JSON :',
-          '{"intent": "l’intention du visiteur, en quatre mots au plus, en français", "tags": [étiquettes qui s’appliquent, prises dans la liste], "sentiment": "positive" | "neutral" | "negative", "priority": "low" | "normal" | "high" | "urgent"}',
+          '{"intent": "l’intention du visiteur, en quatre mots au plus, en français", "tags": [étiquettes qui s’appliquent, prises dans la liste], "sentiment": "positive" | "neutral" | "negative", "priority": "low" | "normal" | "high" | "urgent", "language": "la langue dans laquelle le visiteur écrit, code ISO 639-1 (fr, en, de…)"}',
           'La priorité est haute quand le client est bloqué ou mécontent, urgente en cas de danger ou de délai légal.',
           `ÉTIQUETTES :\n${tags.map((t) => `- ${t.name}${t.when ? ` : ${t.when}` : ''}`).join('\n') || '(aucune)'}`,
         ].join('\n'),
@@ -123,13 +124,15 @@ export async function enrich(deps: AiDeps, conversationId: string): Promise<void
     typeof json.intent === 'string' && json.intent.trim() ? json.intent.trim().slice(0, 80) : null
   const sentiment = SENTIMENTS.find((s) => s === json.sentiment) ?? null
   const priority = PRIORITIES.find((p) => p === json.priority) ?? null
+  // Kept where the site translates: a conversation with a language is read translated.
+  const language = context.site.translate ? languageCode(json.language) : null
 
   await recordRun(deps.db, {
     conversationId,
     kind: 'tag',
     completion,
     input: { messages: context.history.length },
-    output: { intent, tags: chosen.map((t) => t.name), sentiment, priority },
+    output: { intent, tags: chosen.map((t) => t.name), sentiment, priority, language },
   })
   await deps.db.transaction(async (tx) => {
     await tx
@@ -138,6 +141,7 @@ export async function enrich(deps: AiDeps, conversationId: string): Promise<void
         ...(intent ? { intent } : {}),
         ...(sentiment ? { sentiment } : {}),
         ...(priority ? { priority } : {}),
+        ...(language ? { language } : {}),
       })
       .where(eq(conversations.id, conversationId))
     // The AI's tags are replaced; an agent's stay.

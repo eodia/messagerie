@@ -11,6 +11,7 @@
       "Agent IA actif": true,
       "Seuil de confiance (%)": 70,
       "Consignes de l'agent IA": "Tu es l'assistant d'Acme Assurances. Vouvoie le client et appelle-le par son prénom quand tu le connais. Réponds en trois phrases au plus, simplement. Ne promets jamais un montant d'indemnisation ni une décision sur un dossier : seul un conseiller peut s'y engager. Si la réponse n'est pas dans les sources, dis-le et propose un conseiller.",
+      "Traduction automatique": true,
       "Conservation (jours)": 365,
       "Actif": true,
       "Équipe par défaut": "@support",

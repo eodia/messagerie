@@ -75,6 +75,8 @@ export interface Site {
   /** 0 to 1. */
   readonly threshold: number
   readonly instructions: string | null
+  /** The agents read the visitors translated, and answer them in their language. */
+  readonly translate: boolean
   readonly retentionDays: number | null
   readonly active: boolean
   readonly defaultTeamId: string | null
@@ -392,6 +394,7 @@ export class Settings {
       aiEnabled: bool(values['Agent IA actif']),
       threshold: Math.min(Math.max((num(values['Seuil de confiance (%)']) ?? 75) / 100, 0), 1),
       instructions: text(values["Consignes de l'agent IA"]),
+      translate: bool(values['Traduction automatique']),
       retentionDays: num(values['Conservation (jours)']),
       active: bool(values.Actif),
       defaultTeamId: one(values['Équipe par défaut']),

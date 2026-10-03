@@ -243,6 +243,11 @@
           "description": "Le ton, ce que l'IA doit toujours dire, ce qu'elle ne doit jamais promettre."
         },
         {
+          "label": "Traduction automatique",
+          "kind": "boolean",
+          "description": "Coché : un visiteur qui écrit dans une autre langue est lu traduit par les conseillers, et leurs réponses lui parviennent dans sa langue."
+        },
+        {
           "label": "Conservation (jours)",
           "kind": "number",
           "format": {

@@ -44,6 +44,10 @@ export function messageFor(code: string): string {
       return $t('L’automatisation ne peut pas tourner telle quelle : corrigez l’étape signalée.')
     case 'AUTOMATION_KEY_INVALID':
       return $t('Clé de l’automatisation invalide, ou automatisation arrêtée.')
+    case 'TRANSLATION_FAILED':
+      return $t(
+        'La traduction a échoué : la réponse n’est pas partie. Réessayez, ou envoyez-la sans traduire.',
+      )
     case 'WEBHOOK_NOT_FOUND':
       return $t('Ce webhook n’existe plus.')
     case 'WEBHOOK_TARGET_REJECTED':

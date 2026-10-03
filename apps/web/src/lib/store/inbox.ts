@@ -217,13 +217,14 @@ interface InboxState {
   say: (notice: string) => void
   /** Asks the open conversation for one of its dialogs; `null` once it opened. */
   ask: (dialog: 'assign' | 'transfer' | null) => void
-  /** With files, words are optional. */
+  /** With files, words are optional; `translate`: into the visitor's language. */
   send: (
     id: string,
     body: string,
     kind: 'reply' | 'note',
     resolve?: boolean,
     files?: readonly File[],
+    translate?: boolean,
   ) => Promise<boolean>
   takeOver: (id: string) => Promise<void>
   resolve: (id: string) => Promise<void>
@@ -601,12 +602,12 @@ export const useInbox = create<InboxState>((set, get) => {
       }, 6000)
     },
 
-    send: async (id, body, kind, resolve = false, files = []) => {
+    send: async (id, body, kind, resolve = false, files = [], translate = false) => {
       set({ sending: true })
       const sent = await act(id, () =>
         files.length > 0
-          ? api.sendFiles(id, files, { body, kind, resolve })
-          : api.send(id, { body, kind, resolve }),
+          ? api.sendFiles(id, files, { body, kind, resolve, translate })
+          : api.send(id, { body, kind, resolve, translate }),
       )
       // Sent: the draft is emptied — unless the agent went on typing meanwhile.
       set((state) => ({

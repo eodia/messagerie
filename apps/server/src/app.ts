@@ -18,6 +18,7 @@ import { type Rewording, rephrase } from './ai/copilot.js'
 import type { AiJobs } from './ai/jobs.js'
 import type { McpConnections } from './ai/mcp.js'
 import { speakMessage } from './ai/speech.js'
+import { TEAM_LANGUAGE, translateReply } from './ai/translate.js'
 import { SOURCES } from './analytics/catalog.js'
 import {
   type AnalyticsDeps,
@@ -58,7 +59,7 @@ import {
 } from './automations/manage.js'
 import type { Config } from './config.js'
 import type { Db } from './db/client.js'
-import { conversations } from './db/schema.js'
+import { type MessageMeta, conversations } from './db/schema.js'
 import { filesOf, keeping, readUploads, signLinksWith } from './files/attachments.js'
 import { serveFile, uploadLimit } from './files/routes.js'
 import { DiskStore, type FileStore } from './files/store.js'
@@ -139,14 +140,17 @@ async function jsonBody(request: Request): Promise<Record<string, unknown>> {
 }
 
 function sendBody(raw: Record<string, unknown>): SendMessageBody {
-  const { body, kind, resolve } = raw
+  const { body, kind, resolve, translate } = raw
   if (typeof body !== 'string' || (kind !== 'reply' && kind !== 'note')) {
     throw new Refusal('INVALID_REQUEST', 400, { expected: '{ body: string, kind: reply|note }' })
   }
   if (resolve !== undefined && typeof resolve !== 'boolean') {
     throw new Refusal('INVALID_REQUEST', 400, { field: 'resolve' })
   }
-  return { body, kind, resolve: resolve === true }
+  if (translate !== undefined && typeof translate !== 'boolean') {
+    throw new Refusal('INVALID_REQUEST', 400, { field: 'translate' })
+  }
+  return { body, kind, resolve: resolve === true, translate: translate === true }
 }
 
 function assignBody(raw: Record<string, unknown>): AssignBody {
@@ -532,10 +536,35 @@ export function createApp({
     return c.body(null, 204)
   })
 
+  /**
+   * A reply the agent wants translated, in a conversation in another language: its words
+   * in the visitor's, the agent's kept beside them. Anything else goes as written.
+   */
+  const outgoing = async (
+    id: string,
+    request: SendMessageBody,
+  ): Promise<{ request: SendMessageBody; meta?: MessageMeta }> => {
+    if (!request.translate || request.kind !== 'reply' || !ai || request.body.trim() === '') {
+      return { request }
+    }
+    const [row] = await db
+      .select({ language: conversations.language })
+      .from(conversations)
+      .where(eq(conversations.id, id))
+    if (!row?.language || row.language === TEAM_LANGUAGE) return { request }
+    const { body, meta } = await translateReply(
+      { db, llm: ai.llm, redact: ai.redact },
+      id,
+      request.body,
+      row.language,
+    )
+    return { request: { ...request, body }, meta }
+  }
+
   inbox.post('/conversations/:id/messages', async (c) => {
-    const request = sendBody(await jsonBody(c.req.raw))
     const id = uuidParam(c.req.param('id'))
-    const sent = await sendMessage(db, c.get('agent'), id, request)
+    const { request, meta } = await outgoing(id, sendBody(await jsonBody(c.req.raw)))
+    const sent = await sendMessage(db, c.get('agent'), id, request, undefined, meta)
     if (request.resolve) ai?.jobs.resolved(id)
     return c.json(sent)
   })
@@ -680,15 +709,17 @@ export function createApp({
     const form = await c.req.parseBody({ all: true })
     const uploads = await readUploads(filesOf(form))
     if (uploads.length === 0) throw new Refusal('INVALID_REQUEST', 400, { field: 'file' })
-    const request: SendMessageBody = {
+    const asked: SendMessageBody = {
       body: typeof form.body === 'string' ? form.body : '',
       kind: form.kind === 'note' ? 'note' : 'reply',
       resolve: form.resolve === 'true',
+      translate: form.translate === 'true',
     }
-    if (request.body.length > 4000) throw new Refusal('INVALID_REQUEST', 400, { max: 4000 })
+    if (asked.body.length > 4000) throw new Refusal('INVALID_REQUEST', 400, { max: 4000 })
+    const { request, meta } = await outgoing(id, asked)
     return c.json(
       await keeping(store, id, uploads, (attach) =>
-        sendMessage(db, c.get('agent'), id, request, attach),
+        sendMessage(db, c.get('agent'), id, request, attach, meta),
       ),
     )
   })
