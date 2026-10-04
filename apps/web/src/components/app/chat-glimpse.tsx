@@ -1,6 +1,7 @@
 'use client'
 
 import { Chip } from '@/components/app/chip'
+import { ProductMark } from '@/components/app/product-mark'
 import { ConversationRow } from '@/components/inbox/conversation-list'
 import { ContactAvatar } from '@/components/inbox/labels'
 import {
@@ -312,12 +313,7 @@ export function ChatGlimpse() {
         <div className="absolute top-0 -right-12 -bottom-px left-[12%] flex animate-in fade-in slide-in-from-bottom-10 overflow-hidden rounded-tl-xl border bg-background shadow-[0_32px_80px_-24px_rgb(0_0_0/0.28)] duration-700 ease-out fill-mode-both [animation-delay:250ms]">
           <nav className="hidden w-44 shrink-0 flex-col border-r bg-sidebar text-[13px] 2xl:flex">
             <div className="flex items-center gap-2.5 p-2.5">
-              <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 ring-1 ring-primary/10 ring-inset">
-                <MessagesSquare
-                  className="size-4"
-                  style={{ color: 'color-mix(in oklab, var(--primary) 65%, var(--foreground))' }}
-                />
-              </span>
+              <ProductMark className="size-8" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-semibold">{PRODUCT_NAME}</span>
                 <span className="block truncate text-[11px] text-muted-foreground">

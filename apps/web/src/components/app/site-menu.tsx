@@ -13,10 +13,11 @@ import { $t } from '@/lib/i18n'
 import { PRODUCT_NAME } from '@/lib/product'
 import { useInbox, waitingBySite, waitingCount } from '@/lib/store/inbox'
 import { cn } from '@/lib/utils'
-import { Check, ChevronsUpDown, Globe, MessagesSquare, Settings2 } from 'lucide-react'
+import { Check, ChevronsUpDown, Globe, Settings2 } from 'lucide-react'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import { ProductMark } from './product-mark'
 import { SiteLogo } from './site-logo'
 
 /**
@@ -50,12 +51,7 @@ export function SiteMenu({ collapsed }: { readonly collapsed: boolean }) {
       {shown ? (
         <SiteLogo site={shown} className="size-9 rounded-lg p-0.5 text-sm ring-1 ring-border" />
       ) : (
-        <span className="relative flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/10 ring-inset">
-          <MessagesSquare
-            className="size-4.5"
-            style={{ color: 'color-mix(in oklab, var(--primary) 65%, var(--foreground))' }}
-          />
-        </span>
+        <ProductMark className="size-9" />
       )}
       {!collapsed && (
         <>

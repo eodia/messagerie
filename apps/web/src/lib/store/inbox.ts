@@ -464,6 +464,9 @@ export const useInbox = create<InboxState>((set, get) => {
       let retry: ReturnType<typeof setTimeout> | undefined
       let delay = 500
       let opened = false
+      // The pause goes back to its shortest only once a socket held: one the server closes
+      // as soon as it opens is a failure like another, not a reason to ask twice a second.
+      let steady: ReturnType<typeof setTimeout> | undefined
 
       function again(): void {
         if (stopped) return
@@ -489,7 +492,9 @@ export const useInbox = create<InboxState>((set, get) => {
         const next = new WebSocket(eventsUrl(ticket))
         socket = next
         next.onopen = () => {
-          delay = 500
+          steady = setTimeout(() => {
+            delay = 500
+          }, 10_000)
           set({ live: 'open' })
           // Back after a drop: what changed meanwhile came with no signal.
           if (opened) void get().reload()
@@ -502,6 +507,7 @@ export const useInbox = create<InboxState>((set, get) => {
           else if (event.type === 'typing') setTyping(event.conversationId, true)
         }
         next.onclose = () => {
+          clearTimeout(steady)
           if (socket === next) again()
         }
       }
@@ -512,6 +518,7 @@ export const useInbox = create<InboxState>((set, get) => {
       return () => {
         stopped = true
         clearTimeout(retry)
+        clearTimeout(steady)
         clearInterval(clock)
         socket?.close()
       }

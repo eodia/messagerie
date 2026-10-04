@@ -1,10 +1,11 @@
 'use client'
 
+import { ProductMark } from '@/components/app/product-mark'
 import { Input } from '@/components/ui/input'
 import { $t } from '@/lib/i18n'
 import { PRODUCT_NAME } from '@/lib/product'
 import { cn } from '@/lib/utils'
-import { CircleAlert, Eye, EyeOff, MessagesSquare } from 'lucide-react'
+import { CircleAlert, Eye, EyeOff } from 'lucide-react'
 import type { CSSProperties, ComponentProps, ReactNode } from 'react'
 import { ChatGlimpse } from './chat-glimpse'
 
@@ -31,12 +32,7 @@ export const PRESSABLE =
 export function Brand() {
   return (
     <span className="inline-flex items-center gap-2.5 leading-none">
-      <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/10 ring-inset">
-        <MessagesSquare
-          className="size-4.5"
-          style={{ color: 'color-mix(in oklab, var(--primary) 65%, var(--foreground))' }}
-        />
-      </span>
+      <ProductMark className="size-8" />
       <span className="text-lg font-bold tracking-[-0.035em]" translate="no">
         {PRODUCT_NAME}
       </span>
