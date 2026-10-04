@@ -75,6 +75,27 @@
   stroke: var(--border);
 }
 
+.ghost {
+  fill: color-mix(in oklab, var(--muted-foreground) 16%, var(--card));
+}
+
+/* The chosen tab's underline: the primary, as in the inbox. */
+.tab {
+  stroke: var(--primary);
+  stroke-width: 2;
+}
+
+.tick {
+  stroke: var(--tone);
+  stroke-width: 2;
+  fill: none;
+}
+
+/* A quiet moment: a crescent moon, in the muted ink. */
+.zz {
+  fill: var(--ill-soft);
+}
+
 .slot {
   stroke: var(--border);
   stroke-width: 1.2;

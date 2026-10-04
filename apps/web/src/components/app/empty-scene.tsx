@@ -11,7 +11,7 @@ import styles from './empty-scene.module.css'
  * Decorative: the title and the sentence under it say what to do.
  */
 
-export type EmptySceneVariant = 'no-channel'
+export type EmptySceneVariant = 'no-channel' | 'no-conversations'
 
 /** The window every scene is drawn in: three dots and a bar. */
 function Window({
@@ -97,6 +97,64 @@ export function EmptyScene({
       <ellipse cx="120" cy="96" rx="112" ry="80" fill={`url(#${id}-glow)`} />
       <rect width="240" height="180" fill={`url(#${id}-grid)`} mask={`url(#${id}-grid-mask)`} />
 
+      {variant === 'no-conversations' ? (
+        <NoConversations shadow={shadow} />
+      ) : (
+        <NoChannel shadow={shadow} />
+      )}
+
+      <path d="M18 64v7m-3.5-3.5h7" className={styles.spark} />
+      <circle cx="226" cy="146" r="2.2" className={styles.sparkDot} />
+      <circle cx="16" cy="140" r="1.6" className={styles.soft} />
+    </svg>
+  )
+}
+
+/** The list of conversations, its rows waiting — and a bubble that says all is answered. */
+function NoConversations({ shadow }: { readonly shadow: string }) {
+  return (
+    <>
+      <Window x={30} y={36} w={152} h={124} shadow={shadow} />
+      {/* Its tabs, the first one chosen. */}
+      <rect x="40" y="62" width="22" height="4" rx="2" className={styles.inkStrong} />
+      <path d="M40 71.5h22" className={styles.tab} />
+      <rect x="70" y="62" width="16" height="4" rx="2" className={styles.ink} />
+      <rect x="94" y="62" width="26" height="4" rx="2" className={styles.ink} />
+      <path d="M30 75.5h152" className={styles.divider} />
+      {/* Three rows, none there: an avatar and two lines, dashed. */}
+      {[84, 108, 132].map((y) => (
+        <g key={y}>
+          <rect x="38" y={y} width="136" height="20" rx="6" className={styles.slot} />
+          <circle cx="49" cy={y + 10} r="5" className={styles.slot} />
+          <rect x="60" y={y + 5.5} width="44" height="3.5" rx="1.75" className={styles.soft} />
+          <rect x="60" y={y + 11.5} width="70" height="3" rx="1.5" className={styles.ghost} />
+        </g>
+      ))}
+
+      {/* Nothing waiting: a bubble, ticked. */}
+      <g className={styles.float}>
+        <g className={styles.sms}>
+          <path
+            d="M182 28h34a8 8 0 0 1 8 8v20a8 8 0 0 1-8 8h-20l-9 8v-8h-5a8 8 0 0 1-8-8V36a8 8 0 0 1 8-8Z"
+            className={styles.window}
+            filter={`url(#${shadow})`}
+          />
+          <circle cx="199" cy="46" r="10" className={styles.tileBack} />
+          <path d="m194.5 46 3.2 3.2 6-6.4" className={styles.tick} />
+        </g>
+      </g>
+      <g className={styles.floatSlow}>
+        <circle cx="206" cy="112" r="11" className={styles.window} filter={`url(#${shadow})`} />
+        <path d="M208.5 105.5a7 7 0 1 0 5.5 10.5 5.5 5.5 0 0 1-5.5-10.5Z" className={styles.zz} />
+      </g>
+    </>
+  )
+}
+
+/** « Nouveau message » with nothing to write through yet. */
+function NoChannel({ shadow }: { readonly shadow: string }) {
+  return (
+    <>
       {/* « Nouveau message »: who to, what to say — and its send button, unlit. */}
       <Window x={22} y={40} w={146} h={116} shadow={shadow} />
       <rect x="34" y="68" width="40" height="5" rx="2.5" className={styles.inkStrong} />
@@ -150,10 +208,6 @@ export function EmptyScene({
       <path d="M182 108c-6 0-12-6-16-14" className={styles.path} />
       <circle cx="166" cy="84" r="6.5" className={styles.plugBack} />
       <path d="M163.5 81.5v-2m5 2v-2M162 82h8v2a4 4 0 0 1-8 0Zm4 6v2" className={styles.plug} />
-
-      <path d="M18 64v7m-3.5-3.5h7" className={styles.spark} />
-      <circle cx="226" cy="146" r="2.2" className={styles.sparkDot} />
-      <circle cx="16" cy="140" r="1.6" className={styles.soft} />
-    </svg>
+    </>
   )
 }

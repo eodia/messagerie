@@ -1,6 +1,7 @@
 'use client'
 
 import { Chip, ColorBadge } from '@/components/app/chip'
+import { EmptyScene } from '@/components/app/empty-scene'
 import { Lit } from '@/components/app/lit'
 import { InboxGlyph } from '@/components/app/look'
 import { ResizablePanel } from '@/components/app/resizable-panel'
@@ -431,14 +432,15 @@ export function ConversationList({
           )
         )}
         {!searching && shown.length === 0 && (
-          <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
-            <span className="flex size-11 items-center justify-center rounded-2xl bg-muted">
-              <Inbox className="size-5 text-muted-foreground" />
-            </span>
-            <p className="max-w-56 text-sm text-muted-foreground">
+          <div className="flex flex-col items-center px-6 pt-8 pb-14 text-center">
+            <EmptyScene variant="no-conversations" className="w-52" />
+            <p className="mt-2 text-sm font-semibold">
+              {filter === 'unassigned' ? $t('La file est vide') : $t('Aucune conversation ici')}
+            </p>
+            <p className="mt-1 max-w-60 text-xs text-muted-foreground">
               {filter === 'unassigned'
-                ? $t('La file est vide : chaque conversation a son conseiller.')
-                : $t('Aucune conversation ici.')}
+                ? $t('Chaque conversation a son conseiller.')
+                : $t('Les nouvelles arrivent ici d’elles-mêmes, dès qu’un visiteur écrit.')}
             </p>
           </div>
         )}
