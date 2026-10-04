@@ -1,5 +1,6 @@
 'use client'
 
+import { EmptyScene } from '@/components/app/empty-scene'
 import { ChoiceMenu } from '@/components/settings/field-input'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,8 +20,10 @@ import { $t, $tp } from '@/lib/i18n'
 import { messageFor } from '@/lib/messages'
 import { useInbox } from '@/lib/store/inbox'
 import { useNewMessage } from '@/lib/store/new-message'
+import { cn } from '@/lib/utils'
 import type { ContactListItem, OutreachOptions } from '@chat/contracts'
 import { LoaderCircle, Mail, Send, Smartphone, X } from 'lucide-react'
+import Link from 'next/link'
 import { type ReactNode, useEffect, useId, useState } from 'react'
 import { ContactAvatar } from './labels'
 
@@ -159,13 +162,14 @@ export function NewMessageDialog() {
   }
 
   const nothing = options !== null && !canSms && !canEmail
+  const supervisor = useInbox((s) => s.me?.role === 'supervisor')
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && hide()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{$t('Nouveau message')}</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className={cn(nothing && 'sr-only')}>
             {sms
               ? rcs
                 ? $t(
@@ -185,11 +189,7 @@ export function NewMessageDialog() {
         </DialogHeader>
 
         {nothing ? (
-          <p className="rounded-lg border border-dashed px-3 py-3 text-sm text-muted-foreground">
-            {$t(
-              'Aucun moyen d’écrire au client pour l’instant : un superviseur ajoute un numéro dans « Numéros SMS » ou une adresse dans « Adresses e-mail », ou le serveur se voit donner un serveur d’e-mail (CHAT_SMTP_URL).',
-            )}
-          </p>
+          <NoChannel supervisor={supervisor} onLeave={hide} />
         ) : (
           <form
             className="grid min-w-0 gap-4"
@@ -416,5 +416,50 @@ export function NewMessageDialog() {
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+/**
+ * Nothing to write through yet: the scene of it, and what to do — the settings, for a
+ * supervisor; a word to one, for an agent.
+ */
+function NoChannel({
+  supervisor,
+  onLeave,
+}: { readonly supervisor: boolean; readonly onLeave: () => void }) {
+  return (
+    <div className="flex flex-col items-center px-2 pt-1 pb-2 text-center">
+      <EmptyScene variant="no-channel" className="w-56" />
+      <p className="mt-2 text-sm font-semibold">{$t('Aucun canal pour écrire le premier')}</p>
+      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+        {supervisor
+          ? $t(
+              'Ajoutez une adresse e-mail ou un numéro SMS : vous pourrez alors écrire à vos clients avant qu’ils ne vous écrivent.',
+            )
+          : $t('Un superviseur doit d’abord ajouter une adresse e-mail ou un numéro SMS.')}
+      </p>
+      {supervisor && (
+        <>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <Button asChild size="sm" className="gap-1.5" onClick={onLeave}>
+              <Link href="/parametrage/email">
+                <Mail className="size-3.5" />
+                {$t('Ajouter une adresse e-mail')}
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="outline" className="gap-1.5" onClick={onLeave}>
+              <Link href="/parametrage/sms">
+                <Smartphone className="size-3.5" />
+                {$t('Ajouter un numéro SMS')}
+              </Link>
+            </Button>
+          </div>
+          <p className="mt-3 text-[11px] text-muted-foreground">
+            {$t('Ou donnez au serveur un serveur d’e-mail :')}{' '}
+            <code className="font-mono">CHAT_SMTP_URL</code>
+          </p>
+        </>
+      )}
+    </div>
   )
 }

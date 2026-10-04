@@ -1,0 +1,161 @@
+/* eodia-insights' empty scenes, in the messaging's colours: its tokens, an e-mail in sky, an
+   SMS in emerald — the tints of `Chip`. */
+.scene {
+  --ill-sky: #0284c7;
+  --ill-emerald: #059669;
+  --ill-ink: color-mix(in oklab, var(--foreground) 22%, var(--card));
+  --ill-ink-strong: color-mix(in oklab, var(--foreground) 55%, var(--card));
+  --ill-soft: color-mix(in oklab, var(--muted-foreground) 30%, var(--card));
+  /* Deeper on the dark theme: set by the component, which knows the theme. */
+  --ill-shadow: rgb(24 24 27 / 0.12);
+
+  display: block;
+  height: auto;
+  max-width: 100%;
+  overflow: visible;
+  pointer-events: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.glowCenter {
+  stop-color: var(--primary);
+  stop-opacity: 0.13;
+}
+
+.glowEdge {
+  stop-color: var(--primary);
+  stop-opacity: 0;
+}
+
+.gridDot {
+  fill: var(--muted-foreground);
+  opacity: 0.35;
+}
+
+.shadowColor {
+  flood-color: var(--ill-shadow);
+}
+
+.window {
+  fill: var(--card);
+  stroke: var(--border);
+}
+
+.divider {
+  stroke: var(--border);
+}
+
+.dotRed {
+  fill: #ff5f57;
+}
+
+.dotYellow {
+  fill: #febc2e;
+}
+
+.dotGreen {
+  fill: #28c840;
+}
+
+.ink {
+  fill: var(--ill-ink);
+}
+
+.inkStrong {
+  fill: var(--ill-ink-strong);
+}
+
+.soft {
+  fill: var(--ill-soft);
+}
+
+.field {
+  fill: color-mix(in oklab, var(--muted) 70%, var(--card));
+  stroke: var(--border);
+}
+
+.slot {
+  stroke: var(--border);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 3;
+}
+
+/* The send button, unlit: nothing to send through yet. */
+.sendOff {
+  fill: color-mix(in oklab, var(--primary) 22%, var(--card));
+}
+
+.sendGlyph {
+  stroke: var(--card);
+  stroke-width: 1.5;
+}
+
+/* The channels: an e-mail in sky, an SMS in emerald. */
+.email {
+  --tone: var(--ill-sky);
+}
+
+.sms {
+  --tone: var(--ill-emerald);
+}
+
+.tileBack {
+  fill: color-mix(in oklab, var(--tone) 16%, var(--card));
+}
+
+.tileGlyph {
+  stroke: var(--tone);
+  stroke-width: 1.4;
+  fill: none;
+}
+
+.tileFill {
+  fill: var(--tone);
+}
+
+.path {
+  stroke: color-mix(in oklab, var(--primary) 55%, transparent);
+  stroke-width: 1.4;
+  stroke-dasharray: 2 4;
+}
+
+.plugBack {
+  fill: color-mix(in oklab, var(--primary) 18%, var(--card));
+}
+
+.plug {
+  stroke: var(--primary);
+  stroke-width: 1.6;
+}
+
+.spark {
+  stroke: color-mix(in oklab, var(--primary) 70%, transparent);
+  stroke-width: 1.5;
+}
+
+.sparkDot {
+  fill: var(--ill-emerald);
+  opacity: 0.6;
+}
+
+.float {
+  animation: float 5s ease-in-out infinite;
+}
+
+.floatSlow {
+  animation: float 7s ease-in-out infinite reverse;
+}
+
+@keyframes float {
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .float,
+  .floatSlow {
+    animation: none;
+  }
+}
