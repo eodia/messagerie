@@ -12,6 +12,8 @@ interface Props {
 const { title, description } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const canonical = new URL(Astro.url.pathname, Astro.site);
+/** The picture a link to the site shows where it is shared: 1200 × 630, `public/og.png`. */
+const shared = new URL(`${import.meta.env.BASE_URL.replace(/\/$/, '')}/og.png`, Astro.site);
 
 // Who makes the product, said to search engines as well as to readers.
 const eodia = { '@type': 'Organization', name: 'Eodia', url: 'https://eodia.com/' };
@@ -49,7 +51,12 @@ const structured = {
 		<meta property="og:url" content={canonical} />
 		<meta property="og:locale" content="fr_FR" />
 		<meta property="og:site_name" content={PRODUCT} />
-		<meta name="twitter:card" content="summary" />
+		<meta property="og:image" content={shared} />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:image:alt" content="Messagerie : chaque client a sa réponse, à toute heure — le widget d’un site, l’assistant qui répond en citant sa source." />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:image" content={shared} />
 		<meta name="theme-color" content="#143d2b" />
 		<link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
 		<script is:inline>document.documentElement.classList.add('bd-js');</script>

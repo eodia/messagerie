@@ -1,0 +1,94 @@
+<!doctype html>
+<!-- The picture a shared link shows (public/og.png): open at 1200 x 630 and capture it whole. -->
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    width: 1200px; height: 630px; overflow: hidden;
+    font-family: Inter, system-ui, sans-serif; color: #1d1d1f;
+    background: #fff;
+    position: relative;
+  }
+  .glow {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(48% 60% at 78% 70%, rgba(63, 203, 42, 0.20), transparent 70%),
+      radial-gradient(40% 50% at 8% 10%, rgba(20, 184, 166, 0.10), transparent 70%),
+      radial-gradient(30% 40% at 96% 8%, rgba(163, 220, 58, 0.14), transparent 70%);
+  }
+  .left { position: absolute; left: 72px; top: 64px; width: 660px; }
+  .brand { display: flex; align-items: center; gap: 14px; font-size: 30px; font-weight: 700; letter-spacing: -0.045em; color: #143d2b; }
+  .brand svg { width: 48px; height: 48px; }
+  h1 {
+    margin: 48px 0 0; font-size: 62px; line-height: 1.02; font-weight: 800; letter-spacing: -0.045em;
+  }
+  h1 span { display: block; }
+  .grad { background: linear-gradient(92deg, #0f8a6c 0%, #1fa34a 38%, #58c73a 70%, #a3dc3a 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lede { margin: 24px 0 0; font-size: 22px; line-height: 1.45; color: #4b4b52; max-width: 600px; }
+  .facts { position: absolute; left: 72px; bottom: 58px; display: flex; gap: 10px; }
+  .facts span { padding: 8px 14px; border-radius: 999px; font-size: 16px; font-weight: 600; color: #143d2b; background: rgba(20, 61, 43, 0.07); box-shadow: inset 0 0 0 1px rgba(20, 61, 43, 0.10); }
+
+  .widget {
+    position: absolute; right: 64px; top: 70px; width: 392px; height: 492px;
+    border-radius: 24px; overflow: hidden; background: #fff;
+    box-shadow: 0 40px 80px -30px rgba(15, 23, 42, 0.45), 0 0 0 1px rgba(15, 23, 42, 0.06);
+    display: flex; flex-direction: column;
+  }
+  .head { display: flex; align-items: center; gap: 12px; padding: 18px 20px; color: #fff; background: #2563eb; }
+  .faces { display: flex; }
+  .faces i { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #2563eb; background: rgba(255,255,255,0.24); display: grid; place-items: center; font-size: 11px; font-style: normal; font-weight: 700; }
+  .faces i + i { margin-left: -10px; }
+  .faces .ai { background: conic-gradient(from 200deg, #a5b4fc, #f0abfc, #93c5fd, #a5b4fc); }
+  .head b { display: block; font-size: 16px; }
+  .head small { display: flex; align-items: center; gap: 6px; font-size: 12.5px; opacity: 0.92; }
+  .head small i { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; }
+  .body { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; padding: 18px; }
+  .m { max-width: 86%; padding: 11px 15px; border-radius: 18px; font-size: 15px; line-height: 1.42; }
+  .me { align-self: flex-end; border-bottom-right-radius: 6px; color: #fff; background: #2563eb; }
+  .them { align-self: flex-start; border-bottom-left-radius: 6px; background: #f4f4f5; color: #18181b; }
+  .by { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 12px; font-weight: 600; color: #71717a; }
+  .ia { padding: 0 6px; border-radius: 999px; font-size: 10.5px; color: #5b21b6; background: rgba(139, 92, 246, 0.15); }
+  .src { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e4e4e7; font-size: 12.5px; color: #52525b; }
+  .conf { white-space: nowrap; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; color: #15803d; background: #dcfce7; }
+  .foot { padding: 0 14px 12px; }
+  .input { display: flex; align-items: center; justify-content: space-between; padding: 10px 10px 10px 16px; border: 1px solid #e4e4e7; border-radius: 999px; color: #a1a1aa; font-size: 14px; }
+  .send { width: 32px; height: 32px; border-radius: 50%; background: #93b4f5; }
+  .foot p { margin: 8px 0 0; text-align: center; font-size: 11.5px; color: #a1a1aa; }
+</style>
+</head>
+<body>
+  <div class="glow"></div>
+  <div class="left">
+    <div class="brand">
+      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><rect width="64" height="64" rx="16" fill="#143D2B"/><path d="M20 16h24a7 7 0 0 1 7 7v14a7 7 0 0 1-7 7H32l-10 8v-8h-2a7 7 0 0 1-7-7V23a7 7 0 0 1 7-7z" fill="#D9F5B5"/><rect x="22" y="28" width="20" height="5" rx="2.5" fill="#72CA89"/></svg>
+      Messagerie
+    </div>
+    <h1><span>Chaque client</span><span>a sa réponse,</span><span class="grad">à toute heure.</span></h1>
+    <p class="lede">La messagerie client libre : un agent IA en première ligne, un copilote pour vos conseillers, et le chat qui agit sur votre site.</p>
+  </div>
+  <div class="facts"><span>Logiciel libre</span><span>Hébergé chez vous</span><span>IA européenne</span></div>
+
+  <div class="widget">
+    <div class="head">
+      <span class="faces"><i class="ai"></i><i>CD</i></span>
+      <span><b>Acme Assurances</b><small><i></i>Notre assistant répond à toute heure</small></span>
+    </div>
+    <div class="body">
+      <div class="m me">Bonjour, quel est le délai de remboursement après un sinistre ?</div>
+      <div class="m them">
+        <span class="by">Assistant <span class="ia">IA</span></span>
+        Une fois votre dossier complet, le remboursement est versé sous 5 à 10 jours ouvrés, par virement.
+        <span class="src"><span>Délai de remboursement d’un sinistre</span><span class="conf">Confiance 92 %</span></span>
+      </div>
+    </div>
+    <div class="foot">
+      <div class="input">Écrivez votre message…<span class="send"></span></div>
+      <p>Propulsé par Messagerie</p>
+    </div>
+  </div>
+</body>
+</html>

@@ -19,6 +19,11 @@ export default defineConfig({
 				{ tag: 'meta', attrs: { name: 'theme-color', content: '#143d2b' } },
 				{ tag: 'meta', attrs: { name: 'author', content: 'Eodia' } },
 				{ tag: 'link', attrs: { rel: 'author', href: 'https://eodia.com/fr/' } },
+				// The picture a shared link shows: the home page's, for every page of the documentation.
+				{ tag: 'meta', attrs: { property: 'og:image', content: 'https://eodia.github.io/messagerie/og.png' } },
+				{ tag: 'meta', attrs: { property: 'og:image:width', content: '1200' } },
+				{ tag: 'meta', attrs: { property: 'og:image:height', content: '630' } },
+				{ tag: 'meta', attrs: { name: 'twitter:image', content: 'https://eodia.github.io/messagerie/og.png' } },
 			],
 			description:
 				'La messagerie client libre : un agent IA en première ligne, un copilote pour les conseillers, tout réglé dans l’inbox.',
