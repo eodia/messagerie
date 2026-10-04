@@ -143,6 +143,8 @@ export type InboxEvent =
   | { readonly type: 'notifications' }
   /** The visitor is writing in a conversation — again every few seconds while they do. */
   | { readonly type: 'typing'; readonly conversationId: string; readonly who: 'visitor' }
+  /** The pages the visitor went through changed: the conversation's `pages`, read again. */
+  | { readonly type: 'pages'; readonly conversationId: string }
   | { readonly type: 'ping' }
 
 /** How the copilot rewords a draft. */

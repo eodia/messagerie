@@ -22,6 +22,11 @@ export interface Signal {
   readonly typing?: 'ai' | 'agent' | 'visitor'
   /** Who is typing, when it is an agent: their first name, as the visitor knows them. */
   readonly by?: string
+  /**
+   * Only the pages the visitor went through changed: the agents who see the conversation
+   * read them again — no list to redraw, no thread, nothing for the visitor.
+   */
+  readonly page?: true
 }
 
 /** Call inside the transaction that made the change. */
@@ -44,6 +49,11 @@ export async function signalTyping(
   by?: string,
 ): Promise<void> {
   await send(db, { conversationId, typing: who, ...(by ? { by } : {}) })
+}
+
+/** The visitor opened or left a page: call inside the transaction that wrote it. */
+export async function signalPage(db: Db, conversationId: string): Promise<void> {
+  await send(db, { conversationId, page: true })
 }
 
 /** Tells agents that their notifications changed, and nothing else did. */

@@ -2,7 +2,7 @@ import type { PageVisit } from '@chat/contracts'
 import { and, desc, eq, isNull, notInArray, sql } from 'drizzle-orm'
 import type { Db } from '../db/client.js'
 import { conversations, pageViews } from '../db/schema.js'
-import { signalChange } from '../realtime/signals.js'
+import { signalPage } from '../realtime/signals.js'
 
 /**
  * Where the visitor is, as their widget says it (D21): each page they open while their
@@ -71,7 +71,7 @@ export async function viewPage(
       if (before && before.url === url) {
         // The same page, renamed: no new step in the trail.
         await tx.update(pageViews).set({ title }).where(eq(pageViews.id, before.id))
-        await signalChange(tx, conversationId)
+        await signalPage(tx, conversationId)
         return before.id
       }
       await tx
@@ -89,7 +89,7 @@ export async function viewPage(
     await tx
       .delete(pageViews)
       .where(and(eq(pageViews.conversationId, conversationId), notInArray(pageViews.id, kept)))
-    await signalChange(tx, conversationId)
+    await signalPage(tx, conversationId)
     return view?.id as string
   })
 }
@@ -102,7 +102,7 @@ export async function leavePage(db: Db, viewId: string): Promise<void> {
       .set({ leftAt: sql`now()` })
       .where(and(eq(pageViews.id, viewId), isNull(pageViews.leftAt)))
       .returning({ conversationId: pageViews.conversationId })
-    if (left) await signalChange(tx, left.conversationId)
+    if (left) await signalPage(tx, left.conversationId)
   })
 }
 

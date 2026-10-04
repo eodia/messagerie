@@ -376,6 +376,25 @@ describe('change signals', () => {
     await stop()
   })
 
+  it('say a page changed lightly: the conversation and « page », nothing more', async () => {
+    const heard: Signal[] = []
+    const stop = listenForChanges(container.getConnectionUri(), (signal) => {
+      heard.push(signal)
+    })
+    await expect.poll(() => listenerReady(), { timeout: 10_000 }).toBe(true)
+    const { id } = await aiConversation()
+    const view = await viewPage(db, id, null, 'https://acme.fr/devis', 'Devis')
+    await leavePage(db, view)
+    await expect
+      .poll(() => heard.filter((s) => s.conversationId === id).length, { timeout: 5_000 })
+      .toBe(2)
+    expect(heard.filter((s) => s.conversationId === id)).toEqual([
+      { conversationId: id, page: true },
+      { conversationId: id, page: true },
+    ])
+    await stop()
+  })
+
   it('say who is typing, and nothing for a visitor with no conversation', async () => {
     const heard: Signal[] = []
     const stop = listenForChanges(container.getConnectionUri(), (signal) => {

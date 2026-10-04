@@ -43,6 +43,7 @@ import type {
   NotificationList,
   OutreachOptions,
   PageAction,
+  PageVisit,
   PasswordReset,
   QueryResult,
   Question,
@@ -162,6 +163,7 @@ export const api = {
   testEmailAddress: (addressId: string) =>
     request<EmailAddressTest>('POST', `/email-addresses/${encodeURIComponent(addressId)}/test`),
   markRead: (id: string) => request<void>('POST', `${conversation(id)}/read`),
+  pages: (id: string) => request<PageVisit[]>('GET', `${conversation(id)}/pages`),
   typing: (id: string) => request<void>('POST', `${conversation(id)}/typing`),
   /** A message read aloud by the server's AI voice, as an MP3. */
   speech: (messageId: string) =>

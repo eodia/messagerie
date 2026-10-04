@@ -116,6 +116,7 @@ import {
 import type { Mailer } from './outbound/mailer.js'
 import { vapidKeys } from './outbound/push.js'
 import { listPageActions, setPageAction } from './page/actions.js'
+import { pagesOf } from './page/views.js'
 import type { InboxHub } from './realtime/hub.js'
 import { signalTyping } from './realtime/signals.js'
 import { Refusal } from './refusal.js'
@@ -623,6 +624,11 @@ export function createApp({
     }
     return c.body(null, 204)
   })
+
+  // The pages the visitor went through, alone: what a `pages` signal asks to read again.
+  inbox.get('/conversations/:id/pages', async (c) =>
+    c.json(await pagesOf(db, uuidParam(c.req.param('id')))),
+  )
 
   inbox.post('/conversations/:id/read', async (c) => {
     await markRead(db, c.get('agent'), uuidParam(c.req.param('id')))

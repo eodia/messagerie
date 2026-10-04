@@ -18,6 +18,7 @@ import { createConversation, handOff } from '../../src/inbox/incoming.js'
 import { patchContact, patchConversationData, readPatch } from '../../src/inbox/metadata.js'
 import { type AgentRow, loadConversation, loadSummaries } from '../../src/inbox/read.js'
 import { transfer } from '../../src/inbox/write.js'
+import { viewPage } from '../../src/page/views.js'
 import { InboxHub } from '../../src/realtime/hub.js'
 import { Settings } from '../../src/settings/settings.js'
 import type { LabeledRow, SettingsSource } from '../../src/settings/source.js'
@@ -289,6 +290,21 @@ describe('a transfer', () => {
     await expect(
       transfer(db, settings, access, supervisor, id, { teamId: 'auto' }),
     ).rejects.toMatchObject({ code: 'TEAM_NOT_FOUND' })
+  })
+})
+
+describe('the pages of a conversation', () => {
+  it('are read alone, by whoever sees its inbox', async () => {
+    const seen = await arrived()
+    await transfer(db, settings, access, supervisor, seen, { inboxId: 'sinistres' })
+    await viewPage(db, seen, null, 'https://acme.fr/devis', 'Devis auto')
+    const response = await app.request(`/api/inbox/conversations/${seen}/pages`)
+    expect(await response.json()).toMatchObject([
+      { url: 'https://acme.fr/devis', title: 'Devis auto', leftAt: null },
+    ])
+    // Another inbox's: as if it did not exist.
+    const hidden = await arrived()
+    expect((await app.request(`/api/inbox/conversations/${hidden}/pages`)).status).toBe(404)
   })
 })
 

@@ -55,20 +55,24 @@ async function contactOf(conversationId: string): Promise<string | null> {
 
 const stopListening = listenForChanges(
   config.databaseUrl,
-  ({ conversationId, alert, notify, typing, by }) => {
+  ({ conversationId, alert, notify, typing, by, page }) => {
     for (const agentId of notify ?? []) hub.sendTo(agentId, { type: 'notifications' })
     if (conversationId === undefined) return
     const failed = (error: unknown) =>
       console.error('chat : mise à jour en direct impossible', error)
-    // The visitor writing: to the agents who see the conversation's inbox, and no one else.
-    if (typing === 'visitor') {
+    // The visitor writing, or going to another page: to the agents who see the
+    // conversation's inbox, and no one else — no summary computed, nothing for the widget.
+    if (typing === 'visitor' || page) {
       if (hub.size === 0) return
       inboxOf(conversationId)
         .then(async (inboxId) => {
           if (inboxId === undefined) return
           const audience = new Set(await access.audience(db, inboxId))
-          hub.sendWhere({ type: 'typing', conversationId, who: 'visitor' }, (agent) =>
-            audience.has(agent),
+          hub.sendWhere(
+            page
+              ? { type: 'pages', conversationId }
+              : { type: 'typing', conversationId, who: 'visitor' },
+            (agent) => audience.has(agent),
           )
         })
         .catch(failed)

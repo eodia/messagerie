@@ -505,6 +505,17 @@ export const useInbox = create<InboxState>((set, get) => {
           if (event.type === 'conversation') applySummary(event.summary, event.alert)
           else if (event.type === 'notifications') void refreshNotifications()
           else if (event.type === 'typing') setTyping(event.conversationId, true)
+          // Another page: only the open conversation reads its pages again, and only them.
+          else if (event.type === 'pages' && get().selectedId === event.conversationId) {
+            const id = event.conversationId
+            api
+              .pages(id)
+              .then((pages) => {
+                const { detail } = get()
+                if (detail?.id === id) set({ detail: { ...detail, pages } })
+              })
+              .catch(() => {})
+          }
         }
         next.onclose = () => {
           clearTimeout(steady)
