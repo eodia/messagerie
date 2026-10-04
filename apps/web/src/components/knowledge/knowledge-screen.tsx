@@ -2,6 +2,7 @@
 
 import { Chip, type Tint } from '@/components/app/chip'
 import { EmptyScene } from '@/components/app/empty-scene'
+import { RowMenu } from '@/components/app/row-menu'
 import { ScreenHeader, Slash } from '@/components/app/screen-header'
 import { FormSkeleton, RowsSkeleton } from '@/components/app/skeletons'
 import { Button } from '@/components/ui/button'
@@ -296,6 +297,23 @@ export function KnowledgeScreen() {
     }
   }
 
+  /** A category gone: its articles with it, or left without one. */
+  async function removeCategory(id: string, withArticles: boolean) {
+    await flush()
+    try {
+      const held = (articles ?? []).filter((a) => a.categoryId === id)
+      if (withArticles) {
+        for (const article of held) await api.deleteRow('articles', article.id)
+        if (held.some((a) => a.id === selectedId)) setSelectedId(null)
+      }
+      await api.deleteRow('categories', id)
+      if (shelf.kind === 'category' && shelf.id === id) setShelf({ kind: 'all' })
+      await load()
+    } catch (failure) {
+      setError(codeOf(failure))
+    }
+  }
+
   async function addCategory(name: string) {
     try {
       const row = await api.createRow('categories', { Nom: name })
@@ -434,15 +452,52 @@ export function KnowledgeScreen() {
                 <MicroLabel>{$t('Catégories')}</MicroLabel>
                 {categories.map((category) => {
                   const on = shelf.kind === 'category' && shelf.id === category.id
+                  const name = text(category.values.Nom) || $t('Sans nom')
+                  // Every article of it, whatever the site chosen: they all go, or none.
+                  const held = every.filter((a) => a.categoryId === category.id).length
                   return (
-                    <ShelfRow
+                    <RowMenu
                       key={category.id}
-                      icon={on ? FolderOpen : Folder}
-                      label={text(category.values.Nom) || $t('Sans nom')}
-                      count={all.filter((a) => a.categoryId === category.id).length}
-                      active={on}
-                      onClick={() => setShelf({ kind: 'category', id: category.id })}
-                    />
+                      disabled={!canEdit}
+                      title={$t('Supprimer la catégorie « {name} » ?', { name })}
+                      {...(held === 0
+                        ? { description: $t('Elle ne range aucun article.') }
+                        : {
+                            choices: [
+                              {
+                                id: 'keep',
+                                label: $tp(
+                                  held,
+                                  'Garder son article',
+                                  'Garder ses {count} articles',
+                                ),
+                                description: $t(
+                                  'Ils passent dans « Sans catégorie », et l’IA s’en sert toujours.',
+                                ),
+                              },
+                              {
+                                id: 'articles',
+                                label: $tp(
+                                  held,
+                                  'Supprimer aussi son article',
+                                  'Supprimer aussi ses {count} articles',
+                                ),
+                                description: $t('L’IA ne s’en sert plus. Rien ne se récupère.'),
+                              },
+                            ],
+                          })}
+                      onDelete={(choice) => removeCategory(category.id, choice === 'articles')}
+                    >
+                      <div>
+                        <ShelfRow
+                          icon={on ? FolderOpen : Folder}
+                          label={name}
+                          count={all.filter((a) => a.categoryId === category.id).length}
+                          active={on}
+                          onClick={() => setShelf({ kind: 'category', id: category.id })}
+                        />
+                      </div>
+                    </RowMenu>
                   )
                 })}
                 {all.some((a) => a.categoryId === null) && (

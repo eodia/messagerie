@@ -90,6 +90,11 @@ Les catégories rangent les articles (table « Catégories »). **Nouvelle cat
 liste des rayons, en ajoute une ; le bouton de catégorie, en tête de l’article, l’y range. La
 catégorie sert à ranger : elle ne change rien à ce que l’IA lit.
 
+Un clic droit sur une catégorie offre **Supprimer**. La messagerie demande ce que deviennent
+ses articles : **Garder ses articles** — ils passent dans **Sans catégorie**, et l’IA s’en sert
+toujours —, ou **Supprimer aussi ses articles** — l’IA ne s’en sert plus, et rien ne se
+récupère. Une catégorie vide part sans question.
+
 ## Découpage et vecteurs
 
 Ce que l’IA lit n’est pas l’article entier, mais ses **passages** :
