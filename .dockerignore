@@ -24,3 +24,4 @@ docs
 *.png
 Dockerfile
 docker-compose*.yml
+docker/DOCKERHUB.md
