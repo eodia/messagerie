@@ -117,6 +117,17 @@ choisis**. Dès trois lettres, le serveur cherche aussi dans tous les messages :
 paraît sous **Dans les messages**, avec le passage qui répond. <kbd>↑</kbd> <kbd>↓</kbd> et
 <kbd>Entrée</kbd> ouvrent un résultat ; <kbd>Échap</kbd> vide la recherche, puis la quitte.
 
+### Le menu d’une conversation
+
+Un clic droit sur une conversation de la liste offre, sans l’ouvrir : **Ouvrir dans un nouvel
+onglet**, **Copier le lien**, **Marquer comme lue** (si elle ne l’est pas), **Me l’attribuer**,
+**Attribuer…** et **Transférer…** — qui l’ouvrent sur le choix du conseiller ou de la boîte —,
+**Mettre en attente** jusqu’à une heure, **Résoudre**, et **Sélectionner**, qui la coche pour
+agir sur plusieurs à la fois.
+
+Une liste vide, enfin, montre une petite scène — la liste et ses lignes en pointillé, une bulle
+cochée : rien n’attend.
+
 ### Plusieurs conversations à la fois
 
 Au survol d’une conversation, une case remplace son avatar. Cochée, elle reste visible sur

@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/utils'
 import * as ContextMenuPrimitive from '@radix-ui/react-context-menu'
+import { ChevronRightIcon } from 'lucide-react'
 import type * as React from 'react'
 
 /** A right click's menu — the dropdown menu's look, entry for entry. */
@@ -77,6 +78,48 @@ function ContextMenuSeparator({
   )
 }
 
+const ContextMenuSub = ContextMenuPrimitive.Sub
+
+function ContextMenuSubTrigger({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof ContextMenuPrimitive.SubTrigger>) {
+  return (
+    <ContextMenuPrimitive.SubTrigger
+      data-slot="context-menu-sub-trigger"
+      className={cn(
+        "flex cursor-default select-none items-center gap-2.5 rounded-md px-2 py-1.5 text-sm outline-none transition-colors [&_svg]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground",
+        'focus:bg-accent data-[state=open]:bg-accent',
+        className,
+      )}
+      {...props}
+    >
+      {children}
+      <ChevronRightIcon className="ml-auto size-4" />
+    </ContextMenuPrimitive.SubTrigger>
+  )
+}
+
+function ContextMenuSubContent({
+  className,
+  ...props
+}: React.ComponentProps<typeof ContextMenuPrimitive.SubContent>) {
+  return (
+    <ContextMenuPrimitive.Portal>
+      <ContextMenuPrimitive.SubContent
+        data-slot="context-menu-sub-content"
+        className={cn(
+          'z-50 min-w-[10rem] overflow-hidden rounded-lg border bg-popover p-1.5 text-popover-foreground shadow-lg',
+          'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+          className,
+        )}
+        {...props}
+      />
+    </ContextMenuPrimitive.Portal>
+  )
+}
+
 export {
   ContextMenu,
   ContextMenuTrigger,
@@ -84,4 +127,7 @@ export {
   ContextMenuItem,
   ContextMenuLabel,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubTrigger,
+  ContextMenuSubContent,
 }

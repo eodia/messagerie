@@ -54,6 +54,7 @@ import {
   useState,
 } from 'react'
 import { BulkBar, TickBox } from './bulk-bar'
+import { ConversationMenu } from './conversation-menu'
 import { DesktopInvite } from './desktop-invite'
 import { ChannelMark, ContactAvatar, StateChip } from './labels'
 import { ActiveFilters, FiltersButton } from './list-filters'
@@ -233,36 +234,38 @@ export function ConversationList({
   const row = (summary: ConversationSummary, search: RowSearch = {}) => {
     const on = ticked.has(summary.id)
     return (
-      <div className="group/row relative">
-        <ConversationRow
-          summary={summary}
-          me={me}
-          inbox={inboxes.find((i) => i.id === summary.inboxId) ?? null}
-          selected={summary.id === selectedId}
-          typing={typing[summary.id] === true}
-          time={inboxTime(search.hit?.at ?? summary.lastMessageAt, now)}
-          now={now}
-          tickable
-          ticked={on}
-          ticking={ticking}
-          onSelect={(event) => {
-            // Shift: a range; Ctrl or ⌘: one more — the conversation stays where it is.
-            if (event.shiftKey) tick(summary.id, true)
-            else if (event.ctrlKey || event.metaKey) tick(summary.id, false)
-            else select(summary.id)
-          }}
-          {...search}
-        />
-        <TickBox
-          state={on}
-          label={$t('Sélectionner la conversation de {name}', { name: summary.contact.name })}
-          onToggle={(event) => tick(summary.id, event.shiftKey)}
-          className={cn(
-            'absolute top-[22px] left-[20px] focus-visible:opacity-100',
-            on || ticking ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100',
-          )}
-        />
-      </div>
+      <ConversationMenu summary={summary} onTick={() => !on && tick(summary.id, false)}>
+        <div className="group/row relative">
+          <ConversationRow
+            summary={summary}
+            me={me}
+            inbox={inboxes.find((i) => i.id === summary.inboxId) ?? null}
+            selected={summary.id === selectedId}
+            typing={typing[summary.id] === true}
+            time={inboxTime(search.hit?.at ?? summary.lastMessageAt, now)}
+            now={now}
+            tickable
+            ticked={on}
+            ticking={ticking}
+            onSelect={(event) => {
+              // Shift: a range; Ctrl or ⌘: one more — the conversation stays where it is.
+              if (event.shiftKey) tick(summary.id, true)
+              else if (event.ctrlKey || event.metaKey) tick(summary.id, false)
+              else select(summary.id)
+            }}
+            {...search}
+          />
+          <TickBox
+            state={on}
+            label={$t('Sélectionner la conversation de {name}', { name: summary.contact.name })}
+            onToggle={(event) => tick(summary.id, event.shiftKey)}
+            className={cn(
+              'absolute top-[22px] left-[20px] focus-visible:opacity-100',
+              on || ticking ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100',
+            )}
+          />
+        </div>
+      </ConversationMenu>
     )
   }
 
