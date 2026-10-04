@@ -96,6 +96,44 @@
   fill: var(--ill-soft);
 }
 
+/* An article's category: a chip, tinted. */
+.chipBack {
+  fill: color-mix(in oklab, var(--ill-sky) 16%, var(--card));
+}
+
+.pen {
+  fill: color-mix(in oklab, var(--primary) 22%, var(--card));
+  stroke: color-mix(in oklab, var(--primary) 55%, var(--card));
+}
+
+.penCap {
+  fill: var(--primary);
+}
+
+.penTip {
+  fill: var(--ill-ink-strong);
+}
+
+.selected {
+  fill: color-mix(in oklab, var(--primary) 12%, var(--card));
+  stroke: color-mix(in oklab, var(--primary) 45%, var(--card));
+}
+
+.docChosen {
+  fill: color-mix(in oklab, var(--primary) 22%, var(--card));
+  stroke: color-mix(in oklab, var(--primary) 55%, var(--card));
+}
+
+.button {
+  fill: var(--primary);
+}
+
+.cursor {
+  fill: var(--foreground);
+  stroke: var(--card);
+  stroke-width: 1.2;
+}
+
 .slot {
   stroke: var(--border);
   stroke-width: 1.2;

@@ -1,6 +1,7 @@
 'use client'
 
 import { Chip, type Tint } from '@/components/app/chip'
+import { EmptyScene } from '@/components/app/empty-scene'
 import { ScreenHeader, Slash } from '@/components/app/screen-header'
 import { FormSkeleton, RowsSkeleton } from '@/components/app/skeletons'
 import { Button } from '@/components/ui/button'
@@ -541,16 +542,33 @@ export function KnowledgeScreen() {
                         />
                       </li>
                     ))}
-                    {shown.length === 0 && (
-                      <li className="flex flex-col items-center gap-2 px-6 py-12 text-center text-sm text-muted-foreground">
-                        <BookOpen className="size-5" />
-                        {query
-                          ? $t('Aucun article ne correspond.')
-                          : canEdit
-                            ? $t('Aucun article ici : « Nouvel article » en commence un.')
-                            : $t('Aucun article ici.')}
-                      </li>
-                    )}
+                    {shown.length === 0 &&
+                      (query ? (
+                        <li className="flex flex-col items-center gap-2 px-6 py-12 text-center text-sm text-muted-foreground">
+                          <BookOpen className="size-5" />
+                          {$t('Aucun article ne correspond.')}
+                        </li>
+                      ) : (
+                        <li className="flex flex-col items-center px-6 pt-8 pb-12 text-center">
+                          <EmptyScene variant="no-articles" className="w-48" />
+                          <p className="mt-2 text-sm font-semibold">{$t('Aucun article ici')}</p>
+                          <p className="mt-1 max-w-60 text-xs text-muted-foreground">
+                            {canEdit
+                              ? $t('Écrivez-en un : publié, l’IA s’en sert pour répondre.')
+                              : $t('Les articles de cette catégorie paraîtront ici.')}
+                          </p>
+                          {canEdit && (
+                            <Button
+                              size="sm"
+                              className="mt-4 gap-1.5"
+                              onClick={() => void create()}
+                            >
+                              <Plus className="size-3.5" />
+                              {$t('Nouvel article')}
+                            </Button>
+                          )}
+                        </li>
+                      ))}
                   </ul>
                   <div className="border-t px-3 py-2 text-[11px] text-muted-foreground">
                     {$tp(onShelf.length, '{count} article', '{count} articles')}
@@ -576,16 +594,13 @@ export function KnowledgeScreen() {
                 onDelete={() => void remove(selected.id)}
               />
             ) : (
-              <div className="flex h-full flex-col items-center justify-center gap-3 px-8 text-center">
-                <span className="flex size-12 items-center justify-center rounded-xl bg-muted">
-                  <FileText className="size-5 text-muted-foreground" />
-                </span>
-                <p className="max-w-sm text-sm text-muted-foreground">
+              <div className="flex h-full flex-col items-center justify-center px-8 text-center">
+                <EmptyScene variant="pick-article" className="w-60" />
+                <p className="mt-2 text-sm font-semibold">{$t('Choisissez un article')}</p>
+                <p className="mt-1 mb-4 max-w-sm text-sm text-muted-foreground">
                   {canEdit
-                    ? $t(
-                        'Choisissez un article, ou commencez-en un : l’IA s’en sert dès qu’il est publié.',
-                      )
-                    : $t('Choisissez un article pour le lire.')}
+                    ? $t('Ou commencez-en un : l’IA s’en sert dès qu’il est publié.')
+                    : $t('Il s’ouvre ici, pour le lire.')}
                 </p>
                 {canEdit && (
                   <Button size="sm" className="gap-1.5" onClick={() => void create()}>

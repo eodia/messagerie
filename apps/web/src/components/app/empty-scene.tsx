@@ -11,7 +11,7 @@ import styles from './empty-scene.module.css'
  * Decorative: the title and the sentence under it say what to do.
  */
 
-export type EmptySceneVariant = 'no-channel' | 'no-conversations'
+export type EmptySceneVariant = 'no-channel' | 'no-conversations' | 'no-articles' | 'pick-article'
 
 /** The window every scene is drawn in: three dots and a bar. */
 function Window({
@@ -99,6 +99,10 @@ export function EmptyScene({
 
       {variant === 'no-conversations' ? (
         <NoConversations shadow={shadow} />
+      ) : variant === 'no-articles' ? (
+        <NoArticles shadow={shadow} />
+      ) : variant === 'pick-article' ? (
+        <PickArticle shadow={shadow} />
       ) : (
         <NoChannel shadow={shadow} />
       )}
@@ -146,6 +150,107 @@ function NoConversations({ shadow }: { readonly shadow: string }) {
       <g className={styles.floatSlow}>
         <circle cx="206" cy="112" r="11" className={styles.window} filter={`url(#${shadow})`} />
         <path d="M208.5 105.5a7 7 0 1 0 5.5 10.5 5.5 5.5 0 0 1-5.5-10.5Z" className={styles.zz} />
+      </g>
+    </>
+  )
+}
+
+/** A shelf of the knowledge base with no article: a page to write, and the pen for it. */
+function NoArticles({ shadow }: { readonly shadow: string }) {
+  return (
+    <>
+      <Window x={34} y={34} w={140} h={126} shadow={shadow} />
+      {/* The article: its title, a chip, its paragraphs — still to write. */}
+      <rect x="46" y="62" width="62" height="6" rx="3" className={styles.inkStrong} />
+      <rect x="46" y="74" width="30" height="7" rx="3.5" className={styles.chipBack} />
+      <path d="M46 90.5h116" className={styles.divider} />
+      <rect x="46" y="98" width="116" height="52" rx="6" className={styles.slot} />
+      <rect x="54" y="106" width="88" height="3.5" rx="1.75" className={styles.ink} />
+      <rect x="54" y="114" width="70" height="3.5" rx="1.75" className={styles.ghost} />
+      <rect x="54" y="122" width="80" height="3.5" rx="1.75" className={styles.ghost} />
+      <rect x="54" y="130" width="46" height="3.5" rx="1.75" className={styles.ghost} />
+
+      {/* A new one, on its way: a page and its « + »… */}
+      <g className={styles.float}>
+        <g transform="rotate(6 196 52)">
+          <path
+            d="M178 26h26l10 10v34a4 4 0 0 1-4 4h-32a4 4 0 0 1-4-4V30a4 4 0 0 1 4-4Z"
+            className={styles.window}
+            filter={`url(#${shadow})`}
+          />
+          <path d="M204 26v10h10" className={styles.divider} />
+          <circle cx="194" cy="52" r="8" className={styles.plugBack} />
+          <path d="M194 48v8m-4-4h8" className={styles.plug} />
+        </g>
+      </g>
+      {/* …and the pen that writes it. */}
+      <g className={styles.floatSlow}>
+        <g transform="rotate(-38 204 118)">
+          <rect x="198" y="96" width="12" height="36" rx="3" className={styles.pen} />
+          <path d="M198 132h12l-6 9Z" className={styles.penTip} />
+          <rect x="198" y="96" width="12" height="6" rx="2" className={styles.penCap} />
+        </g>
+      </g>
+      <path d="M176 96c-4 6-6 12-6 18" className={styles.path} />
+    </>
+  )
+}
+
+/** No article chosen: the list, one of its articles under the cursor, and the page it opens. */
+function PickArticle({ shadow }: { readonly shadow: string }) {
+  return (
+    <>
+      {/* The list, its second article chosen… */}
+      <rect
+        x="18"
+        y="50"
+        width="82"
+        height="98"
+        rx="10"
+        className={styles.window}
+        filter={`url(#${shadow})`}
+      />
+      <rect x="22" y="78" width="74" height="20" rx="6" className={styles.selected} />
+      {[60, 82, 104, 126].map((y, i) => (
+        <g key={y}>
+          <rect
+            x="28"
+            y={y + 2}
+            width="9"
+            height="11"
+            rx="2"
+            className={i === 1 ? styles.docChosen : styles.field}
+          />
+          <rect
+            x="42"
+            y={y + 5.5}
+            width={[42, 36, 46, 30][i]}
+            height="4"
+            rx="2"
+            className={i === 1 ? styles.inkStrong : styles.ink}
+          />
+        </g>
+      ))}
+      <path d="M80 92v15.5l4.2-3.9 3 6.6 2.8-1.2-3-6.5h5.8Z" className={styles.cursor} />
+
+      {/* …and its page, open. */}
+      <g className={styles.float}>
+        <Window x={108} y={30} w={116} h={124} shadow={shadow} />
+        <rect x="118" y="58" width="58" height="6" rx="3" className={styles.inkStrong} />
+        <rect x="118" y="70" width="28" height="7" rx="3.5" className={styles.chipBack} />
+        <rect x="186" y="56" width="28" height="10" rx="5" className={styles.button} />
+        <path d="M118 86.5h96" className={styles.divider} />
+        {[94, 102, 110, 122, 130, 138].map((y, i) => (
+          <rect
+            key={y}
+            x="118"
+            y={y}
+            width={[90, 74, 84, 88, 62, 78][i]}
+            height="3.5"
+            rx="1.75"
+            className={i % 3 === 0 ? styles.ink : styles.ghost}
+          />
+        ))}
       </g>
     </>
   )
