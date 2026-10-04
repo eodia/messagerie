@@ -134,6 +134,16 @@
   stroke-width: 1.2;
 }
 
+.knob {
+  fill: var(--card);
+}
+
+/* The section's icon, drawn by lucide inside its tile. */
+.glyph {
+  display: block;
+  color: var(--primary);
+}
+
 .slot {
   stroke: var(--border);
   stroke-width: 1.2;

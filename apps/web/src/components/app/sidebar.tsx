@@ -59,7 +59,7 @@ const SCREENS: readonly Screen[] = [
  * What a supervisor sets up — « Administration », folded at the foot of the sidebar, shown
  * to supervisors alone. The data lives in the chat's own tables (D19).
  */
-const SETTINGS: readonly Screen[] = [
+export const SETTINGS: readonly Screen[] = [
   { href: '/parametrage/boites', label: msg('Boîtes de réception'), icon: Inbox },
   { href: '/parametrage/equipes', label: msg('Équipes et conseillers'), icon: Headset },
   { href: '/parametrage/sites', label: msg('Sites et horaires'), icon: Globe },

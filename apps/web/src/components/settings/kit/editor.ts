@@ -41,7 +41,8 @@ export interface RowEditor {
   /** Saves the selected row; its id, or null when it failed. */
   readonly save: () => Promise<string | null>
   readonly discard: () => void
-  readonly remove: () => Promise<boolean>
+  /** Deletes the row open — or `id`, another one, from the list's context menu. */
+  readonly remove: (id?: string) => Promise<boolean>
   readonly create: (initial?: Values) => void
 }
 
@@ -178,26 +179,31 @@ export function useRowEditor(
     if (selectedId === NEW) setSelectedId(saved[0]?.id ?? null)
   }, [selectedId, saved, extras, forget])
 
-  const remove = useCallback(async (): Promise<boolean> => {
-    if (selectedId === null) return false
-    if (selectedId === NEW) {
-      discard()
-      return true
-    }
-    setSaving(true)
-    try {
-      await api.deleteRow(key, selectedId)
-      forget(selectedId)
-      await data.reload()
-      setSelectedId(saved.find((r) => r.id !== selectedId)?.id ?? null)
-      return true
-    } catch (failure) {
-      data.setError(codeOf(failure))
-      return false
-    } finally {
-      setSaving(false)
-    }
-  }, [selectedId, key, data, saved, discard, forget])
+  const remove = useCallback(
+    async (which?: string): Promise<boolean> => {
+      const id = which ?? selectedId
+      if (id === null) return false
+      if (id === NEW) {
+        discard()
+        return true
+      }
+      setSaving(true)
+      try {
+        await api.deleteRow(key, id)
+        forget(id)
+        await data.reload()
+        // The row open went: the next one opens. Another one went: the open one stays.
+        if (id === selectedId) setSelectedId(saved.find((r) => r.id !== id)?.id ?? null)
+        return true
+      } catch (failure) {
+        data.setError(codeOf(failure))
+        return false
+      } finally {
+        setSaving(false)
+      }
+    },
+    [selectedId, key, data, saved, discard, forget],
+  )
 
   const create = useCallback(
     (initial: Values = {}) => {

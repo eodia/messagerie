@@ -2,6 +2,7 @@
 
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
+import type { LucideIcon } from 'lucide-react'
 import { type CSSProperties, useId } from 'react'
 import styles from './empty-scene.module.css'
 
@@ -11,7 +12,12 @@ import styles from './empty-scene.module.css'
  * Decorative: the title and the sentence under it say what to do.
  */
 
-export type EmptySceneVariant = 'no-channel' | 'no-conversations' | 'no-articles' | 'pick-article'
+export type EmptySceneVariant =
+  | 'no-channel'
+  | 'no-conversations'
+  | 'no-articles'
+  | 'pick-article'
+  | 'pick-row'
 
 /** The window every scene is drawn in: three dots and a bar. */
 function Window({
@@ -48,9 +54,12 @@ function Window({
 
 export function EmptyScene({
   variant,
+  glyph,
   className,
 }: {
   readonly variant: EmptySceneVariant
+  /** `pick-row`: the section's icon, on the tile that floats beside the form. */
+  readonly glyph?: LucideIcon
   readonly className?: string
 }) {
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, '')
@@ -103,6 +112,8 @@ export function EmptyScene({
         <NoArticles shadow={shadow} />
       ) : variant === 'pick-article' ? (
         <PickArticle shadow={shadow} />
+      ) : variant === 'pick-row' ? (
+        <PickRow shadow={shadow} glyph={glyph} />
       ) : (
         <NoChannel shadow={shadow} />
       )}
@@ -252,6 +263,77 @@ function PickArticle({ shadow }: { readonly shadow: string }) {
           />
         ))}
       </g>
+    </>
+  )
+}
+
+/**
+ * A settings screen with nothing open: its list, a row under the cursor, the form it opens —
+ * and the section's own icon, floating.
+ */
+function PickRow({
+  shadow,
+  glyph: Glyph,
+}: { readonly shadow: string; readonly glyph: LucideIcon | undefined }) {
+  return (
+    <>
+      <rect
+        x="18"
+        y="46"
+        width="78"
+        height="104"
+        rx="10"
+        className={styles.window}
+        filter={`url(#${shadow})`}
+      />
+      <rect x="26" y="54" width="62" height="12" rx="4" className={styles.slot} />
+      <rect x="22" y="94" width="70" height="20" rx="6" className={styles.selected} />
+      {[74, 98, 122].map((y, i) => (
+        <g key={y}>
+          <circle cx="33" cy={y + 6} r="4" className={i === 1 ? styles.docChosen : styles.field} />
+          <rect
+            x="41"
+            y={y + 4}
+            width={[38, 32, 42][i]}
+            height="4"
+            rx="2"
+            className={i === 1 ? styles.inkStrong : styles.ink}
+          />
+        </g>
+      ))}
+      <path d="M78 106v15.5l4.2-3.9 3 6.6 2.8-1.2-3-6.5h5.8Z" className={styles.cursor} />
+
+      {/* The form it opens: a title, a switch, its fields. */}
+      <g className={styles.float}>
+        <Window x={104} y={34} w={118} h={122} shadow={shadow} />
+        <rect x="114" y="62" width="56" height="6" rx="3" className={styles.inkStrong} />
+        <rect x="196" y="60.5" width="16" height="9" rx="4.5" className={styles.button} />
+        <circle cx="207.5" cy="65" r="3" className={styles.knob} />
+        {[80, 104, 128].map((y) => (
+          <g key={y}>
+            <rect x="114" y={y} width="30" height="3.5" rx="1.75" className={styles.soft} />
+            <rect x="114" y={y + 7} width="98" height="10" rx="3.5" className={styles.field} />
+          </g>
+        ))}
+      </g>
+
+      {Glyph && (
+        <g className={styles.floatSlow}>
+          <rect
+            x="186"
+            y="14"
+            width="34"
+            height="34"
+            rx="10"
+            className={styles.window}
+            filter={`url(#${shadow})`}
+          />
+          <rect x="191" y="19" width="24" height="24" rx="7" className={styles.plugBack} />
+          <foreignObject x="195" y="23" width="16" height="16">
+            <Glyph className={styles.glyph} width={16} height={16} strokeWidth={2} />
+          </foreignObject>
+        </g>
+      )}
     </>
   )
 }

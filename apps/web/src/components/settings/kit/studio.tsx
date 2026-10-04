@@ -1,6 +1,9 @@
 'use client'
 
+import { EmptyScene } from '@/components/app/empty-scene'
+import { RowMenu } from '@/components/app/row-menu'
 import { ScreenHeader, Slash } from '@/components/app/screen-header'
+import { SETTINGS } from '@/components/app/sidebar'
 import { FormSkeleton, RowsSkeleton } from '@/components/app/skeletons'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -14,6 +17,7 @@ import { useAddressBar } from '@/lib/use-address-bar'
 import { cn } from '@/lib/utils'
 import type { SettingsRow } from '@chat/contracts'
 import { Check, LoaderCircle, Plus, Search, Trash2 } from 'lucide-react'
+import { usePathname } from 'next/navigation'
 import { type ReactNode, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { type Choices, FieldInput } from '../field-input'
 import { FormSection } from './controls'
@@ -162,6 +166,9 @@ export function Studio({
       (searchOf?.(row.values) ?? nameOf(table, row.values)).toLowerCase().includes(folded),
   )
   const name = values ? nameOf(table, values) : ''
+  // The section's icon, as the sidebar shows it: the one whose address this screen is under.
+  const pathname = usePathname()
+  const icon = SETTINGS.find((s) => pathname.startsWith(s.href))?.icon
   useTitle([name || (selectedId === NEW ? nouns.fresh : null), section])
 
   return (
@@ -288,34 +295,46 @@ export function Studio({
                 const live = row.id === selectedId && values ? values : row.values
                 const active = row.id === selectedId
                 const inactive = hasActive && !bool(live.Actif)
+                const rowName = nameOf(table, live) || $t('Sans nom')
                 return (
                   <li key={row.id}>
-                    <button
-                      type="button"
-                      aria-current={active ? 'true' : undefined}
-                      onClick={() => editor.select(row.id)}
-                      className={cn(
-                        'relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors',
-                        active ? 'bg-accent' : 'hover:bg-muted/60',
-                      )}
+                    <RowMenu
+                      disabled={!canEdit || !canDelete || row.id === NEW}
+                      title={$t('{action} « {name} » ?', { action: nouns.remove, name: rowName })}
+                      description={$t('La suppression est définitive : rien ne se récupère.')}
+                      onDelete={async () => {
+                        await editor.remove(row.id)
+                      }}
                     >
-                      {active && (
-                        <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-primary" />
-                      )}
-                      <span
+                      <button
+                        type="button"
+                        aria-current={active ? 'true' : undefined}
+                        onClick={() => editor.select(row.id)}
                         className={cn(
-                          'flex min-w-0 flex-1 items-center gap-2.5',
-                          inactive && 'opacity-55',
+                          'relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors',
+                          active ? 'bg-accent' : 'hover:bg-muted/60',
                         )}
                       >
-                        {item(row, live)}
-                      </span>
-                      {editor.isDirty(row.id) && (
-                        <Hint label={row.id === NEW ? $t('Pas encore enregistré') : $t('Modifié')}>
-                          <span className="size-1.5 shrink-0 rounded-full bg-amber-500" />
-                        </Hint>
-                      )}
-                    </button>
+                        {active && (
+                          <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-primary" />
+                        )}
+                        <span
+                          className={cn(
+                            'flex min-w-0 flex-1 items-center gap-2.5',
+                            inactive && 'opacity-55',
+                          )}
+                        >
+                          {item(row, live)}
+                        </span>
+                        {editor.isDirty(row.id) && (
+                          <Hint
+                            label={row.id === NEW ? $t('Pas encore enregistré') : $t('Modifié')}
+                          >
+                            <span className="size-1.5 shrink-0 rounded-full bg-amber-500" />
+                          </Hint>
+                        )}
+                      </button>
+                    </RowMenu>
                   </li>
                 )
               })}
@@ -419,11 +438,12 @@ export function Studio({
               </section>
             </>
           ) : (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 bg-canvas px-8 text-center">
-              <p className="text-sm font-medium">{empty.title}</p>
-              <p className="max-w-sm text-sm text-muted-foreground">{empty.text}</p>
+            <div className="flex flex-1 flex-col items-center justify-center bg-canvas px-8 text-center">
+              <EmptyScene variant="pick-row" glyph={icon} className="w-60" />
+              <p className="mt-2 text-sm font-semibold">{empty.title}</p>
+              <p className="mt-1 max-w-sm text-sm text-muted-foreground">{empty.text}</p>
               {canEdit && !listAction && (
-                <Button size="sm" className="mt-1 gap-1.5" onClick={() => editor.create()}>
+                <Button size="sm" className="mt-4 gap-1.5" onClick={() => editor.create()}>
                   <Plus className="size-3.5" />
                   {nouns.fresh}
                 </Button>

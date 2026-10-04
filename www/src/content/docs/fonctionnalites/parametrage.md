@@ -73,8 +73,12 @@ fois écrite, l’en-tête dit **Enregistré**.
 ### Supprimer une ligne
 
 Au pied du formulaire, **Supprimer la boîte** (ou **Supprimer le site**, **Supprimer
-l’outil**… selon l’écran) demande une confirmation : **Confirmer la suppression**. Tout
-superviseur peut supprimer une ligne ; la suppression est définitive.
+l’outil**… selon l’écran) demande une confirmation : **Confirmer la suppression**. Dans la
+liste, un clic droit sur une ligne offre aussi **Supprimer**, sans l’ouvrir, avec la même
+confirmation. Tout superviseur peut supprimer une ligne ; la suppression est définitive.
+
+Une liste vide, ou rien d’ouvert, montre une petite scène — la liste, une ligne sous le
+curseur, le formulaire qu’elle ouvre et l’icône de la section —, et le bouton qui en crée une.
 
 Une conversation garde l’identifiant de son site, de sa boîte et de son équipe, et le nom du
 site au moment où elle a commencé : son historique survit à la ligne supprimée (D1).
