@@ -493,14 +493,16 @@ describe('the sites one may narrow to', () => {
     expect(await sitesOf(autoAgent)).toContain('acme')
   })
 
-  it('come with the inbox’s directory, with their colour', async () => {
+  it('come with the inbox’s directory, with their colour and their image', async () => {
     const directory = (await (await app.request('/api/inbox/inboxes')).json()) as {
-      sites: { id: string; name: string; color: string }[]
+      sites: { id: string; name: string; color: string; logo: string }[]
     }
     expect(directory.sites.find((site) => site.id === 'globex')).toEqual({
       id: 'globex',
       name: 'Globex',
       color: expect.stringMatching(/^#[0-9A-Fa-f]{6}$/),
+      // No « Logo »: the icon of its website, which the server fetches.
+      logo: '/api/inbox/sites/globex/logo',
     })
   })
 })

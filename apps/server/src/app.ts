@@ -120,6 +120,7 @@ import type { InboxHub } from './realtime/hub.js'
 import { signalTyping } from './realtime/signals.js'
 import { Refusal } from './refusal.js'
 import type { Settings } from './settings/settings.js'
+import { siteIcon } from './settings/site-icon.js'
 import {
   createWebhook,
   deleteWebhook,
@@ -407,6 +408,21 @@ export function createApp({
   )
 
   inbox.get('/me', (c) => c.json(toAgent(c.get('agent'))))
+
+  // A site's own icon, fetched from its website, for the site menu. Served as an image that
+  // can run nothing — an SVG included.
+  inbox.get('/sites/:id/logo', async (c) => {
+    const site = settings ? await settings.site(c.req.param('id')) : null
+    const icon = site ? await siteIcon(site) : null
+    // None: an empty answer, which the menu takes for « its initial, then ».
+    if (!icon) return c.body(null, 204, { 'cache-control': 'private, max-age=3600' })
+    return c.body(icon.bytes, 200, {
+      'content-type': icon.type,
+      'cache-control': 'private, max-age=86400',
+      'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+      'x-content-type-options': 'nosniff',
+    })
+  })
 
   inbox.post('/ticket', (c) =>
     c.json({ ticket: tickets.issue(c.get('agent').id) } satisfies Ticket),

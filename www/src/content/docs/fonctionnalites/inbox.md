@@ -41,6 +41,13 @@ et leurs compteurs, ses contacts, ses articles (et ceux qui valent pour tous les
 Il propose les sites dont on voit des conversations ; avec un seul site, il se contente de le
 nommer.
 
+Chaque site y porte son image, et le site choisi la montre en haut à gauche : son **Logo**
+(Administration › Sites et horaires), ou, sans logo, l’icône de son site web. Le serveur la
+cherche lui-même sur le premier des **Domaines autorisés** qui en donne une — l’icône Apple de
+la page d’accueil, sinon la plus grande qu’elle déclare, sinon `/favicon.ico` —, et la garde un
+jour : ni le navigateur des conseillers ni un service tiers n’appellent le site. Sans image, son
+initiale sur sa couleur. **Tous les sites** garde l’icône de la messagerie.
+
 C’est une **vue, pas un droit** : le choix est gardé par le navigateur, l’adresse ne le porte
 pas. Chaque site y montre ce qui vous attend, et un point sur le menu signale qu’un autre site
 que celui choisi a quelque chose pour vous. Ouvrir une conversation d’un autre site — depuis

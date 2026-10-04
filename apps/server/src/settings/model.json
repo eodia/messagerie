@@ -167,7 +167,7 @@
         {
           "label": "Logo",
           "kind": "short_text",
-          "description": "Adresse https d'une image carrée, affichée en tête du widget."
+          "description": "Adresse https d'une image carrée, affichée en tête du widget et dans le menu des sites de l'inbox. Vide : l'icône du site web, que le serveur va chercher."
         },
         {
           "label": "Masquer l'équipe",

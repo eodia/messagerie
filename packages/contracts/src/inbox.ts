@@ -620,6 +620,11 @@ export interface SiteItem {
   readonly name: string
   /** The widget's colour, `#RRGGBB`. */
   readonly color: string
+  /**
+   * Its image: « Logo », an https address — else a path of the API that serves the icon
+   * of its website, fetched by the server; nothing there, the colour and its initial.
+   */
+  readonly logo: string
 }
 
 export interface InboxDirectory {

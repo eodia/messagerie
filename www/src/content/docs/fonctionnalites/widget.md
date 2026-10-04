@@ -197,7 +197,7 @@ paramétrage de la Messagerie : l’éditeur les lit, et seul un superviseur les
 | **Thème** | **Automatique** (celui du système du visiteur), **Clair** ou **Sombre**. |
 | **Coins** | **Arrondis**, **Adoucis** ou **Droits**. |
 | **Police** | **Du site** : celle du texte de la page. **Système**, **Arrondie**, **Serif** : la police de l’appareil qui s’en approche. **Autre** : le nom d’une police que le site charge déjà, par exemple Inter. |
-| **Logo** | L’adresse https d’une image carrée, en tête du widget. |
+| **Logo** | L’adresse https d’une image carrée, en tête du widget — et dans le menu des sites de l’inbox, qui prend sans lui l’icône du site web. |
 | **Montrer l’équipe** | Les initiales des conseillers actifs, en tête du widget. |
 | **Côté** | **En bas à gauche** ou **En bas à droite**. |
 | **Marge latérale**, **Marge du bas** | La distance au bord de la page, de 0 à 200 pixels (20 par défaut). |

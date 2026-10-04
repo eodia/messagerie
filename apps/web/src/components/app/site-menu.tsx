@@ -17,6 +17,7 @@ import { Check, ChevronsUpDown, Globe, MessagesSquare, Settings2 } from 'lucide-
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import { SiteLogo } from './site-logo'
 
 /**
  * The site switcher, top of the sidebar — basedb's project switcher, for the sites. It
@@ -34,6 +35,8 @@ export function SiteMenu({ collapsed }: { readonly collapsed: boolean }) {
 
   // One site, or none: nothing to choose — the menu says which it is.
   const choosing = sites.length > 1
+  // The site the screens show: its logo stands for it; for all of them, the product's.
+  const shown = chosen ?? (sites.length === 1 ? (sites[0] ?? null) : null)
   const label = chosen?.name ?? (sites.length === 1 ? sites[0]?.name : null) ?? $t('Tous les sites')
   // A site chosen, another one waiting: the trigger says so.
   const elsewhere = chosen !== null && waiting > (bySite.get(chosen.id) ?? 0)
@@ -44,18 +47,16 @@ export function SiteMenu({ collapsed }: { readonly collapsed: boolean }) {
   )
   const face = (
     <>
-      <span className="relative flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/10 ring-inset">
-        <MessagesSquare
-          className="size-4.5"
-          style={{ color: 'color-mix(in oklab, var(--primary) 65%, var(--foreground))' }}
-        />
-        {chosen !== null && (
-          <span
-            className="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-sidebar"
-            style={{ background: chosen.color }}
+      {shown ? (
+        <SiteLogo site={shown} className="size-9 rounded-lg p-0.5 text-sm ring-1 ring-border" />
+      ) : (
+        <span className="relative flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/10 ring-inset">
+          <MessagesSquare
+            className="size-4.5"
+            style={{ color: 'color-mix(in oklab, var(--primary) 65%, var(--foreground))' }}
           />
-        )}
-      </span>
+        </span>
+      )}
       {!collapsed && (
         <>
           <span className="min-w-0 flex-1">
@@ -127,9 +128,7 @@ export function SiteMenu({ collapsed }: { readonly collapsed: boolean }) {
             on={chosen?.id === site.id}
             onSelect={() => showSite(site.id)}
           >
-            <span className="flex size-4 items-center justify-center">
-              <span className="size-2.5 rounded-full" style={{ background: site.color }} />
-            </span>
+            <SiteLogo site={site} className="size-4 rounded-[4px] text-[9px]" />
           </SiteItem>
         ))}
         {supervisor && (

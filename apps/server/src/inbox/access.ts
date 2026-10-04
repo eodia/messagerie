@@ -88,7 +88,12 @@ async function sitesSeen(db: Db, settings: Settings, visible: Visible): Promise<
   )
   return sites
     .filter((_, i) => reached[i])
-    .map((site) => ({ id: site.id, name: site.name, color: site.color }))
+    .map((site) => ({
+      id: site.id,
+      name: site.name,
+      color: site.color,
+      logo: site.appearance.logo ?? `/api/inbox/sites/${encodeURIComponent(site.id)}/logo`,
+    }))
 }
 
 /**
