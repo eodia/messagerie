@@ -1,5 +1,7 @@
+import { LlmFailure } from '@chat/ai'
 import { PgBoss } from 'pg-boss'
 import type { Db } from '../db/client.js'
+import { failureOf, quieted } from '../log.js'
 import { copilotAvailable } from './available.js'
 import { enrich, suggest, summarize } from './copilot.js'
 import { type AiDeps, answerVisitor } from './responder.js'
@@ -74,47 +76,75 @@ export async function startJobs(
   }
 
   if (options.work) {
+    // pg-boss keeps a failed job's error in its table and tries again, but says nothing.
+    const failing = quieted()
+    const said = async (
+      queue: string,
+      conversationId: string | null,
+      work: () => Promise<void>,
+    ) => {
+      try {
+        await work()
+      } catch (error) {
+        const of = conversationId ? ` (conversation ${conversationId})` : ''
+        // A provider's failure in one line; anything else with its stack.
+        const provider = error instanceof LlmFailure
+        const cause = provider ? error.status : error instanceof Error ? error.name : 'error'
+        failing(`${queue} ${cause}`, (again) =>
+          provider
+            ? console.error(`chat : tâche ${queue} en échec${of} — ${failureOf(error)}${again}`)
+            : console.error(`chat : tâche ${queue} en échec${of}${again}`, error),
+        )
+        throw error
+      }
+    }
     const each =
-      (handler: (job: ConversationJob) => Promise<void>) =>
+      (queue: string, handler: (job: ConversationJob) => Promise<void>) =>
       async (jobs: { data: ConversationJob }[]) => {
-        for (const job of jobs) await handler(job.data)
+        for (const job of jobs) await said(queue, job.data.conversationId, () => handler(job.data))
       }
     await boss.work<ConversationJob>(
       QUEUES.answer,
       { localConcurrency: 4 },
-      each(({ conversationId, continuing }) =>
+      each(QUEUES.answer, ({ conversationId, continuing }) =>
         answerVisitor(deps, conversationId, continuing === true),
       ),
     )
     await boss.work<ConversationJob>(
       QUEUES.enrich,
       { localConcurrency: 2 },
-      each(({ conversationId }) => enrich(deps, conversationId)),
+      each(QUEUES.enrich, ({ conversationId }) => enrich(deps, conversationId)),
     )
     await boss.work<ConversationJob>(
       QUEUES.suggest,
       { localConcurrency: 2 },
-      each(async ({ conversationId }) => {
+      each(QUEUES.suggest, async ({ conversationId }) => {
         if (await copilotAvailable(deps.db, conversationId)) await suggest(deps, conversationId)
       }),
     )
     await boss.work<ConversationJob>(
       QUEUES.summary,
       { localConcurrency: 2 },
-      each(({ conversationId, closing }) => summarize(deps, conversationId, closing === true)),
+      each(QUEUES.summary, ({ conversationId, closing }) =>
+        summarize(deps, conversationId, closing === true),
+      ),
     )
-    await boss.work(QUEUES.knowledge, async () => {
-      const done = await deps.knowledge.sync()
-      if (done.indexed || done.removed) {
-        console.log(
-          `chat : connaissances — ${done.indexed} indexée(s), ${done.removed} extrait(s) retiré(s)`,
-        )
-      }
-    })
-    await boss.work(QUEUES.retention, async () => {
-      const purged = await purgeExpired(deps.db as Db, deps.settings, new Date(), deps.files)
-      if (purged > 0) console.log(`chat : rétention — ${purged} conversation(s) purgée(s)`)
-    })
+    await boss.work(QUEUES.knowledge, () =>
+      said(QUEUES.knowledge, null, async () => {
+        const done = await deps.knowledge.sync()
+        if (done.indexed || done.removed) {
+          console.log(
+            `chat : connaissances — ${done.indexed} indexée(s), ${done.removed} extrait(s) retiré(s)`,
+          )
+        }
+      }),
+    )
+    await boss.work(QUEUES.retention, () =>
+      said(QUEUES.retention, null, async () => {
+        const purged = await purgeExpired(deps.db as Db, deps.settings, new Date(), deps.files)
+        if (purged > 0) console.log(`chat : rétention — ${purged} conversation(s) purgée(s)`)
+      }),
+    )
     // Every night at three, in the server's time zone.
     await boss.schedule(QUEUES.retention, '0 3 * * *')
   }

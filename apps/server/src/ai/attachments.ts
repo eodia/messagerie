@@ -108,7 +108,7 @@ export async function analyzeAttachment(
       if (error.status === 400 || error.status === 422) {
         throw new Refusal('ATTACHMENT_NOT_ANALYZABLE', 422, { reason: 'model' })
       }
-      throw new Refusal('AI_UNAVAILABLE', 503)
+      throw new Refusal('AI_UNAVAILABLE', 503, undefined, error)
     }
     throw error
   }

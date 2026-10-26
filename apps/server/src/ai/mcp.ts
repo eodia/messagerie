@@ -1,5 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
+import { failureOf, quieted } from '../log.js'
 import { type McpServerDefinition, resolveHeaders } from '../settings/settings.js'
 
 /**
@@ -20,6 +21,7 @@ export interface McpTool {
 
 const TOOLS_KEEP_MS = 5 * 60_000
 const CALL_TIMEOUT_MS = 15_000
+const unreachable = quieted()
 
 interface Connection {
   readonly key: string
@@ -76,8 +78,14 @@ export class McpConnections {
         }))
       connection.tools = { list, until: Date.now() + TOOLS_KEEP_MS }
       return list
-    } catch {
+    } catch (error) {
       this.connections.delete(connection.key)
+      // Its host only: a server's address may carry its key.
+      unreachable(connection.key, (again) =>
+        console.warn(
+          `chat : serveur MCP ${new URL(server.url).host} injoignable, l’IA répond sans ses outils — ${failureOf(error)}${again}`,
+        ),
+      )
       return []
     }
   }
