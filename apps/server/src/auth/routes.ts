@@ -10,6 +10,7 @@ import type { Db } from '../db/client.js'
 import { agentIdentities, agents } from '../db/schema.js'
 import { mailLink } from '../inbox/accounts.js'
 import { type AgentRow, toAgent } from '../inbox/read.js'
+import { logError } from '../log.js'
 import type { Mailer } from '../outbound/mailer.js'
 import { person } from '../programs.js'
 import { Refusal } from '../refusal.js'
@@ -367,6 +368,7 @@ export function authRoutes(deps: {
   })
 
   auth.onError((error, c) => {
+    logError(error, c)
     if (error instanceof Refusal) {
       return c.json(
         {
@@ -376,7 +378,6 @@ export function authRoutes(deps: {
         error.status,
       )
     }
-    console.error(error)
     return c.json({ code: 'INTERNAL_ERROR' } satisfies ApiError, 500)
   })
 

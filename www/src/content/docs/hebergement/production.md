@@ -395,3 +395,18 @@ Au démarrage, le journal du serveur dit ce qu’il a trouvé : l’IA —
 `chat : IA mistral-small-latest, données personnelles masquées`, ou
 `chat : IA désactivée — CHAT_AI_API_KEY absent ; les conversations vont aux conseillers` — et,
 s’il y en a un, le fournisseur d’identité : `chat : connexion par Microsoft (…)`.
+
+Ensuite, il ne parle que de ce qui échoue, en une ligne qui dit pourquoi :
+
+- une tâche de l’IA (réponse au visiteur, copilote, résumé, base de connaissances) :
+  `chat : tâche ai-answer en échec (conversation …) — IA HTTP 401 : …`, ou
+  `IA injoignable : TypeError: fetch failed (unable to get local issuer certificate)` quand le
+  certificat du fournisseur n’est pas reconnu — celui d’une autorité interne se donne au
+  conteneur, monté en fichier, par `NODE_EXTRA_CA_CERTS` ;
+- une requête qui échoue côté serveur, par sa route (`chat : POST /api/inbox/… — 503
+  AI_UNAVAILABLE — …`), jamais par ce qu’elle contient ;
+- un serveur MCP injoignable, ou un fichier absent de `CHAT_FILES_DIR` (un redéploiement sans
+  volume).
+
+Une panne qui dure ne remplit pas le journal : la même cause est dite une fois toutes les cinq
+minutes, avec le nombre de fois qu’elle est revenue entre-temps.

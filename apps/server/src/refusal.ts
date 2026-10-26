@@ -10,7 +10,9 @@ export class Refusal extends Error {
     readonly code: ErrorCode,
     readonly status: ContentfulStatusCode,
     readonly details?: Readonly<Record<string, unknown>>,
+    /** What failed underneath — for the log (`log.ts`), never for the answer. */
+    cause?: unknown,
   ) {
-    super(code)
+    super(code, cause === undefined ? undefined : { cause })
   }
 }

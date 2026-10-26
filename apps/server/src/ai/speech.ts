@@ -55,7 +55,7 @@ export async function speakMessage(
   try {
     audio = (await speak(text)).data
   } catch (error) {
-    if (error instanceof LlmFailure) throw new Refusal('AI_UNAVAILABLE', 503)
+    if (error instanceof LlmFailure) throw new Refusal('AI_UNAVAILABLE', 503, undefined, error)
     throw error
   }
   await recordRun(deps.db, {

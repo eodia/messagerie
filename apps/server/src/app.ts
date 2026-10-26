@@ -113,6 +113,7 @@ import {
   transfer,
   wake,
 } from './inbox/write.js'
+import { logError } from './log.js'
 import type { Mailer } from './outbound/mailer.js'
 import { vapidKeys } from './outbound/push.js'
 import { listPageActions, setPageAction } from './page/actions.js'
@@ -1118,13 +1119,13 @@ export function createApp({
   }
 
   app.onError((error, c) => {
+    logError(error, c)
     if (error instanceof Refusal) {
       const body: ApiError = error.details
         ? { code: error.code, details: error.details }
         : { code: error.code }
       return c.json(body, error.status)
     }
-    console.error(error)
     return c.json({ code: 'INTERNAL_ERROR' }, 500)
   })
 

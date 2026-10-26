@@ -124,7 +124,10 @@ export class OpenAiCompatible implements Llm {
         signal: controller.signal,
       })
     } catch (error) {
-      throw new LlmFailure(0, controller.signal.aborted ? 'timeout' : String(error))
+      // `fetch failed` says nothing; its cause names the certificate, the host, the port.
+      const cause =
+        error instanceof Error && error.cause instanceof Error ? ` (${error.cause.message})` : ''
+      throw new LlmFailure(0, controller.signal.aborted ? 'timeout' : `${String(error)}${cause}`)
     } finally {
       clearTimeout(timer)
     }

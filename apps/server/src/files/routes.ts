@@ -4,8 +4,12 @@ import type { Context } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import type { Db } from '../db/client.js'
 import { attachments } from '../db/schema.js'
+import { failureOf, quieted } from '../log.js'
 import { MAX_BYTES, MAX_FILES, linkHolds } from './attachments.js'
 import type { FileStore } from './store.js'
+
+// A store emptied by a redeploy, without a volume: said once in a while, not per file.
+const missing = quieted()
 
 /** A form of files: as many as allowed, each at its largest, and room for the rest. */
 export const uploadLimit = bodyLimit({
@@ -34,7 +38,12 @@ export function serveFile(db: Db, store: FileStore) {
     let bytes: Buffer
     try {
       bytes = await store.read(row.storageKey)
-    } catch {
+    } catch (error) {
+      missing('file', (again) =>
+        console.warn(
+          `chat : fichier ${row.id} absent de CHAT_FILES_DIR — ${failureOf(error)}${again}`,
+        ),
+      )
       return notFound()
     }
     const inline = row.mime.startsWith('image/') || row.mime === 'application/pdf'
